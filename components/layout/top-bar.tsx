@@ -20,7 +20,9 @@ const routeLabels: Record<string, string> = {
   calendar: "Calendar",
   notes: "Notes",
   settings: "Settings",
+  account: "Account",
   users: "Users",
+  roadmap: "Roadmap",
 }
 
 export function TopBar() {

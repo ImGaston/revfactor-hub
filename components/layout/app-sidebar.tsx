@@ -7,9 +7,11 @@ import {
   ClipboardList,
   Calendar,
   MessageSquare,
+  Map,
   Settings,
   LogOut,
   ChevronsUpDown,
+  User as UserIcon,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -26,7 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +45,7 @@ const navItems = [
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList },
   { title: "Calendar", href: "/calendar", icon: Calendar },
   { title: "Notes", href: "/notes", icon: MessageSquare },
+  { title: "Roadmap", href: "/roadmap", icon: Map },
 ]
 
 export function AppSidebar({ profile }: { profile: Profile | null }) {
@@ -134,6 +137,9 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar className="size-8">
+                    {profile?.avatar_url && (
+                      <AvatarImage src={profile.avatar_url} />
+                    )}
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -151,11 +157,17 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
                 side="top"
                 className="w-[--radix-dropdown-menu-trigger-width]"
               >
+                <DropdownMenuItem asChild>
+                  <Link href="/settings/account">
+                    <UserIcon />
+                    <span>Account</span>
+                  </Link>
+                </DropdownMenuItem>
                 {profile?.role === "super_admin" && (
                   <DropdownMenuItem asChild>
                     <Link href="/settings/users">
                       <Settings />
-                      <span>Settings</span>
+                      <span>Manage Users</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
