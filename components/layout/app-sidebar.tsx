@@ -27,6 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -51,6 +52,11 @@ const navItems = [
 export function AppSidebar({ profile }: { profile: Profile | null }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  function closeMobileSidebar() {
+    if (isMobile) setOpenMobile(false)
+  }
 
   const displayName = profile?.full_name || profile?.email || "User"
   const initials = displayName
@@ -105,27 +111,25 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
                     }
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={closeMobileSidebar}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {profile?.role === "super_admin" && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname.startsWith("/settings")}
-                    tooltip="Settings"
-                  >
-                    <Link href="/settings/users">
-                      <Settings />
-                      <span>Settings</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname.startsWith("/settings")}
+                  tooltip="Settings"
+                >
+                  <Link href="/settings/account" onClick={closeMobileSidebar}>
+                    <Settings />
+                    <span>Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -158,14 +162,14 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
                 className="w-[--radix-dropdown-menu-trigger-width]"
               >
                 <DropdownMenuItem asChild>
-                  <Link href="/settings/account">
+                  <Link href="/settings/account" onClick={closeMobileSidebar}>
                     <UserIcon />
                     <span>Account</span>
                   </Link>
                 </DropdownMenuItem>
                 {profile?.role === "super_admin" && (
                   <DropdownMenuItem asChild>
-                    <Link href="/settings/users">
+                    <Link href="/settings/users" onClick={closeMobileSidebar}>
                       <Settings />
                       <span>Manage Users</span>
                     </Link>

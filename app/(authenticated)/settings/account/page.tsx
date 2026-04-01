@@ -20,12 +20,6 @@ export default async function AccountSettingsPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your profile and preferences.
-        </p>
-      </div>
 
       {/* Avatar */}
       <section className="space-y-3">

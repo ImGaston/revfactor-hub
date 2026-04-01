@@ -61,8 +61,8 @@ export function ClientDetail({
   onClose: () => void
 }) {
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-2 p-4 pb-0">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-start justify-between gap-2 p-4 pb-0">
         <div>
           <h2 className="text-lg font-semibold">{client.name}</h2>
           <Badge
