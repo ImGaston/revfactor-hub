@@ -14,10 +14,7 @@ import { Badge } from "@/components/ui/badge"
 
 export default async function UsersSettingsPage() {
   const profile = await getProfile()
-
-  if (!profile || profile.role !== "super_admin") {
-    redirect("/")
-  }
+  if (!profile || profile.role !== "super_admin") redirect("/settings/account")
 
   const supabase = await createClient()
   const { data: profiles } = await supabase
@@ -28,12 +25,9 @@ export default async function UsersSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage team members and their roles.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Manage team members and their roles.
+        </p>
         <InviteUserDialog />
       </div>
 

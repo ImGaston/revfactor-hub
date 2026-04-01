@@ -1,8 +1,74 @@
-export default function DashboardPage() {
+import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/supabase/profile"
+import { DashboardView } from "./dashboard-view"
+
+export default async function DashboardPage() {
+  const [supabase, profile] = await Promise.all([
+    createClient(),
+    getProfile(),
+  ])
+
+  const [
+    { count: clientCount },
+    { count: activeClientCount },
+    { count: onboardingClientCount },
+    { count: listingCount },
+    { data: tasks },
+    { data: recentTasks },
+    { count: roadmapInProgress },
+  ] = await Promise.all([
+    supabase.from("clients").select("*", { count: "exact", head: true }),
+    supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "onboarding"),
+    supabase.from("listings").select("*", { count: "exact", head: true }),
+    supabase.from("tasks").select("id, status"),
+    supabase.from("tasks").select("id, title, status, tag, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
+    supabase.from("roadmap_items").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
+  ])
+
+  const tasksByStatus = {
+    todo: 0,
+    in_progress: 0,
+    waiting: 0,
+    done: 0,
+  }
+  for (const t of tasks ?? []) {
+    if (t.status in tasksByStatus) {
+      tasksByStatus[t.status as keyof typeof tasksByStatus]++
+    }
+  }
+
+  const totalTasks = (tasks ?? []).length
+  const openTasks = totalTasks - tasksByStatus.done
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-      <p className="mt-2 text-muted-foreground">Coming soon.</p>
-    </div>
+    <DashboardView
+      isSuperAdmin={profile?.role === "super_admin"}
+      stats={{
+        totalClients: clientCount ?? 0,
+        activeClients: activeClientCount ?? 0,
+        onboardingClients: onboardingClientCount ?? 0,
+        totalListings: listingCount ?? 0,
+        totalTasks: totalTasks,
+        openTasks,
+        tasksByStatus,
+        roadmapInProgress: roadmapInProgress ?? 0,
+      }}
+      recentTasks={
+        (recentTasks ?? []).map((t: Record<string, unknown>) => {
+          const client = t.clients as { name: string } | null
+          const prof = t.profiles as { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
+          const p = Array.isArray(prof) ? prof[0] : prof
+          return {
+            id: t.id as string,
+            title: t.title as string,
+            status: t.status as string,
+            tag: t.tag as string | null,
+            clientName: client?.name ?? null,
+            ownerName: p?.full_name ?? null,
+          }
+        })
+      }
+    />
   )
 }
