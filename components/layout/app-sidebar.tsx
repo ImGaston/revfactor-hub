@@ -12,7 +12,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   Sidebar,
@@ -33,6 +33,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { createClient } from "@/lib/supabase/client"
+import type { Profile } from "@/lib/supabase/profile"
 
 const navItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -43,8 +45,25 @@ const navItems = [
   { title: "Notes", href: "/notes", icon: MessageSquare },
 ]
 
-export function AppSidebar() {
+export function AppSidebar({ profile }: { profile: Profile | null }) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const displayName = profile?.full_name || profile?.email || "User"
+  const initials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+  const roleBadge =
+    profile?.role === "super_admin" ? "Super Admin" : "Admin"
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -58,7 +77,9 @@ export function AppSidebar() {
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">RevFactor</span>
-                  <span className="truncate text-xs text-muted-foreground">Hub</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Hub
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -88,6 +109,20 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {profile?.role === "super_admin" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.startsWith("/settings")}
+                    tooltip="Settings"
+                  >
+                    <Link href="/settings/users">
+                      <Settings />
+                      <span>Settings</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -99,11 +134,15 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar className="size-8">
-                    <AvatarFallback>G</AvatarFallback>
+                    <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Gaston</span>
-                    <span className="truncate text-xs text-muted-foreground">Admin</span>
+                    <span className="truncate font-semibold">
+                      {displayName}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {roleBadge}
+                    </span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
@@ -112,11 +151,15 @@ export function AppSidebar() {
                 side="top"
                 className="w-[--radix-dropdown-menu-trigger-width]"
               >
-                <DropdownMenuItem>
-                  <Settings />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
+                {profile?.role === "super_admin" && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings/users">
+                      <Settings />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut />
                   <span>Log out</span>
                 </DropdownMenuItem>

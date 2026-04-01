@@ -19,6 +19,8 @@ const routeLabels: Record<string, string> = {
   onboarding: "Onboarding",
   calendar: "Calendar",
   notes: "Notes",
+  settings: "Settings",
+  users: "Users",
 }
 
 export function TopBar() {
@@ -42,14 +44,16 @@ export function TopBar() {
               const label = routeLabels[segment] ?? segment
 
               return (
-                <BreadcrumbItem key={href}>
+                <span key={href} className="contents">
                   {index > 0 && <BreadcrumbSeparator />}
-                  {isLast ? (
-                    <BreadcrumbPage>{label}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbLink href={href}>{label}</BreadcrumbLink>
-                  )}
-                </BreadcrumbItem>
+                  <BreadcrumbItem>
+                    {isLast ? (
+                      <BreadcrumbPage>{label}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink href={href}>{label}</BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </span>
               )
             })
           )}
