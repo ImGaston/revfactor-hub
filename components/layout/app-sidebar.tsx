@@ -7,7 +7,7 @@ import {
   ClipboardList,
   Calendar,
   MessageSquare,
-  Map,
+  Lightbulb,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -46,7 +46,7 @@ const navItems = [
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList },
   { title: "Calendar", href: "/calendar", icon: Calendar },
   { title: "Notes", href: "/notes", icon: MessageSquare },
-  { title: "Roadmap", href: "/roadmap", icon: Map },
+  { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb },
 ]
 
 export function AppSidebar({ profile }: { profile: Profile | null }) {

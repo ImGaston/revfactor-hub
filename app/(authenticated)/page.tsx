@@ -23,7 +23,7 @@ export default async function DashboardPage() {
     supabase.from("listings").select("*", { count: "exact", head: true }),
     supabase.from("tasks").select("id, status"),
     supabase.from("tasks").select("id, title, status, tag, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
-    supabase.from("roadmap_items").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
+    supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
   ])
 
   const tasksByStatus = {

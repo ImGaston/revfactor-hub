@@ -9,6 +9,7 @@ const allTabs = [
   { label: "Users", href: "/settings/users", adminOnly: true },
   { label: "Clients", href: "/settings/clients", adminOnly: true },
   { label: "Listings", href: "/settings/listings", adminOnly: true },
+  { label: "Boards & Tags", href: "/settings/boards-tags", adminOnly: true },
 ]
 
 export function SettingsNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {

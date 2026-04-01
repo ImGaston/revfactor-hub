@@ -22,7 +22,9 @@ const routeLabels: Record<string, string> = {
   settings: "Settings",
   account: "Account",
   users: "Users",
-  roadmap: "Roadmap",
+  roadmap: "Ideas & Roadmap",
+  listings: "Listings",
+  "boards-tags": "Boards & Tags",
 }
 
 export function TopBar() {

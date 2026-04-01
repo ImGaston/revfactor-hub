@@ -56,13 +56,50 @@ export function resolveProfile(
   return profiles
 }
 
-export type RoadmapItem = {
+export type Board = {
+  id: string
+  name: string
+  icon: string
+  description: string | null
+  sort_order: number
+}
+
+export type Tag = {
+  id: string
+  name: string
+  color: string
+}
+
+export type Post = {
   id: string
   title: string
   description: string | null
-  owner: string | null
-  tag: string | null
   status: string
+  board_id: string | null
+  eta: string | null
+  author_id: string | null
   sort_order: number
   created_at: string
+  updated_at: string
+  // Joined / computed fields
+  upvote_count?: number
+  comment_count?: number
+  boards?: { name: string; icon: string } | null
+  post_tags?: { tags: Tag }[]
+  has_upvoted?: boolean
+}
+
+export type Comment = {
+  id: string
+  post_id: string
+  author_id: string
+  content: string
+  parent_comment_id: string | null
+  created_at: string
+  updated_at: string
+  profiles?: { full_name: string | null; avatar_url: string | null; email: string } | null
+  like_count?: number
+  dislike_count?: number
+  user_reaction?: "like" | "dislike" | null
+  replies?: Comment[]
 }
