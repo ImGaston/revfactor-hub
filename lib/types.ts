@@ -28,6 +28,8 @@ export type Client = {
   stripe_dashboard: string | null
   email: string | null
   assembly_link: string | null
+  assembly_client_id: string | null
+  assembly_company_id: string | null
   listings: Listing[]
   tasks: ClientTask[]
 }

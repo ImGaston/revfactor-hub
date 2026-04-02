@@ -14,15 +14,21 @@ import { ClientCard } from "./client-card"
 import { ClientDetail } from "./client-detail"
 import type { Client } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import {
+  linkAssemblyClientAction,
+  unlinkAssemblyClientAction,
+} from "@/app/(authenticated)/settings/clients/actions"
 
 const statuses = ["active", "onboarding", "inactive"] as const
 
 export function ClientsView({
   clients,
   isSuperAdmin,
+  assemblyConfigured,
 }: {
   clients: Client[]
   isSuperAdmin: boolean
+  assemblyConfigured: boolean
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
@@ -145,6 +151,9 @@ export function ClientsView({
             <ClientDetail
               client={selected}
               isSuperAdmin={isSuperAdmin}
+              assemblyConfigured={assemblyConfigured}
+              onLinkAssembly={linkAssemblyClientAction}
+              onUnlinkAssembly={unlinkAssemblyClientAction}
               onClose={() => setSelectedId(null)}
             />
           )}

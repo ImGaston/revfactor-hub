@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
 import { createClient } from "@/lib/supabase/server"
+import { isAssemblyConfigured } from "@/lib/assembly"
 import { ClientsSettings } from "./clients-settings"
 
 export default async function SettingsClientsPage() {
@@ -10,7 +11,7 @@ export default async function SettingsClientsPage() {
   const supabase = await createClient()
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, name, email, status, assembly_link, onboarding_date, ending_date, billing_amount, autopayment_set_up, stripe_dashboard, listings(id)")
+    .select("id, name, email, status, assembly_link, assembly_client_id, assembly_company_id, onboarding_date, ending_date, billing_amount, autopayment_set_up, stripe_dashboard, listings(id)")
     .order("name")
 
   return (
@@ -21,6 +22,7 @@ export default async function SettingsClientsPage() {
           listingCount: c.listings?.length ?? 0,
         })) ?? []
       }
+      assemblyConfigured={isAssemblyConfigured()}
     />
   )
 }
