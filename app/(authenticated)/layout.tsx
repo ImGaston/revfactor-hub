@@ -2,6 +2,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { TopBar } from "@/components/layout/top-bar"
+import { BreadcrumbProvider } from "@/components/layout/breadcrumb-context"
 import { getProfile } from "@/lib/supabase/profile"
 
 export default async function AuthenticatedLayout({
@@ -13,13 +14,15 @@ export default async function AuthenticatedLayout({
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <AppSidebar profile={profile} />
-        <SidebarInset>
-          <TopBar />
-          <main className="flex-1 p-6">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
+      <BreadcrumbProvider>
+        <SidebarProvider>
+          <AppSidebar profile={profile} />
+          <SidebarInset>
+            <TopBar />
+            <main className="flex-1 p-6">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
+      </BreadcrumbProvider>
     </TooltipProvider>
   )
 }

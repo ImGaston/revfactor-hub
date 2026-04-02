@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
-import { isAssemblyConfigured } from "@/lib/assembly"
 import { ClientsView } from "@/components/clients/clients-view"
 
 export default async function ClientsPage() {
@@ -20,7 +19,6 @@ export default async function ClientsPage() {
     <ClientsView
       clients={clients ?? []}
       isSuperAdmin={profile?.role === "super_admin"}
-      assemblyConfigured={isAssemblyConfigured()}
     />
   )
 }

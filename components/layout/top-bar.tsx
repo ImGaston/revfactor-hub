@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useBreadcrumbOverrides } from "./breadcrumb-context"
 
 const routeLabels: Record<string, string> = {
   "": "Dashboard",
@@ -30,6 +31,7 @@ const routeLabels: Record<string, string> = {
 export function TopBar() {
   const pathname = usePathname()
   const segments = pathname.split("/").filter(Boolean)
+  const { overrides } = useBreadcrumbOverrides()
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
@@ -45,7 +47,7 @@ export function TopBar() {
             segments.map((segment, index) => {
               const href = "/" + segments.slice(0, index + 1).join("/")
               const isLast = index === segments.length - 1
-              const label = routeLabels[segment] ?? segment
+              const label = overrides[segment] ?? routeLabels[segment] ?? segment
 
               return (
                 <span key={href} className="contents">

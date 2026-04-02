@@ -1,9 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Client } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
@@ -13,22 +13,15 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
 
 export function ClientCard({
   client,
-  isSelected,
   isSuperAdmin: _isSuperAdmin,
-  onClick,
 }: {
   client: Client
-  isSelected: boolean
   isSuperAdmin: boolean
-  onClick: () => void
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-lg border p-4 text-left transition-colors hover:bg-accent/50",
-        isSelected && "border-primary bg-accent/50"
-      )}
+    <Link
+      href={`/clients/${client.id}`}
+      className="block w-full rounded-lg border p-4 text-left transition-colors hover:bg-accent/50"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium leading-tight">{client.name}</h3>
@@ -42,6 +35,6 @@ export function ClientCard({
           {client.listings.length} {client.listings.length === 1 ? "listing" : "listings"}
         </span>
       </div>
-    </button>
+    </Link>
   )
 }

@@ -3,39 +3,23 @@
 import { useState, useMemo } from "react"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { useIsMobile } from "@/hooks/use-mobile"
 import { ClientCard } from "./client-card"
-import { ClientDetail } from "./client-detail"
 import type { Client } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import {
-  linkAssemblyClientAction,
-  unlinkAssemblyClientAction,
-} from "@/app/(authenticated)/settings/clients/actions"
 
 const statuses = ["active", "onboarding", "inactive"] as const
 
 export function ClientsView({
   clients,
   isSuperAdmin,
-  assemblyConfigured,
 }: {
   clients: Client[]
   isSuperAdmin: boolean
-  assemblyConfigured: boolean
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
     new Set(["active", "onboarding"])
   )
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const isMobile = useIsMobile()
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -45,8 +29,6 @@ export function ClientsView({
       return true
     })
   }, [clients, search, statusFilter])
-
-  const selected = clients.find((c) => c.id === selectedId) ?? null
 
   function toggleStatus(status: string) {
     setStatusFilter((prev) => {
@@ -68,7 +50,7 @@ export function ClientsView({
     return counts
   }, [clients])
 
-  const listContent = (
+  return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
@@ -113,11 +95,7 @@ export function ClientsView({
           <ClientCard
             key={client.id}
             client={client}
-            isSelected={client.id === selectedId}
             isSuperAdmin={isSuperAdmin}
-            onClick={() =>
-              setSelectedId(client.id === selectedId ? null : client.id)
-            }
           />
         ))}
       </div>
@@ -128,37 +106,5 @@ export function ClientsView({
         </p>
       )}
     </div>
-  )
-
-  return (
-    <>
-      {listContent}
-      <Sheet
-        open={!!selected}
-        onOpenChange={(open) => !open && setSelectedId(null)}
-      >
-        <SheetContent
-          side={isMobile ? "bottom" : "right"}
-          className={cn(
-            "p-0",
-            isMobile ? "h-[85vh]" : "w-[450px] sm:w-[450px] sm:max-w-none"
-          )}
-        >
-          <SheetTitle className="sr-only">
-            {selected?.name ?? "Client detail"}
-          </SheetTitle>
-          {selected && (
-            <ClientDetail
-              client={selected}
-              isSuperAdmin={isSuperAdmin}
-              assemblyConfigured={assemblyConfigured}
-              onLinkAssembly={linkAssemblyClientAction}
-              onUnlinkAssembly={unlinkAssemblyClientAction}
-              onClose={() => setSelectedId(null)}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
-    </>
   )
 }
