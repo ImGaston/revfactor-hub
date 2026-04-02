@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2, Link2, Unlink, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -23,8 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { ClientDialog } from "./client-dialog"
-import { deleteClientAction } from "./actions"
+import { deleteClientAction, linkAssemblyClientAction, unlinkAssemblyClientAction } from "./actions"
 
 type SettingsClient = {
   id: string
@@ -32,6 +37,8 @@ type SettingsClient = {
   email: string | null
   status: string
   assembly_link: string | null
+  assembly_client_id: string | null
+  assembly_company_id: string | null
   onboarding_date: string | null
   ending_date: string | null
   billing_amount: number | null
@@ -46,11 +53,32 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   inactive: "outline",
 }
 
-export function ClientsSettings({ clients }: { clients: SettingsClient[] }) {
+export function ClientsSettings({
+  clients,
+  assemblyConfigured,
+}: {
+  clients: SettingsClient[]
+  assemblyConfigured: boolean
+}) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<SettingsClient | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<SettingsClient | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [linkingId, setLinkingId] = useState<string | null>(null)
+
+  async function handleAssemblyLink(client: SettingsClient) {
+    setLinkingId(client.id)
+    if (client.assembly_client_id) {
+      const result = await unlinkAssemblyClientAction(client.id)
+      if (result.error) toast.error(result.error)
+      else toast.success(`${client.name} unlinked from Assembly`)
+    } else {
+      const result = await linkAssemblyClientAction(client.id)
+      if (result.error) toast.error(result.error)
+      else toast.success(`${client.name} linked to Assembly`)
+    }
+    setLinkingId(null)
+  }
 
   function handleNew() {
     setEditing(undefined)
@@ -97,6 +125,9 @@ export function ClientsSettings({ clients }: { clients: SettingsClient[] }) {
                 <TableHead>Email</TableHead>
                 <TableHead className="text-right font-mono">Billing</TableHead>
                 <TableHead className="text-center">Listings</TableHead>
+                {assemblyConfigured && (
+                  <TableHead className="text-center">Assembly</TableHead>
+                )}
                 <TableHead className="w-[80px]" />
               </TableRow>
             </TableHeader>
@@ -120,6 +151,36 @@ export function ClientsSettings({ clients }: { clients: SettingsClient[] }) {
                   <TableCell className="text-center">
                     {client.listingCount}
                   </TableCell>
+                  {assemblyConfigured && (
+                    <TableCell className="text-center">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            disabled={linkingId === client.id || (!client.email && !client.assembly_client_id)}
+                            onClick={() => handleAssemblyLink(client)}
+                          >
+                            {linkingId === client.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : client.assembly_client_id ? (
+                              <Link2 className="size-3.5 text-green-600" />
+                            ) : (
+                              <Unlink className="size-3.5 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {client.assembly_client_id
+                            ? "Linked — click to unlink"
+                            : client.email
+                              ? "Click to link via email"
+                              : "No email — cannot link"}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex gap-1">
                       <Button
@@ -144,7 +205,7 @@ export function ClientsSettings({ clients }: { clients: SettingsClient[] }) {
               ))}
               {clients.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={assemblyConfigured ? 7 : 6} className="text-center text-muted-foreground py-8">
                     No clients yet.
                   </TableCell>
                 </TableRow>

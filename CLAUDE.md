@@ -57,7 +57,7 @@ components/
 ├── clients/
 │   ├── clients-view.tsx        # Client card grid with search + status filters + Sheet panel
 │   ├── client-card.tsx         # Card: name, status badge, listing count
-│   └── client-detail.tsx       # Side panel: contact info, open tasks, listings
+│   └── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings
 ├── kanban/
 │   ├── kanban-board.tsx        # Generic typed board with @hello-pangea/dnd
 │   └── kanban-card.tsx         # Card with left accent border, badges, dropdown move menu
@@ -68,6 +68,7 @@ lib/
 │   ├── server.ts               # Server Supabase client (createServerClient + cookies)
 │   ├── admin.ts                # Admin client with service role key
 │   └── profile.ts              # Profile type + getProfile() helper
+├── assembly.ts                 # Assembly CRM API client (search, channels, deep links)
 ├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, OwnerOption, resolveProfile helper)
 └── utils.ts
 supabase/
@@ -76,7 +77,9 @@ supabase/
     ├── 002_clients_and_listings.sql
     ├── 003_tasks_and_roadmap.sql
     ├── 004_tasks_owner_fk.sql  # ALTER tasks.owner to UUID FK → profiles
-    └── 005_profile_avatar.sql  # avatar_url column, avatars storage bucket + policies
+    ├── 005_profile_avatar.sql  # avatar_url column, avatars storage bucket + policies
+    ├── 006_ideas_and_roadmap.sql
+    └── 007_assembly_integration.sql  # assembly_client_id, assembly_company_id on clients
 scripts/
 └── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
 ```
@@ -90,7 +93,7 @@ scripts/
 
 ## Database Tables (Supabase PostgreSQL)
 - **profiles** — id (FK auth.users), email, full_name, avatar_url, role (super_admin/admin), created_at, updated_at
-- **clients** — name, email, phone, market, plan, assembly_link, status (active/onboarding/paused/churned), start_date
+- **clients** — name, email, phone, market, plan, assembly_link, assembly_client_id, assembly_company_id, status (active/onboarding/paused/churned), start_date
 - **listings** — client_id (FK), name, pricelabs_id, market, platform, status, cached metrics (adr, occupancy, revpar, revenue_mtd, metrics_synced_at)
 - **tasks** — client_id (FK), title, description, status (todo/in_progress/waiting/done), owner (UUID FK → profiles), tag, sort_order, task_listings (junction to listings)
 - **roadmap_items** — title, description, owner, tag, status (proposed/planned/in_progress/done), sort_order
@@ -136,6 +139,74 @@ scripts/
 - Drag-and-drop via `@hello-pangea/dnd` with optimistic UI updates
 - Click-to-move between columns via dropdown menu on each card
 
+## Assembly CRM Integration
+
+Assembly is the client communication platform (CRM + messaging). The Hub integrates with Assembly's API to link clients and provide deep links to conversations.
+
+### Architecture
+- **API:** `https://api.assembly.com/v1`, auth via `X-API-KEY` header, rate limit 20 req/sec
+- **API client:** `lib/assembly.ts` — server-side only, wraps all Assembly API calls
+- **Auth:** Single workspace API key stored as `ASSEMBLY_API_KEY` env var (server-side only)
+- **Sync strategy:** On-demand only. No webhooks, no cron, no background sync
+- **Caching:** None. Data fetched live from Assembly API per request (fine for 2-3 users)
+- **Graceful degradation:** If `ASSEMBLY_API_KEY` is not set, all Assembly UI elements are hidden
+
+### Client Linking
+- Clients are linked to Assembly by email match (`searchAssemblyClientByEmail`)
+- On link, we store `assembly_client_id` (always) and `assembly_company_id` (if client belongs to a company)
+- The `assembly_link` URL is auto-generated based on whether the client has a company or not
+- Server actions: `linkAssemblyClientAction`, `unlinkAssemblyClientAction` in `settings/clients/actions.ts`
+
+### Deep Link URL Patterns
+- **Individual client chat:** `https://dashboard.assembly.com/clients/users/details/{assembly_client_id}/messages`
+- **Company chat:** `https://dashboard.assembly.com/companies/{assembly_company_id}/messages`
+- If client has a company → `assembly_link` points to company chat (primary), with separate "Direct Chat" button
+- If client has no company → `assembly_link` points to individual chat
+
+### Assembly API Concepts
+- **Client** = a contact in Assembly (has email, `companyIds[]`)
+- **Company** = a group of clients; has its own message channel where all members participate
+- **Message Channel** = conversation thread (`membershipType`: individual, group, or company)
+- A client can have both an individual chat AND belong to a company chat
+
+### Key Functions in `lib/assembly.ts`
+- `isAssemblyConfigured()` — checks if env var exists
+- `searchAssemblyClientByEmail(email)` — finds Assembly client by email
+- `getAssemblyClient(id)` — get client details
+- `getIndividualChannel(clientId)` — get 1:1 message channel
+- `getCompanyChannels(clientId)` — get company message channels
+- `getClientChannels(clientId)` — get both individual + company channels
+- `assemblyClientMessagesUrl(clientId)` — deep link to individual chat
+- `assemblyCompanyMessagesUrl(companyId)` — deep link to company chat
+
+### Integration Status
+
+#### Phase 1 — MVP (DONE)
+- [x] Migration `007_assembly_integration.sql` — `assembly_client_id`, `assembly_company_id` columns
+- [x] `lib/assembly.ts` — API client with search, channels, deep link helpers
+- [x] Server actions `linkAssemblyClientAction` / `unlinkAssemblyClientAction`
+- [x] Client detail panel — Assembly linked/unlinked status, "Company Chat" + "Direct Chat" buttons, "Link to Assembly" button
+- [x] Settings > Clients table — Assembly status column with link/unlink toggle per row
+- [x] Clients page query includes `assembly_client_id`, `assembly_company_id`
+- [x] Graceful degradation when `ASSEMBLY_API_KEY` is not set
+- [x] Deep links: company chat (primary when company exists) + individual chat
+
+#### Phase 2 — Read messages inline (PENDING)
+- [ ] Extend `lib/assembly.ts` with `getChannelMessages(channelId, limit)`, `getFileChannels(clientId)`
+- [ ] Build `app/(authenticated)/clients/[id]/page.tsx` — full client detail page with tabs (Overview, Messages, Tasks, Files)
+- [ ] Create `app/(authenticated)/clients/[id]/actions.ts` — `getAssemblyChannelsAction` (fetches both individual + company channels with messages)
+- [ ] Create `components/clients/assembly-messages.tsx` — message list with sender, timestamp, markdown preview (reusable for individual + company)
+- [ ] Create `components/clients/assembly-contact.tsx` — phone, tags, address from Assembly custom fields
+- [ ] Create `app/(authenticated)/settings/integrations/page.tsx` — integration status, workspace info, Assembly dashboard link
+- [ ] Add "Integrations" tab to `settings-nav.tsx`
+- [ ] Add Assembly linked indicator icon on `client-card.tsx`
+
+#### Phase 3 — Send messages + bulk ops (PENDING)
+- [ ] Create `components/clients/send-message-dialog.tsx` — markdown compose + preview dialog
+- [ ] Add `sendAssemblyMessageAction(clientId, channelId, content)` — send to individual or company channel
+- [ ] Add `bulkLinkAssemblyAction()` — iterate all clients with email, auto-link matches
+- [ ] Optional: migration `008_assembly_message_log.sql` — audit log of messages sent from Hub
+
 ## STR Domain Terms
 - **ADR** = Average Daily Rate (revenue ÷ nights sold)
 - **RevPAR** = Revenue Per Available Room (revenue ÷ total available nights)
@@ -156,5 +227,6 @@ NEXT_PUBLIC_SUPABASE_URL=     # Supabase project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY= # Supabase anon/public key
 SUPABASE_SERVICE_ROLE_KEY=     # Server-side only, never expose to browser
 PRICELABS_API_KEY=             # For edge functions only
+ASSEMBLY_API_KEY=              # Assembly CRM API key, server-side only
 ```
 Rules: no quotes, no spaces after `=`, NEXT_PUBLIC_ prefix = browser-accessible.

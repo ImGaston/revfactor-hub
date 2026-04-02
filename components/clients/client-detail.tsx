@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   ExternalLink,
   Mail,
@@ -8,7 +9,13 @@ import {
   Building2,
   CheckSquare,
   X,
+  Link2,
+  Unlink,
+  MessageSquare,
+  Users,
+  Loader2,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -54,12 +61,44 @@ function formatDate(date: string | null) {
 export function ClientDetail({
   client,
   isSuperAdmin,
+  assemblyConfigured,
+  onLinkAssembly,
+  onUnlinkAssembly,
   onClose,
 }: {
   client: Client
   isSuperAdmin: boolean
+  assemblyConfigured: boolean
+  onLinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
+  onUnlinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
   onClose: () => void
 }) {
+  const [linking, setLinking] = useState(false)
+  const isLinked = !!client.assembly_client_id
+
+  async function handleLink() {
+    if (!onLinkAssembly) return
+    setLinking(true)
+    const result = await onLinkAssembly(client.id)
+    setLinking(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Linked to Assembly")
+    }
+  }
+
+  async function handleUnlink() {
+    if (!onUnlinkAssembly) return
+    setLinking(true)
+    const result = await onUnlinkAssembly(client.id)
+    setLinking(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Unlinked from Assembly")
+    }
+  }
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex shrink-0 items-start justify-between gap-2 p-4 pb-0">
@@ -106,7 +145,7 @@ export function ClientDetail({
             </span>
           </InfoRow>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {isSuperAdmin && client.stripe_dashboard && (
               <Button variant="outline" size="sm" asChild>
                 <a
@@ -119,16 +158,61 @@ export function ClientDetail({
                 </a>
               </Button>
             )}
-            {client.assembly_link && (
+            {isLinked && client.assembly_link && (
               <Button variant="outline" size="sm" asChild>
                 <a
                   href={client.assembly_link}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Assembly
+                  {client.assembly_company_id ? (
+                    <Users className="mr-1 size-3" />
+                  ) : (
+                    <MessageSquare className="mr-1 size-3" />
+                  )}
+                  {client.assembly_company_id ? "Company Chat" : "Messages"}
                   <ExternalLink className="ml-1 size-3" />
                 </a>
+              </Button>
+            )}
+            {isLinked && client.assembly_company_id && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`https://dashboard.assembly.com/clients/users/details/${client.assembly_client_id}/messages`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageSquare className="mr-1 size-3" />
+                  Direct Chat
+                  <ExternalLink className="ml-1 size-3" />
+                </a>
+              </Button>
+            )}
+            {assemblyConfigured && !isLinked && client.email && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLink}
+                disabled={linking}
+              >
+                {linking ? (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                ) : (
+                  <Link2 className="mr-1 size-3" />
+                )}
+                Link to Assembly
+              </Button>
+            )}
+            {isLinked && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUnlink}
+                disabled={linking}
+                className="text-muted-foreground"
+              >
+                <Unlink className="mr-1 size-3" />
+                Unlink
               </Button>
             )}
           </div>
