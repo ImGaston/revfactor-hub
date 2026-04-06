@@ -4,18 +4,24 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
+  Archive,
   ArrowLeft,
   Calendar,
+  CheckCircle2,
   Clock,
   Copy,
   ExternalLink,
   Globe,
+  Loader2,
   Mail,
   MapPin,
   Pencil,
   Phone,
+  RotateCcw,
+  Send,
   Trash2,
   User,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,7 +48,7 @@ import {
 } from "@/components/ui/select"
 import { LeadFormDialog } from "../lead-form-dialog"
 import { STAGE_COLUMNS } from "../pipeline-kanban"
-import { updateLead, deleteLead } from "../actions"
+import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, createAssemblyClientForLead, sendContractToAssembly } from "../actions"
 import type { Lead, LeadTag } from "@/lib/types"
 
 type ProfileOption = {
@@ -52,10 +58,16 @@ type ProfileOption = {
   avatar_url: string | null
 }
 
+type ContractTemplate = {
+  id: string
+  name: string
+}
+
 type Props = {
   lead: Lead
   tags: LeadTag[]
   profiles: ProfileOption[]
+  contractTemplates?: ContractTemplate[]
 }
 
 const LEAD_SOURCE_LABELS: Record<string, string> = {
@@ -73,10 +85,15 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   c_not_a_fit: "C – Not a Fit",
 }
 
-export function LeadDetail({ lead, tags, profiles }: Props) {
+export function LeadDetail({ lead, tags, profiles, contractTemplates = [] }: Props) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [creatingClient, setCreatingClient] = useState(false)
+  const [sendingContract, setSendingContract] = useState(false)
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    contractTemplates[0]?.id ?? ""
+  )
 
   const leadTags = lead.lead_tag_assignments?.map((a) => a.lead_tags) ?? []
   const team = lead.lead_team_assignments ?? []
@@ -135,6 +152,65 @@ export function LeadDetail({ lead, tags, profiles }: Props) {
     }
   }
 
+  async function handleArchive() {
+    const result = await archiveLead(lead.id)
+    if (result.error) toast.error(result.error)
+    else { toast.success("Lead archived"); router.refresh() }
+  }
+
+  async function handleUnarchive() {
+    const result = await unarchiveLead(lead.id)
+    if (result.error) toast.error(result.error)
+    else { toast.success("Lead reactivated"); router.refresh() }
+  }
+
+  async function handleComplete() {
+    const result = await completeLead(lead.id)
+    if (result.error) toast.error(result.error)
+    else { toast.success("Lead marked as completed"); router.refresh() }
+  }
+
+  async function handleUncomplete() {
+    const result = await uncompleteLead(lead.id)
+    if (result.error) toast.error(result.error)
+    else { toast.success("Lead reopened"); router.refresh() }
+  }
+
+  async function handleCreateAssemblyClient() {
+    setCreatingClient(true)
+    const result = await createAssemblyClientForLead(lead.id)
+    setCreatingClient(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Client created in Assembly", {
+        description: "The client has been invited to the portal.",
+      })
+      router.refresh()
+    }
+  }
+
+  async function handleSendContract() {
+    if (!selectedTemplateId) {
+      toast.error("Select a contract template first")
+      return
+    }
+    setSendingContract(true)
+    const result = await sendContractToAssembly(lead.id, selectedTemplateId)
+    setSendingContract(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      const name = result.contractName ?? "Contract"
+      toast.success(`${name} sent via Assembly`, {
+        description: "Contract created and welcome message sent.",
+      })
+      router.refresh()
+    }
+  }
+
   function copyPortalUrl() {
     if (lead.client_portal_url) {
       navigator.clipboard.writeText(lead.client_portal_url)
@@ -166,6 +242,38 @@ export function LeadDetail({ lead, tags, profiles }: Props) {
           Edit
         </Button>
       </div>
+
+      {/* Archive/Complete banner */}
+      {lead.is_archived && (
+        <div className="flex items-center justify-between rounded-lg border border-muted bg-muted/50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Archive className="size-4" />
+            <span>
+              This lead was archived
+              {lead.archived_at && ` on ${formatDate(lead.archived_at)}`}
+            </span>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleUnarchive}>
+            <RotateCcw className="size-3.5 mr-1.5" />
+            Reactivate
+          </Button>
+        </div>
+      )}
+      {lead.is_completed && (
+        <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
+            <CheckCircle2 className="size-4" />
+            <span>
+              This lead was completed
+              {lead.completed_at && ` on ${formatDate(lead.completed_at)}`}
+            </span>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleUncomplete}>
+            <RotateCcw className="size-3.5 mr-1.5" />
+            Reopen
+          </Button>
+        </div>
+      )}
 
       {/* Main layout: Content + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
@@ -300,6 +408,32 @@ export function LeadDetail({ lead, tags, profiles }: Props) {
             </Select>
           </div>
 
+          {/* Archive / Complete */}
+          <div className="flex gap-2">
+            {lead.is_archived ? (
+              <Button variant="outline" size="sm" className="flex-1" onClick={handleUnarchive}>
+                <RotateCcw className="size-3.5 mr-1.5" />
+                Unarchive
+              </Button>
+            ) : lead.is_completed ? (
+              <Button variant="outline" size="sm" className="flex-1" onClick={handleUncomplete}>
+                <RotateCcw className="size-3.5 mr-1.5" />
+                Reopen
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" className="flex-1" onClick={handleComplete}>
+                  <CheckCircle2 className="size-3.5 mr-1.5" />
+                  Complete
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={handleArchive}>
+                  <Archive className="size-3.5 mr-1.5" />
+                  Archive
+                </Button>
+              </>
+            )}
+          </div>
+
           <Separator />
 
           {/* Contract Status */}
@@ -307,6 +441,76 @@ export function LeadDetail({ lead, tags, profiles }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Contract
             </p>
+
+            {/* Step 1: Create Assembly Client */}
+            {!lead.assembly_client_id ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  disabled={creatingClient || !lead.email || !lead.full_name}
+                  onClick={handleCreateAssemblyClient}
+                >
+                  {creatingClient ? (
+                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <UserPlus className="size-3.5 mr-1.5" />
+                  )}
+                  {creatingClient ? "Creating..." : "Create Client in Assembly"}
+                </Button>
+                {(!lead.email || !lead.full_name) && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Requires lead email and name.
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Client exists — show status */}
+                <div className="flex items-center gap-1.5 text-xs text-green-600">
+                  <CheckCircle2 className="size-3" />
+                  <span>Assembly client linked</span>
+                </div>
+
+                {/* Step 2: Select template + Send Contract */}
+                {contractTemplates.length > 0 ? (
+                  <div className="space-y-2">
+                    <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select contract..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contractTemplates.map((t) => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={sendingContract || !selectedTemplateId}
+                      onClick={handleSendContract}
+                    >
+                      {sendingContract ? (
+                        <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Send className="size-3.5 mr-1.5" />
+                      )}
+                      {sendingContract ? "Sending..." : "Send Contract"}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    No contract templates found in Assembly.
+                  </p>
+                )}
+              </>
+            )}
+
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
                 checked={lead.contract_sent}

@@ -12,6 +12,8 @@ import {
   Tag,
   Users,
   X,
+  Archive,
+  CheckCircle2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -50,7 +52,7 @@ import {
 } from "@/components/ui/popover"
 import { LeadFormDialog } from "./lead-form-dialog"
 import { STAGE_COLUMNS } from "./pipeline-kanban"
-import { bulkDeleteLeads, bulkUpdateLeads, bulkAssignTeam } from "./actions"
+import { bulkDeleteLeads, bulkUpdateLeads, bulkAssignTeam, bulkArchiveLeads, bulkCompleteLeads, updateLeadStage } from "./actions"
 import type { Lead, LeadTag } from "@/lib/types"
 
 const SERVICE_TYPES = [
@@ -92,6 +94,8 @@ type SortDir = "asc" | "desc"
 export function PipelineTable({ leads, tags, profiles }: Props) {
   const [search, setSearch] = useState("")
   const [stageFilter, setStageFilter] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
+  const [showCompleted, setShowCompleted] = useState(false)
   const [sortField, setSortField] = useState<SortField>("created_at")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
   const [formOpen, setFormOpen] = useState(false)
@@ -109,8 +113,14 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
     }
   }
 
+  const archivedCount = useMemo(() => leads.filter((l) => l.is_archived).length, [leads])
+  const completedCount = useMemo(() => leads.filter((l) => l.is_completed).length, [leads])
+
   const filtered = useMemo(() => {
     let result = leads
+
+    if (!showArchived) result = result.filter((l) => !l.is_archived)
+    if (!showCompleted) result = result.filter((l) => !l.is_completed)
 
     if (stageFilter) {
       result = result.filter((l) => l.stage === stageFilter)
@@ -134,7 +144,7 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
     })
 
     return result
-  }, [leads, search, stageFilter, sortField, sortDir])
+  }, [leads, search, stageFilter, sortField, sortDir, showArchived, showCompleted])
 
   const filteredIds = useMemo(
     () => new Set(filtered.map((l) => l.id)),
@@ -144,10 +154,17 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const l of leads) {
-      counts[l.stage] = (counts[l.stage] ?? 0) + 1
+      if (!l.is_archived && !l.is_completed) {
+        counts[l.stage] = (counts[l.stage] ?? 0) + 1
+      }
     }
     return counts
   }, [leads])
+
+  const activeLeadCount = useMemo(
+    () => leads.filter((l) => !l.is_archived && !l.is_completed).length,
+    [leads]
+  )
 
   // ─── Selection helpers ──────────────────────────────────
 
@@ -275,6 +292,43 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
     }
   }
 
+  async function handleBulkArchive() {
+    setBulkLoading(true)
+    const result = await bulkArchiveLeads(activeSelectedIds)
+    setBulkLoading(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Archived ${result.count} lead${result.count !== 1 ? "s" : ""}`)
+      clearSelection()
+      router.refresh()
+    }
+  }
+
+  async function handleBulkComplete() {
+    setBulkLoading(true)
+    const result = await bulkCompleteLeads(activeSelectedIds)
+    setBulkLoading(false)
+
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Completed ${result.count} lead${result.count !== 1 ? "s" : ""}`)
+      clearSelection()
+      router.refresh()
+    }
+  }
+
+  async function handleInlineStageChange(leadId: string, newStage: string) {
+    const result = await updateLeadStage(leadId, newStage, 0)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      router.refresh()
+    }
+  }
+
   // ─── Helpers ────────────────────────────────────────────
 
   function getStageColor(stage: string) {
@@ -317,7 +371,7 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Stage filter tabs */}
+      {/* Stage filter tabs + archive/complete toggles */}
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setStageFilter(null)}
@@ -327,7 +381,7 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
               : "text-muted-foreground hover:bg-muted"
           }`}
         >
-          All ({leads.length})
+          All ({activeLeadCount})
         </button>
         {STAGE_COLUMNS.map((col) => (
           <button
@@ -344,6 +398,31 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
             {col.label} ({stageCounts[col.id] ?? 0})
           </button>
         ))}
+
+        <div className="h-5 w-px bg-border mx-1" />
+
+        <button
+          onClick={() => setShowCompleted((v) => !v)}
+          className={`flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-md transition-colors ${
+            showCompleted
+              ? "bg-green-500/10 text-green-700 dark:text-green-400"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          <CheckCircle2 className="size-3.5" />
+          Completed ({completedCount})
+        </button>
+        <button
+          onClick={() => setShowArchived((v) => !v)}
+          className={`flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-md transition-colors ${
+            showArchived
+              ? "bg-muted text-foreground"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          <Archive className="size-3.5" />
+          Archived ({archivedCount})
+        </button>
       </div>
 
       {/* Search + Add */}
@@ -409,7 +488,7 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
                     key={lead.id}
                     className={`cursor-pointer hover:bg-muted/50 ${
                       isSelected ? "bg-primary/5" : ""
-                    }`}
+                    } ${lead.is_archived || lead.is_completed ? "opacity-60" : ""}`}
                     onClick={() => router.push(`/pipeline/${lead.id}`)}
                   >
                     <TableCell
@@ -440,17 +519,56 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
                     <TableCell className="text-sm">
                       {lead.service_type ?? "—"}
                     </TableCell>
-                    <TableCell>
-                      <Badge
-                        className="text-[10px]"
-                        style={{
-                          backgroundColor: getStageColor(lead.stage),
-                          color: "white",
-                          borderColor: getStageColor(lead.stage),
-                        }}
-                      >
-                        {getStageLabel(lead.stage)}
-                      </Badge>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="focus:outline-none">
+                              <Badge
+                                className="text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{
+                                  backgroundColor: getStageColor(lead.stage),
+                                  color: "white",
+                                  borderColor: getStageColor(lead.stage),
+                                }}
+                              >
+                                {getStageLabel(lead.stage)}
+                              </Badge>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-44 p-1" align="start">
+                            {STAGE_COLUMNS.map((col) => (
+                              <button
+                                key={col.id}
+                                onClick={() => handleInlineStageChange(lead.id, col.id)}
+                                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors ${
+                                  col.id === lead.stage
+                                    ? "bg-accent font-medium"
+                                    : "hover:bg-accent"
+                                }`}
+                              >
+                                <span
+                                  className="size-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: col.color }}
+                                />
+                                {col.label}
+                              </button>
+                            ))}
+                          </PopoverContent>
+                        </Popover>
+                        {lead.is_completed && (
+                          <Badge variant="outline" className="text-[9px] text-green-600 border-green-300 gap-0.5">
+                            <CheckCircle2 className="size-2.5" />
+                            Completed
+                          </Badge>
+                        )}
+                        {lead.is_archived && (
+                          <Badge variant="outline" className="text-[9px] text-muted-foreground gap-0.5">
+                            <Archive className="size-2.5" />
+                            Archived
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex -space-x-1.5">
@@ -617,6 +735,28 @@ export function PipelineTable({ leads, tags, profiles }: Props) {
                 </PopoverContent>
               </Popover>
             )}
+
+            {/* Complete */}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulkLoading}
+              onClick={handleBulkComplete}
+            >
+              <CheckCircle2 className="size-3.5 mr-1.5" />
+              Complete
+            </Button>
+
+            {/* Archive */}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulkLoading}
+              onClick={handleBulkArchive}
+            >
+              <Archive className="size-3.5 mr-1.5" />
+              Archive
+            </Button>
 
             <div className="h-5 w-px bg-border" />
 

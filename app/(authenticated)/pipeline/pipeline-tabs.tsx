@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { Columns3, Table as TableIcon, Download, Upload } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Columns3, Table as TableIcon, Download, Upload, CheckCircle2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { PipelineKanban, STAGE_COLUMNS } from "./pipeline-kanban"
 import { PipelineTable } from "./pipeline-table"
+import { PipelineCompleted } from "./pipeline-completed"
 import { ImportLeadsDialog } from "./import-leads-dialog"
 import type { Lead, LeadTag } from "@/lib/types"
 
@@ -48,6 +49,8 @@ function exportLeadsCSV(leads: Lead[]) {
     "contract_sent",
     "contract_signed",
     "client_portal_url",
+    "is_archived",
+    "is_completed",
     "tags",
     "team",
     "created_at",
@@ -70,6 +73,8 @@ function exportLeadsCSV(leads: Lead[]) {
     l.contract_sent ? "true" : "false",
     l.contract_signed ? "true" : "false",
     escapeCSV(l.client_portal_url),
+    l.is_archived ? "true" : "false",
+    l.is_completed ? "true" : "false",
     escapeCSV(
       l.lead_tag_assignments?.map((a) => a.lead_tags.name).join("; ") ?? ""
     ),
@@ -95,6 +100,11 @@ export function PipelineTabs({ leads, tags, profiles }: PipelineTabsProps) {
   const [tab, setTab] = useState("board")
   const [importOpen, setImportOpen] = useState(false)
 
+  const completedCount = useMemo(
+    () => leads.filter((l) => l.is_completed).length,
+    [leads]
+  )
+
   return (
     <Tabs value={tab} onValueChange={setTab}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -106,6 +116,15 @@ export function PipelineTabs({ leads, tags, profiles }: PipelineTabsProps) {
           <TabsTrigger value="table" className="gap-1.5">
             <TableIcon className="size-4" />
             Table
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="gap-1.5">
+            <CheckCircle2 className="size-4" />
+            Completed
+            {completedCount > 0 && (
+              <span className="ml-1 text-[10px] rounded-full bg-muted px-1.5 py-0.5 tabular-nums">
+                {completedCount}
+              </span>
+            )}
           </TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
@@ -133,6 +152,9 @@ export function PipelineTabs({ leads, tags, profiles }: PipelineTabsProps) {
       </TabsContent>
       <TabsContent value="table" className="mt-4">
         <PipelineTable leads={leads} tags={tags} profiles={profiles} />
+      </TabsContent>
+      <TabsContent value="completed" className="mt-4">
+        <PipelineCompleted leads={leads} tags={tags} profiles={profiles} />
       </TabsContent>
 
       <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />

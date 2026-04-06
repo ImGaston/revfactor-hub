@@ -1,11 +1,12 @@
 "use client"
 
-import { ChevronRight } from "lucide-react"
+import { Archive, CheckCircle2, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
@@ -21,6 +22,9 @@ type KanbanCardProps = {
   currentColumn: string
   onMoveToColumn: (columnId: string) => void
   onClick?: () => void
+  onArchive?: () => void
+  onComplete?: () => void
+  statusIndicator?: React.ReactNode
 }
 
 export function KanbanCard({
@@ -34,6 +38,9 @@ export function KanbanCard({
   currentColumn,
   onMoveToColumn,
   onClick,
+  onArchive,
+  onComplete,
+  statusIndicator,
 }: KanbanCardProps) {
   const otherColumns = columns.filter((c) => c.id !== currentColumn)
 
@@ -44,7 +51,10 @@ export function KanbanCard({
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="font-medium leading-tight">{title}</p>
+        <div className="flex items-center gap-1.5">
+          {statusIndicator}
+          <p className="font-medium leading-tight">{title}</p>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -65,6 +75,19 @@ export function KanbanCard({
                 Move to {col.label}
               </DropdownMenuItem>
             ))}
+            {(onArchive || onComplete) && <DropdownMenuSeparator />}
+            {onComplete && (
+              <DropdownMenuItem onClick={onComplete}>
+                <CheckCircle2 className="mr-2 size-3.5" />
+                Mark Complete
+              </DropdownMenuItem>
+            )}
+            {onArchive && (
+              <DropdownMenuItem onClick={onArchive}>
+                <Archive className="mr-2 size-3.5" />
+                Archive
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

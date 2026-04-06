@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { LeadDetail } from "./lead-detail"
+import { isAssemblyConfigured, listContractTemplates } from "@/lib/assembly"
 import type { Lead, LeadTag } from "@/lib/types"
 
 export default async function LeadDetailPage({
@@ -31,6 +32,17 @@ export default async function LeadDetailPage({
     .select("id, full_name, email, avatar_url")
     .order("full_name")
 
+  // Fetch Assembly contract templates (server-side only)
+  let contractTemplates: { id: string; name: string }[] = []
+  if (isAssemblyConfigured()) {
+    try {
+      const templates = await listContractTemplates()
+      contractTemplates = templates.map((t) => ({ id: t.id, name: t.name }))
+    } catch {
+      // Assembly unavailable — continue without templates
+    }
+  }
+
   return (
     <LeadDetail
       lead={lead as Lead}
@@ -43,6 +55,7 @@ export default async function LeadDetailPage({
           avatar_url: string | null
         }[]
       }
+      contractTemplates={contractTemplates}
     />
   )
 }

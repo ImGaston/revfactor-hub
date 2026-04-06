@@ -1,7 +1,16 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
+import {
+  isAssemblyConfigured,
+  findOrCreateAssemblyClient,
+  getOrCreateMessageChannel,
+  sendAssemblyMessage,
+  assemblyClientMessagesUrl,
+  createAssemblyContract,
+} from "@/lib/assembly"
 
 // ─── Leads ──────────────��───────────────────────────────
 
@@ -183,7 +192,7 @@ export async function importLeads(rows: ImportLeadRow[]) {
   const validStages = [
     "inquiry", "follow_up", "audit", "meeting",
     "proposal_sent", "proposal_signed", "retainer_paid",
-    "planning", "completed", "archived",
+    "planning",
   ]
 
   const supabase = await createClient()
@@ -287,4 +296,260 @@ export async function bulkAssignTeam(leadIds: string[], profileIds: string[]) {
 
   revalidatePath("/pipeline")
   return { success: true, count: leadIds.length }
+}
+
+// ─── Archive / Complete ─────────────────────────────────
+
+export async function archiveLead(leadId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      is_completed: false,
+      completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
+}
+
+export async function unarchiveLead(leadId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_archived: false,
+      archived_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
+}
+
+export async function completeLead(leadId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+      is_archived: false,
+      archived_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
+}
+
+export async function uncompleteLead(leadId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_completed: false,
+      completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
+}
+
+export async function bulkArchiveLeads(leadIds: string[]) {
+  if (leadIds.length === 0) return { error: "No leads selected" }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      is_completed: false,
+      completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .in("id", leadIds)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  return { success: true, count: leadIds.length }
+}
+
+export async function bulkCompleteLeads(leadIds: string[]) {
+  if (leadIds.length === 0) return { error: "No leads selected" }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+      is_archived: false,
+      archived_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .in("id", leadIds)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  return { success: true, count: leadIds.length }
+}
+
+// ─── Assembly: Create Client ────────────────────────────
+
+export async function createAssemblyClientForLead(leadId: string) {
+  if (!isAssemblyConfigured()) {
+    return { error: "Assembly is not configured" }
+  }
+
+  const supabase = await createClient()
+
+  const { data: lead, error: leadError } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .single()
+
+  if (leadError || !lead) return { error: "Lead not found" }
+  if (!lead.email) return { error: "Lead has no email address" }
+  if (!lead.full_name) return { error: "Lead has no name" }
+
+  const nameParts = lead.full_name.trim().split(/\s+/)
+  const givenName = nameParts[0]
+  const familyName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : givenName
+
+  try {
+    console.log(`[Assembly] Creating client for ${lead.email}`)
+    const assemblyClient = await findOrCreateAssemblyClient({
+      givenName,
+      familyName,
+      email: lead.email,
+      phone: lead.phone ?? undefined,
+      sendInvite: true,
+    })
+    console.log(`[Assembly] Client created: ${assemblyClient.id} (status: ${assemblyClient.status})`)
+
+    // Save assembly_client_id on the lead
+    await supabase
+      .from("leads")
+      .update({
+        assembly_client_id: assemblyClient.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadId)
+
+    // Create client in Hub database (uses admin client to bypass RLS)
+    const assemblyLink = assemblyClientMessagesUrl(assemblyClient.id)
+    const admin = createAdminClient()
+    const { error: clientError } = await admin
+      .from("clients")
+      .insert({
+        name: lead.full_name,
+        email: lead.email,
+        status: "onboarding",
+        assembly_link: assemblyLink,
+        assembly_client_id: assemblyClient.id,
+      })
+
+    if (clientError) {
+      console.warn(`[Assembly] Hub client insert warning: ${clientError.message}`)
+    } else {
+      console.log(`[Assembly] Hub client created for ${lead.full_name}`)
+    }
+
+    revalidatePath("/pipeline")
+    revalidatePath(`/pipeline/${leadId}`)
+    revalidatePath("/clients")
+
+    return {
+      success: true,
+      assemblyClientId: assemblyClient.id,
+      inviteUrl: assemblyClient.inviteUrl,
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    console.error(`[Assembly] Create client FAILED:`, message)
+    return { error: message }
+  }
+}
+
+// ─── Assembly: Send Contract ────────────────────────────
+
+export async function sendContractToAssembly(leadId: string, contractTemplateId: string) {
+  if (!isAssemblyConfigured()) {
+    return { error: "Assembly is not configured" }
+  }
+
+  if (!contractTemplateId) return { error: "No contract template selected" }
+
+  const supabase = await createClient()
+
+  const { data: lead, error: leadError } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .single()
+
+  if (leadError || !lead) return { error: "Lead not found" }
+  if (!lead.assembly_client_id) return { error: "Lead has no Assembly client. Create the client first." }
+
+  const clientId = lead.assembly_client_id
+
+  try {
+    // 1. Create the contract (Assembly sends it to the client automatically)
+    console.log(`[SendContract] Creating contract with template ${contractTemplateId} for client ${clientId}`)
+    const contract = await createAssemblyContract({
+      contractTemplateId,
+      clientId,
+    })
+    console.log(`[SendContract] Contract created: ${contract.id} (status: ${contract.status})`)
+
+    // 2. Send welcome message via chat
+    console.log(`[SendContract] Sending welcome message`)
+    const messageChannel = await getOrCreateMessageChannel(clientId)
+    const clientName = lead.full_name ?? "there"
+    await sendAssemblyMessage(
+      messageChannel.id,
+      `Hello ${clientName},\n\nWelcome to your RevFactor Client Portal.\n\nOn the left side, you'll find the Contracts section, where your agreement will be available for review and signature.\n\nWe're here if you need anything, just send a message in this chat.`
+    )
+
+    // 3. Mark contract_sent on lead
+    await supabase
+      .from("leads")
+      .update({
+        contract_sent: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadId)
+
+    revalidatePath("/pipeline")
+    revalidatePath(`/pipeline/${leadId}`)
+
+    console.log(`[SendContract] Done! Contract ${contract.id} sent.`)
+    return {
+      success: true,
+      contractId: contract.id,
+      contractName: contract.name,
+      contractStatus: contract.status,
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error"
+    console.error(`[SendContract] FAILED:`, message)
+    return { error: message }
+  }
 }

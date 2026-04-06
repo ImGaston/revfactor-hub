@@ -28,6 +28,7 @@ type KanbanBoardProps<T extends { id: string }> = {
   renderCard: (item: T, columnId: string) => React.ReactNode
   onAdd?: (columnId: string) => void
   columnIds: string[]
+  renderColumnFooter?: (columnId: string) => React.ReactNode
 }
 
 export function KanbanBoard<T extends { id: string }>({
@@ -37,6 +38,7 @@ export function KanbanBoard<T extends { id: string }>({
   renderCard,
   onAdd,
   columnIds,
+  renderColumnFooter,
 }: KanbanBoardProps<T>) {
   const handleDragEnd = useCallback(
     (result: DropResult) => {
@@ -132,6 +134,7 @@ export function KanbanBoard<T extends { id: string }>({
                   </ScrollArea>
                 )}
               </Droppable>
+              {renderColumnFooter?.(col.id)}
             </div>
           )
         })}

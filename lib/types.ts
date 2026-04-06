@@ -117,8 +117,6 @@ export type LeadStage =
   | "proposal_signed"
   | "retainer_paid"
   | "planning"
-  | "completed"
-  | "archived"
 
 export type LeadTag = {
   id: string
@@ -145,6 +143,11 @@ export type Lead = {
   client_portal_url: string | null
   stage: LeadStage
   sort_order: number
+  is_archived: boolean
+  is_completed: boolean
+  archived_at: string | null
+  completed_at: string | null
+  assembly_client_id: string | null
   created_by: string | null
   created_at: string
   updated_at: string

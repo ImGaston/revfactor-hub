@@ -34,6 +34,17 @@ app/
 │   │   ├── roadmap-board.tsx   # Client component with optimistic drag-and-drop
 │   │   ├── roadmap-dialog.tsx  # Create roadmap item form dialog
 │   │   └── actions.ts          # Server actions (createRoadmapItem, updateRoadmapItemStatus)
+│   ├── pipeline/
+│   │   ├── page.tsx              # Pipeline — server component, fetches leads + tags + profiles
+│   │   ├── pipeline-tabs.tsx     # Board/Table tab switcher + Import/Export buttons
+│   │   ├── pipeline-kanban.tsx   # 10-column kanban with optimistic drag-and-drop
+│   │   ├── pipeline-table.tsx    # Table view with stage filters, search, sorting, bulk selection + action bar
+│   │   ├── lead-form-dialog.tsx  # Create/edit lead dialog (all fields, tags, team)
+│   │   ├── import-leads-dialog.tsx # CSV import dialog with preview + validation
+│   │   ├── actions.ts            # Server actions (CRUD, bulk ops, import)
+│   │   └── [id]/
+│   │       ├── page.tsx          # Lead detail — server component
+│   │       └── lead-detail.tsx   # Lead detail — content + sidebar (stage, contract, team, tags, dates)
 │   ├── settings/
 │   │   ├── account/
 │   │   │   ├── page.tsx            # Account settings (avatar, profile, password)
@@ -74,7 +85,7 @@ lib/
 │   ├── admin.ts                # Admin client with service role key
 │   └── profile.ts              # Profile type + getProfile() helper
 ├── assembly.ts                 # Assembly CRM API client (search, channels, deep links)
-├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, OwnerOption, resolveProfile helper)
+├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, Lead, LeadTag, LeadStage, resolveProfile helper)
 └── utils.ts
 supabase/
 └── migrations/
@@ -84,7 +95,8 @@ supabase/
     ├── 004_tasks_owner_fk.sql  # ALTER tasks.owner to UUID FK → profiles
     ├── 005_profile_avatar.sql  # avatar_url column, avatars storage bucket + policies
     ├── 006_ideas_and_roadmap.sql
-    └── 007_assembly_integration.sql  # assembly_client_id, assembly_company_id on clients
+    ├── 007_assembly_integration.sql  # assembly_client_id, assembly_company_id on clients
+    └── 008_sales_funnel.sql          # leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS
 scripts/
 └── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
 ```
@@ -105,6 +117,10 @@ scripts/
 - **onboarding_steps** — client_id (FK), step_name, step_order, is_completed, completed_at, completed_by
 - **notes** — client_id (FK, nullable), author, content, category (market_insight/client_update/internal/strategy)
 - **calendar_events** — client_id (FK, nullable), title, event_date, event_type (pricing_review/contract_renewal/market_event/meeting)
+- **leads** — project_name, full_name, email, phone, service_type, lead_source, scheduled_date, timezone, location, description, start_date, end_date, contract_sent, contract_signed, client_portal_url, stage (inquiry/follow_up/audit/meeting/proposal_sent/proposal_signed/retainer_paid/planning/completed/archived), sort_order, created_by (FK profiles)
+- **lead_tags** — name (unique), color (separate namespace from roadmap tags)
+- **lead_tag_assignments** — lead_id (FK), tag_id (FK) junction
+- **lead_team_assignments** — lead_id (FK), profile_id (FK profiles), role
 
 ## Supabase Storage
 - **avatars** bucket (public) — user profile photos, organized by `{user_id}/` folders with per-user RLS policies
@@ -219,7 +235,86 @@ Assembly is the client communication platform (CRM + messaging). The Hub integra
 - [ ] Create `components/clients/send-message-dialog.tsx` — markdown compose + preview dialog
 - [ ] Add `sendAssemblyMessageAction(clientId, channelId, content)` — send to individual or company channel
 - [ ] Add `bulkLinkAssemblyAction()` — iterate all clients with email, auto-link matches
-- [ ] Optional: migration `008_assembly_message_log.sql` — audit log of messages sent from Hub
+- [ ] Optional: migration `009_assembly_message_log.sql` — audit log of messages sent from Hub
+
+## Sales Pipeline
+
+The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel management. Entry point: schedule call from landing page. Funnel closes when contract is sent + client portal access granted.
+
+### Architecture
+- **Route:** `/pipeline` (list) and `/pipeline/[id]` (detail)
+- **Views:** Board (kanban) and Table, switchable via tabs
+- **Detail page:** Full page with content area + 270px right sidebar
+- **Reuses:** Generic `KanbanBoard<Lead>` and `KanbanCard` from `components/kanban/`
+- **Data flow:** Server component fetches leads with joined tags + team assignments → passes to client components
+
+### 10 Pipeline Stages
+1. **Inquiry** (indigo) — auto-created from schedule call
+2. **Follow-up** (blue) — first contact made, awaiting response
+3. **Audit** (cyan) — evaluating prospect's business/property
+4. **Meeting** (teal) — discovery/sales call scheduled or completed
+5. **Proposal Sent** (amber) — formal proposal delivered
+6. **Proposal Signed** (orange) — prospect accepted and signed
+7. **Retainer Paid** (green) — initial payment confirmed
+8. **Planning** (violet) — onboarding + contract + client portal = **funnel close**
+9. **Completed** (emerald) — service delivered
+10. **Archived** (gray) — closed for reference (won or lost)
+
+### Lead Card Properties
+- `project_name` (required), `full_name`, `email`, `phone`
+- `service_type` (A – Ideal Fit / B – Needs Evaluation / C – Not a Fit)
+- `lead_source` (landing_page / referral / web_form / social_media / cold_outreach / other)
+- `scheduled_date`, `timezone`, `location`, `description`
+- `start_date`, `end_date`, `contract_sent`, `contract_signed`, `client_portal_url`
+- Tags (via `lead_tag_assignments` junction), team members (via `lead_team_assignments` → profiles)
+
+### Key Features
+- **Kanban board:** 10-column drag-and-drop with optimistic UI, click-to-move dropdown, "+" per column
+- **Table view:** Stage filter tabs with counters, search, sortable columns, row click → detail
+- **Bulk selection:** Checkboxes + select-all on table. Floating action bar with: change stage, change service type, change lead source, assign team member, delete (with confirmation)
+- **Import/Export:** CSV export (all lead fields + tags + team), CSV import with preview table + validation
+- **Detail page:** Two-column layout (content + sidebar). Sidebar: stage dropdown, contract checkboxes, client portal URL, team avatars, tags, key dates, delete. Content: description, contact info grid, details grid
+- **Edit:** LeadFormDialog supports both create and edit modes
+
+### Server Actions (`pipeline/actions.ts`)
+- `createLead(formData)` — insert lead + tag/team assignments
+- `updateLead(leadId, data)` — partial update any field
+- `updateLeadStage(leadId, newStage, newSortOrder)` — kanban drag-drop
+- `updateLeadTags(leadId, tagIds[])` — sync junction table
+- `updateLeadTeam(leadId, profileIds[])` — sync junction table
+- `deleteLead(leadId)` — cascade delete
+- `bulkDeleteLeads(leadIds[])` — delete multiple
+- `bulkUpdateLeads(leadIds[], data)` — update stage/service_type/lead_source in batch
+- `bulkAssignTeam(leadIds[], profileIds[])` — assign team to multiple leads
+- `importLeads(rows[])` — bulk insert from CSV, invalid stages default to "inquiry"
+
+### Implementation Status
+
+#### Phase 1 — Core Pipeline (DONE)
+- [x] Migration `008_sales_funnel.sql` — leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS + indexes + seed tags
+- [x] Types: `Lead`, `LeadTag`, `LeadStage` in `lib/types.ts`
+- [x] Sidebar nav: "Pipeline" with Funnel icon
+- [x] Kanban board view (10 columns, drag-drop, optimistic UI)
+- [x] Table view (stage filters, search, sorting)
+- [x] Lead form dialog (create + edit modes, all fields)
+- [x] Detail page (`/pipeline/[id]`) with content + sidebar
+- [x] CSV export (all fields + tags + team)
+- [x] CSV import with preview + validation
+- [x] Bulk selection + action bar (stage, service type, source, assign, delete)
+
+#### Phase 2 — Detail Page Tabs (PENDING)
+- [ ] **Activity tab:** `lead_activity` table (lead_id, actor FK profiles, action, metadata JSONB, created_at). Auto-log stage changes, field edits, team changes from server actions. Timeline UI component
+- [ ] **Notes tab:** `lead_notes` table (lead_id, author FK profiles, content, timestamps). Markdown notes feed with `comment-form.tsx` pattern
+- [ ] **Tasks tab:** `lead_tasks` table (lead_id, title, completed, assigned_to FK profiles, due_date). Checklist UI with inline add
+- [ ] **Files tab:** `lead_files` table (lead_id, file_name, file_url, file_size, uploaded_by FK profiles). Supabase Storage bucket `lead-files` organized by `{lead_id}/`. Upload dropzone + file list
+- [ ] **Financials tab:** `lead_financials` table (lead_id, type check in payment/expense, amount DECIMAL, description, date). Super_admin only (same gating as billing_amount in clients)
+
+#### Phase 3 — Integrations & Automation (PENDING)
+- [ ] Webhook/API endpoint to receive schedule call data from landing page → auto-create lead with stage = 'inquiry'
+- [ ] CRM integration for contract sending trigger from Planning stage
+- [ ] Client portal URL auto-generation on funnel close
+- [ ] Supabase Realtime subscriptions for live pipeline updates between team members
+- [ ] Email notifications on stage changes (optional)
 
 ## STR Domain Terms
 - **ADR** = Average Daily Rate (revenue ÷ nights sold)
