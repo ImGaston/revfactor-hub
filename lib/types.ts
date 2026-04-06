@@ -105,3 +105,54 @@ export type Comment = {
   user_reaction?: "like" | "dislike" | null
   replies?: Comment[]
 }
+
+// ─── Sales Pipeline ─────────────────────────────────────
+
+export type LeadStage =
+  | "inquiry"
+  | "follow_up"
+  | "audit"
+  | "meeting"
+  | "proposal_sent"
+  | "proposal_signed"
+  | "retainer_paid"
+  | "planning"
+  | "completed"
+  | "archived"
+
+export type LeadTag = {
+  id: string
+  name: string
+  color: string
+}
+
+export type Lead = {
+  id: string
+  project_name: string
+  full_name: string | null
+  email: string | null
+  phone: string | null
+  service_type: string | null
+  lead_source: string | null
+  scheduled_date: string | null
+  timezone: string | null
+  location: string | null
+  description: string | null
+  start_date: string | null
+  end_date: string | null
+  contract_sent: boolean
+  contract_signed: boolean
+  client_portal_url: string | null
+  stage: LeadStage
+  sort_order: number
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  lead_tag_assignments?: { lead_tags: LeadTag }[]
+  lead_team_assignments?: {
+    profile_id: string
+    role: string
+    profiles: { full_name: string | null; email: string; avatar_url: string | null }
+  }[]
+}

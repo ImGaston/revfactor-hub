@@ -41,6 +41,11 @@ app/
 │   │   │   ├── avatar-upload.tsx   # Avatar upload with Supabase Storage
 │   │   │   ├── profile-form.tsx    # Name edit form (email disabled)
 │   │   │   └── password-form.tsx   # Current/new/confirm password form
+│   │   ├── listings/
+│   │   │   ├── page.tsx              # Listings management (super_admin only)
+│   │   │   ├── listings-settings.tsx # Table with search, filters, edit/delete per row
+│   │   │   ├── listing-dialog.tsx    # Create/edit listing form (ID-based inputs for Airbnb & PriceLabs)
+│   │   │   └── actions.ts           # Server actions (createListingAction, updateListingAction, deleteListingAction)
 │   │   └── users/
 │   │       ├── page.tsx            # User management (super_admin only)
 │   │       ├── invite-user-dialog.tsx # Invite user with email+password+role
@@ -138,6 +143,15 @@ scripts/
 - Priority/tag badges support custom colors (e.g., orange for "high", red for "urgent")
 - Drag-and-drop via `@hello-pangea/dnd` with optimistic UI updates
 - Click-to-move between columns via dropdown menu on each card
+
+### Listing Form (Settings > Listings)
+- Airbnb and PriceLabs fields accept **only the numeric ID**, not full URLs
+- The form auto-constructs the full link on save:
+  - Airbnb: `https://www.airbnb.com/rooms/{id}`
+  - PriceLabs: `https://app.pricelabs.co/pricing_dashboard?listings={id}`
+- If a user pastes a full URL, the ID is extracted automatically
+- A preview of the generated link is shown below each field
+- When editing an existing listing, the ID is extracted from the stored link
 
 ## Assembly CRM Integration
 

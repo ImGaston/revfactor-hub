@@ -8,6 +8,7 @@ import {
   Calendar,
   MessageSquare,
   Lightbulb,
+  Funnel,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -47,6 +48,7 @@ const navItems = [
   { title: "Calendar", href: "/calendar", icon: Calendar },
   { title: "Notes", href: "/notes", icon: MessageSquare },
   { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb },
+  { title: "Pipeline", href: "/pipeline", icon: Funnel },
 ]
 
 export function AppSidebar({ profile }: { profile: Profile | null }) {

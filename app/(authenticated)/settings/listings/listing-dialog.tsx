@@ -34,6 +34,35 @@ type ListingFormData = {
 
 type ClientOption = { id: string; name: string }
 
+const AIRBNB_BASE = "https://www.airbnb.com/rooms/"
+const PRICELABS_BASE = "https://app.pricelabs.co/pricing_dashboard?listings="
+
+function extractAirbnbId(value: string): string {
+  if (value.includes("airbnb.com/rooms/")) {
+    const match = value.match(/airbnb\.com\/rooms\/(\d+)/)
+    return match?.[1] ?? value
+  }
+  return value
+}
+
+function extractPricelabsId(value: string): string {
+  if (value.includes("pricelabs.co")) {
+    const match = value.match(/listings=(\d+)/)
+    return match?.[1] ?? value
+  }
+  return value
+}
+
+function airbnbIdFromLink(link: string | null): string {
+  if (!link) return ""
+  return extractAirbnbId(link)
+}
+
+function pricelabsIdFromLink(link: string | null): string {
+  if (!link) return ""
+  return extractPricelabsId(link)
+}
+
 const EMPTY: ListingFormData = {
   client_id: "",
   name: "",
@@ -57,6 +86,8 @@ export function ListingDialog({
 }) {
   const isEdit = !!listing?.id
   const [form, setForm] = useState<ListingFormData>(listing ?? EMPTY)
+  const [airbnbId, setAirbnbId] = useState(airbnbIdFromLink(listing?.airbnb_link ?? null))
+  const [pricelabsId, setPricelabsId] = useState(pricelabsIdFromLink(listing?.pricelabs_link ?? null))
   const [saving, setSaving] = useState(false)
 
   function set<K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) {
@@ -79,8 +110,8 @@ export function ListingDialog({
       client_id: form.client_id,
       name: form.name.trim(),
       listing_id: form.listing_id?.trim() || null,
-      pricelabs_link: form.pricelabs_link?.trim() || null,
-      airbnb_link: form.airbnb_link?.trim() || null,
+      pricelabs_link: pricelabsId.trim() ? `${PRICELABS_BASE}${extractPricelabsId(pricelabsId.trim())}` : null,
+      airbnb_link: airbnbId.trim() ? `${AIRBNB_BASE}${extractAirbnbId(airbnbId.trim())}` : null,
       city: form.city?.trim() || null,
       state: form.state?.trim() || null,
     }
@@ -164,23 +195,33 @@ export function ListingDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-airbnb">Airbnb Link</Label>
+              <Label htmlFor="listing-airbnb">Airbnb ID</Label>
               <Input
                 id="listing-airbnb"
-                value={form.airbnb_link ?? ""}
-                onChange={(e) => set("airbnb_link", e.target.value || null)}
-                placeholder="https://www.airbnb.com/rooms/..."
+                value={airbnbId}
+                onChange={(e) => setAirbnbId(extractAirbnbId(e.target.value))}
+                placeholder="12345678"
               />
+              {airbnbId.trim() && (
+                <p className="text-muted-foreground text-xs">
+                  {AIRBNB_BASE}{airbnbId.trim()}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-pricelabs">PriceLabs Link</Label>
+              <Label htmlFor="listing-pricelabs">PriceLabs ID</Label>
               <Input
                 id="listing-pricelabs"
-                value={form.pricelabs_link ?? ""}
-                onChange={(e) => set("pricelabs_link", e.target.value || null)}
-                placeholder="https://app.pricelabs.co/..."
+                value={pricelabsId}
+                onChange={(e) => setPricelabsId(extractPricelabsId(e.target.value))}
+                placeholder="12345678"
               />
+              {pricelabsId.trim() && (
+                <p className="text-muted-foreground text-xs">
+                  {PRICELABS_BASE}{pricelabsId.trim()}
+                </p>
+              )}
             </div>
           </div>
 
