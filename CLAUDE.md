@@ -36,23 +36,24 @@ app/
 │   │   └── actions.ts          # Server actions (createRoadmapItem, updateRoadmapItemStatus)
 │   ├── pipeline/
 │   │   ├── page.tsx              # Pipeline — server component, fetches leads + tags + profiles
-│   │   ├── pipeline-tabs.tsx     # Board/Table tab switcher + Import/Export buttons
-│   │   ├── pipeline-kanban.tsx   # 10-column kanban with optimistic drag-and-drop
-│   │   ├── pipeline-table.tsx    # Table view with stage filters, search, sorting, bulk selection + action bar
+│   │   ├── pipeline-tabs.tsx     # Board/Table/Completed tab switcher + Import/Export buttons
+│   │   ├── pipeline-kanban.tsx   # 8-column kanban with optimistic drag-and-drop + collapsible archive/complete sections
+│   ���   ├── pipeline-table.tsx    # Table view with stage filters, inline stage change, search, sorting, bulk selection + action bar
+│   │   ├── pipeline-completed.tsx # Completed leads table view with search, stage filters, reopen, bulk actions
 │   │   ├── lead-form-dialog.tsx  # Create/edit lead dialog (all fields, tags, team)
 │   │   ├── import-leads-dialog.tsx # CSV import dialog with preview + validation
-│   │   ├── actions.ts            # Server actions (CRUD, bulk ops, import)
+│   │   ��── actions.ts            # Server actions (CRUD, bulk ops, import, archive/complete, Assembly integration)
 │   │   └── [id]/
-│   │       ├── page.tsx          # Lead detail — server component
-│   │       └── lead-detail.tsx   # Lead detail — content + sidebar (stage, contract, team, tags, dates)
+│   │       ├── page.tsx          # Lead detail — server component (fetches lead + Assembly contract templates)
+│   │       └── lead-detail.tsx   # Lead detail — content + sidebar (stage, Assembly client, contract template selector, team, tags, dates)
 │   ├── settings/
-│   │   ├── account/
+│   │   ├��─ account/
 │   │   │   ├── page.tsx            # Account settings (avatar, profile, password)
 │   │   │   ├── actions.ts          # Server actions (updateProfile, updatePassword, updateAvatarUrl)
 │   │   │   ├── avatar-upload.tsx   # Avatar upload with Supabase Storage
 │   │   │   ├── profile-form.tsx    # Name edit form (email disabled)
 │   │   │   └── password-form.tsx   # Current/new/confirm password form
-│   │   ├── listings/
+���   │   ├── listings/
 │   │   │   ├── page.tsx              # Listings management (super_admin only)
 │   │   │   ├── listings-settings.tsx # Table with search, filters, edit/delete per row
 │   │   │   ├── listing-dialog.tsx    # Create/edit listing form (ID-based inputs for Airbnb & PriceLabs)
@@ -75,8 +76,8 @@ components/
 │   ├── client-card.tsx         # Card: name, status badge, listing count
 │   └── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings
 ├── kanban/
-│   ├── kanban-board.tsx        # Generic typed board with @hello-pangea/dnd
-│   └── kanban-card.tsx         # Card with left accent border, badges, dropdown move menu
+│   ├─��� kanban-board.tsx        # Generic typed board with @hello-pangea/dnd + renderColumnFooter
+│   └── kanban-card.tsx         # Card with left accent border, badges, dropdown move menu, archive/complete actions
 └── theme-provider.tsx          # next-themes provider
 lib/
 ├── supabase/
@@ -84,19 +85,21 @@ lib/
 │   ├── server.ts               # Server Supabase client (createServerClient + cookies)
 │   ├── admin.ts                # Admin client with service role key
 │   └── profile.ts              # Profile type + getProfile() helper
-├── assembly.ts                 # Assembly CRM API client (search, channels, deep links)
+├── assembly.ts                 # Assembly CRM API client (clients, channels, messages, contracts, deep links)
 ├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, Lead, LeadTag, LeadStage, resolveProfile helper)
 └── utils.ts
 supabase/
 └── migrations/
-    ├── 001_profiles.sql        # profiles table, trigger, RLS + get_my_role() SECURITY DEFINER
+    ��── 001_profiles.sql        # profiles table, trigger, RLS + get_my_role() SECURITY DEFINER
     ├── 002_clients_and_listings.sql
     ├── 003_tasks_and_roadmap.sql
     ├── 004_tasks_owner_fk.sql  # ALTER tasks.owner to UUID FK → profiles
     ├── 005_profile_avatar.sql  # avatar_url column, avatars storage bucket + policies
     ├── 006_ideas_and_roadmap.sql
     ├── 007_assembly_integration.sql  # assembly_client_id, assembly_company_id on clients
-    └── 008_sales_funnel.sql          # leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS
+    ├── 008_sales_funnel.sql          # leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS
+    ├── 009_pipeline_archive_flags.sql # is_archived, is_completed, mutual exclusivity constraint, migrate data
+    └── 010_leads_assembly_client.sql  # assembly_client_id on leads
 scripts/
 └── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
 ```
@@ -117,7 +120,7 @@ scripts/
 - **onboarding_steps** — client_id (FK), step_name, step_order, is_completed, completed_at, completed_by
 - **notes** — client_id (FK, nullable), author, content, category (market_insight/client_update/internal/strategy)
 - **calendar_events** — client_id (FK, nullable), title, event_date, event_type (pricing_review/contract_renewal/market_event/meeting)
-- **leads** — project_name, full_name, email, phone, service_type, lead_source, scheduled_date, timezone, location, description, start_date, end_date, contract_sent, contract_signed, client_portal_url, stage (inquiry/follow_up/audit/meeting/proposal_sent/proposal_signed/retainer_paid/planning/completed/archived), sort_order, created_by (FK profiles)
+- **leads** — project_name, full_name, email, phone, service_type, lead_source, scheduled_date, timezone, location, description, start_date, end_date, contract_sent, contract_signed, client_portal_url, stage (8 values: inquiry/follow_up/audit/meeting/proposal_sent/proposal_signed/retainer_paid/planning), sort_order, is_archived, is_completed, archived_at, completed_at, assembly_client_id, created_by (FK profiles)
 - **lead_tags** — name (unique), color (separate namespace from roadmap tags)
 - **lead_tag_assignments** — lead_id (FK), tag_id (FK) junction
 - **lead_team_assignments** — lead_id (FK), profile_id (FK profiles), role
@@ -134,7 +137,7 @@ scripts/
 - Use shadcn/ui components — install via `npx shadcn@latest add [component]`
 - Use `@/` alias for imports from project root
 - Supabase queries: use server client in Server Components, browser client in Client Components
-- Admin operations (creating users): use admin client from `lib/supabase/admin.ts`
+- Admin operations (creating users, bypassing RLS): use admin client from `lib/supabase/admin.ts`
 - All database operations go through Supabase client — no raw SQL in frontend code
 - Error handling: always handle Supabase query errors with proper user feedback via Sonner toast
 - Use React 19 `useOptimistic` for instant UI feedback on mutations (e.g., kanban drag-and-drop)
@@ -159,6 +162,8 @@ scripts/
 - Priority/tag badges support custom colors (e.g., orange for "high", red for "urgent")
 - Drag-and-drop via `@hello-pangea/dnd` with optimistic UI updates
 - Click-to-move between columns via dropdown menu on each card
+- Optional `renderColumnFooter` for per-column collapsible sections (used by pipeline for archived/completed)
+- Cards support `onArchive`, `onComplete` actions and `statusIndicator` ReactNode
 
 ### Listing Form (Settings > Listings)
 - Airbnb and PriceLabs fields accept **only the numeric ID**, not full URLs
@@ -171,7 +176,7 @@ scripts/
 
 ## Assembly CRM Integration
 
-Assembly is the client communication platform (CRM + messaging). The Hub integrates with Assembly's API to link clients and provide deep links to conversations.
+Assembly is the client communication platform (CRM + messaging + contracts). The Hub integrates with Assembly's API to manage clients, send contracts, and provide deep links to conversations.
 
 ### Architecture
 - **API:** `https://api.assembly.com/v1`, auth via `X-API-KEY` header, rate limit 20 req/sec
@@ -180,12 +185,19 @@ Assembly is the client communication platform (CRM + messaging). The Hub integra
 - **Sync strategy:** On-demand only. No webhooks, no cron, no background sync
 - **Caching:** None. Data fetched live from Assembly API per request (fine for 2-3 users)
 - **Graceful degradation:** If `ASSEMBLY_API_KEY` is not set, all Assembly UI elements are hidden
+- **Error handling:** `assemblyFetch` reads response body on errors for detailed messages, logs to console
 
 ### Client Linking
 - Clients are linked to Assembly by email match (`searchAssemblyClientByEmail`)
 - On link, we store `assembly_client_id` (always) and `assembly_company_id` (if client belongs to a company)
 - The `assembly_link` URL is auto-generated based on whether the client has a company or not
 - Server actions: `linkAssemblyClientAction`, `unlinkAssemblyClientAction` in `settings/clients/actions.ts`
+
+### Pipeline → Assembly Integration
+- **Create Client:** `createAssemblyClientForLead(leadId)` — finds or creates Assembly client by email, sends portal invite, saves `assembly_client_id` on lead, also creates Hub client in `clients` table (status: onboarding) via admin client
+- **Send Contract:** `sendContractToAssembly(leadId, contractTemplateId)` — creates contract from selected template via `POST /v1/contracts`, sends welcome message via chat, marks `contract_sent` on lead
+- **Contract Template Selection:** Templates fetched from `GET /v1/contract-templates` in server component, passed as props to lead detail. User picks template from Select dropdown before sending
+- **Name Splitting:** `full_name` is split into `givenName` (first word) and `familyName` (rest). Single-word names repeat for both fields
 
 ### Deep Link URL Patterns
 - **Individual client chat:** `https://dashboard.assembly.com/clients/users/details/{assembly_client_id}/messages`
@@ -197,32 +209,47 @@ Assembly is the client communication platform (CRM + messaging). The Hub integra
 - **Client** = a contact in Assembly (has email, `companyIds[]`)
 - **Company** = a group of clients; has its own message channel where all members participate
 - **Message Channel** = conversation thread (`membershipType`: individual, group, or company)
+- **Contract Template** = a reusable contract document configured in Assembly dashboard
+- **Contract** = an instance of a template sent to a client for signature (status: `pending` | `signed`)
 - A client can have both an individual chat AND belong to a company chat
 
 ### Key Functions in `lib/assembly.ts`
 - `isAssemblyConfigured()` — checks if env var exists
-- `searchAssemblyClientByEmail(email)` — finds Assembly client by email
+- `searchAssemblyClientByEmail(email)` — finds Assembly client by email (null-safe)
 - `getAssemblyClient(id)` — get client details
+- `createAssemblyClient(opts)` — create client with `sendInvite` option
+- `findOrCreateAssemblyClient(opts)` — search by email first, create if not found
 - `getIndividualChannel(clientId)` — get 1:1 message channel
 - `getCompanyChannels(clientId)` — get company message channels
 - `getClientChannels(clientId)` — get both individual + company channels
+- `getOrCreateMessageChannel(clientId)` — get or create individual message channel
+- `sendAssemblyMessage(channelId, text)` — send message to channel
 - `assemblyClientMessagesUrl(clientId)` — deep link to individual chat
 - `assemblyCompanyMessagesUrl(companyId)` — deep link to company chat
+- `listContractTemplates(name?)` — list contract templates, optionally filter by name
+- `getContractTemplate(id)` — get specific template
+- `createAssemblyContract(opts)` — create contract from template for client
+- `getAssemblyContract(id)` — get contract details
+- `listClientContracts(clientId)` — list contracts for a client
+- File channel helpers: `getOrCreateFileChannel`, `createAssemblyFileEntry`, `createAssemblyLink`
 
 ### Integration Status
 
 #### Phase 1 — MVP (DONE)
-- [x] Migration `007_assembly_integration.sql` — `assembly_client_id`, `assembly_company_id` columns
-- [x] `lib/assembly.ts` — API client with search, channels, deep link helpers
+- [x] Migration `007_assembly_integration.sql` — `assembly_client_id`, `assembly_company_id` columns on clients
+- [x] Migration `010_leads_assembly_client.sql` — `assembly_client_id` column on leads
+- [x] `lib/assembly.ts` — API client with clients, channels, messages, contracts, file channels, deep links
 - [x] Server actions `linkAssemblyClientAction` / `unlinkAssemblyClientAction`
 - [x] Client detail panel — Assembly linked/unlinked status, "Company Chat" + "Direct Chat" buttons, "Link to Assembly" button
 - [x] Settings > Clients table — Assembly status column with link/unlink toggle per row
 - [x] Clients page query includes `assembly_client_id`, `assembly_company_id`
 - [x] Graceful degradation when `ASSEMBLY_API_KEY` is not set
 - [x] Deep links: company chat (primary when company exists) + individual chat
+- [x] Pipeline: "Create Client in Assembly" button (creates Assembly client + Hub client)
+- [x] Pipeline: "Send Contract" with template selector (creates contract via Assembly Contracts API + sends welcome message)
 
 #### Phase 2 — Read messages inline (PENDING)
-- [ ] Extend `lib/assembly.ts` with `getChannelMessages(channelId, limit)`, `getFileChannels(clientId)`
+- [ ] Extend `lib/assembly.ts` with `getChannelMessages(channelId, limit)`
 - [ ] Build `app/(authenticated)/clients/[id]/page.tsx` — full client detail page with tabs (Overview, Messages, Tasks, Files)
 - [ ] Create `app/(authenticated)/clients/[id]/actions.ts` — `getAssemblyChannelsAction` (fetches both individual + company channels with messages)
 - [ ] Create `components/clients/assembly-messages.tsx` — message list with sender, timestamp, markdown preview (reusable for individual + company)
@@ -235,7 +262,8 @@ Assembly is the client communication platform (CRM + messaging). The Hub integra
 - [ ] Create `components/clients/send-message-dialog.tsx` — markdown compose + preview dialog
 - [ ] Add `sendAssemblyMessageAction(clientId, channelId, content)` — send to individual or company channel
 - [ ] Add `bulkLinkAssemblyAction()` — iterate all clients with email, auto-link matches
-- [ ] Optional: migration `009_assembly_message_log.sql` — audit log of messages sent from Hub
+- [ ] Contract status tracking: poll `GET /v1/contracts?clientId=X` to detect `signed` status and auto-update `contract_signed` on lead
+- [ ] Optional: migration for assembly_message_log — audit log of messages sent from Hub
 
 ## Sales Pipeline
 
@@ -243,12 +271,12 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 
 ### Architecture
 - **Route:** `/pipeline` (list) and `/pipeline/[id]` (detail)
-- **Views:** Board (kanban) and Table, switchable via tabs
+- **Views:** Board (kanban), Table, and Completed — switchable via tabs
 - **Detail page:** Full page with content area + 270px right sidebar
 - **Reuses:** Generic `KanbanBoard<Lead>` and `KanbanCard` from `components/kanban/`
 - **Data flow:** Server component fetches leads with joined tags + team assignments → passes to client components
 
-### 10 Pipeline Stages
+### 8 Pipeline Stages
 1. **Inquiry** (indigo) — auto-created from schedule call
 2. **Follow-up** (blue) — first contact made, awaiting response
 3. **Audit** (cyan) — evaluating prospect's business/property
@@ -257,8 +285,16 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 6. **Proposal Signed** (orange) — prospect accepted and signed
 7. **Retainer Paid** (green) — initial payment confirmed
 8. **Planning** (violet) — onboarding + contract + client portal = **funnel close**
-9. **Completed** (emerald) — service delivered
-10. **Archived** (gray) — closed for reference (won or lost)
+
+### Archive & Complete System
+- **Completed** and **Archived** are NOT stages — they are boolean flags (`is_archived`, `is_completed`) on the leads table
+- A lead preserves its stage when archived/completed (e.g., archived at "Audit" stage = funnel dropout analysis)
+- **Mutual exclusivity:** DB constraint `CHECK (NOT (is_archived AND is_completed))` — a lead cannot be both
+- Timestamps: `archived_at`, `completed_at` track when the action happened
+- **Kanban:** Each column has collapsible "Completed" and "Archived" sections at the bottom, showing dimmed cards with Reopen/Unarchive buttons
+- **Table:** Toggle buttons for showing/hiding archived and completed leads, with count badges. Rows dimmed with status badges
+- **Detail page:** Status banner (green for completed, gray for archived) with Reactivate/Reopen button. Archive/Complete buttons in sidebar
+- **Bulk actions:** Archive and Complete available in floating action bar on table views
 
 ### Lead Card Properties
 - `project_name` (required), `full_name`, `email`, `phone`
@@ -266,20 +302,27 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 - `lead_source` (landing_page / referral / web_form / social_media / cold_outreach / other)
 - `scheduled_date`, `timezone`, `location`, `description`
 - `start_date`, `end_date`, `contract_sent`, `contract_signed`, `client_portal_url`
+- `is_archived`, `is_completed`, `archived_at`, `completed_at`
+- `assembly_client_id` — linked Assembly client (set when "Create Client in Assembly" is clicked)
 - Tags (via `lead_tag_assignments` junction), team members (via `lead_team_assignments` → profiles)
 
 ### Key Features
-- **Kanban board:** 10-column drag-and-drop with optimistic UI, click-to-move dropdown, "+" per column
-- **Table view:** Stage filter tabs with counters, search, sortable columns, row click → detail
-- **Bulk selection:** Checkboxes + select-all on table. Floating action bar with: change stage, change service type, change lead source, assign team member, delete (with confirmation)
-- **Import/Export:** CSV export (all lead fields + tags + team), CSV import with preview table + validation
-- **Detail page:** Two-column layout (content + sidebar). Sidebar: stage dropdown, contract checkboxes, client portal URL, team avatars, tags, key dates, delete. Content: description, contact info grid, details grid
+- **Kanban board:** 8-column drag-and-drop with optimistic UI, click-to-move dropdown, "+" per column, per-column collapsible archived/completed sections
+- **Table view:** Stage filter tabs with counters, search, sortable columns, inline stage change via Popover on stage badge, row click → detail, show/hide archived/completed toggles
+- **Completed view:** Dedicated tab showing only completed leads with stage filters, search, Reopen button per row, bulk archive/delete
+- **Bulk selection:** Checkboxes + select-all on table. Floating action bar with: change stage, change service type, change lead source, assign team member, complete, archive, delete (with confirmation)
+- **Import/Export:** CSV export (all lead fields + is_archived + is_completed + tags + team), CSV import with preview table + validation
+- **Detail page:** Two-column layout (content + sidebar). Sidebar: stage dropdown, archive/complete buttons, Assembly client creation + contract template selector + send, contract checkboxes, client portal URL, team avatars, tags, key dates, delete. Content: description, contact info grid, details grid. Banners for archived/completed status
 - **Edit:** LeadFormDialog supports both create and edit modes
+
+### Assembly Contract Flow (Detail Page Sidebar)
+1. **Create Client in Assembly** — Button shown when `assembly_client_id` is null. Requires lead email + name. Creates/finds client in Assembly with `sendInvite: true`, saves `assembly_client_id` on lead, also inserts a Hub client (status: onboarding) in `clients` table via admin client
+2. **Send Contract** — Shown after client is created. Select dropdown lists all contract templates from Assembly (`GET /v1/contract-templates`). Creates contract via `POST /v1/contracts` with selected template + client ID. Sends welcome message via message channel. Marks `contract_sent` on lead
 
 ### Server Actions (`pipeline/actions.ts`)
 - `createLead(formData)` — insert lead + tag/team assignments
 - `updateLead(leadId, data)` — partial update any field
-- `updateLeadStage(leadId, newStage, newSortOrder)` — kanban drag-drop
+- `updateLeadStage(leadId, newStage, newSortOrder)` — kanban drag-drop + inline table change
 - `updateLeadTags(leadId, tagIds[])` — sync junction table
 - `updateLeadTeam(leadId, profileIds[])` — sync junction table
 - `deleteLead(leadId)` — cascade delete
@@ -287,20 +330,30 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 - `bulkUpdateLeads(leadIds[], data)` — update stage/service_type/lead_source in batch
 - `bulkAssignTeam(leadIds[], profileIds[])` — assign team to multiple leads
 - `importLeads(rows[])` — bulk insert from CSV, invalid stages default to "inquiry"
+- `archiveLead(leadId)` / `unarchiveLead(leadId)` — toggle archive flag
+- `completeLead(leadId)` / `uncompleteLead(leadId)` — toggle complete flag
+- `bulkArchiveLeads(leadIds[])` / `bulkCompleteLeads(leadIds[])` — bulk flag operations
+- `createAssemblyClientForLead(leadId)` — create Assembly client + Hub client
+- `sendContractToAssembly(leadId, contractTemplateId)` — send contract via Assembly Contracts API
 
 ### Implementation Status
 
 #### Phase 1 — Core Pipeline (DONE)
 - [x] Migration `008_sales_funnel.sql` — leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS + indexes + seed tags
+- [x] Migration `009_pipeline_archive_flags.sql` — is_archived, is_completed flags, mutual exclusivity constraint, stage reduced to 8 values
+- [x] Migration `010_leads_assembly_client.sql` — assembly_client_id on leads
 - [x] Types: `Lead`, `LeadTag`, `LeadStage` in `lib/types.ts`
 - [x] Sidebar nav: "Pipeline" with Funnel icon
-- [x] Kanban board view (10 columns, drag-drop, optimistic UI)
-- [x] Table view (stage filters, search, sorting)
+- [x] Kanban board view (8 columns, drag-drop, optimistic UI, collapsible archive/complete per column)
+- [x] Table view (stage filters, inline stage change, search, sorting, show/hide archived/completed)
+- [x] Completed view (dedicated tab with table, reopen, bulk actions)
 - [x] Lead form dialog (create + edit modes, all fields)
-- [x] Detail page (`/pipeline/[id]`) with content + sidebar
-- [x] CSV export (all fields + tags + team)
+- [x] Detail page (`/pipeline/[id]`) with content + sidebar + archive/complete banners
+- [x] CSV export (all fields + is_archived + is_completed + tags + team)
 - [x] CSV import with preview + validation
-- [x] Bulk selection + action bar (stage, service type, source, assign, delete)
+- [x] Bulk selection + action bar (stage, service type, source, assign, complete, archive, delete)
+- [x] Assembly: Create client from lead (+ auto-create Hub client)
+- [x] Assembly: Send contract with template selector via Contracts API
 
 #### Phase 2 — Detail Page Tabs (PENDING)
 - [ ] **Activity tab:** `lead_activity` table (lead_id, actor FK profiles, action, metadata JSONB, created_at). Auto-log stage changes, field edits, team changes from server actions. Timeline UI component
@@ -311,7 +364,7 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 
 #### Phase 3 — Integrations & Automation (PENDING)
 - [ ] Webhook/API endpoint to receive schedule call data from landing page → auto-create lead with stage = 'inquiry'
-- [ ] CRM integration for contract sending trigger from Planning stage
+- [ ] Contract status polling: detect `signed` in Assembly → auto-update `contract_signed` on lead
 - [ ] Client portal URL auto-generation on funnel close
 - [ ] Supabase Realtime subscriptions for live pipeline updates between team members
 - [ ] Email notifications on stage changes (optional)

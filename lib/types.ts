@@ -159,3 +159,38 @@ export type Lead = {
     profiles: { full_name: string | null; email: string; avatar_url: string | null }
   }[]
 }
+
+// ─── Onboarding ─────────────────────────────────────────
+
+export type OnboardingTemplate = {
+  id: string
+  step_name: string
+  description: string | null
+  step_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingProgress = {
+  id: string
+  client_id: string
+  template_id: string
+  is_completed: boolean
+  completed_at: string | null
+  completed_by: string | null
+  // Joined fields
+  onboarding_templates?: OnboardingTemplate
+  profiles?: { full_name: string | null; email: string } | null
+}
+
+export type OnboardingResource = {
+  id: string
+  title: string
+  description: string | null
+  url: string | null
+  icon: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
