@@ -10,11 +10,11 @@ import { updatePostStatus } from "./actions"
 import type { Post, Board, Tag } from "@/lib/types"
 
 const COLUMNS = [
-  { id: "backlog", label: "Backlog", color: "#E8394D", bgColor: "hsl(0 80% 97%)" },
-  { id: "next", label: "Next", color: "#F59E0B", bgColor: "hsl(40 100% 97%)" },
-  { id: "in_progress", label: "In Progress", color: "#D97706", bgColor: "hsl(48 100% 97%)" },
-  { id: "limited_release", label: "Limited Release", color: "#10B981", bgColor: "hsl(160 60% 97%)" },
-  { id: "completed", label: "Completed", color: "#22C55E", bgColor: "hsl(142 76% 96%)" },
+  { id: "backlog", label: "Backlog", color: "#E8394D", bgColor: "hsl(0 80% 97%)", darkBgColor: "hsl(0 25% 13%)" },
+  { id: "next", label: "Next", color: "#F59E0B", bgColor: "hsl(40 100% 97%)", darkBgColor: "hsl(40 30% 12%)" },
+  { id: "in_progress", label: "In Progress", color: "#D97706", bgColor: "hsl(48 100% 97%)", darkBgColor: "hsl(48 30% 12%)" },
+  { id: "limited_release", label: "Limited Release", color: "#10B981", bgColor: "hsl(160 60% 97%)", darkBgColor: "hsl(160 20% 12%)" },
+  { id: "completed", label: "Completed", color: "#22C55E", bgColor: "hsl(142 76% 96%)", darkBgColor: "hsl(142 20% 12%)" },
 ]
 
 const COLUMN_IDS = COLUMNS.map((c) => c.id)

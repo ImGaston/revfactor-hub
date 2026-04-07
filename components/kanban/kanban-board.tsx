@@ -8,6 +8,7 @@ import {
   type DropResult,
 } from "@hello-pangea/dnd"
 import { Plus } from "lucide-react"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +19,7 @@ export type KanbanColumn<T> = {
   label: string
   color?: string
   bgColor?: string
+  darkBgColor?: string
   items: T[]
 }
 
@@ -40,6 +42,9 @@ export function KanbanBoard<T extends { id: string }>({
   columnIds,
   renderColumnFooter,
 }: KanbanBoardProps<T>) {
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
   const handleDragEnd = useCallback(
     (result: DropResult) => {
       const { source, destination, draggableId } = result
@@ -69,7 +74,7 @@ export function KanbanBoard<T extends { id: string }>({
             <div
               key={col.id}
               className="flex w-72 shrink-0 flex-col rounded-lg border"
-              style={{ backgroundColor: col.bgColor ?? "hsl(var(--muted) / 0.3)" }}
+              style={{ backgroundColor: (isDark ? col.darkBgColor : col.bgColor) ?? "hsl(var(--muted) / 0.3)" }}
             >
               <div className="flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-2">

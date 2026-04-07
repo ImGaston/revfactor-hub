@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   User as UserIcon,
 } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 
@@ -83,11 +84,24 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <span className="text-sm font-bold">RF</span>
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <Image
+                    src="/revfactor-logo/RevFactor_Favicon_Cedar.png"
+                    alt="RF"
+                    width={32}
+                    height={32}
+                    className="block dark:hidden"
+                  />
+                  <Image
+                    src="/revfactor-logo/RevFactor_Favicon_Bone.png"
+                    alt="RF"
+                    width={32}
+                    height={32}
+                    className="hidden dark:block"
+                  />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">RevFactor</span>
+                  <span className="truncate font-semibold">Revfactor</span>
                   <span className="truncate text-xs text-muted-foreground">
                     Hub
                   </span>

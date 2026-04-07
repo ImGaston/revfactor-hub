@@ -12,16 +12,16 @@ import { cn } from "@/lib/utils"
 
 export const STAGE_COLUMNS = [
   // Active Pipeline
-  { id: "inquiry", label: "Inquiry", color: "#818cf8", bgColor: "hsl(235 85% 97%)" },
-  { id: "follow_up", label: "Follow-up", color: "#60a5fa", bgColor: "hsl(217 91% 97%)" },
-  { id: "audit", label: "Audit", color: "#38bdf8", bgColor: "hsl(199 89% 97%)" },
-  { id: "meeting", label: "Meeting", color: "#2dd4bf", bgColor: "hsl(172 66% 97%)" },
+  { id: "inquiry", label: "Inquiry", color: "#818cf8", bgColor: "hsl(235 85% 97%)", darkBgColor: "hsl(235 25% 14%)" },
+  { id: "follow_up", label: "Follow-up", color: "#60a5fa", bgColor: "hsl(217 91% 97%)", darkBgColor: "hsl(217 25% 14%)" },
+  { id: "audit", label: "Audit", color: "#38bdf8", bgColor: "hsl(199 89% 97%)", darkBgColor: "hsl(199 25% 14%)" },
+  { id: "meeting", label: "Meeting", color: "#2dd4bf", bgColor: "hsl(172 66% 97%)", darkBgColor: "hsl(172 20% 13%)" },
   // Closing
-  { id: "proposal_sent", label: "Proposal Sent", color: "#f59e0b", bgColor: "hsl(38 92% 97%)" },
-  { id: "proposal_signed", label: "Proposal Signed", color: "#f97316", bgColor: "hsl(25 95% 97%)" },
-  { id: "retainer_paid", label: "Retainer Paid", color: "#22c55e", bgColor: "hsl(142 71% 97%)" },
+  { id: "proposal_sent", label: "Proposal Sent", color: "#f59e0b", bgColor: "hsl(38 92% 97%)", darkBgColor: "hsl(38 30% 12%)" },
+  { id: "proposal_signed", label: "Proposal Signed", color: "#f97316", bgColor: "hsl(25 95% 97%)", darkBgColor: "hsl(25 30% 12%)" },
+  { id: "retainer_paid", label: "Retainer Paid", color: "#22c55e", bgColor: "hsl(142 71% 97%)", darkBgColor: "hsl(142 20% 12%)" },
   // Post-Sale
-  { id: "planning", label: "Planning", color: "#a78bfa", bgColor: "hsl(257 90% 97%)" },
+  { id: "planning", label: "Planning", color: "#a78bfa", bgColor: "hsl(257 90% 97%)", darkBgColor: "hsl(257 25% 14%)" },
 ]
 
 const COLUMN_IDS = STAGE_COLUMNS.map((c) => c.id)

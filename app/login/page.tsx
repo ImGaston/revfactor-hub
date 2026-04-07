@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -62,10 +63,23 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <h1 className="text-2xl font-light tracking-tight lowercase">
-            revfactor
-          </h1>
+        <CardHeader className="flex items-center justify-center">
+          <Image
+            src="/revfactor-logo/RevFactor_SecondaryLogo_Cedar.png"
+            alt="RevFactor"
+            width={200}
+            height={50}
+            className="block dark:hidden"
+            priority
+          />
+          <Image
+            src="/revfactor-logo/RevFactor_SecondaryLogo_Bone.png"
+            alt="RevFactor"
+            width={200}
+            height={50}
+            className="hidden dark:block"
+            priority
+          />
         </CardHeader>
         <CardContent>
           {magicLinkSent ? (

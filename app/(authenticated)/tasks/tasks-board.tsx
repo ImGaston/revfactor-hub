@@ -10,10 +10,10 @@ import type { Task } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 
 const COLUMNS = [
-  { id: "todo", label: "To Do", color: "#6b7280", bgColor: "hsl(220 14% 96%)" },
-  { id: "in_progress", label: "In Progress", color: "#3b82f6", bgColor: "hsl(48 100% 96%)" },
-  { id: "waiting", label: "Waiting", color: "#f59e0b", bgColor: "hsl(35 100% 96%)" },
-  { id: "done", label: "Done", color: "#22c55e", bgColor: "hsl(142 76% 96%)" },
+  { id: "todo", label: "To Do", color: "#6b7280", bgColor: "hsl(220 14% 96%)", darkBgColor: "hsl(220 10% 14%)" },
+  { id: "in_progress", label: "In Progress", color: "#3b82f6", bgColor: "hsl(48 100% 96%)", darkBgColor: "hsl(48 30% 12%)" },
+  { id: "waiting", label: "Waiting", color: "#f59e0b", bgColor: "hsl(35 100% 96%)", darkBgColor: "hsl(35 30% 12%)" },
+  { id: "done", label: "Done", color: "#22c55e", bgColor: "hsl(142 76% 96%)", darkBgColor: "hsl(142 20% 12%)" },
 ]
 
 const PRIORITY_COLORS: Record<string, string> = {
