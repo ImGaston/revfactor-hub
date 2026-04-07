@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Lightbulb,
   Funnel,
+  Building2,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -44,6 +45,7 @@ import type { Profile } from "@/lib/supabase/profile"
 const navItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Clients", href: "/clients", icon: Users },
+  { title: "Listings", href: "/listings", icon: Building2 },
   { title: "Tasks", href: "/tasks", icon: CheckSquare },
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList },
   { title: "Calendar", href: "/calendar", icon: Calendar },

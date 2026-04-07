@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search } from "lucide-react"
+import { Search, LayoutGrid, Table as TableIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ClientCard } from "./client-card"
+import { ClientsTable } from "./clients-table"
 import type { Client } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -20,12 +21,13 @@ export function ClientsView({
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
     new Set(["active", "onboarding"])
   )
+  const [view, setView] = useState<"cards" | "table">("cards")
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return clients.filter((c) => {
       if (!statusFilter.has(c.status)) return false
-      if (q && !c.name.toLowerCase().includes(q)) return false
+      if (q && !c.name.toLowerCase().includes(q) && !c.email?.toLowerCase().includes(q)) return false
       return true
     })
   }, [clients, search, statusFilter])
@@ -52,11 +54,39 @@ export function ClientsView({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-        <p className="text-sm text-muted-foreground">
-          {filtered.length} of {clients.length} clients
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} of {clients.length} clients
+          </p>
+        </div>
+        <div className="flex items-center rounded-md border p-0.5">
+          <button
+            onClick={() => setView("cards")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-sm font-medium transition-colors",
+              view === "cards"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <LayoutGrid className="size-4" />
+            Cards
+          </button>
+          <button
+            onClick={() => setView("table")}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1.5 text-sm font-medium transition-colors",
+              view === "table"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <TableIcon className="size-4" />
+            Table
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -75,7 +105,7 @@ export function ClientsView({
               key={s}
               onClick={() => toggleStatus(s)}
               className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors",
+                "inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors capitalize",
                 statusFilter.has(s)
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-transparent bg-muted text-muted-foreground hover:text-foreground"
@@ -90,20 +120,25 @@ export function ClientsView({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((client) => (
-          <ClientCard
-            key={client.id}
-            client={client}
-            isSuperAdmin={isSuperAdmin}
-          />
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
-        <p className="py-12 text-center text-sm text-muted-foreground">
-          No clients match your filters.
-        </p>
+      {view === "cards" ? (
+        <>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                isSuperAdmin={isSuperAdmin}
+              />
+            ))}
+          </div>
+          {filtered.length === 0 && (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              No clients match your filters.
+            </p>
+          )}
+        </>
+      ) : (
+        <ClientsTable clients={filtered} isSuperAdmin={isSuperAdmin} />
       )}
     </div>
   )

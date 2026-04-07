@@ -19,9 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Plus } from "lucide-react"
 import { inviteUser } from "./actions"
 
-export function InviteUserDialog() {
+type RoleOption = {
+  name: string
+  description: string | null
+  is_system: boolean
+}
+
+export function InviteUserDialog({ roles }: { roles: RoleOption[] }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -48,7 +55,10 @@ export function InviteUserDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Invite User</Button>
+        <Button size="sm">
+          <Plus className="size-4 mr-1.5" />
+          Invite User
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -90,8 +100,18 @@ export function InviteUserDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
+                {roles.map((r) => (
+                  <SelectItem key={r.name} value={r.name}>
+                    <span className="capitalize">
+                      {r.name.replace(/_/g, " ")}
+                    </span>
+                    {r.description && (
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        — {r.description}
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

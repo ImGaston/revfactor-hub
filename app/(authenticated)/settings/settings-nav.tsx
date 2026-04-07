@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 const allTabs = [
   { label: "Account", href: "/settings/account", adminOnly: false },
   { label: "Users", href: "/settings/users", adminOnly: true },
+  { label: "Roles & Permissions", href: "/settings/roles", adminOnly: true },
   { label: "Clients", href: "/settings/clients", adminOnly: true },
   { label: "Listings", href: "/settings/listings", adminOnly: true },
   { label: "Boards & Tags", href: "/settings/boards-tags", adminOnly: true },
