@@ -192,14 +192,14 @@ function KPIMetric({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1.5 px-3 py-4">
-      <span className="text-[10px] font-medium text-muted-foreground text-center leading-tight">
+    <div className="flex flex-col items-center justify-center gap-2 px-3 py-4">
+      <span className="text-sm font-medium text-muted-foreground text-center leading-tight">
         {label}
       </span>
       {badgeColor ? (
         <span
           className={cn(
-            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-bold font-mono",
+            "inline-flex items-center rounded-full border px-3 py-1 text-sm font-bold font-mono",
             colorClasses[badgeColor]
           )}
         >

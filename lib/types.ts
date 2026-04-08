@@ -106,6 +106,20 @@ export type Comment = {
   replies?: Comment[]
 }
 
+// ─── Credentials ────────────────────────────────────────
+
+export type ClientCredential = {
+  id: string
+  client_id: string
+  name: string
+  software: string
+  email: string | null
+  password: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Sales Pipeline ─────────────────────────────────────
 
 export type LeadStage =

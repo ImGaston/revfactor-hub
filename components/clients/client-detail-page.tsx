@@ -21,8 +21,9 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import type { Client } from "@/lib/types"
+import type { Client, ClientCredential } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
+import { ClientCredentials } from "./client-credentials"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 
 // Mock KPIs per listing — deterministic based on ID hash
@@ -106,12 +107,14 @@ function formatDate(date: string | null) {
 
 export function ClientDetailPage({
   client,
+  credentials = [],
   isSuperAdmin,
   assemblyConfigured,
   onLinkAssembly,
   onUnlinkAssembly,
 }: {
   client: Client
+  credentials?: ClientCredential[]
   isSuperAdmin: boolean
   assemblyConfigured: boolean
   onLinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
@@ -322,6 +325,10 @@ export function ClientDetailPage({
           </div>
         </>
       )}
+
+      <Separator />
+
+      <ClientCredentials clientId={client.id} credentials={credentials} />
 
       <Separator />
 

@@ -19,19 +19,28 @@ export default async function ClientPage({
     getProfile(),
   ])
 
-  const { data: client } = await supabase
-    .from("clients")
-    .select(
-      "id, name, status, billing_amount, onboarding_date, ending_date, autopayment_set_up, stripe_dashboard, email, assembly_link, assembly_client_id, assembly_company_id, listings(id, name, listing_id, pricelabs_link, airbnb_link, city, state), tasks(id, title, status, owner, tag, profiles(full_name, email))"
-    )
-    .eq("id", id)
-    .single()
+  const [{ data: client }, { data: credentials }] = await Promise.all([
+    supabase
+      .from("clients")
+      .select(
+        "id, name, status, billing_amount, onboarding_date, ending_date, autopayment_set_up, stripe_dashboard, email, assembly_link, assembly_client_id, assembly_company_id, listings(id, name, listing_id, pricelabs_link, airbnb_link, city, state), tasks(id, title, status, owner, tag, profiles(full_name, email))"
+      )
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("client_credentials")
+      .select("*")
+      .eq("client_id", id)
+      .order("software")
+      .order("name"),
+  ])
 
   if (!client) notFound()
 
   return (
     <ClientDetailPage
       client={client}
+      credentials={credentials ?? []}
       isSuperAdmin={profile?.role === "super_admin"}
       assemblyConfigured={isAssemblyConfigured()}
       onLinkAssembly={linkAssemblyClientAction}
