@@ -62,10 +62,18 @@ type ClientData = {
 // These will be replaced with real data from PriceLabs API, reservations DB, etc.
 
 const MOCK_KPI = {
+  base_price: 450,
+  last_booked_date: "2026-03-28",
+  total_occ_30n: 77,
+  nights_booked_15p: 16,
+  bookings_pickup_15p: 4,
+  adj_occ_30n: 77,
+  adj_occ_30p: 87,
+  adj_occ_60n: 72,
+  adj_occ_90n: 67,
+  mpi_30n: 1.9,
   adr: 287.5,
   adrChange: 12.3,
-  occupancy: 78.4,
-  occupancyChange: -2.1,
   revpar: 225.4,
   revparChange: 8.7,
   revenue_mtd: 8625,
@@ -167,6 +175,42 @@ const MOCK_PACING = {
 }
 
 // ─── Component ──────────────────────────────────────────────
+
+function KPIMetric({
+  label,
+  value,
+  badgeColor,
+}: {
+  label: string
+  value: string
+  badgeColor?: "green" | "amber" | "red"
+}) {
+  const colorClasses = {
+    green: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800",
+    amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+    red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-1.5 px-3 py-4">
+      <span className="text-[10px] font-medium text-muted-foreground text-center leading-tight">
+        {label}
+      </span>
+      {badgeColor ? (
+        <span
+          className={cn(
+            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-bold font-mono",
+            colorClasses[badgeColor]
+          )}
+        >
+          {value}
+        </span>
+      ) : (
+        <span className="text-sm font-bold font-mono">{value}</span>
+      )}
+    </div>
+  )
+}
 
 function KPICard({
   title,
@@ -336,7 +380,59 @@ export function ListingDetail({
         </p>
       </div>
 
-      {/* ─── KPI Cards ───────────────────────────────────── */}
+      {/* ─── PriceLabs-Style KPI Row ────────────────────── */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <div className="grid grid-cols-10 min-w-[900px] divide-x">
+              <KPIMetric label="Base Price" value={`$${MOCK_KPI.base_price}`} />
+              <KPIMetric
+                label="Last Booked Date"
+                value={formatDate(MOCK_KPI.last_booked_date)}
+              />
+              <KPIMetric
+                label="Total Occ (30N)"
+                value={`${MOCK_KPI.total_occ_30n}%`}
+                badgeColor={MOCK_KPI.total_occ_30n >= 75 ? "green" : MOCK_KPI.total_occ_30n >= 50 ? "amber" : "red"}
+              />
+              <KPIMetric
+                label="Nights Booked (15P)"
+                value={String(MOCK_KPI.nights_booked_15p)}
+              />
+              <KPIMetric
+                label="Bookings Pickup (15P)"
+                value={String(MOCK_KPI.bookings_pickup_15p)}
+              />
+              <KPIMetric
+                label="Adj Occ (30N)"
+                value={`${MOCK_KPI.adj_occ_30n}%`}
+                badgeColor={MOCK_KPI.adj_occ_30n >= 75 ? "green" : MOCK_KPI.adj_occ_30n >= 50 ? "amber" : "red"}
+              />
+              <KPIMetric
+                label="Adj Occ (30P)"
+                value={`${MOCK_KPI.adj_occ_30p}%`}
+                badgeColor={MOCK_KPI.adj_occ_30p >= 75 ? "green" : MOCK_KPI.adj_occ_30p >= 50 ? "amber" : "red"}
+              />
+              <KPIMetric
+                label="Adj Occ (60N)"
+                value={`${MOCK_KPI.adj_occ_60n}%`}
+                badgeColor={MOCK_KPI.adj_occ_60n >= 75 ? "green" : MOCK_KPI.adj_occ_60n >= 50 ? "amber" : "red"}
+              />
+              <KPIMetric
+                label="Adj Occ (90N)"
+                value={`${MOCK_KPI.adj_occ_90n}%`}
+                badgeColor={MOCK_KPI.adj_occ_90n >= 75 ? "green" : MOCK_KPI.adj_occ_90n >= 50 ? "amber" : "red"}
+              />
+              <KPIMetric
+                label="MPI (30N)"
+                value={String(MOCK_KPI.mpi_30n)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── Secondary KPI Cards ─────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
           title="ADR"
@@ -344,13 +440,6 @@ export function ListingDetail({
           change={MOCK_KPI.adrChange}
           icon={DollarSign}
           prefix="$"
-        />
-        <KPICard
-          title="Occupancy"
-          value={MOCK_KPI.occupancy}
-          change={MOCK_KPI.occupancyChange}
-          icon={Percent}
-          suffix="%"
         />
         <KPICard
           title="RevPAR"
@@ -365,6 +454,12 @@ export function ListingDetail({
           change={MOCK_KPI.revenueChange}
           icon={TrendingUp}
           prefix="$"
+        />
+        <KPICard
+          title="Avg Rating"
+          value={MOCK_KPI.avg_rating}
+          icon={Star}
+          suffix={` (${MOCK_KPI.total_reviews})`}
         />
       </div>
 

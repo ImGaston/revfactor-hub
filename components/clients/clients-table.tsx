@@ -2,8 +2,11 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowUpDown, Building2, ListChecks, Link2, Mail } from "lucide-react"
+import { toast } from "sonner"
+import { ArrowUpDown, Building2, ListChecks, Link2, Mail, Plus, Check, X, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   Table,
   TableBody,
@@ -12,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { updateClientEmailAction } from "@/app/(authenticated)/settings/clients/actions"
 import type { Client } from "@/lib/types"
 
 const statusColor: Record<string, string> = {
@@ -34,6 +38,9 @@ export function ClientsTable({
 }) {
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
+  const [emailValue, setEmailValue] = useState("")
+  const [savingEmail, setSavingEmail] = useState(false)
   const router = useRouter()
 
   function toggleSort(field: SortField) {
@@ -42,6 +49,31 @@ export function ClientsTable({
     } else {
       setSortField(field)
       setSortDir("asc")
+    }
+  }
+
+  function startEditEmail(clientId: string) {
+    setEditingEmailId(clientId)
+    setEmailValue("")
+  }
+
+  function cancelEditEmail() {
+    setEditingEmailId(null)
+    setEmailValue("")
+  }
+
+  async function saveEmail(clientId: string) {
+    if (!emailValue.trim()) return
+    setSavingEmail(true)
+    const result = await updateClientEmailAction(clientId, emailValue.trim())
+    setSavingEmail(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Email added")
+      setEditingEmailId(null)
+      setEmailValue("")
+      router.refresh()
     }
   }
 
@@ -134,6 +166,7 @@ export function ClientsTable({
           ) : (
             sorted.map((client) => {
               const openTasks = client.tasks.filter((t) => t.status !== "done").length
+              const isEditingEmail = editingEmailId === client.id
               return (
                 <TableRow
                   key={client.id}
@@ -141,14 +174,56 @@ export function ClientsTable({
                   onClick={() => router.push(`/clients/${client.id}`)}
                 >
                   <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell>
-                    {client.email ? (
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {isEditingEmail ? (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="email"
+                          value={emailValue}
+                          onChange={(e) => setEmailValue(e.target.value)}
+                          placeholder="email@example.com"
+                          className="h-7 text-sm w-48"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEmail(client.id)
+                            if (e.key === "Escape") cancelEditEmail()
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-green-600"
+                          onClick={() => saveEmail(client.id)}
+                          disabled={savingEmail || !emailValue.trim()}
+                        >
+                          {savingEmail ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Check className="size-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={cancelEditEmail}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ) : client.email ? (
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Mail className="size-3.5 shrink-0" />
                         {client.email}
                       </span>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <button
+                        onClick={() => startEditEmail(client.id)}
+                        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Plus className="size-3.5" />
+                        Add email
+                      </button>
                     )}
                   </TableCell>
                   <TableCell>

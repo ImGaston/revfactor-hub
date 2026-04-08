@@ -21,7 +21,7 @@ export function ClientsView({
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
     new Set(["active", "onboarding"])
   )
-  const [view, setView] = useState<"cards" | "table">("cards")
+  const [view, setView] = useState<"cards" | "table">("table")
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

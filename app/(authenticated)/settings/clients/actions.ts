@@ -39,6 +39,15 @@ export async function updateClientAction(id: string, input: ClientInput) {
   return { error: null }
 }
 
+export async function updateClientEmailAction(id: string, email: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from("clients").update({ email }).eq("id", id)
+  if (error) return { error: error.message }
+  revalidatePath("/settings/clients")
+  revalidatePath("/clients")
+  return { error: null }
+}
+
 export async function deleteClientAction(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("clients").delete().eq("id", id)

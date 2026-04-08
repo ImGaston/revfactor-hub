@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import {
   ExternalLink,
   Mail,
@@ -14,6 +15,7 @@ import {
   MessageSquare,
   Users,
   Loader2,
+  MapPin,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +24,49 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Client } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
+
+function getMockListingKPIs(id: string) {
+  let hash = 0
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0x7fffffff
+  const occ30n = 55 + (hash % 40)
+  const adr = 180 + (hash % 280)
+  const revpar = Math.round(adr * (occ30n / 100))
+  const mpi = Number(((hash % 20) / 10 + 0.5).toFixed(1))
+  return { occ30n, adr, revpar, mpi }
+}
+
+function ListingKPI({
+  label,
+  value,
+  color,
+  trend,
+}: {
+  label: string
+  value: string
+  color?: "green" | "amber" | "red"
+  trend?: "up" | "down"
+}) {
+  const colorClass =
+    color === "green"
+      ? "text-green-600 dark:text-green-400"
+      : color === "amber"
+        ? "text-amber-600 dark:text-amber-400"
+        : color === "red"
+          ? "text-red-600 dark:text-red-400"
+          : "text-foreground"
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span className={`text-sm font-bold font-mono flex items-center gap-0.5 ${colorClass}`}>
+        {value}
+        {trend === "up" && <span className="text-green-500 text-[10px]">↗</span>}
+        {trend === "down" && <span className="text-red-500 text-[10px]">↘</span>}
+      </span>
+    </div>
+  )
+}
 
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
@@ -284,41 +329,46 @@ export function ClientDetail({
             </span>
           </h3>
           <div className="mt-3 space-y-2">
-            {client.listings.map((listing) => (
-              <div
-                key={listing.id}
-                className="rounded-md border p-3 text-sm"
-              >
-                <p className="font-medium leading-tight">{listing.name}</p>
-                {(listing.city || listing.state) && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {[listing.city, listing.state].filter(Boolean).join(", ")}
+            {client.listings.map((listing) => {
+              const mock = getMockListingKPIs(listing.id)
+              const location = [listing.city, listing.state].filter(Boolean).join(", ")
+              return (
+                <Link
+                  key={listing.id}
+                  href={`/listings/${listing.id}`}
+                  className="block rounded-xl border bg-card p-4 transition-colors hover:bg-accent/50 hover:shadow-sm"
+                >
+                  <p className="text-[15px] font-semibold leading-tight">
+                    {listing.name}
                   </p>
-                )}
-                <div className="mt-2 flex gap-2">
-                  {listing.airbnb_link && listing.airbnb_link !== "https://www.airbnb.com/rooms/" && (
-                    <a
-                      href={listing.airbnb_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Airbnb <ExternalLink className="inline size-2.5" />
-                    </a>
+                  {location && (
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="size-3 shrink-0" />
+                      <span>{location}</span>
+                      {listing.airbnb_link && listing.airbnb_link !== "https://www.airbnb.com/rooms/" && (
+                        <span
+                          onClick={(e) => {
+                            e.preventDefault()
+                            window.open(listing.airbnb_link!, "_blank")
+                          }}
+                          className="opacity-60 hover:opacity-100 transition-opacity cursor-pointer ml-0.5"
+                          title="Airbnb"
+                        >
+                          <img src="/airbnb-logo.webp" alt="Airbnb" className="size-3.5 rounded" />
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {listing.pricelabs_link && (
-                    <a
-                      href={listing.pricelabs_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      PriceLabs <ExternalLink className="inline size-2.5" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+                  <div className="my-2.5 border-t" />
+                  <div className="grid grid-cols-4 gap-x-3">
+                    <ListingKPI label="OCC" value={`${mock.occ30n}%`} color={mock.occ30n >= 75 ? "green" : mock.occ30n >= 50 ? "amber" : "red"} />
+                    <ListingKPI label="ADR" value={`$${mock.adr}`} />
+                    <ListingKPI label="REVPAR" value={`$${mock.revpar}`} color={mock.revpar >= 200 ? "green" : undefined} />
+                    <ListingKPI label="MPI" value={mock.mpi.toFixed(2)} color={mock.mpi >= 1 ? "green" : "red"} trend={mock.mpi >= 1 ? "up" : "down"} />
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </ScrollArea>
