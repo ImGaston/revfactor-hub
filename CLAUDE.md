@@ -21,76 +21,122 @@ app/
 ├── (authenticated)/
 │   ├── layout.tsx              # Authenticated layout (sidebar + top bar)
 │   ├── page.tsx                # Dashboard (home)
+│   ├── dashboard-view.tsx      # Dashboard client component
 │   ├── clients/
-│   │   ├── page.tsx            # Client list (card grid with filters + Sheet side panel)
-│   │   └── [id]/page.tsx       # Client detail (standalone page)
+│   │   ├── page.tsx            # Client list (cards/table toggle with filters)
+│   │   └── [id]/
+│   │       ├── page.tsx        # Client detail (standalone page, fetches credentials)
+│   │       └── credentials-actions.ts  # Server actions (createCredential, updateCredential, deleteCredential)
+│   ├── listings/
+│   │   ├── page.tsx            # Listings table — server component, fetches listings with client join
+│   │   ├── listings-view.tsx   # Table with status dropdown, searchable client combobox, search input, row click → detail
+│   │   └── [id]/
+│   │       ├── page.tsx        # Listing detail — server component (fetches listing + client)
+│   │       └── listing-detail.tsx  # Dashboard mockup with PriceLabs-style KPI row, tabs (Revenue, Reservations, Rates, Pacing)
 │   ├── tasks/
 │   │   ├── page.tsx            # Task board (kanban) — server component, fetches data
 │   │   ├── tasks-board.tsx     # Client component with optimistic drag-and-drop
 │   │   ├── task-dialog.tsx     # Create task form dialog (client+listing selectors)
 │   │   └── actions.ts          # Server actions (createTask, updateTaskStatus, deleteTask)
 │   ├── roadmap/
-│   │   ├── page.tsx            # Roadmap board (kanban) — server component
-│   │   ├── roadmap-board.tsx   # Client component with optimistic drag-and-drop
-│   │   ├── roadmap-dialog.tsx  # Create roadmap item form dialog
-│   │   └── actions.ts          # Server actions (createRoadmapItem, updateRoadmapItemStatus)
+│   │   ├── page.tsx            # Ideas & Roadmap — server component
+│   │   ├── roadmap-tabs.tsx    # Ideas/Roadmap tab switcher
+│   │   ├── roadmap-kanban.tsx  # Kanban board for roadmap items
+│   │   ├── ideas-view.tsx      # Ideas feed view
+│   │   ├── ideas-card.tsx      # Idea card with votes, comments
+│   │   ├── ideas-toolbar.tsx   # Ideas filter/sort toolbar
+│   │   ├── post-form-dialog.tsx    # Create/edit idea dialog
+│   │   ├── post-detail-dialog.tsx  # Idea detail with comments
+│   │   ├── comment-form.tsx    # Comment form component
+│   │   ├── comment-thread.tsx  # Threaded comments display
+│   │   └── actions.ts          # Server actions (CRUD for ideas, roadmap items, comments, votes)
 │   ├── pipeline/
 │   │   ├── page.tsx              # Pipeline — server component, fetches leads + tags + profiles
 │   │   ├── pipeline-tabs.tsx     # Board/Table/Completed tab switcher + Import/Export buttons
 │   │   ├── pipeline-kanban.tsx   # 8-column kanban with optimistic drag-and-drop + collapsible archive/complete sections
-│   ���   ├── pipeline-table.tsx    # Table view with stage filters, inline stage change, search, sorting, bulk selection + action bar
+│   │   ├── pipeline-table.tsx    # Table view with stage filters, inline stage change, search, sorting, bulk selection + action bar
 │   │   ├── pipeline-completed.tsx # Completed leads table view with search, stage filters, reopen, bulk actions
 │   │   ├── lead-form-dialog.tsx  # Create/edit lead dialog (all fields, tags, team)
 │   │   ├── import-leads-dialog.tsx # CSV import dialog with preview + validation
-│   │   ��── actions.ts            # Server actions (CRUD, bulk ops, import, archive/complete, Assembly integration)
+│   │   ├── actions.ts            # Server actions (CRUD, bulk ops, import, archive/complete, Assembly integration)
 │   │   └── [id]/
 │   │       ├── page.tsx          # Lead detail — server component (fetches lead + Assembly contract templates)
 │   │       └── lead-detail.tsx   # Lead detail — content + sidebar (stage, Assembly client, contract template selector, team, tags, dates)
+│   ├── onboarding/
+│   │   ├── page.tsx              # Onboarding — server component
+│   │   ├── onboarding-view.tsx   # Onboarding view with client stepper cards
+│   │   ├── client-stepper-card.tsx # Per-client onboarding progress card
+│   │   ├── resource-card.tsx     # Resource/template card
+│   │   └── actions.ts           # Server actions for onboarding steps
 │   ├── settings/
-│   │   ├��─ account/
+│   │   ├── layout.tsx            # Settings layout with nav tabs
+│   │   ├── settings-nav.tsx      # Settings navigation (Account, Users, Clients, Listings, Roles, Boards & Tags, Onboarding)
+│   │   ├── account/
 │   │   │   ├── page.tsx            # Account settings (avatar, profile, password)
 │   │   │   ├── actions.ts          # Server actions (updateProfile, updatePassword, updateAvatarUrl)
 │   │   │   ├── avatar-upload.tsx   # Avatar upload with Supabase Storage
 │   │   │   ├── profile-form.tsx    # Name edit form (email disabled)
 │   │   │   └── password-form.tsx   # Current/new/confirm password form
-���   │   ├── listings/
+│   │   ├── clients/
+│   │   │   ├── page.tsx              # Client management
+│   │   │   ├── clients-settings.tsx  # Table with search, filters, Assembly link/unlink, edit/delete
+│   │   │   ├── client-dialog.tsx     # Create/edit client form
+│   │   │   └── actions.ts           # Server actions (CRUD, Assembly link/unlink, updateClientEmailAction)
+│   │   ├── listings/
 │   │   │   ├── page.tsx              # Listings management (super_admin only)
 │   │   │   ├── listings-settings.tsx # Table with search, filters, edit/delete per row
 │   │   │   ├── listing-dialog.tsx    # Create/edit listing form (ID-based inputs for Airbnb & PriceLabs)
 │   │   │   └── actions.ts           # Server actions (createListingAction, updateListingAction, deleteListingAction)
-│   │   └── users/
-│   │       ├── page.tsx            # User management (super_admin only)
-│   │       ├── invite-user-dialog.tsx # Invite user with email+password+role
-│   │       └── actions.ts          # inviteUser via admin.auth.admin.createUser()
-│   ├── onboarding/page.tsx     # Onboarding tracker (pipeline)
+│   │   ├── users/
+│   │   │   ├── page.tsx            # User management (super_admin only, fetches roles)
+│   │   │   ├── users-table.tsx     # Users table with inline role dropdown per user
+│   │   │   ├── invite-user-dialog.tsx # Invite user with email+password+role (accepts roles prop)
+│   │   │   └── actions.ts          # inviteUser via admin.auth.admin.createUser()
+│   │   ├── roles/
+│   │   │   ├── page.tsx            # Roles & Permissions management (super_admin only)
+│   │   │   ├── roles-manager.tsx   # Role cards with permission grid, create/delete role, user role reassignment
+│   │   │   └── actions.ts          # Server actions (createRole, deleteRole, togglePermission, bulkToggleResource, updateUserRole)
+│   │   ├── boards-tags/
+│   │   │   ├── page.tsx            # Boards & Tags settings
+│   │   │   └── boards-tags-admin.tsx # Tag management UI
+│   │   └── onboarding/
+│   │       ├── page.tsx              # Onboarding settings
+│   │       └── onboarding-settings.tsx # Onboarding template management
 │   ├── calendar/page.tsx       # Calendar view
 │   └── notes/page.tsx          # Notes feed
 proxy.ts                        # Next.js 16 middleware (session refresh + auth redirects)
 components/
 ├── ui/                         # shadcn/ui components (auto-managed)
 ├── layout/
-│   ├── app-sidebar.tsx         # Sidebar nav + user avatar dropdown
-│   └── top-bar.tsx             # Dynamic breadcrumbs from pathname
+│   ├── app-sidebar.tsx         # Sidebar nav + user avatar dropdown (Dashboard, Clients, Listings, Tasks, Onboarding, Calendar, Notes, Ideas & Roadmap, Pipeline)
+│   ├── top-bar.tsx             # Dynamic breadcrumbs from pathname
+│   └── breadcrumb-context.tsx  # Breadcrumb context provider
 ├── clients/
-│   ├── clients-view.tsx        # Client card grid with search + status filters + Sheet panel
+│   ├── clients-view.tsx        # Cards/Table toggle (default: table), search matches name+email, status filters
+│   ├── clients-table.tsx       # Table view with sortable columns, inline email editing (+Add email button)
 │   ├── client-card.tsx         # Card: name, status badge, listing count
-│   └── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings
+│   ├── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings with KPIs
+│   ├── client-detail-page.tsx  # Standalone detail page: contact info, credentials, listings with KPIs (responsive grid)
+│   └── client-credentials.tsx  # Collapsible credentials table (hidden by default), password show/hide/copy, CRUD form dialog
 ├── kanban/
-│   ├─��� kanban-board.tsx        # Generic typed board with @hello-pangea/dnd + renderColumnFooter
+│   ├── kanban-board.tsx        # Generic typed board with @hello-pangea/dnd + renderColumnFooter
 │   └── kanban-card.tsx         # Card with left accent border, badges, dropdown move menu, archive/complete actions
-└── theme-provider.tsx          # next-themes provider
+├── theme-provider.tsx          # next-themes provider
+└── theme-toggle.tsx            # Dark/light mode toggle
 lib/
 ├── supabase/
 │   ├── client.ts               # Browser Supabase client (createBrowserClient)
 │   ├── server.ts               # Server Supabase client (createServerClient + cookies)
 │   ├── admin.ts                # Admin client with service role key
-│   └── profile.ts              # Profile type + getProfile() helper
+│   └── profile.ts              # Profile type (role: string) + getProfile() helper
 ├── assembly.ts                 # Assembly CRM API client (clients, channels, messages, contracts, deep links)
-├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, Lead, LeadTag, LeadStage, resolveProfile helper)
+├── permissions.ts              # Client-safe: RESOURCES, ACTIONS, types, buildPermissionMap(), checkPermission()
+├── permissions.server.ts       # Server-only: hasPermission(), getRolePermissions(), getAllRolesWithPermissions()
+├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, ClientCredential, Lead, LeadTag, LeadStage, resolveProfile helper)
 └── utils.ts
 supabase/
 └── migrations/
-    ��── 001_profiles.sql        # profiles table, trigger, RLS + get_my_role() SECURITY DEFINER
+    ├── 001_profiles.sql        # profiles table, trigger, RLS + get_my_role() SECURITY DEFINER
     ├── 002_clients_and_listings.sql
     ├── 003_tasks_and_roadmap.sql
     ├── 004_tasks_owner_fk.sql  # ALTER tasks.owner to UUID FK → profiles
@@ -99,22 +145,32 @@ supabase/
     ├── 007_assembly_integration.sql  # assembly_client_id, assembly_company_id on clients
     ├── 008_sales_funnel.sql          # leads, lead_tags, lead_tag_assignments, lead_team_assignments + RLS
     ├── 009_pipeline_archive_flags.sql # is_archived, is_completed, mutual exclusivity constraint, migrate data
-    └── 010_leads_assembly_client.sql  # assembly_client_id on leads
+    ├── 010_leads_assembly_client.sql  # assembly_client_id on leads
+    ├── 011_onboarding.sql            # onboarding_steps table + RLS
+    ├── 012_roles_and_permissions.sql  # roles, role_permissions tables, seeded super_admin + admin permissions, FK profiles.role → roles.name
+    └── 013_client_credentials.sql    # client_credentials table (name, software, email, password, notes) + RLS
 scripts/
-└── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
+├── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
+├── migrate-credentials.ts     # One-time CSV → Supabase migration (client credentials from Airtable)
+└── check-missing-listings.ts  # Compare CSV listings against Supabase DB
 ```
 
 ## Authentication & Authorization
 - **Auth methods:** Password (primary) + Magic link (secondary), both via Supabase Auth
-- **Roles:** `super_admin` and `admin` (stored in `profiles.role`)
+- **Roles:** Dynamic roles stored in `roles` table (default: `super_admin`, `admin`). `profiles.role` is FK → `roles.name`
+- **Permissions:** `role_permissions` table with resource+action pairs (11 resources × 4 actions = 44 permissions per role)
 - **RLS:** All tables use Row Level Security. The `get_my_role()` SECURITY DEFINER function avoids recursion when policies on `profiles` need to check the user's role
+- **Permission checking:** `lib/permissions.server.ts` for server-side, `lib/permissions.ts` for client-safe pure functions (no `next/headers` import)
 - **Role-based UI:** Settings/user management visible only to `super_admin`. Financial data (ADR, RevPAR, revenue) hidden from non-super_admin users
 - **Session refresh:** Handled in `proxy.ts` (Next.js 16 middleware replacement for `middleware.ts`)
 
 ## Database Tables (Supabase PostgreSQL)
-- **profiles** — id (FK auth.users), email, full_name, avatar_url, role (super_admin/admin), created_at, updated_at
+- **profiles** — id (FK auth.users), email, full_name, avatar_url, role (FK → roles.name), created_at, updated_at
+- **roles** — name (unique PK), description, is_system (boolean, prevents deletion of super_admin/admin)
+- **role_permissions** — role_name (FK), resource, action (view/create/edit/delete), allowed (boolean), UNIQUE(role_name, resource, action)
 - **clients** — name, email, phone, market, plan, assembly_link, assembly_client_id, assembly_company_id, status (active/onboarding/paused/churned), start_date
-- **listings** — client_id (FK), name, pricelabs_id, market, platform, status, cached metrics (adr, occupancy, revpar, revenue_mtd, metrics_synced_at)
+- **listings** — client_id (FK), name, listing_id, pricelabs_link, airbnb_link, city, state, status, cached metrics (adr, occupancy, revpar, revenue_mtd, metrics_synced_at)
+- **client_credentials** — id, client_id (FK), name, software, email, password, notes, created_at, updated_at. RLS: authenticated can view, super_admin can CRU/D
 - **tasks** — client_id (FK), title, description, status (todo/in_progress/waiting/done), owner (UUID FK → profiles), tag, sort_order, task_listings (junction to listings)
 - **roadmap_items** — title, description, owner, tag, status (proposed/planned/in_progress/done), sort_order
 - **onboarding_steps** — client_id (FK), step_name, step_order, is_completed, completed_at, completed_by
@@ -142,16 +198,21 @@ scripts/
 - Error handling: always handle Supabase query errors with proper user feedback via Sonner toast
 - Use React 19 `useOptimistic` for instant UI feedback on mutations (e.g., kanban drag-and-drop)
 - Server Actions (`"use server"`) for all data mutations
+- **Server/client split:** Keep `next/headers` imports strictly in server-only files (`.server.ts`). Client components must only import from client-safe modules
 
 ## UI Conventions
 - shadcn/ui default theme for Phase 1 (brand theming comes later)
 - Sidebar navigation with icons (use lucide-react)
-- Clients page: card grid with search + status toggle filters, Sheet overlay for detail panel
+- Clients page: cards/table toggle (default: table view), search matches name+email, status filters, Sheet overlay for detail panel
+- Listings page: table with status dropdown, searchable client combobox (Popover+Command), row click → detail page
 - Financial numbers: right-aligned, monospace font (font-mono), super_admin only
 - Status indicators: use shadcn Badge component
 - Forms: use shadcn Form + react-hook-form + zod validation
 - Loading states: use shadcn Skeleton
 - Destructive actions: always confirm via AlertDialog
+- Inline editing: `+Add` button → input with save/cancel (used for client email in table)
+- Collapsible sections: `useState(false)` default hidden, ChevronDown/ChevronRight toggle (used for credentials)
+- Password fields: show/hide toggle + clipboard copy button
 
 ### Kanban Board Style
 - Columns have **subtle tinted backgrounds** matching their semantic color (e.g., yellow for "In Progress", green for "Done")
@@ -164,6 +225,21 @@ scripts/
 - Click-to-move between columns via dropdown menu on each card
 - Optional `renderColumnFooter` for per-column collapsible sections (used by pipeline for archived/completed)
 - Cards support `onArchive`, `onComplete` actions and `statusIndicator` ReactNode
+
+### Listing Detail Dashboard
+- PriceLabs-style KPI row with 10 metrics: Base Price, Last Booked Date, Total Occ (30N), Nights Booked (15P), Bookings Pickup (15P), Adj Occ (30N/30P/60N/90N), MPI (30N)
+- `KPIMetric` component with color-coded badges (green/amber/red based on thresholds)
+- Secondary KPI cards (ADR, RevPAR, Revenue MTD, Reviews)
+- 4 tabs: Revenue (monthly chart mockup), Reservations (table), Rates (PriceLabs calendar), Pacing (vs prior year)
+- Preview banner: "This dashboard shows mockup data" — real data pending PriceLabs API integration
+- Currently uses deterministic mock data; real data will come from PriceLabs API, PMS reservations, and Airbnb reviews
+
+### Listing Cards (Client Detail Pages)
+- Rounded-xl cards with MapPin + Airbnb/PriceLabs logo links in header
+- 4-column KPI grid (ADR, Occupancy, RevPAR, Revenue) with trend arrows (↗/↘)
+- Deterministic mock KPIs generated via string hash from listing ID (`getMockListingKPIs`)
+- Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
+- Click navigates to `/listings/[id]` detail page
 
 ### Listing Form (Settings > Listings)
 - Airbnb and PriceLabs fields accept **only the numeric ID**, not full URLs
@@ -401,6 +477,37 @@ PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceL
 - **Tabs:** Reservations, Pricing calendar, and Pacing still show mockup data (require PMS integration)
 - When not synced, shows amber "Preview" banner
 
+## Roles & Permissions System
+
+### Architecture
+- **Tables:** `roles` (name, description, is_system) + `role_permissions` (role_name, resource, action, allowed)
+- **11 Resources:** dashboard, clients, listings, tasks, roadmap, pipeline, onboarding, calendar, notes, settings, users
+- **4 Actions:** view, create, edit, delete
+- **System roles:** `super_admin` (all permissions, cannot be deleted) and `admin` (default permissions)
+- **Custom roles:** Can be created via Settings > Roles & Permissions
+- **Permission check:** Server-side via `hasPermission(resource, action)`, client-side via `checkPermission(permissionMap, resource, action)`
+
+### UI
+- Settings > Roles & Permissions page (super_admin only)
+- Role cards with expandable permission grid (checkboxes per resource×action)
+- Create/delete custom roles
+- Inline user role reassignment via dropdown
+- Bulk toggle all permissions for a resource
+
+## Client Credentials System
+
+### Architecture
+- **Table:** `client_credentials` — stores software access credentials per client (name, software, email, password, notes)
+- **RLS:** Authenticated users can view, super_admin can create/update/delete
+- **Migration:** `013_client_credentials.sql`
+
+### UI (`components/clients/client-credentials.tsx`)
+- Collapsible section on client detail pages, **hidden by default**
+- Header: "Credentials (count)" with ChevronRight/ChevronDown toggle
+- Compact table view: Software (badge), Email, Password (show/hide/copy via `PasswordCell`), Notes, Actions (edit/delete)
+- `CredentialFormDialog` for create/edit with fields: Name, Software, Email, Password, Notes
+- Empty state when no credentials exist
+
 ## STR Domain Terms
 - **ADR** = Average Daily Rate (revenue ÷ nights sold)
 - **RevPAR** = Revenue Per Available Room (revenue ÷ total available nights)
@@ -408,6 +515,7 @@ PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceL
 - **Pacing** = how bookings are tracking vs. same period prior year
 - **PMS** = Property Management System (Hostaway, Hospitable, etc.)
 - **PriceLabs** = dynamic pricing tool; each listing has a unique pricelabs_id
+- **MPI** = Market Performance Index (listing occupancy ÷ market occupancy)
 
 ## Git Rules
 - ALWAYS create a feature branch: `git checkout -b feature/[name]`
