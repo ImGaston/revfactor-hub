@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import { Users, Building2 } from "lucide-react"
 import {
   Command,
   CommandDialog,
@@ -16,6 +17,8 @@ import {
   filterCommandsByPermission,
   type CommandDef,
 } from "@/lib/command-registry"
+import { createClient } from "@/lib/supabase/client"
+import { checkPermission, type Resource } from "@/lib/permissions"
 import type { Profile } from "@/lib/supabase/profile"
 
 // ---------------------------------------------------------------------------
@@ -40,6 +43,30 @@ function saveRecentId(id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Dynamic entity search
+// ---------------------------------------------------------------------------
+
+type EntityResult = {
+  id: string
+  label: string
+  sublabel?: string
+  href: string
+  type: "client" | "listing"
+}
+
+const DEBOUNCE_MS = 250
+const MIN_SEARCH_LENGTH = 2
+
+function hasViewPermission(
+  permissionMap: Record<string, boolean>,
+  resource: Resource,
+  isSuperAdmin: boolean,
+): boolean {
+  if (isSuperAdmin) return true
+  return checkPermission(permissionMap, resource, "view")
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -60,16 +87,92 @@ export function CommandPalette({
   const pathname = usePathname()
   const [search, setSearch] = useState("")
   const [recentIds, setRecentIds] = useState<string[]>([])
+  const [clients, setClients] = useState<EntityResult[]>([])
+  const [listings, setListings] = useState<EntityResult[]>([])
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  const isSuperAdmin = profile?.role === "super_admin" || false
+  const canViewClients = hasViewPermission(permissionMap, "clients", isSuperAdmin)
+  const canViewListings = hasViewPermission(permissionMap, "listings", isSuperAdmin)
 
   // Load recents on mount (avoids hydration mismatch)
   useEffect(() => {
     setRecentIds(getRecentIds())
   }, [])
 
-  // Reset search when dialog closes
+  // Reset search and results when dialog closes
   useEffect(() => {
-    if (!open) setSearch("")
+    if (!open) {
+      setSearch("")
+      setClients([])
+      setListings([])
+    }
   }, [open])
+
+  // Debounced entity search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (search.length < MIN_SEARCH_LENGTH) {
+      setClients([])
+      setListings([])
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      const supabase = createClient()
+      const term = `%${search}%`
+
+      const [clientRes, listingRes] = await Promise.all([
+        canViewClients
+          ? supabase
+              .from("clients")
+              .select("id, name, email, status")
+              .or(`name.ilike.${term},email.ilike.${term}`)
+              .limit(5)
+          : Promise.resolve({ data: null }),
+        canViewListings
+          ? supabase
+              .from("listings")
+              .select("id, name, city, state, clients(name)")
+              .ilike("name", term)
+              .limit(5)
+          : Promise.resolve({ data: null }),
+      ])
+
+      if (clientRes.data) {
+        setClients(
+          clientRes.data.map((c: { id: string; name: string; email: string | null; status: string }) => ({
+            id: c.id,
+            label: c.name,
+            sublabel: [c.email, c.status].filter(Boolean).join(" · "),
+            href: `/clients/${c.id}`,
+            type: "client" as const,
+          })),
+        )
+      }
+
+      if (listingRes.data) {
+        setListings(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          listingRes.data.map((l: any) => {
+            const clientName = Array.isArray(l.clients) ? l.clients[0]?.name : l.clients?.name
+            return {
+              id: l.id,
+              label: l.name,
+              sublabel: [clientName, [l.city, l.state].filter(Boolean).join(", ")].filter(Boolean).join(" · "),
+              href: `/listings/${l.id}`,
+              type: "listing" as const,
+            }
+          }),
+        )
+      }
+    }, DEBOUNCE_MS)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [search, canViewClients, canViewListings])
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -84,9 +187,8 @@ export function CommandPalette({
   }, [open, onOpenChange])
 
   // Permission-filtered commands
-  const isSuperAdmin = profile?.role === "super_admin"
   const visibleCommands = useMemo(
-    () => filterCommandsByPermission(commands, permissionMap, isSuperAdmin ?? false),
+    () => filterCommandsByPermission(commands, permissionMap, isSuperAdmin),
     [permissionMap, isSuperAdmin],
   )
 
@@ -117,6 +219,16 @@ export function CommandPalette({
       setRecentIds(getRecentIds())
       onOpenChange(false)
       if (cmd.href) router.push(cmd.href)
+    },
+    [router, onOpenChange],
+  )
+
+  const handleEntitySelect = useCallback(
+    (entity: EntityResult) => {
+      saveRecentId(entity.id)
+      setRecentIds(getRecentIds())
+      onOpenChange(false)
+      router.push(entity.href)
     },
     [router, onOpenChange],
   )
@@ -172,6 +284,46 @@ export function CommandPalette({
           {settings.length > 0 && (
             <CommandGroup heading="Settings">
               {settings.map(renderItem)}
+            </CommandGroup>
+          )}
+
+          {clients.length > 0 && (
+            <CommandGroup heading="Clients">
+              {clients.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`${c.label} ${c.sublabel ?? ""}`}
+                  onSelect={() => handleEntitySelect(c)}
+                >
+                  <Users className="mr-2 size-4 shrink-0 opacity-60" />
+                  <div className="flex flex-col">
+                    <span>{c.label}</span>
+                    {c.sublabel && (
+                      <span className="text-xs text-muted-foreground">{c.sublabel}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {listings.length > 0 && (
+            <CommandGroup heading="Listings">
+              {listings.map((l) => (
+                <CommandItem
+                  key={l.id}
+                  value={`${l.label} ${l.sublabel ?? ""}`}
+                  onSelect={() => handleEntitySelect(l)}
+                >
+                  <Building2 className="mr-2 size-4 shrink-0 opacity-60" />
+                  <div className="flex flex-col">
+                    <span>{l.label}</span>
+                    {l.sublabel && (
+                      <span className="text-xs text-muted-foreground">{l.sublabel}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
             </CommandGroup>
           )}
         </CommandList>
