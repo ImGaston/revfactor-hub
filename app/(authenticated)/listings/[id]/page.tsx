@@ -13,7 +13,16 @@ export default async function ListingPage({
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, created_at, updated_at, clients(id, name, status)"
+      `id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, created_at, updated_at,
+       pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price,
+       pl_cleaning_fees, pl_no_of_bedrooms,
+       pl_occupancy_next_7, pl_market_occupancy_next_7,
+       pl_occupancy_next_30, pl_market_occupancy_next_30,
+       pl_occupancy_next_60, pl_market_occupancy_next_60,
+       pl_occupancy_past_90, pl_market_occupancy_past_90,
+       pl_revenue_past_7, pl_stly_revenue_past_7,
+       pl_push_enabled, pl_last_refreshed_at, pl_synced_at,
+       clients(id, name, status)`
     )
     .eq("id", id)
     .single()
@@ -39,6 +48,25 @@ export default async function ListingPage({
         client_id: listing.client_id,
         created_at: listing.created_at,
         updated_at: listing.updated_at,
+        pl_base_price: listing.pl_base_price,
+        pl_min_price: listing.pl_min_price,
+        pl_max_price: listing.pl_max_price,
+        pl_recommended_base_price: listing.pl_recommended_base_price,
+        pl_cleaning_fees: listing.pl_cleaning_fees,
+        pl_no_of_bedrooms: listing.pl_no_of_bedrooms,
+        pl_occupancy_next_7: listing.pl_occupancy_next_7,
+        pl_market_occupancy_next_7: listing.pl_market_occupancy_next_7,
+        pl_occupancy_next_30: listing.pl_occupancy_next_30,
+        pl_market_occupancy_next_30: listing.pl_market_occupancy_next_30,
+        pl_occupancy_next_60: listing.pl_occupancy_next_60,
+        pl_market_occupancy_next_60: listing.pl_market_occupancy_next_60,
+        pl_occupancy_past_90: listing.pl_occupancy_past_90,
+        pl_market_occupancy_past_90: listing.pl_market_occupancy_past_90,
+        pl_revenue_past_7: listing.pl_revenue_past_7,
+        pl_stly_revenue_past_7: listing.pl_stly_revenue_past_7,
+        pl_push_enabled: listing.pl_push_enabled,
+        pl_last_refreshed_at: listing.pl_last_refreshed_at,
+        pl_synced_at: listing.pl_synced_at,
       }}
       client={client}
     />

@@ -6,16 +6,14 @@ import {
   ExternalLink,
   Building2,
   MapPin,
-  CalendarDays,
   TrendingUp,
   TrendingDown,
   DollarSign,
-  BedDouble,
   BarChart3,
   Star,
-  Percent,
-  Activity,
   Clock,
+  RefreshCw,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +25,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -38,19 +35,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-
-type ListingData = {
-  id: string
-  name: string
-  listing_id: string | null
-  pricelabs_link: string | null
-  airbnb_link: string | null
-  city: string | null
-  state: string | null
-  client_id: string
-  created_at: string
-  updated_at: string
-}
+import type { ListingWithMetrics } from "@/lib/types"
 
 type ClientData = {
   id: string
@@ -58,30 +43,10 @@ type ClientData = {
   status: string
 } | null
 
-// ─── Mock Data ──────────────────────────────────────────────
-// These will be replaced with real data from PriceLabs API, reservations DB, etc.
-
-const MOCK_KPI = {
-  base_price: 450,
-  last_booked_date: "2026-03-28",
-  total_occ_30n: 77,
-  nights_booked_15p: 16,
-  bookings_pickup_15p: 4,
-  adj_occ_30n: 77,
-  adj_occ_30p: 87,
-  adj_occ_60n: 72,
-  adj_occ_90n: 67,
-  mpi_30n: 1.9,
-  adr: 287.5,
-  adrChange: 12.3,
-  revpar: 225.4,
-  revparChange: 8.7,
-  revenue_mtd: 8625,
-  revenueChange: 15.2,
-  avg_rating: 4.87,
-  total_reviews: 142,
-  avg_lead_time: 18,
-}
+// ─── Mock Data (fallback when PriceLabs not synced) ─────────
+// Reservations, reviews, pricing calendar, and pacing
+// are NOT available from PriceLabs /listings endpoint.
+// They will be replaced when PMS + Airbnb integrations are connected.
 
 const MOCK_MONTHLY_REVENUE = [
   { month: "May 2025", revenue: 7200, nights: 24, adr: 300 },
@@ -99,56 +64,11 @@ const MOCK_MONTHLY_REVENUE = [
 ]
 
 const MOCK_UPCOMING_RESERVATIONS = [
-  {
-    id: "1",
-    guest: "Sarah M.",
-    checkin: "2026-04-10",
-    checkout: "2026-04-14",
-    nights: 4,
-    total: 1200,
-    source: "Airbnb",
-    status: "confirmed",
-  },
-  {
-    id: "2",
-    guest: "James K.",
-    checkin: "2026-04-16",
-    checkout: "2026-04-20",
-    nights: 4,
-    total: 1340,
-    source: "Airbnb",
-    status: "confirmed",
-  },
-  {
-    id: "3",
-    guest: "Ana R.",
-    checkin: "2026-04-22",
-    checkout: "2026-04-25",
-    nights: 3,
-    total: 870,
-    source: "Direct",
-    status: "pending",
-  },
-  {
-    id: "4",
-    guest: "Michael P.",
-    checkin: "2026-04-28",
-    checkout: "2026-05-03",
-    nights: 5,
-    total: 1650,
-    source: "Airbnb",
-    status: "confirmed",
-  },
-  {
-    id: "5",
-    guest: "Laura T.",
-    checkin: "2026-05-05",
-    checkout: "2026-05-09",
-    nights: 4,
-    total: 1280,
-    source: "VRBO",
-    status: "confirmed",
-  },
+  { id: "1", guest: "Sarah M.", checkin: "2026-04-10", checkout: "2026-04-14", nights: 4, total: 1200, source: "Airbnb", status: "confirmed" },
+  { id: "2", guest: "James K.", checkin: "2026-04-16", checkout: "2026-04-20", nights: 4, total: 1340, source: "Airbnb", status: "confirmed" },
+  { id: "3", guest: "Ana R.", checkin: "2026-04-22", checkout: "2026-04-25", nights: 3, total: 870, source: "Direct", status: "pending" },
+  { id: "4", guest: "Michael P.", checkin: "2026-04-28", checkout: "2026-05-03", nights: 5, total: 1650, source: "Airbnb", status: "confirmed" },
+  { id: "5", guest: "Laura T.", checkin: "2026-05-05", checkout: "2026-05-09", nights: 4, total: 1280, source: "VRBO", status: "confirmed" },
 ]
 
 const MOCK_PRICELABS_RATES = [
@@ -174,7 +94,7 @@ const MOCK_PACING = {
   monthAfter: { booked: 10, available: 30, revenue: 3200, stlyRevenue: 5400 },
 }
 
-// ─── Component ──────────────────────────────────────────────
+// ─── Helper Components ──────────────────────────────────────
 
 function KPIMetric({
   label,
@@ -296,14 +216,41 @@ function formatCurrency(n: number) {
   return `$${n.toLocaleString()}`
 }
 
+function occColor(val: number): "green" | "amber" | "red" {
+  if (val >= 75) return "green"
+  if (val >= 50) return "amber"
+  return "red"
+}
+
+// ─── Component ──────────────────────────────────────────────
+
 export function ListingDetail({
   listing,
   client,
 }: {
-  listing: ListingData
+  listing: ListingWithMetrics
   client: ClientData
 }) {
+  const hasPLData = listing.pl_synced_at != null
   const maxRevenue = Math.max(...MOCK_MONTHLY_REVENUE.map((m) => m.revenue))
+
+  // Compute MPI (Market Performance Index) = own occupancy / market occupancy
+  const mpi30 =
+    listing.pl_occupancy_next_30 != null && listing.pl_market_occupancy_next_30
+      ? (listing.pl_occupancy_next_30 / listing.pl_market_occupancy_next_30).toFixed(1)
+      : null
+
+  // Revenue change (7d vs STLY)
+  const revenueChange =
+    listing.pl_revenue_past_7 != null &&
+    listing.pl_stly_revenue_past_7 != null &&
+    listing.pl_stly_revenue_past_7 > 0
+      ? (
+          ((listing.pl_revenue_past_7 - listing.pl_stly_revenue_past_7) /
+            listing.pl_stly_revenue_past_7) *
+          100
+        ).toFixed(1)
+      : null
 
   return (
     <div className="space-y-6">
@@ -371,61 +318,88 @@ export function ListingDetail({
         </div>
       </div>
 
-      {/* ─── Mockup Notice ───────────────────────────────── */}
-      <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          <strong>Preview:</strong> This dashboard shows mockup data. Real data
-          will be sourced from PriceLabs API, PMS reservations, and Airbnb
-          reviews once integrations are connected.
-        </p>
-      </div>
+      {/* ─── Sync Status Banner ─────────────────────────── */}
+      {hasPLData ? (
+        <div className="rounded-lg border border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-green-700 dark:text-green-400 flex items-center gap-2">
+            <RefreshCw className="size-3.5" />
+            <span>
+              PriceLabs data synced{" "}
+              {new Date(listing.pl_synced_at!).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+            {listing.pl_push_enabled && (
+              <Badge variant="outline" className="text-[10px] ml-1 border-green-300 text-green-700 dark:text-green-400">
+                Push ON
+              </Badge>
+            )}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-3">
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            <strong>Preview:</strong> PriceLabs data has not been synced yet.
+            Reservations, reviews, and pricing calendar show mockup data and will
+            use real data once PMS and Airbnb integrations are connected.
+          </p>
+        </div>
+      )}
 
-      {/* ─── PriceLabs-Style KPI Row ────────────────────── */}
+      {/* ─── PriceLabs KPI Row ─────────────────────────── */}
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <div className="grid grid-cols-10 min-w-[900px] divide-x">
-              <KPIMetric label="Base Price" value={`$${MOCK_KPI.base_price}`} />
               <KPIMetric
-                label="Last Booked Date"
-                value={formatDate(MOCK_KPI.last_booked_date)}
+                label="Base Price"
+                value={`$${listing.pl_base_price ?? "—"}`}
               />
               <KPIMetric
-                label="Total Occ (30N)"
-                value={`${MOCK_KPI.total_occ_30n}%`}
-                badgeColor={MOCK_KPI.total_occ_30n >= 75 ? "green" : MOCK_KPI.total_occ_30n >= 50 ? "amber" : "red"}
+                label="Min Price"
+                value={`$${listing.pl_min_price ?? "—"}`}
               />
               <KPIMetric
-                label="Nights Booked (15P)"
-                value={String(MOCK_KPI.nights_booked_15p)}
+                label="Occ (7N)"
+                value={listing.pl_occupancy_next_7 != null ? `${listing.pl_occupancy_next_7}%` : "—"}
+                badgeColor={listing.pl_occupancy_next_7 != null ? occColor(listing.pl_occupancy_next_7) : undefined}
               />
               <KPIMetric
-                label="Bookings Pickup (15P)"
-                value={String(MOCK_KPI.bookings_pickup_15p)}
+                label="Mkt Occ (7N)"
+                value={listing.pl_market_occupancy_next_7 != null ? `${listing.pl_market_occupancy_next_7}%` : "—"}
+                badgeColor={listing.pl_market_occupancy_next_7 != null ? occColor(listing.pl_market_occupancy_next_7) : undefined}
               />
               <KPIMetric
-                label="Adj Occ (30N)"
-                value={`${MOCK_KPI.adj_occ_30n}%`}
-                badgeColor={MOCK_KPI.adj_occ_30n >= 75 ? "green" : MOCK_KPI.adj_occ_30n >= 50 ? "amber" : "red"}
+                label="Occ (30N)"
+                value={listing.pl_occupancy_next_30 != null ? `${listing.pl_occupancy_next_30}%` : "—"}
+                badgeColor={listing.pl_occupancy_next_30 != null ? occColor(listing.pl_occupancy_next_30) : undefined}
               />
               <KPIMetric
-                label="Adj Occ (30P)"
-                value={`${MOCK_KPI.adj_occ_30p}%`}
-                badgeColor={MOCK_KPI.adj_occ_30p >= 75 ? "green" : MOCK_KPI.adj_occ_30p >= 50 ? "amber" : "red"}
+                label="Mkt Occ (30N)"
+                value={listing.pl_market_occupancy_next_30 != null ? `${listing.pl_market_occupancy_next_30}%` : "—"}
+                badgeColor={listing.pl_market_occupancy_next_30 != null ? occColor(listing.pl_market_occupancy_next_30) : undefined}
               />
               <KPIMetric
-                label="Adj Occ (60N)"
-                value={`${MOCK_KPI.adj_occ_60n}%`}
-                badgeColor={MOCK_KPI.adj_occ_60n >= 75 ? "green" : MOCK_KPI.adj_occ_60n >= 50 ? "amber" : "red"}
+                label="Occ (60N)"
+                value={listing.pl_occupancy_next_60 != null ? `${listing.pl_occupancy_next_60}%` : "—"}
+                badgeColor={listing.pl_occupancy_next_60 != null ? occColor(listing.pl_occupancy_next_60) : undefined}
               />
               <KPIMetric
-                label="Adj Occ (90N)"
-                value={`${MOCK_KPI.adj_occ_90n}%`}
-                badgeColor={MOCK_KPI.adj_occ_90n >= 75 ? "green" : MOCK_KPI.adj_occ_90n >= 50 ? "amber" : "red"}
+                label="Occ Past (90)"
+                value={listing.pl_occupancy_past_90 != null ? `${listing.pl_occupancy_past_90}%` : "—"}
+                badgeColor={listing.pl_occupancy_past_90 != null ? occColor(listing.pl_occupancy_past_90) : undefined}
+              />
+              <KPIMetric
+                label="Mkt Occ Past (90)"
+                value={listing.pl_market_occupancy_past_90 != null ? `${listing.pl_market_occupancy_past_90}%` : "—"}
+                badgeColor={listing.pl_market_occupancy_past_90 != null ? occColor(listing.pl_market_occupancy_past_90) : undefined}
               />
               <KPIMetric
                 label="MPI (30N)"
-                value={String(MOCK_KPI.mpi_30n)}
+                value={mpi30 ?? "—"}
               />
             </div>
           </div>
@@ -435,31 +409,32 @@ export function ListingDetail({
       {/* ─── Secondary KPI Cards ─────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="ADR"
-          value={MOCK_KPI.adr}
-          change={MOCK_KPI.adrChange}
+          title="Base Price"
+          value={listing.pl_base_price ?? "—"}
           icon={DollarSign}
-          prefix="$"
+          prefix={listing.pl_base_price != null ? "$" : ""}
         />
         <KPICard
-          title="RevPAR"
-          value={MOCK_KPI.revpar}
-          change={MOCK_KPI.revparChange}
+          title="Recommended Price"
+          value={listing.pl_recommended_base_price ?? "—"}
           icon={BarChart3}
-          prefix="$"
+          prefix={listing.pl_recommended_base_price != null ? "$" : ""}
         />
         <KPICard
-          title="Revenue MTD"
-          value={MOCK_KPI.revenue_mtd}
-          change={MOCK_KPI.revenueChange}
+          title="Revenue (7d)"
+          value={listing.pl_revenue_past_7 ?? "—"}
+          change={revenueChange != null ? Number(revenueChange) : undefined}
           icon={TrendingUp}
-          prefix="$"
+          prefix={listing.pl_revenue_past_7 != null ? "$" : ""}
         />
         <KPICard
-          title="Avg Rating"
-          value={MOCK_KPI.avg_rating}
-          icon={Star}
-          suffix={` (${MOCK_KPI.total_reviews})`}
+          title="Price Range"
+          value={
+            listing.pl_min_price != null && listing.pl_max_price != null
+              ? `$${listing.pl_min_price} – $${listing.pl_max_price}`
+              : "—"
+          }
+          icon={Activity}
         />
       </div>
 
@@ -475,12 +450,13 @@ export function ListingDetail({
         {/* ─── Overview Tab ────────────────────────────────── */}
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-3">
-            {/* Monthly Revenue Chart (bar mockup) */}
+            {/* Monthly Revenue Chart (mock — needs PMS data) */}
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="text-base">Monthly Revenue</CardTitle>
                 <CardDescription>
                   Last 12 months revenue performance
+                  {!hasPLData && " (mockup data)"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -507,109 +483,160 @@ export function ListingDetail({
               </CardContent>
             </Card>
 
-            {/* Quick stats sidebar */}
+            {/* PriceLabs stats sidebar */}
             <div className="space-y-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Guest Reviews</CardTitle>
+                  <CardTitle className="text-base">Market Comparison</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Star className="size-4 text-amber-500 fill-amber-500" />
-                      Average Rating
+                    <span className="text-sm text-muted-foreground">
+                      Your Occ (30N)
                     </span>
-                    <span className="text-lg font-bold font-mono">
-                      {MOCK_KPI.avg_rating}
+                    <span className="font-medium font-mono">
+                      {listing.pl_occupancy_next_30 != null
+                        ? `${listing.pl_occupancy_next_30}%`
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Market Occ (30N)
+                    </span>
+                    <span className="font-medium font-mono">
+                      {listing.pl_market_occupancy_next_30 != null
+                        ? `${listing.pl_market_occupancy_next_30}%`
+                        : "—"}
                     </span>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Total Reviews
+                      Your Occ (60N)
                     </span>
                     <span className="font-medium font-mono">
-                      {MOCK_KPI.total_reviews}
+                      {listing.pl_occupancy_next_60 != null
+                        ? `${listing.pl_occupancy_next_60}%`
+                        : "—"}
                     </span>
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs">
-                      <span>5 stars</span>
-                      <span className="text-muted-foreground">82%</span>
-                    </div>
-                    <BarMockup value={82} max={100} color="bg-green-500" />
-                    <div className="flex justify-between text-xs">
-                      <span>4 stars</span>
-                      <span className="text-muted-foreground">12%</span>
-                    </div>
-                    <BarMockup value={12} max={100} color="bg-emerald-400" />
-                    <div className="flex justify-between text-xs">
-                      <span>3 stars</span>
-                      <span className="text-muted-foreground">4%</span>
-                    </div>
-                    <BarMockup value={4} max={100} color="bg-yellow-400" />
-                    <div className="flex justify-between text-xs">
-                      <span>1-2 stars</span>
-                      <span className="text-muted-foreground">2%</span>
-                    </div>
-                    <BarMockup value={2} max={100} color="bg-red-400" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Market Occ (60N)
+                    </span>
+                    <span className="font-medium font-mono">
+                      {listing.pl_market_occupancy_next_60 != null
+                        ? `${listing.pl_market_occupancy_next_60}%`
+                        : "—"}
+                    </span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      MPI (30N)
+                    </span>
+                    <span
+                      className={cn(
+                        "font-bold font-mono",
+                        mpi30 != null && Number(mpi30) >= 1
+                          ? "text-green-600 dark:text-green-400"
+                          : mpi30 != null
+                            ? "text-red-600 dark:text-red-400"
+                            : ""
+                      )}
+                    >
+                      {mpi30 ?? "—"}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Booking Insights</CardTitle>
+                  <CardTitle className="text-base">Listing Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {listing.pl_no_of_bedrooms != null && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Bedrooms
+                        </span>
+                        <span className="font-medium font-mono">
+                          {listing.pl_no_of_bedrooms}
+                        </span>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+                  {listing.pl_cleaning_fees != null && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          Cleaning Fee
+                        </span>
+                        <span className="font-medium font-mono">
+                          ${listing.pl_cleaning_fees}
+                        </span>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Clock className="size-4" />
-                      Avg Lead Time
+                    <span className="text-sm text-muted-foreground">
+                      Revenue (7d)
                     </span>
                     <span className="font-medium font-mono">
-                      {MOCK_KPI.avg_lead_time} days
+                      {listing.pl_revenue_past_7 != null
+                        ? `$${Number(listing.pl_revenue_past_7).toLocaleString()}`
+                        : "—"}
                     </span>
                   </div>
-                  <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Avg Stay Length
+                      STLY Revenue (7d)
                     </span>
-                    <span className="font-medium font-mono">3.8 nights</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Repeat Guests
+                    <span className="font-medium font-mono text-muted-foreground">
+                      {listing.pl_stly_revenue_past_7 != null
+                        ? `$${Number(listing.pl_stly_revenue_past_7).toLocaleString()}`
+                        : "—"}
                     </span>
-                    <span className="font-medium font-mono">14%</span>
                   </div>
-                  <Separator />
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">
-                      Booking Sources
-                    </span>
-                    <div className="flex gap-1.5">
-                      <Badge variant="secondary" className="text-[10px]">
-                        Airbnb 72%
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px]">
-                        Direct 18%
-                      </Badge>
-                      <Badge variant="secondary" className="text-[10px]">
-                        VRBO 10%
-                      </Badge>
-                    </div>
-                  </div>
+                  {listing.pl_last_refreshed_at && (
+                    <>
+                      <Separator />
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Clock className="size-3.5" />
+                          PL Refreshed
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(listing.pl_last_refreshed_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
 
-        {/* ─── Reservations Tab ────────────────────────────── */}
+        {/* ─── Reservations Tab (mock — needs PMS) ─────────── */}
         <TabsContent value="reservations" className="space-y-4">
+          {!hasPLData && (
+            <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Reservation data requires PMS integration (coming soon).
+              </p>
+            </div>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -677,7 +704,6 @@ export function ListingDetail({
             </CardContent>
           </Card>
 
-          {/* Reservation Stats Cards */}
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
@@ -721,7 +747,7 @@ export function ListingDetail({
           </div>
         </TabsContent>
 
-        {/* ─── Pricing Tab ─────────────────────────────────── */}
+        {/* ─── Pricing Tab (mock — needs PriceLabs rates API) ── */}
         <TabsContent value="pricing" className="space-y-4">
           <Card>
             <CardHeader>
@@ -814,54 +840,96 @@ export function ListingDetail({
             </CardContent>
           </Card>
 
-          {/* Pricing Insight Cards */}
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Price Range (Next 30d)
+                  Price Range
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold font-mono">$250 – $370</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Based on PriceLabs dynamic pricing
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Avg Suggested vs Base
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono text-green-600 dark:text-green-400">
-                  +7.2%
+                <div className="text-xl font-bold font-mono">
+                  {listing.pl_min_price != null && listing.pl_max_price != null
+                    ? `$${listing.pl_min_price} – $${listing.pl_max_price}`
+                    : "$250 – $370"}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  PriceLabs recommends higher rates
+                  {hasPLData ? "PriceLabs min/max range" : "Based on PriceLabs dynamic pricing"}
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Weekday vs Weekend Gap
+                  Base vs Recommended
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold font-mono">+18%</div>
+                {listing.pl_base_price != null && listing.pl_recommended_base_price != null ? (
+                  <>
+                    <div
+                      className={cn(
+                        "text-xl font-bold font-mono",
+                        listing.pl_recommended_base_price >= listing.pl_base_price
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      )}
+                    >
+                      {listing.pl_recommended_base_price >= listing.pl_base_price ? "+" : ""}
+                      {(
+                        ((listing.pl_recommended_base_price - listing.pl_base_price) /
+                          listing.pl_base_price) *
+                        100
+                      ).toFixed(1)}
+                      %
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ${listing.pl_base_price} → ${listing.pl_recommended_base_price} recommended
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xl font-bold font-mono text-green-600 dark:text-green-400">
+                      +7.2%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      PriceLabs recommends higher rates
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Push Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold font-mono">
+                  {listing.pl_push_enabled != null
+                    ? listing.pl_push_enabled
+                      ? "Enabled"
+                      : "Disabled"
+                    : "—"}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Weekend rates premium over weekdays
+                  PriceLabs price push to PMS
                 </p>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* ─── Pacing Tab ──────────────────────────────────── */}
+        {/* ─── Pacing Tab (mock — needs PMS data) ──────────── */}
         <TabsContent value="pacing" className="space-y-4">
+          {!hasPLData && (
+            <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Pacing data requires PMS integration (coming soon). Showing mockup data.
+              </p>
+            </div>
+          )}
           <div className="grid gap-4 lg:grid-cols-3">
             {[
               { label: "This Month (Apr)", data: MOCK_PACING.currentMonth },
@@ -883,7 +951,6 @@ export function ListingDetail({
                     <CardTitle className="text-base">{label}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Occupancy */}
                     <div>
                       <div className="flex justify-between text-sm mb-1.5">
                         <span className="text-muted-foreground">Occupancy</span>
@@ -906,7 +973,6 @@ export function ListingDetail({
 
                     <Separator />
 
-                    {/* Revenue vs STLY */}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Revenue</span>
@@ -921,9 +987,7 @@ export function ListingDetail({
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          vs STLY
-                        </span>
+                        <span className="text-muted-foreground">vs STLY</span>
                         <span
                           className={cn(
                             "font-mono font-medium flex items-center gap-1",
@@ -945,15 +1009,10 @@ export function ListingDetail({
 
                     <Separator />
 
-                    {/* ADR comparison */}
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Implied ADR
-                      </span>
+                      <span className="text-muted-foreground">Implied ADR</span>
                       <span className="font-mono font-medium">
-                        {formatCurrency(
-                          Math.round(data.revenue / data.booked)
-                        )}
+                        {formatCurrency(Math.round(data.revenue / data.booked))}
                       </span>
                     </div>
                   </CardContent>
@@ -962,7 +1021,6 @@ export function ListingDetail({
             })}
           </div>
 
-          {/* Pacing summary card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -981,23 +1039,17 @@ export function ListingDetail({
                   <p className="text-lg font-bold font-mono mt-1">$15,080</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    STLY Revenue
-                  </p>
+                  <p className="text-sm text-muted-foreground">STLY Revenue</p>
                   <p className="text-lg font-bold font-mono mt-1">$17,300</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Gap to Close
-                  </p>
+                  <p className="text-sm text-muted-foreground">Gap to Close</p>
                   <p className="text-lg font-bold font-mono mt-1 text-red-600 dark:text-red-400">
                     -$2,220
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Nights to Sell
-                  </p>
+                  <p className="text-sm text-muted-foreground">Nights to Sell</p>
                   <p className="text-lg font-bold font-mono mt-1">42 nights</p>
                 </div>
               </div>

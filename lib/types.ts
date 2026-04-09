@@ -8,6 +8,31 @@ export type Listing = {
   state: string | null
 }
 
+export type ListingWithMetrics = Listing & {
+  client_id: string
+  created_at: string
+  updated_at: string
+  pl_base_price: number | null
+  pl_min_price: number | null
+  pl_max_price: number | null
+  pl_recommended_base_price: number | null
+  pl_cleaning_fees: number | null
+  pl_no_of_bedrooms: number | null
+  pl_occupancy_next_7: number | null
+  pl_market_occupancy_next_7: number | null
+  pl_occupancy_next_30: number | null
+  pl_market_occupancy_next_30: number | null
+  pl_occupancy_next_60: number | null
+  pl_market_occupancy_next_60: number | null
+  pl_occupancy_past_90: number | null
+  pl_market_occupancy_past_90: number | null
+  pl_revenue_past_7: number | null
+  pl_stly_revenue_past_7: number | null
+  pl_push_enabled: boolean | null
+  pl_last_refreshed_at: string | null
+  pl_synced_at: string | null
+}
+
 export type ClientTask = {
   id: string
   title: string
