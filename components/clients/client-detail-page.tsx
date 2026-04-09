@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import {
   ExternalLink,
@@ -16,46 +16,83 @@ import {
   Users,
   Loader2,
   MapPin,
+  ArrowUpDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import type { Client, ClientCredential } from "@/lib/types"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 
-// Mock KPIs per listing — deterministic based on ID hash
-function getMockListingKPIs(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0x7fffffff
-  const occ30n = 55 + (hash % 40)             // 55–94%
-  const adr = 180 + (hash % 280)              // 180–459
-  const revpar = Math.round(adr * (occ30n / 100))
-  const mpi = Number(((hash % 20) / 10 + 0.5).toFixed(1)) // 0.5–2.4
-  return { occ30n, adr, revpar, mpi }
+/**
+ * Color based on listing occupancy vs market occupancy:
+ * Red:    occ < 0.8 × market
+ * Amber:  occ between 0.8 × market and market
+ * Green:  occ between market and 1.2 × market
+ * Blue:   occ > 1.2 × market
+ */
+function occColor(occ: number, marketOcc: number | null): "green" | "amber" | "red" | "blue" {
+  if (marketOcc == null || marketOcc === 0) return occ > 0 ? "green" : "amber"
+  if (occ > 1.2 * marketOcc) return "blue"
+  if (occ >= marketOcc) return "green"
+  if (occ >= 0.8 * marketOcc) return "amber"
+  return "red"
+}
+
+type SortOption = "name" | "occ7n" | "occ30n" | "mpi30n" | "last_booked"
+
+function sortListings(listings: Listing[], sort: SortOption, dir: "asc" | "desc"): Listing[] {
+  const sorted = [...listings].sort((a, b) => {
+    switch (sort) {
+      case "name":
+        return a.name.localeCompare(b.name)
+      case "occ7n":
+        return (a.pl_occupancy_next_7 ?? -1) - (b.pl_occupancy_next_7 ?? -1)
+      case "occ30n":
+        return (a.pl_occupancy_next_30 ?? -1) - (b.pl_occupancy_next_30 ?? -1)
+      case "mpi30n":
+        return (a.pl_mpi_next_30 ?? -1) - (b.pl_mpi_next_30 ?? -1)
+      case "last_booked": {
+        const da = a.pl_last_booked_date ? new Date(a.pl_last_booked_date).getTime() : 0
+        const db = b.pl_last_booked_date ? new Date(b.pl_last_booked_date).getTime() : 0
+        return da - db
+      }
+      default:
+        return 0
+    }
+  })
+  return dir === "desc" ? sorted.reverse() : sorted
 }
 
 function ListingKPI({
   label,
   value,
   color,
-  trend,
 }: {
   label: string
   value: string
-  color?: "green" | "amber" | "red"
-  trend?: "up" | "down"
+  color?: "green" | "amber" | "red" | "blue"
 }) {
   const colorClass =
-    color === "green"
-      ? "text-green-600 dark:text-green-400"
-      : color === "amber"
-        ? "text-amber-600 dark:text-amber-400"
-        : color === "red"
-          ? "text-red-600 dark:text-red-400"
-          : "text-foreground"
+    color === "blue"
+      ? "text-blue-600 dark:text-blue-400"
+      : color === "green"
+        ? "text-green-600 dark:text-green-400"
+        : color === "amber"
+          ? "text-amber-600 dark:text-amber-400"
+          : color === "red"
+            ? "text-red-600 dark:text-red-400"
+            : "text-foreground"
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -63,8 +100,6 @@ function ListingKPI({
       </span>
       <span className={`text-base font-bold font-mono flex items-center gap-1 ${colorClass}`}>
         {value}
-        {trend === "up" && <span className="text-green-500 text-xs">↗</span>}
-        {trend === "down" && <span className="text-red-500 text-xs">↘</span>}
       </span>
     </div>
   )
@@ -121,6 +156,13 @@ export function ClientDetailPage({
   onUnlinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
 }) {
   const [linking, setLinking] = useState(false)
+  const [sortBy, setSortBy] = useState<SortOption>("name")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  const sortedListings = useMemo(
+    () => sortListings(client.listings, sortBy, sortDir),
+    [client.listings, sortBy, sortDir]
+  )
   const isLinked = !!client.assembly_client_id
 
   async function handleLink() {
@@ -333,16 +375,43 @@ export function ClientDetailPage({
       <Separator />
 
       <div>
-        <h3 className="flex items-center gap-2 text-sm font-medium">
-          <Building2 className="size-4" />
-          Listings
-          <span className="text-muted-foreground">
-            ({client.listings.length})
-          </span>
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-medium">
+            <Building2 className="size-4" />
+            Listings
+            <span className="text-muted-foreground">
+              ({client.listings.length})
+            </span>
+          </h3>
+          {client.listings.length > 1 && (
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="h-8 w-[140px] text-xs">
+                  <ArrowUpDown className="mr-1 size-3" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="occ7n">Occ (7N)</SelectItem>
+                  <SelectItem value="occ30n">Occ (30N)</SelectItem>
+                  <SelectItem value="mpi30n">MPI (30N)</SelectItem>
+                  <SelectItem value="last_booked">Last Booked</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                title={sortDir === "asc" ? "Ascending" : "Descending"}
+              >
+                <span className="text-xs font-mono">{sortDir === "asc" ? "↑" : "↓"}</span>
+              </Button>
+            </div>
+          )}
+        </div>
         <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {client.listings.map((listing) => {
-            const mock = getMockListingKPIs(listing.id)
+          {sortedListings.map((listing) => {
             const location = [listing.city, listing.state].filter(Boolean).join(", ")
             return (
               <Link
@@ -394,10 +463,25 @@ export function ClientDetailPage({
 
                 {/* KPIs */}
                 <div className="grid grid-cols-4 gap-x-6">
-                  <ListingKPI label="OCC (30N)" value={`${mock.occ30n}%`} color={mock.occ30n >= 75 ? "green" : mock.occ30n >= 50 ? "amber" : "red"} />
-                  <ListingKPI label="ADR" value={`$${mock.adr}`} />
-                  <ListingKPI label="REVPAR" value={`$${mock.revpar}`} color={mock.revpar >= 200 ? "green" : undefined} />
-                  <ListingKPI label="MPI" value={mock.mpi.toFixed(2)} color={mock.mpi >= 1 ? "green" : "red"} trend={mock.mpi >= 1 ? "up" : "down"} />
+                  <ListingKPI
+                    label="Occ (7N)"
+                    value={listing.pl_occupancy_next_7 != null ? `${listing.pl_occupancy_next_7}%` : "—"}
+                    color={listing.pl_occupancy_next_7 != null ? occColor(listing.pl_occupancy_next_7, listing.pl_market_occupancy_next_7) : undefined}
+                  />
+                  <ListingKPI
+                    label="Occ (30N)"
+                    value={listing.pl_occupancy_next_30 != null ? `${listing.pl_occupancy_next_30}%` : "—"}
+                    color={listing.pl_occupancy_next_30 != null ? occColor(listing.pl_occupancy_next_30, listing.pl_market_occupancy_next_30) : undefined}
+                  />
+                  <ListingKPI
+                    label="MPI (30N)"
+                    value={listing.pl_mpi_next_30 != null ? String(listing.pl_mpi_next_30) : "—"}
+                    color={listing.pl_mpi_next_30 != null ? (listing.pl_mpi_next_30 >= 1.2 ? "blue" : listing.pl_mpi_next_30 >= 1 ? "green" : listing.pl_mpi_next_30 >= 0.8 ? "amber" : "red") : undefined}
+                  />
+                  <ListingKPI
+                    label="Last Booked"
+                    value={listing.pl_last_booked_date ? new Date(listing.pl_last_booked_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+                  />
                 </div>
               </Link>
             )

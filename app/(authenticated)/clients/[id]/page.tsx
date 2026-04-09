@@ -23,7 +23,7 @@ export default async function ClientPage({
     supabase
       .from("clients")
       .select(
-        "id, name, status, billing_amount, onboarding_date, ending_date, autopayment_set_up, stripe_dashboard, email, assembly_link, assembly_client_id, assembly_company_id, listings(id, name, listing_id, pricelabs_link, airbnb_link, city, state), tasks(id, title, status, owner, tag, profiles(full_name, email))"
+        "id, name, status, billing_amount, onboarding_date, ending_date, autopayment_set_up, stripe_dashboard, email, assembly_link, assembly_client_id, assembly_company_id, listings(id, name, listing_id, pricelabs_link, airbnb_link, city, state, pl_occupancy_next_7, pl_market_occupancy_next_7, pl_occupancy_next_30, pl_market_occupancy_next_30, pl_mpi_next_30, pl_last_booked_date), tasks(id, title, status, owner, tag, profiles(full_name, email))"
       )
       .eq("id", id)
       .single(),

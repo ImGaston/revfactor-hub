@@ -25,35 +25,33 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Client } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 
-function getMockListingKPIs(id: string) {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0x7fffffff
-  const occ30n = 55 + (hash % 40)
-  const adr = 180 + (hash % 280)
-  const revpar = Math.round(adr * (occ30n / 100))
-  const mpi = Number(((hash % 20) / 10 + 0.5).toFixed(1))
-  return { occ30n, adr, revpar, mpi }
+function occColor(occ: number, marketOcc: number | null): "green" | "amber" | "red" | "blue" {
+  if (marketOcc == null || marketOcc === 0) return occ > 0 ? "green" : "amber"
+  if (occ > 1.2 * marketOcc) return "blue"
+  if (occ >= marketOcc) return "green"
+  if (occ >= 0.8 * marketOcc) return "amber"
+  return "red"
 }
 
 function ListingKPI({
   label,
   value,
   color,
-  trend,
 }: {
   label: string
   value: string
-  color?: "green" | "amber" | "red"
-  trend?: "up" | "down"
+  color?: "green" | "amber" | "red" | "blue"
 }) {
   const colorClass =
-    color === "green"
-      ? "text-green-600 dark:text-green-400"
-      : color === "amber"
-        ? "text-amber-600 dark:text-amber-400"
-        : color === "red"
-          ? "text-red-600 dark:text-red-400"
-          : "text-foreground"
+    color === "blue"
+      ? "text-blue-600 dark:text-blue-400"
+      : color === "green"
+        ? "text-green-600 dark:text-green-400"
+        : color === "amber"
+          ? "text-amber-600 dark:text-amber-400"
+          : color === "red"
+            ? "text-red-600 dark:text-red-400"
+            : "text-foreground"
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -61,8 +59,6 @@ function ListingKPI({
       </span>
       <span className={`text-sm font-bold font-mono flex items-center gap-0.5 ${colorClass}`}>
         {value}
-        {trend === "up" && <span className="text-green-500 text-[10px]">↗</span>}
-        {trend === "down" && <span className="text-red-500 text-[10px]">↘</span>}
       </span>
     </div>
   )
@@ -330,7 +326,6 @@ export function ClientDetail({
           </h3>
           <div className="mt-3 space-y-2">
             {client.listings.map((listing) => {
-              const mock = getMockListingKPIs(listing.id)
               const location = [listing.city, listing.state].filter(Boolean).join(", ")
               return (
                 <Link
@@ -361,10 +356,25 @@ export function ClientDetail({
                   )}
                   <div className="my-2.5 border-t" />
                   <div className="grid grid-cols-4 gap-x-3">
-                    <ListingKPI label="OCC" value={`${mock.occ30n}%`} color={mock.occ30n >= 75 ? "green" : mock.occ30n >= 50 ? "amber" : "red"} />
-                    <ListingKPI label="ADR" value={`$${mock.adr}`} />
-                    <ListingKPI label="REVPAR" value={`$${mock.revpar}`} color={mock.revpar >= 200 ? "green" : undefined} />
-                    <ListingKPI label="MPI" value={mock.mpi.toFixed(2)} color={mock.mpi >= 1 ? "green" : "red"} trend={mock.mpi >= 1 ? "up" : "down"} />
+                    <ListingKPI
+                      label="Occ (7N)"
+                      value={listing.pl_occupancy_next_7 != null ? `${listing.pl_occupancy_next_7}%` : "—"}
+                      color={listing.pl_occupancy_next_7 != null ? occColor(listing.pl_occupancy_next_7, listing.pl_market_occupancy_next_7) : undefined}
+                    />
+                    <ListingKPI
+                      label="Occ (30N)"
+                      value={listing.pl_occupancy_next_30 != null ? `${listing.pl_occupancy_next_30}%` : "—"}
+                      color={listing.pl_occupancy_next_30 != null ? occColor(listing.pl_occupancy_next_30, listing.pl_market_occupancy_next_30) : undefined}
+                    />
+                    <ListingKPI
+                      label="MPI"
+                      value={listing.pl_mpi_next_30 != null ? String(listing.pl_mpi_next_30) : "—"}
+                      color={listing.pl_mpi_next_30 != null ? (listing.pl_mpi_next_30 >= 1.2 ? "blue" : listing.pl_mpi_next_30 >= 1 ? "green" : listing.pl_mpi_next_30 >= 0.8 ? "amber" : "red") : undefined}
+                    />
+                    <ListingKPI
+                      label="Booked"
+                      value={listing.pl_last_booked_date ? new Date(listing.pl_last_booked_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+                    />
                   </div>
                 </Link>
               )

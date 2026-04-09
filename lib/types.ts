@@ -6,6 +6,12 @@ export type Listing = {
   airbnb_link: string | null
   city: string | null
   state: string | null
+  pl_occupancy_next_7: number | null
+  pl_market_occupancy_next_7: number | null
+  pl_occupancy_next_30: number | null
+  pl_market_occupancy_next_30: number | null
+  pl_mpi_next_30: number | null
+  pl_last_booked_date: string | null
 }
 
 export type ListingWithMetrics = Listing & {
