@@ -22,26 +22,30 @@ export type PriceLabsListing = {
   channel_listing_details: PriceLabsChannelDetail[]
   min: number
   base: number
-  max: number
+  max: number | null
   group: string
   subgroup: string
   tags: string
-  notes: string
+  notes: string | null
   isHidden: boolean
   push_enabled: boolean
-  occupancy_next_7: number
-  market_occupancy_next_7: number
-  occupancy_next_30: number
-  market_occupancy_next_30: number
-  occupancy_next_60: number
-  market_occupancy_next_60: number
-  occupancy_past_90: number
-  market_occupancy_past_90: number
-  revenue_past_7: number | string
-  stly_revenue_past_7: number | string
+  // Occupancy fields come as strings like "100 %" from PriceLabs API
+  // 7-day uses "occupancy_*", 30+ uses "adjusted_occupancy_*"
+  occupancy_next_7: string | number | undefined
+  market_occupancy_next_7: string | number | undefined
+  adjusted_occupancy_next_30: string | number | undefined
+  market_adjusted_occupancy_next_30: string | number | undefined
+  adjusted_occupancy_next_90: string | number | undefined
+  market_adjusted_occupancy_next_90: string | number | undefined
   recommended_base_price: number
   last_date_pushed: string | null
   last_refreshed_at: string | null
+  // Additional fields from API
+  mpi_next_30: number | undefined
+  mpi_next_60: number | undefined
+  last_booked_date: string | null | undefined
+  weekend_adjusted_occupancy_next_30: string | number | undefined
+  market_weekend_adjusted_occupancy_next_30: string | number | undefined
 }
 
 export type PriceLabsListingsResponse = {
@@ -96,10 +100,10 @@ export async function fetchPriceLabsListings(
 }
 
 /**
- * Parse a revenue value that might be a string with trailing comma/whitespace
- * e.g. "76," → 76
+ * Parse a percentage string like "100 %" or "57 %" → integer (100, 57)
+ * Also handles plain numbers.
  */
-export function parseRevenue(val: number | string | null | undefined): number | null {
+export function parseOccupancy(val: string | number | null | undefined): number | null {
   if (val == null) return null
   if (typeof val === "number") return val
   const cleaned = val.replace(/[^0-9.-]/g, "")

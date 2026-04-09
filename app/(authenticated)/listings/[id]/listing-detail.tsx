@@ -10,7 +10,6 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
-  Star,
   Clock,
   RefreshCw,
   Activity,
@@ -103,12 +102,13 @@ function KPIMetric({
 }: {
   label: string
   value: string
-  badgeColor?: "green" | "amber" | "red"
+  badgeColor?: "green" | "amber" | "red" | "blue"
 }) {
   const colorClasses = {
-    green: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800",
-    amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
     red: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800",
+    amber: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+    green: "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800",
+    blue: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
   }
 
   return (
@@ -216,9 +216,18 @@ function formatCurrency(n: number) {
   return `$${n.toLocaleString()}`
 }
 
-function occColor(val: number): "green" | "amber" | "red" {
-  if (val >= 75) return "green"
-  if (val >= 50) return "amber"
+/**
+ * Color based on listing occupancy vs market occupancy:
+ * Red:    occ < 0.8 × market
+ * Amber:  occ between 0.8 × market and market
+ * Green:  occ between market and 1.2 × market
+ * Blue:   occ > 1.2 × market
+ */
+function occColor(occ: number, marketOcc: number | null): "red" | "amber" | "green" | "blue" {
+  if (marketOcc == null || marketOcc === 0) return occ > 0 ? "green" : "amber"
+  if (occ > 1.2 * marketOcc) return "blue"
+  if (occ >= marketOcc) return "green"
+  if (occ >= 0.8 * marketOcc) return "amber"
   return "red"
 }
 
@@ -233,24 +242,6 @@ export function ListingDetail({
 }) {
   const hasPLData = listing.pl_synced_at != null
   const maxRevenue = Math.max(...MOCK_MONTHLY_REVENUE.map((m) => m.revenue))
-
-  // Compute MPI (Market Performance Index) = own occupancy / market occupancy
-  const mpi30 =
-    listing.pl_occupancy_next_30 != null && listing.pl_market_occupancy_next_30
-      ? (listing.pl_occupancy_next_30 / listing.pl_market_occupancy_next_30).toFixed(1)
-      : null
-
-  // Revenue change (7d vs STLY)
-  const revenueChange =
-    listing.pl_revenue_past_7 != null &&
-    listing.pl_stly_revenue_past_7 != null &&
-    listing.pl_stly_revenue_past_7 > 0
-      ? (
-          ((listing.pl_revenue_past_7 - listing.pl_stly_revenue_past_7) /
-            listing.pl_stly_revenue_past_7) *
-          100
-        ).toFixed(1)
-      : null
 
   return (
     <div className="space-y-6">
@@ -356,50 +347,47 @@ export function ListingDetail({
             <div className="grid grid-cols-10 min-w-[900px] divide-x">
               <KPIMetric
                 label="Base Price"
-                value={`$${listing.pl_base_price ?? "—"}`}
+                value={listing.pl_base_price != null ? `$${listing.pl_base_price}` : "—"}
               />
               <KPIMetric
                 label="Min Price"
-                value={`$${listing.pl_min_price ?? "—"}`}
+                value={listing.pl_min_price != null ? `$${listing.pl_min_price}` : "—"}
               />
               <KPIMetric
                 label="Occ (7N)"
                 value={listing.pl_occupancy_next_7 != null ? `${listing.pl_occupancy_next_7}%` : "—"}
-                badgeColor={listing.pl_occupancy_next_7 != null ? occColor(listing.pl_occupancy_next_7) : undefined}
+                badgeColor={listing.pl_occupancy_next_7 != null ? occColor(listing.pl_occupancy_next_7, listing.pl_market_occupancy_next_7) : undefined}
               />
               <KPIMetric
                 label="Mkt Occ (7N)"
                 value={listing.pl_market_occupancy_next_7 != null ? `${listing.pl_market_occupancy_next_7}%` : "—"}
-                badgeColor={listing.pl_market_occupancy_next_7 != null ? occColor(listing.pl_market_occupancy_next_7) : undefined}
               />
               <KPIMetric
                 label="Occ (30N)"
                 value={listing.pl_occupancy_next_30 != null ? `${listing.pl_occupancy_next_30}%` : "—"}
-                badgeColor={listing.pl_occupancy_next_30 != null ? occColor(listing.pl_occupancy_next_30) : undefined}
+                badgeColor={listing.pl_occupancy_next_30 != null ? occColor(listing.pl_occupancy_next_30, listing.pl_market_occupancy_next_30) : undefined}
               />
               <KPIMetric
                 label="Mkt Occ (30N)"
                 value={listing.pl_market_occupancy_next_30 != null ? `${listing.pl_market_occupancy_next_30}%` : "—"}
-                badgeColor={listing.pl_market_occupancy_next_30 != null ? occColor(listing.pl_market_occupancy_next_30) : undefined}
               />
               <KPIMetric
-                label="Occ (60N)"
-                value={listing.pl_occupancy_next_60 != null ? `${listing.pl_occupancy_next_60}%` : "—"}
-                badgeColor={listing.pl_occupancy_next_60 != null ? occColor(listing.pl_occupancy_next_60) : undefined}
+                label="Wknd Occ (30N)"
+                value={listing.pl_wknd_occupancy_next_30 != null ? `${listing.pl_wknd_occupancy_next_30}%` : "—"}
+                badgeColor={listing.pl_wknd_occupancy_next_30 != null ? occColor(listing.pl_wknd_occupancy_next_30, listing.pl_market_wknd_occupancy_next_30) : undefined}
               />
               <KPIMetric
-                label="Occ Past (90)"
-                value={listing.pl_occupancy_past_90 != null ? `${listing.pl_occupancy_past_90}%` : "—"}
-                badgeColor={listing.pl_occupancy_past_90 != null ? occColor(listing.pl_occupancy_past_90) : undefined}
-              />
-              <KPIMetric
-                label="Mkt Occ Past (90)"
-                value={listing.pl_market_occupancy_past_90 != null ? `${listing.pl_market_occupancy_past_90}%` : "—"}
-                badgeColor={listing.pl_market_occupancy_past_90 != null ? occColor(listing.pl_market_occupancy_past_90) : undefined}
+                label="Mkt Wknd (30N)"
+                value={listing.pl_market_wknd_occupancy_next_30 != null ? `${listing.pl_market_wknd_occupancy_next_30}%` : "—"}
               />
               <KPIMetric
                 label="MPI (30N)"
-                value={mpi30 ?? "—"}
+                value={listing.pl_mpi_next_30 != null ? String(listing.pl_mpi_next_30) : "—"}
+                badgeColor={listing.pl_mpi_next_30 != null ? (listing.pl_mpi_next_30 >= 1.2 ? "blue" : listing.pl_mpi_next_30 >= 1 ? "green" : listing.pl_mpi_next_30 >= 0.8 ? "amber" : "red") : undefined}
+              />
+              <KPIMetric
+                label="Last Booked"
+                value={listing.pl_last_booked_date ? new Date(listing.pl_last_booked_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
               />
             </div>
           </div>
@@ -421,20 +409,15 @@ export function ListingDetail({
           prefix={listing.pl_recommended_base_price != null ? "$" : ""}
         />
         <KPICard
-          title="Revenue (7d)"
-          value={listing.pl_revenue_past_7 ?? "—"}
-          change={revenueChange != null ? Number(revenueChange) : undefined}
-          icon={TrendingUp}
-          prefix={listing.pl_revenue_past_7 != null ? "$" : ""}
+          title="MPI (60N)"
+          value={listing.pl_mpi_next_60 ?? "—"}
+          icon={Activity}
         />
         <KPICard
-          title="Price Range"
-          value={
-            listing.pl_min_price != null && listing.pl_max_price != null
-              ? `$${listing.pl_min_price} – $${listing.pl_max_price}`
-              : "—"
-          }
-          icon={Activity}
+          title="Occ 90N"
+          value={listing.pl_occupancy_past_90 ?? "—"}
+          icon={TrendingUp}
+          suffix={listing.pl_occupancy_past_90 != null ? "%" : ""}
         />
       </div>
 
@@ -513,21 +496,21 @@ export function ListingDetail({
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Your Occ (60N)
+                      Wknd Occ (30N)
                     </span>
                     <span className="font-medium font-mono">
-                      {listing.pl_occupancy_next_60 != null
-                        ? `${listing.pl_occupancy_next_60}%`
+                      {listing.pl_wknd_occupancy_next_30 != null
+                        ? `${listing.pl_wknd_occupancy_next_30}%`
                         : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Market Occ (60N)
+                      Mkt Wknd (30N)
                     </span>
                     <span className="font-medium font-mono">
-                      {listing.pl_market_occupancy_next_60 != null
-                        ? `${listing.pl_market_occupancy_next_60}%`
+                      {listing.pl_market_wknd_occupancy_next_30 != null
+                        ? `${listing.pl_market_wknd_occupancy_next_30}%`
                         : "—"}
                     </span>
                   </div>
@@ -539,14 +522,31 @@ export function ListingDetail({
                     <span
                       className={cn(
                         "font-bold font-mono",
-                        mpi30 != null && Number(mpi30) >= 1
+                        listing.pl_mpi_next_30 != null && listing.pl_mpi_next_30 >= 1
                           ? "text-green-600 dark:text-green-400"
-                          : mpi30 != null
+                          : listing.pl_mpi_next_30 != null
                             ? "text-red-600 dark:text-red-400"
                             : ""
                       )}
                     >
-                      {mpi30 ?? "—"}
+                      {listing.pl_mpi_next_30 ?? "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      MPI (60N)
+                    </span>
+                    <span
+                      className={cn(
+                        "font-bold font-mono",
+                        listing.pl_mpi_next_60 != null && listing.pl_mpi_next_60 >= 1
+                          ? "text-green-600 dark:text-green-400"
+                          : listing.pl_mpi_next_60 != null
+                            ? "text-red-600 dark:text-red-400"
+                            : ""
+                      )}
+                    >
+                      {listing.pl_mpi_next_60 ?? "—"}
                     </span>
                   </div>
                 </CardContent>
@@ -583,23 +583,37 @@ export function ListingDetail({
                       <Separator />
                     </>
                   )}
+                  {listing.pl_last_booked_date && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Last Booked
+                      </span>
+                      <span className="font-medium font-mono">
+                        {new Date(listing.pl_last_booked_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Revenue (7d)
+                      Occ 90N
                     </span>
                     <span className="font-medium font-mono">
-                      {listing.pl_revenue_past_7 != null
-                        ? `$${Number(listing.pl_revenue_past_7).toLocaleString()}`
+                      {listing.pl_occupancy_past_90 != null
+                        ? `${listing.pl_occupancy_past_90}%`
                         : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      STLY Revenue (7d)
+                      Mkt Occ 90N
                     </span>
                     <span className="font-medium font-mono text-muted-foreground">
-                      {listing.pl_stly_revenue_past_7 != null
-                        ? `$${Number(listing.pl_stly_revenue_past_7).toLocaleString()}`
+                      {listing.pl_market_occupancy_past_90 != null
+                        ? `${listing.pl_market_occupancy_past_90}%`
                         : "—"}
                     </span>
                   </div>
