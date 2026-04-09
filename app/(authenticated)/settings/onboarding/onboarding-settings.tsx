@@ -6,10 +6,15 @@ import {
   Plus,
   Pencil,
   Trash2,
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
   ExternalLink,
 } from "lucide-react"
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from "@hello-pangea/dnd"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -113,11 +118,11 @@ export function OnboardingSettings({ templates, resources }: Props) {
     })
   }
 
-  async function handleMoveTemplate(index: number, direction: "up" | "down") {
+  function handleTemplateDragEnd(result: DropResult) {
+    if (!result.destination || result.source.index === result.destination.index) return
     const newList = [...templates]
-    const swapIdx = direction === "up" ? index - 1 : index + 1
-    if (swapIdx < 0 || swapIdx >= newList.length) return
-    ;[newList[index], newList[swapIdx]] = [newList[swapIdx], newList[index]]
+    const [moved] = newList.splice(result.source.index, 1)
+    newList.splice(result.destination.index, 0, moved)
     startTransition(async () => {
       await reorderOnboardingTemplates(newList.map((t) => t.id))
       router.refresh()
@@ -162,11 +167,11 @@ export function OnboardingSettings({ templates, resources }: Props) {
     })
   }
 
-  async function handleMoveResource(index: number, direction: "up" | "down") {
+  function handleResourceDragEnd(result: DropResult) {
+    if (!result.destination || result.source.index === result.destination.index) return
     const newList = [...resources]
-    const swapIdx = direction === "up" ? index - 1 : index + 1
-    if (swapIdx < 0 || swapIdx >= newList.length) return
-    ;[newList[index], newList[swapIdx]] = [newList[swapIdx], newList[index]]
+    const [moved] = newList.splice(result.source.index, 1)
+    newList.splice(result.destination.index, 0, moved)
     startTransition(async () => {
       await reorderOnboardingResources(newList.map((r) => r.id))
       router.refresh()
@@ -195,92 +200,97 @@ export function OnboardingSettings({ templates, resources }: Props) {
               No onboarding steps yet.
             </p>
           ) : (
-            <div className="space-y-2">
-              {templates.map((t, idx) => (
-                <div
-                  key={t.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Reorder arrows */}
-                    <div className="flex flex-col">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-5"
-                        disabled={idx === 0 || isPending}
-                        onClick={() => handleMoveTemplate(idx, "up")}
-                      >
-                        <ChevronUp className="size-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-5"
-                        disabled={idx === templates.length - 1 || isPending}
-                        onClick={() => handleMoveTemplate(idx, "down")}
-                      >
-                        <ChevronDown className="size-3" />
-                      </Button>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{t.step_name}</p>
-                      {t.description && (
-                        <p className="text-xs text-muted-foreground">
-                          {t.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={t.is_active}
-                      onCheckedChange={() => handleToggleActive(t)}
-                      disabled={isPending}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      onClick={() => openEditTemplate(t)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Delete &ldquo;{t.step_name}&rdquo;?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This step will be removed from all client
-                            onboarding progress.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteTemplate(t.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <DragDropContext onDragEnd={handleTemplateDragEnd}>
+              <Droppable droppableId="templates">
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="space-y-2"
+                  >
+                    {templates.map((t, idx) => (
+                      <Draggable key={t.id} draggableId={t.id} index={idx}>
+                        {(drag, snapshot) => (
+                          <div
+                            ref={drag.innerRef}
+                            {...drag.draggableProps}
+                            className={`flex items-center justify-between rounded-md border px-3 py-2 bg-card ${
+                              snapshot.isDragging ? "shadow-md ring-2 ring-primary/20" : ""
+                            }`}
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <div className="flex items-center gap-3">
+                              <div
+                                {...drag.dragHandleProps}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <GripVertical className="size-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {t.step_name}
+                                </p>
+                                {t.description && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {t.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={t.is_active}
+                                onCheckedChange={() => handleToggleActive(t)}
+                                disabled={isPending}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                onClick={() => openEditTemplate(t)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete &ldquo;{t.step_name}&rdquo;?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This step will be removed from all client
+                                      onboarding progress.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteTemplate(t.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
         </CardContent>
       </Card>
@@ -305,92 +315,97 @@ export function OnboardingSettings({ templates, resources }: Props) {
               No resources yet.
             </p>
           ) : (
-            <div className="space-y-2">
-              {resources.map((r, idx) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Reorder arrows */}
-                    <div className="flex flex-col">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-5"
-                        disabled={idx === 0 || isPending}
-                        onClick={() => handleMoveResource(idx, "up")}
-                      >
-                        <ChevronUp className="size-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-5"
-                        disabled={idx === resources.length - 1 || isPending}
-                        onClick={() => handleMoveResource(idx, "down")}
-                      >
-                        <ChevronDown className="size-3" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{r.icon}</span>
-                      <div>
-                        <p className="text-sm font-medium">{r.title}</p>
-                        {r.url && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <ExternalLink className="size-3" />
-                            {r.url.length > 50
-                              ? r.url.slice(0, 50) + "..."
-                              : r.url}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      onClick={() => openEditResource(r)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Delete &ldquo;{r.title}&rdquo;?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This resource will be permanently removed.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteResource(r.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <DragDropContext onDragEnd={handleResourceDragEnd}>
+              <Droppable droppableId="resources">
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="space-y-2"
+                  >
+                    {resources.map((r, idx) => (
+                      <Draggable key={r.id} draggableId={r.id} index={idx}>
+                        {(drag, snapshot) => (
+                          <div
+                            ref={drag.innerRef}
+                            {...drag.draggableProps}
+                            className={`flex items-center justify-between rounded-md border px-3 py-2 bg-card ${
+                              snapshot.isDragging ? "shadow-md ring-2 ring-primary/20" : ""
+                            }`}
                           >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <div className="flex items-center gap-3">
+                              <div
+                                {...drag.dragHandleProps}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <GripVertical className="size-4" />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{r.icon}</span>
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {r.title}
+                                  </p>
+                                  {r.url && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <ExternalLink className="size-3" />
+                                      {r.url.length > 50
+                                        ? r.url.slice(0, 50) + "..."
+                                        : r.url}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                onClick={() => openEditResource(r)}
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete &ldquo;{r.title}&rdquo;?
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This resource will be permanently removed.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteResource(r.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
         </CardContent>
       </Card>

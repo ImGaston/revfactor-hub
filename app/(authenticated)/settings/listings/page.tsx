@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { ListingsSettings } from "./listings-settings"
 
 export default async function SettingsListingsPage() {
-  const profile = await getProfile()
-  if (!profile || profile.role !== "super_admin") redirect("/settings/account")
+  const [profile, canEdit] = await Promise.all([
+    getProfile(),
+    hasPermission("listings", "edit"),
+  ])
+  if (!profile || !canEdit) redirect("/settings/account")
 
   const supabase = await createClient()
 

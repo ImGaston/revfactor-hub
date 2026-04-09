@@ -16,6 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { updateClientEmailAction } from "@/app/(authenticated)/settings/clients/actions"
+import { cn } from "@/lib/utils"
 import type { Client } from "@/lib/types"
 
 const statusColor: Record<string, string> = {
@@ -120,13 +121,15 @@ export function ClientsTable({
   function SortHeader({
     field,
     children,
+    className,
   }: {
     field: SortField
     children: React.ReactNode
+    className?: string
   }) {
     return (
       <TableHead
-        className="cursor-pointer select-none"
+        className={cn("cursor-pointer select-none", className)}
         onClick={() => toggleSort(field)}
       >
         <div className="flex items-center gap-1">
@@ -138,19 +141,19 @@ export function ClientsTable({
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
+    <div className="rounded-md border overflow-x-auto">
+      <Table className="table-fixed min-w-[800px]">
         <TableHeader>
           <TableRow>
             <SortHeader field="name">Name</SortHeader>
-            <TableHead>Email</TableHead>
-            <SortHeader field="status">Status</SortHeader>
-            <SortHeader field="listings">Listings</SortHeader>
-            <SortHeader field="tasks">Open Tasks</SortHeader>
-            {isSuperAdmin && <TableHead className="text-right">Billing</TableHead>}
+            <TableHead className="w-[20%]">Email</TableHead>
+            <SortHeader field="status" className="w-[9%]">Status</SortHeader>
+            <SortHeader field="listings" className="w-[8%]">Listings</SortHeader>
+            <SortHeader field="tasks" className="w-[7%]">Tasks</SortHeader>
+            {isSuperAdmin && <TableHead className="w-[10%] text-right">Billing</TableHead>}
             <SortHeader field="onboarding_date">Onboarding</SortHeader>
             <SortHeader field="ending_date">End Date</SortHeader>
-            <TableHead>Assembly</TableHead>
+            <TableHead className="w-[5%]">Assembly</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -173,7 +176,7 @@ export function ClientsTable({
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => router.push(`/clients/${client.id}`)}
                 >
-                  <TableCell className="font-medium">{client.name}</TableCell>
+                  <TableCell className="font-medium truncate">{client.name}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {isEditingEmail ? (
                       <div className="flex items-center gap-1">
@@ -212,9 +215,9 @@ export function ClientsTable({
                         </Button>
                       </div>
                     ) : client.email ? (
-                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground truncate">
                         <Mail className="size-3.5 shrink-0" />
-                        {client.email}
+                        <span className="truncate">{client.email}</span>
                       </span>
                     ) : (
                       <button
@@ -257,10 +260,10 @@ export function ClientsTable({
                         : "—"}
                     </TableCell>
                   )}
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm truncate">
                     {formatDate(client.onboarding_date)}
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm truncate">
                     {formatDate(client.ending_date)}
                   </TableCell>
                   <TableCell>

@@ -4,19 +4,34 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 
-const allTabs = [
-  { label: "Account", href: "/settings/account", adminOnly: false },
-  { label: "Users", href: "/settings/users", adminOnly: true },
-  { label: "Roles & Permissions", href: "/settings/roles", adminOnly: true },
-  { label: "Clients", href: "/settings/clients", adminOnly: true },
-  { label: "Listings", href: "/settings/listings", adminOnly: true },
-  { label: "Boards & Tags", href: "/settings/boards-tags", adminOnly: true },
-  { label: "Onboarding", href: "/settings/onboarding", adminOnly: true },
+type Tab = {
+  label: string
+  href: string
+  /** Permission key required to see this tab. null = visible to all. */
+  permission: string | null
+}
+
+const allTabs: Tab[] = [
+  { label: "Account", href: "/settings/account", permission: null },
+  { label: "Users", href: "/settings/users", permission: "users:view" },
+  { label: "Roles & Permissions", href: "/settings/roles", permission: "users:edit" },
+  { label: "Clients", href: "/settings/clients", permission: "clients:edit" },
+  { label: "Listings", href: "/settings/listings", permission: "listings:edit" },
+  { label: "Boards & Tags", href: "/settings/boards-tags", permission: "settings:edit" },
+  { label: "Onboarding", href: "/settings/onboarding", permission: "onboarding:edit" },
 ]
 
-export function SettingsNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export function SettingsNav({
+  permissions,
+}: {
+  permissions: Record<string, boolean>
+  /** @deprecated use permissions instead */
+  isSuperAdmin?: boolean
+}) {
   const pathname = usePathname()
-  const tabs = allTabs.filter((t) => !t.adminOnly || isSuperAdmin)
+  const tabs = allTabs.filter(
+    (t) => t.permission === null || permissions[t.permission]
+  )
 
   return (
     <nav className="flex gap-1 border-b overflow-x-auto">

@@ -56,9 +56,11 @@ const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
 export function ClientsSettings({
   clients,
   assemblyConfigured,
+  isSuperAdmin = false,
 }: {
   clients: SettingsClient[]
   assemblyConfigured: boolean
+  isSuperAdmin?: boolean
 }) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<SettingsClient | undefined>()
@@ -123,7 +125,9 @@ export function ClientsSettings({
                 <TableHead>Name</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead className="text-right font-mono">Billing</TableHead>
+                {isSuperAdmin && (
+                  <TableHead className="text-right font-mono">Billing</TableHead>
+                )}
                 <TableHead className="text-center">Listings</TableHead>
                 {assemblyConfigured && (
                   <TableHead className="text-center">Assembly</TableHead>
@@ -143,11 +147,13 @@ export function ClientsSettings({
                   <TableCell className="text-muted-foreground">
                     {client.email ?? "—"}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {client.billing_amount
-                      ? `$${Number(client.billing_amount).toLocaleString()}`
-                      : "—"}
-                  </TableCell>
+                  {isSuperAdmin && (
+                    <TableCell className="text-right font-mono">
+                      {client.billing_amount
+                        ? `$${Number(client.billing_amount).toLocaleString()}`
+                        : "—"}
+                    </TableCell>
+                  )}
                   <TableCell className="text-center">
                     {client.listingCount}
                   </TableCell>
@@ -205,7 +211,7 @@ export function ClientsSettings({
               ))}
               {clients.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={assemblyConfigured ? 7 : 6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={(isSuperAdmin ? 1 : 0) + (assemblyConfigured ? 7 : 6)} className="text-center text-muted-foreground py-8">
                     No clients yet.
                   </TableCell>
                 </TableRow>
@@ -220,6 +226,7 @@ export function ClientsSettings({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         client={editing}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

@@ -63,6 +63,12 @@ function pricelabsIdFromLink(link: string | null): string {
   return extractPricelabsId(link)
 }
 
+function pricelabsIdFromListing(listing?: ListingFormData): string {
+  if (listing?.listing_id) return listing.listing_id
+  if (listing?.pricelabs_link) return pricelabsIdFromLink(listing.pricelabs_link)
+  return ""
+}
+
 const EMPTY: ListingFormData = {
   client_id: "",
   name: "",
@@ -87,7 +93,7 @@ export function ListingDialog({
   const isEdit = !!listing?.id
   const [form, setForm] = useState<ListingFormData>(listing ?? EMPTY)
   const [airbnbId, setAirbnbId] = useState(airbnbIdFromLink(listing?.airbnb_link ?? null))
-  const [pricelabsId, setPricelabsId] = useState(pricelabsIdFromLink(listing?.pricelabs_link ?? null))
+  const [pricelabsId, setPricelabsId] = useState(pricelabsIdFromListing(listing))
   const [saving, setSaving] = useState(false)
 
   function set<K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) {
@@ -106,11 +112,12 @@ export function ListingDialog({
     }
 
     setSaving(true)
+    const plId = extractPricelabsId(pricelabsId.trim())
     const input = {
       client_id: form.client_id,
       name: form.name.trim(),
-      listing_id: form.listing_id?.trim() || null,
-      pricelabs_link: pricelabsId.trim() ? `${PRICELABS_BASE}${extractPricelabsId(pricelabsId.trim())}` : null,
+      listing_id: plId || null,
+      pricelabs_link: plId ? `${PRICELABS_BASE}${plId}` : null,
       airbnb_link: airbnbId.trim() ? `${AIRBNB_BASE}${extractAirbnbId(airbnbId.trim())}` : null,
       city: form.city?.trim() || null,
       state: form.state?.trim() || null,
@@ -185,16 +192,6 @@ export function ListingDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-id">Listing ID</Label>
-              <Input
-                id="listing-id"
-                value={form.listing_id ?? ""}
-                onChange={(e) => set("listing_id", e.target.value || null)}
-                placeholder="External listing ID"
-              />
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="listing-airbnb">Airbnb ID</Label>
               <Input
                 id="listing-airbnb"
@@ -210,16 +207,16 @@ export function ListingDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-pricelabs">PriceLabs ID</Label>
+              <Label htmlFor="listing-pricelabs">PriceLabs / Listing ID</Label>
               <Input
                 id="listing-pricelabs"
                 value={pricelabsId}
                 onChange={(e) => setPricelabsId(extractPricelabsId(e.target.value))}
-                placeholder="12345678"
+                placeholder="456319"
               />
               {pricelabsId.trim() && (
                 <p className="text-muted-foreground text-xs">
-                  {PRICELABS_BASE}{pricelabsId.trim()}
+                  {PRICELABS_BASE}{extractPricelabsId(pricelabsId.trim())}
                 </p>
               )}
             </div>

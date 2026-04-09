@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { isAssemblyConfigured } from "@/lib/assembly"
 import { ClientsSettings } from "./clients-settings"
 
 export default async function SettingsClientsPage() {
-  const profile = await getProfile()
-  if (!profile || profile.role !== "super_admin") redirect("/settings/account")
+  const [profile, canEdit] = await Promise.all([
+    getProfile(),
+    hasPermission("clients", "edit"),
+  ])
+  if (!profile || !canEdit) redirect("/settings/account")
 
   const supabase = await createClient()
   const { data: clients } = await supabase
@@ -23,6 +27,7 @@ export default async function SettingsClientsPage() {
         })) ?? []
       }
       assemblyConfigured={isAssemblyConfigured()}
+      isSuperAdmin={profile.role === "super_admin"}
     />
   )
 }

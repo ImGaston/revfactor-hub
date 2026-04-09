@@ -12,6 +12,7 @@ export type Listing = {
   pl_market_occupancy_next_30: number | null
   pl_mpi_next_30: number | null
   pl_last_booked_date: string | null
+  stripe_subscription_id?: string | null
 }
 
 export type ListingWithMetrics = Listing & {
@@ -136,6 +137,52 @@ export type Comment = {
   dislike_count?: number
   user_reaction?: "like" | "dislike" | null
   replies?: Comment[]
+}
+
+// ─── Financials ─────────────────────────────────────────
+
+export type ExpenseCategory = {
+  id: string
+  name: string
+  type: "fixed" | "variable"
+  created_at: string
+}
+
+export type Expense = {
+  id: string
+  description: string
+  amount: number
+  category_id: string | null
+  type: "fixed" | "variable"
+  date: string
+  is_paid: boolean
+  paid_at: string | null
+  notes: string | null
+  created_by: string | null
+  recurring_expense_id: string | null
+  recurring_month: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  expense_categories?: { id: string; name: string; type: string } | null
+}
+
+export type RecurringExpense = {
+  id: string
+  description: string
+  amount: number
+  category_id: string | null
+  type: "fixed" | "variable"
+  day_of_month: number
+  is_active: boolean
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  expense_categories?: { id: string; name: string; type: string } | null
 }
 
 // ─── Credentials ────────────────────────────────────────

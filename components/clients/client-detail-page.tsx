@@ -17,6 +17,7 @@ import {
   Loader2,
   MapPin,
   ArrowUpDown,
+  Plus,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ import {
 import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
+import { AddListingDialog } from "./add-listing-dialog"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 
 /**
@@ -158,6 +160,7 @@ export function ClientDetailPage({
   const [linking, setLinking] = useState(false)
   const [sortBy, setSortBy] = useState<SortOption>("name")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+  const [addListingOpen, setAddListingOpen] = useState(false)
 
   const sortedListings = useMemo(
     () => sortListings(client.listings, sortBy, sortDir),
@@ -383,32 +386,43 @@ export function ClientDetailPage({
               ({client.listings.length})
             </span>
           </h3>
-          {client.listings.length > 1 && (
-            <div className="flex items-center gap-2">
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-                <SelectTrigger className="h-8 w-[140px] text-xs">
-                  <ArrowUpDown className="mr-1 size-3" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Name</SelectItem>
-                  <SelectItem value="occ7n">Occ (7N)</SelectItem>
-                  <SelectItem value="occ30n">Occ (30N)</SelectItem>
-                  <SelectItem value="mpi30n">MPI (30N)</SelectItem>
-                  <SelectItem value="last_booked">Last Booked</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-                title={sortDir === "asc" ? "Ascending" : "Descending"}
-              >
-                <span className="text-xs font-mono">{sortDir === "asc" ? "↑" : "↓"}</span>
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {client.listings.length > 1 && (
+              <>
+                <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <ArrowUpDown className="mr-1 size-3" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="occ7n">Occ (7N)</SelectItem>
+                    <SelectItem value="occ30n">Occ (30N)</SelectItem>
+                    <SelectItem value="mpi30n">MPI (30N)</SelectItem>
+                    <SelectItem value="last_booked">Last Booked</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  title={sortDir === "asc" ? "Ascending" : "Descending"}
+                >
+                  <span className="text-xs font-mono">{sortDir === "asc" ? "↑" : "↓"}</span>
+                </Button>
+              </>
+            )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              onClick={() => setAddListingOpen(true)}
+              title="Add listing"
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
         </div>
         <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {sortedListings.map((listing) => {
@@ -488,6 +502,12 @@ export function ClientDetailPage({
           })}
         </div>
       </div>
+
+      <AddListingDialog
+        open={addListingOpen}
+        onOpenChange={setAddListingOpen}
+        clientId={client.id}
+      />
     </div>
   )
 }

@@ -68,9 +68,16 @@ app/
 │   │   ├── client-stepper-card.tsx # Per-client onboarding progress card
 │   │   ├── resource-card.tsx     # Resource/template card
 │   │   └── actions.ts           # Server actions for onboarding steps
+│   ├── financials/
+│   │   ├── page.tsx              # Financials — super_admin only, fetches Stripe + expenses
+│   │   ├── financials-view.tsx   # KPI cards, revenue trend chart, expense charts, tables
+│   │   ├── subscriptions-table.tsx # Stripe subscriptions with client/listing linking
+│   │   ├── link-stripe-dialog.tsx  # Link Stripe customer → Hub client
+│   │   ├── link-subscription-dialog.tsx # Link subscription → listings
+│   │   └── actions.ts            # Server actions (Stripe linking, expenses CRUD)
 │   ├── settings/
-│   │   ├── layout.tsx            # Settings layout with nav tabs
-│   │   ├── settings-nav.tsx      # Settings navigation (Account, Users, Clients, Listings, Roles, Boards & Tags, Onboarding)
+│   │   ├── layout.tsx            # Settings layout — builds permission map, passes to nav
+│   │   ├── settings-nav.tsx      # Settings navigation — permission-based tab visibility (not role-based)
 │   │   ├── account/
 │   │   │   ├── page.tsx            # Account settings (avatar, profile, password)
 │   │   │   ├── actions.ts          # Server actions (updateProfile, updatePassword, updateAvatarUrl)
@@ -78,30 +85,30 @@ app/
 │   │   │   ├── profile-form.tsx    # Name edit form (email disabled)
 │   │   │   └── password-form.tsx   # Current/new/confirm password form
 │   │   ├── clients/
-│   │   │   ├── page.tsx              # Client management
-│   │   │   ├── clients-settings.tsx  # Table with search, filters, Assembly link/unlink, edit/delete
-│   │   │   ├── client-dialog.tsx     # Create/edit client form
+│   │   │   ├── page.tsx              # Client management (permission-gated)
+│   │   │   ├── clients-settings.tsx  # Table with search, filters, Assembly link/unlink, edit/delete; billing column super_admin only
+│   │   │   ├── client-dialog.tsx     # Create/edit client form; billing/autopay/stripe fields super_admin only
 │   │   │   └── actions.ts           # Server actions (CRUD, Assembly link/unlink, updateClientEmailAction)
 │   │   ├── listings/
-│   │   │   ├── page.tsx              # Listings management (super_admin only)
-│   │   │   ├── listings-settings.tsx # Table with search, filters, edit/delete per row
-│   │   │   ├── listing-dialog.tsx    # Create/edit listing form (ID-based inputs for Airbnb & PriceLabs)
-│   │   │   └── actions.ts           # Server actions (createListingAction, updateListingAction, deleteListingAction)
+│   │   │   ├── page.tsx              # Listings management (permission-gated)
+│   │   │   ├── listings-settings.tsx # Table (table-fixed, overflow-x-auto) with search, filters, edit/delete per row
+│   │   │   ├── listing-dialog.tsx    # Create/edit listing form — unified PriceLabs/Listing ID field (sets both listing_id + pricelabs_link)
+│   │   │   └── actions.ts           # Server actions (createListingAction, updateListingAction, deleteListingAction, syncPriceLabsAction)
 │   │   ├── users/
-│   │   │   ├── page.tsx            # User management (super_admin only, fetches roles)
+│   │   │   ├── page.tsx            # User management (permission-gated: users:edit)
 │   │   │   ├── users-table.tsx     # Users table with inline role dropdown per user
 │   │   │   ├── invite-user-dialog.tsx # Invite user with email+password+role (accepts roles prop)
 │   │   │   └── actions.ts          # inviteUser via admin.auth.admin.createUser()
 │   │   ├── roles/
-│   │   │   ├── page.tsx            # Roles & Permissions management (super_admin only)
+│   │   │   ├── page.tsx            # Roles & Permissions management (permission-gated: users:edit)
 │   │   │   ├── roles-manager.tsx   # Role cards with permission grid, create/delete role, user role reassignment
 │   │   │   └── actions.ts          # Server actions (createRole, deleteRole, togglePermission, bulkToggleResource, updateUserRole)
 │   │   ├── boards-tags/
-│   │   │   ├── page.tsx            # Boards & Tags settings
+│   │   │   ├── page.tsx            # Boards & Tags settings (permission-gated: settings:edit)
 │   │   │   └── boards-tags-admin.tsx # Tag management UI
 │   │   └── onboarding/
-│   │       ├── page.tsx              # Onboarding settings
-│   │       └── onboarding-settings.tsx # Onboarding template management
+│   │       ├── page.tsx              # Onboarding settings (permission-gated: onboarding:edit)
+│   │       └── onboarding-settings.tsx # Onboarding template management with drag-and-drop reordering
 │   ├── calendar/page.tsx       # Calendar view
 │   └── notes/page.tsx          # Notes feed
 proxy.ts                        # Next.js 16 middleware (session refresh + auth redirects)
@@ -113,11 +120,12 @@ components/
 │   └── breadcrumb-context.tsx  # Breadcrumb context provider
 ├── clients/
 │   ├── clients-view.tsx        # Cards/Table toggle (default: table), search matches name+email, status filters
-│   ├── clients-table.tsx       # Table view with sortable columns, inline email editing (+Add email button)
+│   ├── clients-table.tsx       # Table view (table-fixed, overflow-x-auto) with sortable columns, inline email editing, billing column super_admin only
 │   ├── client-card.tsx         # Card: name, status badge, listing count
-│   ├── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings with KPIs
-│   ├── client-detail-page.tsx  # Standalone detail page: contact info, credentials, listings with KPIs (responsive grid)
-│   └── client-credentials.tsx  # Collapsible credentials table (hidden by default), password show/hide/copy, CRUD form dialog
+│   ├── client-detail.tsx       # Side panel: contact info, Assembly links, open tasks, listings with real PriceLabs KPIs; billing super_admin only
+│   ├── client-detail-page.tsx  # Standalone detail page: contact info, credentials, listings with real PriceLabs KPIs, sort controls, add listing button; billing super_admin only
+│   ├── client-credentials.tsx  # Collapsible credentials table (hidden by default), password show/hide/copy, CRUD form dialog
+│   └── add-listing-dialog.tsx  # Add listing from client detail (Name, City, State, Airbnb ID, PriceLabs/Listing ID)
 ├── kanban/
 │   ├── kanban-board.tsx        # Generic typed board with @hello-pangea/dnd + renderColumnFooter
 │   └── kanban-card.tsx         # Card with left accent border, badges, dropdown move menu, archive/complete actions
@@ -130,10 +138,15 @@ lib/
 │   ├── admin.ts                # Admin client with service role key
 │   └── profile.ts              # Profile type (role: string) + getProfile() helper
 ├── assembly.ts                 # Assembly CRM API client (clients, channels, messages, contracts, deep links)
+├── pricelabs.ts                # PriceLabs API client (fetchPriceLabsListings, parseOccupancy, isPriceLabsConfigured)
+├── stripe.ts                   # Stripe API client (subscriptions, revenue, invoices)
 ├── permissions.ts              # Client-safe: RESOURCES, ACTIONS, types, buildPermissionMap(), checkPermission()
 ├── permissions.server.ts       # Server-only: hasPermission(), getRolePermissions(), getAllRolesWithPermissions()
-├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, ClientCredential, Lead, LeadTag, LeadStage, resolveProfile helper)
+├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, ClientCredential, Lead, LeadTag, LeadStage, Expense, RecurringExpense, resolveProfile helper)
 └── utils.ts
+api/
+└── cron/
+    └── sync-pricelabs/route.ts # Vercel cron endpoint — daily PriceLabs sync at 8:00 UTC (auth via CRON_SECRET)
 supabase/
 └── migrations/
     ├── 001_profiles.sql        # profiles table, trigger, RLS + get_my_role() SECURITY DEFINER
@@ -148,7 +161,11 @@ supabase/
     ├── 010_leads_assembly_client.sql  # assembly_client_id on leads
     ├── 011_onboarding.sql            # onboarding_steps table + RLS
     ├── 012_roles_and_permissions.sql  # roles, role_permissions tables, seeded super_admin + admin permissions, FK profiles.role → roles.name
-    └── 013_client_credentials.sql    # client_credentials table (name, software, email, password, notes) + RLS
+    ├── 013_client_credentials.sql    # client_credentials table (name, software, email, password, notes) + RLS
+    ├── 014_pricelabs_metrics.sql     # pl_* columns on listings (base_price, min_price, max_price, occupancy, market_occupancy, etc.)
+    ├── 015_pricelabs_fields_update.sql # Add pl_mpi_next_30/60, pl_last_booked_date, pl_wknd_occupancy_next_30, pl_market_wknd_occupancy_next_30; drop unused fields
+    ├── 016_financials.sql            # expenses, expense_categories, recurring_expenses tables; stripe_customer_id on clients
+    └── 017_listing_stripe_subscription.sql # stripe_subscription_id on listings
 scripts/
 ├── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
 ├── migrate-credentials.ts     # One-time CSV → Supabase migration (client credentials from Airtable)
@@ -161,15 +178,18 @@ scripts/
 - **Permissions:** `role_permissions` table with resource+action pairs (11 resources × 4 actions = 44 permissions per role)
 - **RLS:** All tables use Row Level Security. The `get_my_role()` SECURITY DEFINER function avoids recursion when policies on `profiles` need to check the user's role
 - **Permission checking:** `lib/permissions.server.ts` for server-side, `lib/permissions.ts` for client-safe pure functions (no `next/headers` import)
-- **Role-based UI:** Settings/user management visible only to `super_admin`. Financial data (ADR, RevPAR, revenue) hidden from non-super_admin users
+- **Role-based UI:** Settings tabs are permission-gated (each tab maps to a resource+action). Financial data (billing_amount, autopayment, stripe_dashboard, Financials page) is **super_admin only** — enforced via `isSuperAdmin` prop in UI components and server-side redirect in `/financials`
 - **Session refresh:** Handled in `proxy.ts` (Next.js 16 middleware replacement for `middleware.ts`)
 
 ## Database Tables (Supabase PostgreSQL)
 - **profiles** — id (FK auth.users), email, full_name, avatar_url, role (FK → roles.name), created_at, updated_at
 - **roles** — name (unique PK), description, is_system (boolean, prevents deletion of super_admin/admin)
 - **role_permissions** — role_name (FK), resource, action (view/create/edit/delete), allowed (boolean), UNIQUE(role_name, resource, action)
-- **clients** — name, email, phone, market, plan, assembly_link, assembly_client_id, assembly_company_id, status (active/onboarding/paused/churned), start_date
-- **listings** — client_id (FK), name, listing_id, pricelabs_link, airbnb_link, city, state, status, cached metrics (adr, occupancy, revpar, revenue_mtd, metrics_synced_at)
+- **clients** — name, email, phone, market, plan, assembly_link, assembly_client_id, assembly_company_id, status (active/onboarding/paused/churned), start_date, billing_amount, autopayment_set_up, stripe_dashboard, stripe_customer_id, onboarding_date, ending_date
+- **listings** — client_id (FK), name, listing_id, pricelabs_link, airbnb_link, city, state, status, stripe_subscription_id, pl_* metrics (base_price, min_price, max_price, recommended_base_price, cleaning_fees, no_of_bedrooms, occupancy_next_7/30, market_occupancy_next_7/30, occupancy_past_90, market_occupancy_past_90, mpi_next_30/60, last_booked_date, wknd_occupancy_next_30, market_wknd_occupancy_next_30, push_enabled, last_refreshed_at, synced_at)
+- **expenses** — description, amount, date, category_id (FK), is_paid, notes
+- **expense_categories** — name, type (fixed/variable)
+- **recurring_expenses** — description, amount, interval, category_id (FK), next_date
 - **client_credentials** — id, client_id (FK), name, software, email, password, notes, created_at, updated_at. RLS: authenticated can view, super_admin can CRU/D
 - **tasks** — client_id (FK), title, description, status (todo/in_progress/waiting/done), owner (UUID FK → profiles), tag, sort_order, task_listings (junction to listings)
 - **roadmap_items** — title, description, owner, tag, status (proposed/planned/in_progress/done), sort_order
@@ -227,25 +247,26 @@ scripts/
 - Cards support `onArchive`, `onComplete` actions and `statusIndicator` ReactNode
 
 ### Listing Detail Dashboard
-- PriceLabs-style KPI row with 10 metrics: Base Price, Last Booked Date, Total Occ (30N), Nights Booked (15P), Bookings Pickup (15P), Adj Occ (30N/30P/60N/90N), MPI (30N)
-- `KPIMetric` component with color-coded badges (green/amber/red based on thresholds)
-- Secondary KPI cards (ADR, RevPAR, Revenue MTD, Reviews)
+- PriceLabs-style KPI row with 10 metrics: Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked
+- `KPIMetric` component with color-coded badges (green/amber/red/blue based on thresholds)
+- `occColor(occ, marketOcc)` function: Red (<0.8×market), Amber (0.8×–1×market), Green (1×–1.2×market), Blue (>1.2×market)
+- Secondary KPI cards: Base Price, Recommended Price, MPI(60N), Occ 90N
+- Market Comparison sidebar with weekend occupancy and MPI 30N/60N
 - 4 tabs: Revenue (monthly chart mockup), Reservations (table), Rates (PriceLabs calendar), Pacing (vs prior year)
-- Preview banner: "This dashboard shows mockup data" — real data pending PriceLabs API integration
-- Currently uses deterministic mock data; real data will come from PriceLabs API, PMS reservations, and Airbnb reviews
+- Shows real PriceLabs data when synced (green "synced" banner), amber "Preview" banner when not synced
 
 ### Listing Cards (Client Detail Pages)
 - Rounded-xl cards with MapPin + Airbnb/PriceLabs logo links in header
-- 4-column KPI grid (ADR, Occupancy, RevPAR, Revenue) with trend arrows (↗/↘)
-- Deterministic mock KPIs generated via string hash from listing ID (`getMockListingKPIs`)
+- 4-column KPI grid: Occ(7N), Occ(30N), MPI(30N), Last Booked — all from real PriceLabs data
+- Color-coded via `occColor()` (same 4-tier system as listing detail)
+- Sort controls: dropdown (Name, Occ 7N, Occ 30N, MPI 30N, Last Booked) + asc/desc toggle
+- "+" button to add listing via `AddListingDialog`
 - Responsive grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`
 - Click navigates to `/listings/[id]` detail page
 
 ### Listing Form (Settings > Listings)
-- Airbnb and PriceLabs fields accept **only the numeric ID**, not full URLs
-- The form auto-constructs the full link on save:
-  - Airbnb: `https://www.airbnb.com/rooms/{id}`
-  - PriceLabs: `https://app.pricelabs.co/pricing_dashboard?listings={id}`
+- Airbnb field accepts **only the numeric ID**, not full URLs; auto-constructs `https://www.airbnb.com/rooms/{id}`
+- **PriceLabs / Listing ID** is a single unified field that sets both `listing_id` and `pricelabs_link` (`https://app.pricelabs.co/pricing_dashboard?listings={id}`)
 - If a user pastes a full URL, the ID is extracted automatically
 - A preview of the generated link is shown below each field
 - When editing an existing listing, the ID is extracted from the stored link
@@ -460,22 +481,27 @@ PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceL
 ### Synced Fields (from `GET /v1/listings`)
 - `pl_base_price`, `pl_min_price`, `pl_max_price`, `pl_recommended_base_price`
 - `pl_cleaning_fees`, `pl_no_of_bedrooms`
-- `pl_occupancy_next_7/30/60`, `pl_market_occupancy_next_7/30/60`
-- `pl_occupancy_past_90`, `pl_market_occupancy_past_90`
-- `pl_revenue_past_7`, `pl_stly_revenue_past_7`
+- `pl_occupancy_next_7`, `pl_market_occupancy_next_7` (from API `occupancy_next_7`, `market_occupancy_next_7`)
+- `pl_occupancy_next_30`, `pl_market_occupancy_next_30` (from API `adjusted_occupancy_next_30`, `market_adjusted_occupancy_next_30`)
+- `pl_occupancy_past_90`, `pl_market_occupancy_past_90` (from API `adjusted_occupancy_past_90`, `market_adjusted_occupancy_past_90`)
+- `pl_mpi_next_30`, `pl_mpi_next_60` (from API `mpi_next_30`, `mpi_next_60`)
+- `pl_last_booked_date` (from API `last_booked_date`)
+- `pl_wknd_occupancy_next_30`, `pl_market_wknd_occupancy_next_30` (from API `weekend_adjusted_occupancy_next_30`, `market_weekend_adjusted_occupancy_next_30`)
 - `pl_push_enabled`, `pl_last_refreshed_at`, `pl_synced_at`
+- **Note:** PriceLabs returns occupancy as strings like `"100 %"` — parsed via `parseOccupancy()`
+- **Note:** 30+ day occupancy fields use `adjusted_occupancy_*` prefix in API (not `occupancy_*`)
 
 ### Key Functions in `lib/pricelabs.ts`
 - `isPriceLabsConfigured()` — checks if env var exists
 - `fetchPriceLabsListings(onlySyncing?)` — fetches all listings from PriceLabs API
-- `parseRevenue(val)` — handles string revenue values with trailing commas
+- `parseOccupancy(val)` — handles PriceLabs `"100 %"` string format → number
 
 ### Display
-- **Listing detail page** (`/listings/[id]`) shows real PriceLabs data when synced, with green "synced" banner
-- **KPI row:** Base price, min price, occupancy metrics (7/30/60/90 day), market occupancy, MPI
-- **KPI cards:** Base price, recommended price, revenue (7d) with STLY comparison, price range
+- **Listing detail page** (`/listings/[id]`) shows real PriceLabs data when synced (green banner), amber "Preview" when not
+- **KPI row:** Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked
+- **KPI cards:** Base Price, Recommended Price, MPI(60N), Occ 90N
 - **Tabs:** Reservations, Pricing calendar, and Pacing still show mockup data (require PMS integration)
-- When not synced, shows amber "Preview" banner
+- **Listing cards** (client detail pages): Occ(7N), Occ(30N), MPI(30N), Last Booked — all real PriceLabs data
 
 ## Roles & Permissions System
 
@@ -487,8 +513,30 @@ PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceL
 - **Custom roles:** Can be created via Settings > Roles & Permissions
 - **Permission check:** Server-side via `hasPermission(resource, action)`, client-side via `checkPermission(permissionMap, resource, action)`
 
+### Settings Tab Permissions
+- All roles can access `/settings` (Account tab is always visible)
+- Each settings sub-tab maps to a permission key:
+  - **Users** → `users:edit`
+  - **Roles** → `users:edit`
+  - **Clients** → `clients:edit`
+  - **Listings** → `listings:edit`
+  - **Boards & Tags** → `settings:edit`
+  - **Onboarding** → `onboarding:edit`
+- `settings-nav.tsx` receives a `permissions` map and filters tabs accordingly
+- `settings/layout.tsx` builds permission map from `getRolePermissions()` + `buildPermissionMap()` (super_admin gets all hardcoded)
+
+### Financial Data Visibility (super_admin only)
+- **billing_amount, autopayment_set_up, stripe_dashboard** fields on clients: hidden in UI for non-super_admin
+- **Clients table** (`clients-table.tsx`): Billing column conditionally rendered via `isSuperAdmin` prop
+- **Client detail** (`client-detail.tsx`, `client-detail-page.tsx`): Billing InfoRow + Stripe button gated by `isSuperAdmin`
+- **Settings > Clients table** (`clients-settings.tsx`): Billing column gated by `isSuperAdmin`
+- **Client dialog** (`client-dialog.tsx`): Billing amount, Autopayment toggle, Stripe Dashboard fields gated by `isSuperAdmin`
+- **Financials page** (`/financials`): Server-side redirect if not super_admin
+- **Sidebar**: Financials link has `superAdminOnly: true`
+- Non-super_admin users can still create/edit clients (if they have `clients:edit` permission) but cannot see or modify financial fields
+
 ### UI
-- Settings > Roles & Permissions page (super_admin only)
+- Settings > Roles & Permissions page (permission-gated: users:edit)
 - Role cards with expandable permission grid (checkboxes per resource×action)
 - Create/delete custom roles
 - Inline user role reassignment via dropdown
@@ -530,6 +578,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY= # Supabase anon/public key
 SUPABASE_SERVICE_ROLE_KEY=     # Server-side only, never expose to browser
 PRICELABS_API_KEY=             # PriceLabs API key, server-side only
 ASSEMBLY_API_KEY=              # Assembly CRM API key, server-side only
+STRIPE_SECRET_KEY=             # Stripe API key, server-side only
 CRON_SECRET=                   # Secret for Vercel cron job authentication
 ```
 Rules: no quotes, no spaces after `=`, NEXT_PUBLIC_ prefix = browser-accessible.

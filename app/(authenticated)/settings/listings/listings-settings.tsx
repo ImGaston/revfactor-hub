@@ -265,28 +265,28 @@ export function ListingsSettings({
           )}
         </div>
 
-        <div className="rounded-md border">
-          <Table>
+        <div className="rounded-md border overflow-x-auto">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Listing ID</TableHead>
-                <TableHead className="w-[80px]" />
+                <TableHead className="w-[40%] min-w-[180px]">Name</TableHead>
+                <TableHead className="w-[20%] min-w-[120px]">Client</TableHead>
+                <TableHead className="w-[15%] min-w-[100px]">Location</TableHead>
+                <TableHead className="w-[15%] min-w-[90px]">Listing ID</TableHead>
+                <TableHead className="w-[10%] min-w-[80px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((listing) => (
                 <TableRow key={listing.id}>
-                  <TableCell className="font-medium">{listing.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="font-medium truncate">{listing.name}</TableCell>
+                  <TableCell className="text-muted-foreground truncate">
                     {listing.client_name ?? "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground truncate">
                     {[listing.city, listing.state].filter(Boolean).join(", ") || "—"}
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
+                  <TableCell className="font-mono text-xs text-muted-foreground truncate">
                     {listing.listing_id ?? "—"}
                   </TableCell>
                   <TableCell>

@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Funnel,
   Building2,
+  DollarSign,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -52,6 +53,7 @@ const navItems = [
   { title: "Notes", href: "/notes", icon: MessageSquare },
   { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb },
   { title: "Pipeline", href: "/pipeline", icon: Funnel },
+  { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true as const },
 ]
 
 export function AppSidebar({ profile }: { profile: Profile | null }) {
@@ -118,7 +120,7 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {navItems.filter((item) => !("superAdminOnly" in item) || profile?.role === "super_admin").map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild

@@ -51,10 +51,12 @@ export function ClientDialog({
   open,
   onOpenChange,
   client,
+  isSuperAdmin = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   client?: ClientFormData
+  isSuperAdmin?: boolean
 }) {
   const isEdit = !!client?.id
   const [form, setForm] = useState<ClientFormData>(client ?? EMPTY)
@@ -161,28 +163,32 @@ export function ClientDialog({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="billing_amount">Billing ($/mo)</Label>
-              <Input
-                id="billing_amount"
-                type="number"
-                step="0.01"
-                value={form.billing_amount ?? ""}
-                onChange={(e) =>
-                  set("billing_amount", e.target.value ? Number(e.target.value) : null)
-                }
-                placeholder="0.00"
-              />
-            </div>
+            {isSuperAdmin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="billing_amount">Billing ($/mo)</Label>
+                  <Input
+                    id="billing_amount"
+                    type="number"
+                    step="0.01"
+                    value={form.billing_amount ?? ""}
+                    onChange={(e) =>
+                      set("billing_amount", e.target.value ? Number(e.target.value) : null)
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
 
-            <div className="flex items-center gap-3 pt-6">
-              <Switch
-                id="autopayment"
-                checked={form.autopayment_set_up}
-                onCheckedChange={(v) => set("autopayment_set_up", v)}
-              />
-              <Label htmlFor="autopayment">Autopayment</Label>
-            </div>
+                <div className="flex items-center gap-3 pt-6">
+                  <Switch
+                    id="autopayment"
+                    checked={form.autopayment_set_up}
+                    onCheckedChange={(v) => set("autopayment_set_up", v)}
+                  />
+                  <Label htmlFor="autopayment">Autopayment</Label>
+                </div>
+              </>
+            )}
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="assembly_link">Assembly Link</Label>
@@ -194,15 +200,17 @@ export function ClientDialog({
               />
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="stripe_dashboard">Stripe Dashboard</Label>
-              <Input
-                id="stripe_dashboard"
-                value={form.stripe_dashboard ?? ""}
-                onChange={(e) => set("stripe_dashboard", e.target.value || null)}
-                placeholder="https://dashboard.stripe.com/..."
-              />
-            </div>
+            {isSuperAdmin && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="stripe_dashboard">Stripe Dashboard</Label>
+                <Input
+                  id="stripe_dashboard"
+                  value={form.stripe_dashboard ?? ""}
+                  onChange={(e) => set("stripe_dashboard", e.target.value || null)}
+                  placeholder="https://dashboard.stripe.com/..."
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>

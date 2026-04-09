@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { InviteUserDialog } from "./invite-user-dialog"
 import { UsersTable } from "./users-table"
 
 export default async function UsersSettingsPage() {
-  const profile = await getProfile()
-  if (!profile || profile.role !== "super_admin") redirect("/settings/account")
+  const [profile, canView] = await Promise.all([
+    getProfile(),
+    hasPermission("users", "view"),
+  ])
+  if (!profile || !canView) redirect("/settings/account")
 
   const supabase = await createClient()
 
