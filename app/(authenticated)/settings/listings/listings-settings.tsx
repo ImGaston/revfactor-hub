@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Plus, Pencil, Trash2, Search, X, ChevronDown, Check } from "lucide-react"
+import { Plus, Pencil, Trash2, Search, X, ChevronDown, Check, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ListingDialog } from "./listing-dialog"
-import { deleteListingAction } from "./actions"
+import { deleteListingAction, syncPriceLabsAction } from "./actions"
 
 type SettingsListing = {
   id: string
@@ -61,6 +61,7 @@ export function ListingsSettings({
   const [editing, setEditing] = useState<SettingsListing | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<SettingsListing | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   const clientNames = useMemo(() => {
     const names = new Set<string>()
@@ -122,6 +123,17 @@ export function ListingsSettings({
     setDeleteTarget(null)
   }
 
+  async function handleSync() {
+    setSyncing(true)
+    const result = await syncPriceLabsAction()
+    setSyncing(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Synced ${result.synced} listing${result.synced !== 1 ? "s" : ""} from PriceLabs`)
+    }
+  }
+
   return (
     <>
       <div className="space-y-4">
@@ -129,10 +141,16 @@ export function ListingsSettings({
           <p className="text-sm text-muted-foreground">
             {filtered.length} of {listings.length} listing{listings.length !== 1 ? "s" : ""}
           </p>
-          <Button size="sm" onClick={handleNew}>
-            <Plus className="mr-1 size-4" />
-            Add Listing
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
+              <RefreshCw className={cn("mr-1 size-4", syncing && "animate-spin")} />
+              {syncing ? "Syncing..." : "Sync PriceLabs"}
+            </Button>
+            <Button size="sm" onClick={handleNew}>
+              <Plus className="mr-1 size-4" />
+              Add Listing
+            </Button>
+          </div>
         </div>
 
         <div className="relative">

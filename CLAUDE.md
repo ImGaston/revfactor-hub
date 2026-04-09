@@ -369,6 +369,38 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 - [ ] Supabase Realtime subscriptions for live pipeline updates between team members
 - [ ] Email notifications on stage changes (optional)
 
+## PriceLabs Integration
+
+PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceLabs API daily.
+
+### Architecture
+- **API:** `https://api.pricelabs.co/v1`, auth via `X-API-Key` header
+- **API client:** `lib/pricelabs.ts` — server-side only
+- **Auth:** Single API key stored as `PRICELABS_API_KEY` env var (server-side only)
+- **Sync strategy:** Daily cron via Vercel (`/api/cron/sync-pricelabs`) at 8:00 UTC + manual "Sync PriceLabs" button in Settings > Listings
+- **Matching:** PriceLabs listing `id` matches `listing_id` column in `listings` table
+- **Storage:** Metrics stored as `pl_*` columns on the `listings` table (migration `014_pricelabs_metrics.sql`)
+
+### Synced Fields (from `GET /v1/listings`)
+- `pl_base_price`, `pl_min_price`, `pl_max_price`, `pl_recommended_base_price`
+- `pl_cleaning_fees`, `pl_no_of_bedrooms`
+- `pl_occupancy_next_7/30/60`, `pl_market_occupancy_next_7/30/60`
+- `pl_occupancy_past_90`, `pl_market_occupancy_past_90`
+- `pl_revenue_past_7`, `pl_stly_revenue_past_7`
+- `pl_push_enabled`, `pl_last_refreshed_at`, `pl_synced_at`
+
+### Key Functions in `lib/pricelabs.ts`
+- `isPriceLabsConfigured()` — checks if env var exists
+- `fetchPriceLabsListings(onlySyncing?)` — fetches all listings from PriceLabs API
+- `parseRevenue(val)` — handles string revenue values with trailing commas
+
+### Display
+- **Listing detail page** (`/listings/[id]`) shows real PriceLabs data when synced, with green "synced" banner
+- **KPI row:** Base price, min price, occupancy metrics (7/30/60/90 day), market occupancy, MPI
+- **KPI cards:** Base price, recommended price, revenue (7d) with STLY comparison, price range
+- **Tabs:** Reservations, Pricing calendar, and Pacing still show mockup data (require PMS integration)
+- When not synced, shows amber "Preview" banner
+
 ## STR Domain Terms
 - **ADR** = Average Daily Rate (revenue ÷ nights sold)
 - **RevPAR** = Revenue Per Available Room (revenue ÷ total available nights)
@@ -388,7 +420,8 @@ The Pipeline section (`/pipeline`) replaces HoneyBook for internal sales funnel 
 NEXT_PUBLIC_SUPABASE_URL=     # Supabase project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY= # Supabase anon/public key
 SUPABASE_SERVICE_ROLE_KEY=     # Server-side only, never expose to browser
-PRICELABS_API_KEY=             # For edge functions only
+PRICELABS_API_KEY=             # PriceLabs API key, server-side only
 ASSEMBLY_API_KEY=              # Assembly CRM API key, server-side only
+CRON_SECRET=                   # Secret for Vercel cron job authentication
 ```
 Rules: no quotes, no spaces after `=`, NEXT_PUBLIC_ prefix = browser-accessible.
