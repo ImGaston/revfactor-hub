@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useCallback, useOptimistic, useTransition } from "react"
-import { User, Calendar } from "lucide-react"
+import { User, Calendar, Trash2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { KanbanBoard, type KanbanColumn } from "@/components/kanban/kanban-board"
 import { KanbanCard } from "@/components/kanban/kanban-card"
 import { TaskDialog } from "./task-dialog"
-import { updateTaskStatus } from "./actions"
+import { updateTaskStatus, deleteTask } from "./actions"
 import type { Task } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 
@@ -53,7 +54,9 @@ export function TasksBoard({ tasks: initialTasks, clients, owners, tags }: Tasks
   const ownerMap = new Map(owners.map((o) => [o.id, o.label]))
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogStatus, setDialogStatus] = useState("todo")
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [, startTransition] = useTransition()
+  const router = useRouter()
 
   const [optimisticTasks, applyOptimistic] = useOptimistic(
     initialTasks,
@@ -112,8 +115,20 @@ export function TasksBoard({ tasks: initialTasks, clients, owners, tags }: Tasks
   }
 
   function handleAdd(columnId: string) {
+    setEditingTask(null)
     setDialogStatus(columnId)
     setDialogOpen(true)
+  }
+
+  function handleEdit(task: Task) {
+    setEditingTask(task)
+    setDialogStatus(task.status)
+    setDialogOpen(true)
+  }
+
+  async function handleDelete(taskId: string) {
+    await deleteTask(taskId)
+    router.refresh()
   }
 
   return (
@@ -148,17 +163,23 @@ export function TasksBoard({ tasks: initialTasks, clients, owners, tags }: Tasks
               columns={COLUMNS}
               currentColumn={columnId}
               onMoveToColumn={(to) => handleClickMove(task.id, to)}
+              onClick={() => handleEdit(task)}
+              onDelete={() => handleDelete(task.id)}
             />
           )
         }}
       />
       <TaskDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setEditingTask(null)
+        }}
         defaultStatus={dialogStatus}
         clients={clients}
         owners={owners}
         tags={tags}
+        task={editingTask}
       />
     </>
   )

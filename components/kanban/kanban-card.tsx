@@ -1,6 +1,6 @@
 "use client"
 
-import { Archive, CheckCircle2, ChevronRight } from "lucide-react"
+import { Archive, CheckCircle2, ChevronRight, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ type KanbanCardProps = {
   onClick?: () => void
   onArchive?: () => void
   onComplete?: () => void
+  onDelete?: () => void
   statusIndicator?: React.ReactNode
 }
 
@@ -40,6 +41,7 @@ export function KanbanCard({
   onClick,
   onArchive,
   onComplete,
+  onDelete,
   statusIndicator,
 }: KanbanCardProps) {
   const otherColumns = columns.filter((c) => c.id !== currentColumn)
@@ -75,7 +77,7 @@ export function KanbanCard({
                 Move to {col.label}
               </DropdownMenuItem>
             ))}
-            {(onArchive || onComplete) && <DropdownMenuSeparator />}
+            {(onArchive || onComplete || onDelete) && <DropdownMenuSeparator />}
             {onComplete && (
               <DropdownMenuItem onClick={onComplete}>
                 <CheckCircle2 className="mr-2 size-3.5" />
@@ -86,6 +88,12 @@ export function KanbanCard({
               <DropdownMenuItem onClick={onArchive}>
                 <Archive className="mr-2 size-3.5" />
                 Archive
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 size-3.5" />
+                Delete
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>

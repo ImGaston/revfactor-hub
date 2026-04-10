@@ -25,6 +25,8 @@ export async function createLead(formData: FormData) {
   const scheduled_date = formData.get("scheduled_date") as string
   const timezone = formData.get("timezone") as string
   const location = formData.get("location") as string
+  const listing_count = parseInt(formData.get("listing_count") as string) || 0
+  const child_listing_count = parseInt(formData.get("child_listing_count") as string) || 0
   const stage = (formData.get("stage") as string) || "inquiry"
   const tagIds = formData.getAll("tag_ids") as string[]
   const teamIds = formData.getAll("team_ids") as string[]
@@ -60,6 +62,8 @@ export async function createLead(formData: FormData) {
       scheduled_date: scheduled_date || null,
       timezone: timezone || null,
       location: location || null,
+      listing_count,
+      child_listing_count,
       stage,
       sort_order: sortOrder,
       created_by: user?.id ?? null,
@@ -102,6 +106,8 @@ export async function updateLead(
     contract_signed?: boolean
     client_portal_url?: string | null
     stage?: string
+    listing_count?: number
+    child_listing_count?: number
   }
 ) {
   const supabase = await createClient()
@@ -408,6 +414,57 @@ export async function bulkCompleteLeads(leadIds: string[]) {
   if (error) return { error: error.message }
   revalidatePath("/pipeline")
   return { success: true, count: leadIds.length }
+}
+
+// ─── Lead Notes ────────────────────────────────────────
+
+export async function createLeadNote(leadId: string, content: string) {
+  if (!content.trim()) return { error: "Note content is required" }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data, error } = await supabase
+    .from("lead_notes")
+    .insert({ lead_id: leadId, author_id: user.id, content: content.trim() })
+    .select("*, profiles(full_name, email, avatar_url)")
+    .single()
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true, note: data }
+}
+
+export async function updateLeadNote(noteId: string, content: string) {
+  if (!content.trim()) return { error: "Note content is required" }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from("lead_notes")
+    .update({ content: content.trim(), updated_at: new Date().toISOString() })
+    .eq("id", noteId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/pipeline")
+  return { success: true }
+}
+
+export async function deleteLeadNote(noteId: string, leadId: string) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from("lead_notes")
+    .delete()
+    .eq("id", noteId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
 }
 
 // ─── Assembly: Create Client ────────────────────────────

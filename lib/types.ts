@@ -240,6 +240,8 @@ export type Lead = {
   is_completed: boolean
   archived_at: string | null
   completed_at: string | null
+  listing_count: number
+  child_listing_count: number
   assembly_client_id: string | null
   created_by: string | null
   created_at: string
@@ -251,6 +253,16 @@ export type Lead = {
     role: string
     profiles: { full_name: string | null; email: string; avatar_url: string | null }
   }[]
+}
+
+export type LeadNote = {
+  id: string
+  lead_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  profiles?: { full_name: string | null; email: string; avatar_url: string | null }
 }
 
 // ─── Onboarding ─────────────────────────────────────────

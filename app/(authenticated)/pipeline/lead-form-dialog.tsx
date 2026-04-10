@@ -122,6 +122,8 @@ export function LeadFormDialog({
         timezone: (formData.get("timezone") as string) || null,
         location: (formData.get("location") as string) || null,
         stage: (formData.get("stage") as string) || lead.stage,
+        listing_count: parseInt(formData.get("listing_count") as string) || 0,
+        child_listing_count: parseInt(formData.get("child_listing_count") as string) || 0,
       })
 
       if (result.error) {
@@ -291,6 +293,32 @@ export function LeadFormDialog({
               placeholder="City, State or Address"
               defaultValue={lead?.location ?? ""}
             />
+          </div>
+
+          {/* Listing Counts */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="lead-listing-count">Listings</Label>
+              <Input
+                id="lead-listing-count"
+                name="listing_count"
+                type="number"
+                min={0}
+                placeholder="0"
+                defaultValue={lead?.listing_count ?? 0}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lead-child-listing-count">Child Listings</Label>
+              <Input
+                id="lead-child-listing-count"
+                name="child_listing_count"
+                type="number"
+                min={0}
+                placeholder="0"
+                defaultValue={lead?.child_listing_count ?? 0}
+              />
+            </div>
           </div>
 
           {/* Pipeline */}

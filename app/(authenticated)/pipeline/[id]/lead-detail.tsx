@@ -24,6 +24,7 @@ import {
   UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -46,10 +47,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { LeadFormDialog } from "../lead-form-dialog"
 import { STAGE_COLUMNS } from "../pipeline-kanban"
-import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, createAssemblyClientForLead, sendContractToAssembly } from "../actions"
-import type { Lead, LeadTag } from "@/lib/types"
+import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, createAssemblyClientForLead, sendContractToAssembly, createLeadNote, deleteLeadNote } from "../actions"
+import type { Lead, LeadTag, LeadNote } from "@/lib/types"
 
 type ProfileOption = {
   id: string
@@ -68,6 +70,7 @@ type Props = {
   tags: LeadTag[]
   profiles: ProfileOption[]
   contractTemplates?: ContractTemplate[]
+  notes: LeadNote[]
 }
 
 const LEAD_SOURCE_LABELS: Record<string, string> = {
@@ -85,7 +88,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   c_not_a_fit: "C – Not a Fit",
 }
 
-export function LeadDetail({ lead, tags, profiles, contractTemplates = [] }: Props) {
+export function LeadDetail({ lead, tags, profiles, contractTemplates = [], notes }: Props) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -94,6 +97,8 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [] }: Pro
   const [selectedTemplateId, setSelectedTemplateId] = useState(
     contractTemplates[0]?.id ?? ""
   )
+  const [noteContent, setNoteContent] = useState("")
+  const [submittingNote, setSubmittingNote] = useState(false)
 
   const leadTags = lead.lead_tag_assignments?.map((a) => a.lead_tags) ?? []
   const team = lead.lead_team_assignments ?? []
@@ -209,6 +214,31 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [] }: Pro
       })
       router.refresh()
     }
+  }
+
+  async function handleSubmitNote() {
+    if (!noteContent.trim()) return
+    setSubmittingNote(true)
+    const result = await createLeadNote(lead.id, noteContent)
+    setSubmittingNote(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      setNoteContent("")
+      router.refresh()
+    }
+  }
+
+  async function handleDeleteNote(noteId: string) {
+    const result = await deleteLeadNote(noteId, lead.id)
+    if (result.error) toast.error(result.error)
+    else router.refresh()
+  }
+
+  async function handleListingCountChange(field: "listing_count" | "child_listing_count", value: string) {
+    const num = parseInt(value) || 0
+    await updateLead(lead.id, { [field]: num })
+    router.refresh()
   }
 
   function copyPortalUrl() {
@@ -372,12 +402,112 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [] }: Pro
                 <p className="text-muted-foreground text-xs mb-0.5">Created</p>
                 <p>{formatDateTime(lead.created_at) ?? "—"}</p>
               </div>
+              <div>
+                <p className="text-muted-foreground text-xs mb-0.5">
+                  Listings
+                </p>
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-7 w-20 text-sm"
+                  defaultValue={lead.listing_count ?? 0}
+                  onBlur={(e) => handleListingCountChange("listing_count", e.target.value)}
+                />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs mb-0.5">
+                  Child Listings
+                </p>
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-7 w-20 text-sm"
+                  defaultValue={lead.child_listing_count ?? 0}
+                  onBlur={(e) => handleListingCountChange("child_listing_count", e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Phase 2 tabs placeholder */}
-          <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-sm">
-            Activity, Files, Tasks, Financials & Notes tabs coming soon.
+          {/* Notes */}
+          <div className="rounded-lg border p-4 space-y-4">
+            <h3 className="text-sm font-semibold">Notes</h3>
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Write a note..."
+                rows={3}
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    handleSubmitNote()
+                  }
+                }}
+              />
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-muted-foreground">
+                  Press {navigator?.platform?.includes("Mac") ? "Cmd" : "Ctrl"}+Enter to submit
+                </p>
+                <Button
+                  size="sm"
+                  disabled={submittingNote || !noteContent.trim()}
+                  onClick={handleSubmitNote}
+                >
+                  {submittingNote ? (
+                    <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Send className="size-3.5 mr-1.5" />
+                  )}
+                  Add Note
+                </Button>
+              </div>
+            </div>
+
+            {notes.length > 0 && (
+              <div className="space-y-3 pt-2">
+                {notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="rounded-md border bg-muted/30 p-3 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="size-5">
+                          <AvatarImage
+                            src={note.profiles?.avatar_url ?? undefined}
+                          />
+                          <AvatarFallback className="text-[8px]">
+                            {(
+                              note.profiles?.full_name?.[0] ??
+                              note.profiles?.email[0] ??
+                              "?"
+                            ).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium">
+                          {note.profiles?.full_name ?? note.profiles?.email}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatDateTime(note.created_at)}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteNote(note.id)}
+                      >
+                        <Trash2 className="size-3" />
+                      </Button>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {note.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

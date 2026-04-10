@@ -36,8 +36,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { createTask } from "./actions"
+import { createTask, updateTask } from "./actions"
 import type { OwnerOption } from "./tasks-board"
+import type { Task } from "@/lib/types"
 
 type ClientWithListings = {
   id: string
@@ -52,6 +53,7 @@ type TaskDialogProps = {
   clients: ClientWithListings[]
   owners: OwnerOption[]
   tags: string[]
+  task?: Task | null
 }
 
 export function TaskDialog({
@@ -61,15 +63,32 @@ export function TaskDialog({
   clients,
   owners,
   tags,
+  task,
 }: TaskDialogProps) {
+  const isEdit = !!task
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [clientId, setClientId] = useState("")
+  const [clientId, setClientId] = useState(task?.client_id ?? "")
   const [clientOpen, setClientOpen] = useState(false)
   const [selectedListings, setSelectedListings] = useState<Set<string>>(
-    new Set()
+    () => new Set(task?.task_listings?.map((tl) => tl.listing_id) ?? [])
   )
   const router = useRouter()
+
+  // Reset form when task changes (open for different task or new)
+  const [prevTaskId, setPrevTaskId] = useState(task?.id)
+  if (task?.id !== prevTaskId) {
+    setPrevTaskId(task?.id)
+    setClientId(task?.client_id ?? "")
+    setSelectedListings(new Set(task?.task_listings?.map((tl) => tl.listing_id) ?? []))
+    setError("")
+  }
+  if (!task && prevTaskId) {
+    setPrevTaskId(undefined)
+    setClientId("")
+    setSelectedListings(new Set())
+    setError("")
+  }
 
   const selectedClient = clients.find((c) => c.id === clientId)
   const clientListings = selectedClient?.listings ?? []
@@ -104,17 +123,21 @@ export function TaskDialog({
     const formData = new FormData(e.currentTarget)
     formData.set("client_id", clientId)
     formData.set("listing_ids", JSON.stringify(Array.from(selectedListings)))
-    formData.set("status", defaultStatus)
+    formData.set("status", isEdit ? (task.status ?? defaultStatus) : defaultStatus)
 
-    const result = await createTask(formData)
+    const result = isEdit
+      ? await updateTask(task.id, formData)
+      : await createTask(formData)
     setLoading(false)
 
     if (result.error) {
       setError(result.error)
     } else {
       onOpenChange(false)
-      setClientId("")
-      setSelectedListings(new Set())
+      if (!isEdit) {
+        setClientId("")
+        setSelectedListings(new Set())
+      }
       router.refresh()
     }
   }
@@ -123,17 +146,17 @@ export function TaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>New Task</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Task" : "New Task"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
-            <Input id="title" name="title" required />
+            <Input id="title" name="title" required defaultValue={task?.title ?? ""} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" name="description" rows={2} />
+            <Textarea id="description" name="description" rows={2} defaultValue={task?.description ?? ""} />
           </div>
 
           <div className="space-y-2">
@@ -218,7 +241,7 @@ export function TaskDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="owner">Owner</Label>
-              <Select name="owner">
+              <Select name="owner" defaultValue={task?.owner ?? undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -233,7 +256,7 @@ export function TaskDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="tag">Tag</Label>
-              <Select name="tag">
+              <Select name="tag" defaultValue={task?.tag ?? undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -251,7 +274,7 @@ export function TaskDialog({
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating..." : "Create Task"}
+            {loading ? (isEdit ? "Saving..." : "Creating...") : (isEdit ? "Save Changes" : "Create Task")}
           </Button>
         </form>
       </DialogContent>

@@ -74,6 +74,48 @@ export async function updateTaskStatus(
   return { success: true }
 }
 
+export async function updateTask(taskId: string, formData: FormData) {
+  const title = formData.get("title") as string
+  const description = formData.get("description") as string
+  const clientId = formData.get("client_id") as string
+  const owner = formData.get("owner") as string
+  const tag = formData.get("tag") as string
+  const status = formData.get("status") as string
+  const listingIds = JSON.parse(
+    (formData.get("listing_ids") as string) || "[]"
+  ) as string[]
+
+  if (!title) return { error: "Title is required" }
+
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      title,
+      description: description || null,
+      client_id: clientId || null,
+      owner: owner || null,
+      tag: tag || null,
+      status: status || "todo",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+
+  if (error) return { error: error.message }
+
+  // Replace task_listings
+  await supabase.from("task_listings").delete().eq("task_id", taskId)
+  if (listingIds.length > 0) {
+    await supabase.from("task_listings").insert(
+      listingIds.map((lid) => ({ task_id: taskId, listing_id: lid }))
+    )
+  }
+
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
 export async function deleteTask(taskId: string) {
   const supabase = await createClient()
 
