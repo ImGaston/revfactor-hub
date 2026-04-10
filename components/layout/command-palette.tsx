@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Users, Building2 } from "lucide-react"
+import { Users, Building2, ArrowUp, ArrowDown, CornerDownLeft } from "lucide-react"
 import {
   Command,
   CommandDialog,
@@ -11,6 +11,7 @@ import {
   CommandGroup,
   CommandItem,
   CommandEmpty,
+  CommandSeparator,
 } from "@/components/ui/command"
 import {
   commands,
@@ -43,7 +44,7 @@ function saveRecentId(id: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Dynamic entity search
+// Entity types + preloading
 // ---------------------------------------------------------------------------
 
 type EntityResult = {
@@ -54,9 +55,6 @@ type EntityResult = {
   type: "client" | "listing"
 }
 
-const DEBOUNCE_MS = 250
-const MIN_SEARCH_LENGTH = 2
-
 function hasViewPermission(
   permissionMap: Record<string, boolean>,
   resource: Resource,
@@ -64,6 +62,12 @@ function hasViewPermission(
 ): boolean {
   if (isSuperAdmin) return true
   return checkPermission(permissionMap, resource, "view")
+}
+
+function fuzzyMatch(text: string, query: string): boolean {
+  const lower = text.toLowerCase()
+  const q = query.toLowerCase()
+  return lower.includes(q)
 }
 
 // ---------------------------------------------------------------------------
@@ -87,9 +91,11 @@ export function CommandPalette({
   const pathname = usePathname()
   const [search, setSearch] = useState("")
   const [recentIds, setRecentIds] = useState<string[]>([])
-  const [clients, setClients] = useState<EntityResult[]>([])
-  const [listings, setListings] = useState<EntityResult[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+
+  // Preloaded entity data
+  const [allClients, setAllClients] = useState<EntityResult[]>([])
+  const [allListings, setAllListings] = useState<EntityResult[]>([])
+  const loadedRef = useRef(false)
 
   const isSuperAdmin = profile?.role === "super_admin" || false
   const canViewClients = hasViewPermission(permissionMap, "clients", isSuperAdmin)
@@ -100,48 +106,29 @@ export function CommandPalette({
     setRecentIds(getRecentIds())
   }, [])
 
-  // Reset search and results when dialog closes
+  // Reset search when dialog closes
   useEffect(() => {
-    if (!open) {
-      setSearch("")
-      setClients([])
-      setListings([])
-    }
+    if (!open) setSearch("")
   }, [open])
 
-  // Debounced entity search
+  // Preload clients + listings when palette opens
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!open || loadedRef.current) return
 
-    if (search.length < MIN_SEARCH_LENGTH) {
-      setClients([])
-      setListings([])
-      return
-    }
-
-    debounceRef.current = setTimeout(async () => {
+    async function load() {
       const supabase = createClient()
-      const term = `%${search}%`
 
       const [clientRes, listingRes] = await Promise.all([
         canViewClients
-          ? supabase
-              .from("clients")
-              .select("id, name, email, status")
-              .or(`name.ilike.${term},email.ilike.${term}`)
-              .limit(5)
+          ? supabase.from("clients").select("id, name, email, status").order("name")
           : Promise.resolve({ data: null }),
         canViewListings
-          ? supabase
-              .from("listings")
-              .select("id, name, city, state, clients(name)")
-              .ilike("name", term)
-              .limit(5)
+          ? supabase.from("listings").select("id, name, city, state, clients(name)").order("name")
           : Promise.resolve({ data: null }),
       ])
 
       if (clientRes.data) {
-        setClients(
+        setAllClients(
           clientRes.data.map((c: { id: string; name: string; email: string | null; status: string }) => ({
             id: c.id,
             label: c.name,
@@ -153,7 +140,7 @@ export function CommandPalette({
       }
 
       if (listingRes.data) {
-        setListings(
+        setAllListings(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           listingRes.data.map((l: any) => {
             const clientName = Array.isArray(l.clients) ? l.clients[0]?.name : l.clients?.name
@@ -167,12 +154,12 @@ export function CommandPalette({
           }),
         )
       }
-    }, DEBOUNCE_MS)
 
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
+      loadedRef.current = true
     }
-  }, [search, canViewClients, canViewListings])
+
+    load()
+  }, [open, canViewClients, canViewListings])
 
   // Cmd+K / Ctrl+K shortcut
   useEffect(() => {
@@ -196,6 +183,21 @@ export function CommandPalette({
   const pages = useMemo(() => visibleCommands.filter((c) => c.category === "pages"), [visibleCommands])
   const actions = useMemo(() => visibleCommands.filter((c) => c.category === "actions"), [visibleCommands])
   const settings = useMemo(() => visibleCommands.filter((c) => c.category === "settings"), [visibleCommands])
+
+  // Client-side filtered entities (instant)
+  const filteredClients = useMemo(() => {
+    if (search.length < 2) return []
+    return allClients
+      .filter((c) => fuzzyMatch(c.label, search) || fuzzyMatch(c.sublabel ?? "", search))
+      .slice(0, 6)
+  }, [search, allClients])
+
+  const filteredListings = useMemo(() => {
+    if (search.length < 2) return []
+    return allListings
+      .filter((l) => fuzzyMatch(l.label, search) || fuzzyMatch(l.sublabel ?? "", search))
+      .slice(0, 6)
+  }, [search, allListings])
 
   // Context-suggested commands (only when search is empty)
   const suggested = useMemo(() => {
@@ -246,15 +248,38 @@ export function CommandPalette({
     )
   }
 
+  function renderEntity(entity: EntityResult, icon: React.ReactNode) {
+    return (
+      <CommandItem
+        key={entity.id}
+        value={`${entity.label} ${entity.sublabel ?? ""}`}
+        onSelect={() => handleEntitySelect(entity)}
+      >
+        {icon}
+        <div className="flex flex-col gap-0.5">
+          <span>{entity.label}</span>
+          {entity.sublabel && (
+            <span className="text-xs text-muted-foreground">{entity.sublabel}</span>
+          )}
+        </div>
+      </CommandItem>
+    )
+  }
+
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <Command className="rounded-4xl">
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      className="sm:max-w-2xl! top-[25%]"
+    >
+      <Command className="rounded-4xl" shouldFilter={search.length < 2}>
         <CommandInput
-          placeholder="Type a command or search..."
+          placeholder="Search clients, listings, or type a command..."
           value={search}
           onValueChange={setSearch}
+          className="text-base"
         />
-        <CommandList>
+        <CommandList className="max-h-[400px]">
           <CommandEmpty>No results found.</CommandEmpty>
 
           {suggested.length > 0 && (
@@ -266,6 +291,22 @@ export function CommandPalette({
           {recents.length > 0 && (
             <CommandGroup heading="Recent">
               {recents.map(renderItem)}
+            </CommandGroup>
+          )}
+
+          {filteredClients.length > 0 && (
+            <CommandGroup heading="Clients">
+              {filteredClients.map((c) =>
+                renderEntity(c, <Users className="mr-2 size-4 shrink-0 opacity-60" />),
+              )}
+            </CommandGroup>
+          )}
+
+          {filteredListings.length > 0 && (
+            <CommandGroup heading="Listings">
+              {filteredListings.map((l) =>
+                renderEntity(l, <Building2 className="mr-2 size-4 shrink-0 opacity-60" />),
+              )}
             </CommandGroup>
           )}
 
@@ -286,47 +327,23 @@ export function CommandPalette({
               {settings.map(renderItem)}
             </CommandGroup>
           )}
-
-          {clients.length > 0 && (
-            <CommandGroup heading="Clients">
-              {clients.map((c) => (
-                <CommandItem
-                  key={c.id}
-                  value={`${c.label} ${c.sublabel ?? ""}`}
-                  onSelect={() => handleEntitySelect(c)}
-                >
-                  <Users className="mr-2 size-4 shrink-0 opacity-60" />
-                  <div className="flex flex-col">
-                    <span>{c.label}</span>
-                    {c.sublabel && (
-                      <span className="text-xs text-muted-foreground">{c.sublabel}</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-
-          {listings.length > 0 && (
-            <CommandGroup heading="Listings">
-              {listings.map((l) => (
-                <CommandItem
-                  key={l.id}
-                  value={`${l.label} ${l.sublabel ?? ""}`}
-                  onSelect={() => handleEntitySelect(l)}
-                >
-                  <Building2 className="mr-2 size-4 shrink-0 opacity-60" />
-                  <div className="flex flex-col">
-                    <span>{l.label}</span>
-                    {l.sublabel && (
-                      <span className="text-xs text-muted-foreground">{l.sublabel}</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
         </CommandList>
+
+        <CommandSeparator />
+        <div className="flex items-center gap-4 px-4 py-2.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <ArrowUp className="size-3" />
+            <ArrowDown className="size-3" />
+            <span>to navigate</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CornerDownLeft className="size-3" />
+            <span>to select</span>
+          </span>
+          <span className="ml-auto">
+            Press <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">esc</kbd> to close
+          </span>
+        </div>
       </Command>
     </CommandDialog>
   )
