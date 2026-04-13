@@ -12,9 +12,10 @@ export const RESOURCES = [
   { key: "users", label: "Users", description: "User management and invitations" },
   { key: "settings", label: "Settings", description: "System settings and configuration" },
   { key: "financials", label: "Financials", description: "Billing, revenue, ADR, RevPAR data" },
+  { key: "knowledge", label: "Knowledge", description: "Policies, SOPs, and internal knowledge base" },
 ] as const
 
-export const ACTIONS = ["view", "create", "edit", "delete"] as const
+export const ACTIONS = ["view", "create", "edit", "delete", "publish"] as const
 
 export type Resource = (typeof RESOURCES)[number]["key"]
 export type Action = (typeof ACTIONS)[number]

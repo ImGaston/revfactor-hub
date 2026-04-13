@@ -11,6 +11,7 @@ import {
   Funnel,
   Building2,
   DollarSign,
+  BookOpen,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -53,6 +54,7 @@ const navItems = [
   { title: "Notes", href: "/notes", icon: MessageSquare },
   { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb },
   { title: "Pipeline", href: "/pipeline", icon: Funnel },
+  { title: "Knowledge", href: "/knowledge", icon: BookOpen },
   { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true as const },
 ]
 

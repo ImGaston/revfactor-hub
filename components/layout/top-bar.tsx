@@ -32,6 +32,10 @@ const routeLabels: Record<string, string> = {
   roadmap: "Ideas & Roadmap",
   listings: "Listings",
   "boards-tags": "Boards & Tags",
+  knowledge: "Knowledge",
+  new: "New Article",
+  edit: "Edit",
+  category: "Category",
 }
 
 type TopBarProps = {
