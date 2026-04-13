@@ -42,7 +42,7 @@ export function OnboardingView({
 
       {/* Client stepper cards */}
       {clients.length > 0 && templates.length > 0 && (
-        <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => {
             const clientProgress = progress.filter(
               (p) => p.client_id === client.id

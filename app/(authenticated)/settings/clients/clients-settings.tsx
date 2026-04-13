@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Pencil, Trash2, Link2, Unlink, Loader2 } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Plus, Pencil, Trash2, Link2, Unlink, Loader2, Search } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +28,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ClientDialog } from "./client-dialog"
 import { deleteClientAction, linkAssemblyClientAction, unlinkAssemblyClientAction } from "./actions"
 
@@ -67,6 +75,17 @@ export function ClientsSettings({
   const [deleteTarget, setDeleteTarget] = useState<SettingsClient | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [linkingId, setLinkingId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return clients.filter((c) => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false
+      if (q && !c.name.toLowerCase().includes(q) && !(c.email?.toLowerCase().includes(q))) return false
+      return true
+    })
+  }, [clients, search, statusFilter])
 
   async function handleAssemblyLink(client: SettingsClient) {
     setLinkingId(client.id)
@@ -108,10 +127,32 @@ export function ClientsSettings({
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            {clients.length} client{clients.length !== 1 ? "s" : ""}
-          </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search clients..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="onboarding">Onboarding</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground whitespace-nowrap">
+              {filtered.length} of {clients.length}
+            </p>
+          </div>
           <Button size="sm" onClick={handleNew}>
             <Plus className="mr-1 size-4" />
             Add Client
@@ -136,7 +177,7 @@ export function ClientsSettings({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.map((client) => (
+              {filtered.map((client) => (
                 <TableRow key={client.id}>
                   <TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell>
@@ -209,10 +250,10 @@ export function ClientsSettings({
                   </TableCell>
                 </TableRow>
               ))}
-              {clients.length === 0 && (
+              {filtered.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={(isSuperAdmin ? 1 : 0) + (assemblyConfigured ? 7 : 6)} className="text-center text-muted-foreground py-8">
-                    No clients yet.
+                    {clients.length === 0 ? "No clients yet." : "No clients match your filters."}
                   </TableCell>
                 </TableRow>
               )}

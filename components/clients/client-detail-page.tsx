@@ -18,6 +18,7 @@ import {
   MapPin,
   ArrowUpDown,
   Plus,
+  Pencil,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -35,6 +36,7 @@ import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
 import { AddListingDialog } from "./add-listing-dialog"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
+import { ClientDialog } from "@/app/(authenticated)/settings/clients/client-dialog"
 
 /**
  * Color based on listing occupancy vs market occupancy:
@@ -161,6 +163,7 @@ export function ClientDetailPage({
   const [sortBy, setSortBy] = useState<SortOption>("name")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
   const [addListingOpen, setAddListingOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   const sortedListings = useMemo(
     () => sortListings(client.listings, sortBy, sortDir),
@@ -212,6 +215,14 @@ export function ClientDetailPage({
           >
             {client.status}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEditDialogOpen(true)}
+          >
+            <Pencil className="mr-1 size-3.5" />
+            Edit
+          </Button>
         </div>
       </div>
 
@@ -507,6 +518,25 @@ export function ClientDetailPage({
         open={addListingOpen}
         onOpenChange={setAddListingOpen}
         clientId={client.id}
+      />
+
+      <ClientDialog
+        key={editDialogOpen ? "edit" : "closed"}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        client={{
+          id: client.id,
+          name: client.name,
+          email: client.email,
+          status: client.status,
+          assembly_link: client.assembly_link,
+          onboarding_date: client.onboarding_date,
+          ending_date: client.ending_date,
+          billing_amount: client.billing_amount,
+          autopayment_set_up: client.autopayment_set_up,
+          stripe_dashboard: client.stripe_dashboard,
+        }}
+        isSuperAdmin={isSuperAdmin}
       />
     </div>
   )

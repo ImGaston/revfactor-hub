@@ -1,7 +1,6 @@
 "use client"
 
 import { useOptimistic, useTransition } from "react"
-import { CheckCircle, Circle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -84,30 +83,29 @@ export function ClientStepperCard({ client, templates, progress }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">{client.name}</CardTitle>
+            <CardTitle className="text-sm font-semibold">{client.name}</CardTitle>
             {client.email && (
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground">
                 {client.email}
               </p>
             )}
           </div>
-          <Badge variant={pct === 100 ? "default" : "secondary"}>
+          <Badge variant={pct === 100 ? "default" : "secondary"} className="text-[10px]">
             {completedCount}/{totalCount} &mdash; {pct}%
           </Badge>
         </div>
-        {/* Progress bar */}
-        <div className="mt-2 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+        <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-primary transition-all duration-300"
             style={{ width: `${pct}%` }}
           />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-1">
+      <CardContent className="px-4 pb-3 pt-0">
+        <div className="divide-y">
           {templates.map((t, idx) => {
             const step = optimisticSteps.find(
               (s) => s.templateId === t.id
@@ -115,58 +113,35 @@ export function ClientStepperCard({ client, templates, progress }: Props) {
             const isCompleted = step?.isCompleted ?? false
 
             return (
-              <div
+              <label
                 key={t.id}
-                className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/50 transition-colors"
+                className="flex items-center gap-2.5 py-1.5 cursor-pointer hover:bg-muted/50 -mx-1 px-1 rounded-sm transition-colors"
               >
-                {/* Step number / icon */}
-                <div className="flex-shrink-0 mt-0.5">
-                  {isCompleted ? (
-                    <CheckCircle className="size-5 text-primary" />
-                  ) : (
-                    <Circle className="size-5 text-muted-foreground" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {idx + 1}.
-                    </span>
-                    <span
-                      className={`text-sm font-medium ${
-                        isCompleted
-                          ? "line-through text-muted-foreground"
-                          : ""
-                      }`}
-                    >
-                      {t.step_name}
-                    </span>
-                  </div>
-                  {t.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 ml-5">
-                      {t.description}
-                    </p>
-                  )}
-                  {isCompleted && step?.completedByName && (
-                    <p className="text-xs text-muted-foreground mt-0.5 ml-5">
-                      Completed by {step.completedByName}
-                      {step.completedAt &&
-                        ` on ${new Date(step.completedAt).toLocaleDateString()}`}
-                    </p>
-                  )}
-                </div>
-
-                {/* Checkbox */}
                 <Checkbox
                   checked={isCompleted}
                   onCheckedChange={() =>
                     handleToggle(t.id, isCompleted)
                   }
-                  className="mt-0.5"
+                  className="shrink-0"
                 />
-              </div>
+                <div className="flex-1 min-w-0">
+                  <span
+                    className={`text-sm leading-tight ${
+                      isCompleted
+                        ? "line-through text-muted-foreground"
+                        : ""
+                    }`}
+                  >
+                    <span className="text-xs text-muted-foreground mr-1">{idx + 1}.</span>
+                    {t.step_name}
+                  </span>
+                  {t.description && !isCompleted && (
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                      {t.description}
+                    </p>
+                  )}
+                </div>
+              </label>
             )
           })}
         </div>
