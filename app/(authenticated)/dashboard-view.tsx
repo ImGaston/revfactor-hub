@@ -20,6 +20,8 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { Bar, BarChart, XAxis, YAxis, Area, AreaChart, CartesianGrid } from "recharts"
+import { PacingChart } from "@/components/dashboard/pacing-chart"
+import type { PacingSource } from "@/lib/pacing-mock"
 
 type TasksByStatus = {
   todo: number
@@ -99,10 +101,12 @@ export function DashboardView({
   isSuperAdmin,
   stats,
   recentTasks,
+  pacingSource,
 }: {
   isSuperAdmin: boolean
   stats: DashboardStats
   recentTasks: RecentTask[]
+  pacingSource: PacingSource
 }) {
   const barData = taskBarData.map((d, i) => {
     const keys = ["todo", "in_progress", "waiting", "done"] as const
@@ -161,6 +165,9 @@ export function DashboardView({
           href="/roadmap"
         />
       </div>
+
+      {/* Pacing Chart — full width */}
+      <PacingChart source={pacingSource} />
 
       {/* Charts Row */}
       <div className="grid gap-4 lg:grid-cols-3">

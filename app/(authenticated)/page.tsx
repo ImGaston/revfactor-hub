@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
+// TODO: swap back to getPacingData() from "@/lib/pacing" once migration 023
+// is applied and the reservations table is seeded.
+import { getMockPacingSource } from "@/lib/pacing-mock"
 import { DashboardView } from "./dashboard-view"
 
 export default async function DashboardPage() {
@@ -16,6 +19,7 @@ export default async function DashboardPage() {
     { data: tasks },
     { data: recentTasks },
     { count: roadmapInProgress },
+    pacingSource,
   ] = await Promise.all([
     supabase.from("clients").select("*", { count: "exact", head: true }),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
@@ -24,6 +28,7 @@ export default async function DashboardPage() {
     supabase.from("tasks").select("id, status"),
     supabase.from("tasks").select("id, title, status, tag, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
     supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
+    Promise.resolve(getMockPacingSource()),
   ])
 
   const tasksByStatus = {
@@ -44,6 +49,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       isSuperAdmin={profile?.role === "super_admin"}
+      pacingSource={pacingSource}
       stats={{
         totalClients: clientCount ?? 0,
         activeClients: activeClientCount ?? 0,

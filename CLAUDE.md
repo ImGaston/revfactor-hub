@@ -118,6 +118,8 @@ components/
 │   ├── app-sidebar.tsx         # Sidebar nav + user avatar dropdown (Dashboard, Clients, Listings, Tasks, Onboarding, Calendar, Notes, Ideas & Roadmap, Pipeline)
 │   ├── top-bar.tsx             # Dynamic breadcrumbs from pathname
 │   └── breadcrumb-context.tsx  # Breadcrumb context provider
+├── dashboard/
+│   └── pacing-chart.tsx        # Forward 60-day stacked bar chart (4 booking-recency buckets) + 4 highlight KPI cards; daily desktop / weekly mobile via CSS
 ├── clients/
 │   ├── clients-view.tsx        # Cards/Table toggle (default: table), search matches name+email, status filters
 │   ├── clients-table.tsx       # Table view (table-fixed, overflow-x-auto) with sortable columns, inline email editing, billing column super_admin only
@@ -140,6 +142,8 @@ lib/
 ├── assembly.ts                 # Assembly CRM API client (clients, channels, messages, contracts, deep links)
 ├── pricelabs.ts                # PriceLabs API client (fetchPriceLabsListings, parseOccupancy, isPriceLabsConfigured)
 ├── stripe.ts                   # Stripe API client (subscriptions, revenue, invoices)
+├── pacing.ts                   # Pacing data layer — getPacingData(supabase) aggregates reservations into 60 daily points × 4 recency buckets. UTC-anchored
+├── pacing-mock.ts              # Frontend mock generator (getMockPacingData) — seeded pseudo-random, swap-in while reservations table is not yet applied
 ├── permissions.ts              # Client-safe: RESOURCES, ACTIONS, types, buildPermissionMap(), checkPermission()
 ├── permissions.server.ts       # Server-only: hasPermission(), getRolePermissions(), getAllRolesWithPermissions()
 ├── types.ts                    # Shared types (Task, RoadmapItem, Client, Listing, ClientCredential, Lead, LeadTag, LeadStage, Expense, RecurringExpense, resolveProfile helper)
@@ -165,11 +169,13 @@ supabase/
     ├── 014_pricelabs_metrics.sql     # pl_* columns on listings (base_price, min_price, max_price, occupancy, market_occupancy, etc.)
     ├── 015_pricelabs_fields_update.sql # Add pl_mpi_next_30/60, pl_last_booked_date, pl_wknd_occupancy_next_30, pl_market_wknd_occupancy_next_30; drop unused fields
     ├── 016_financials.sql            # expenses, expense_categories, recurring_expenses tables; stripe_customer_id on clients
-    └── 017_listing_stripe_subscription.sql # stripe_subscription_id on listings
+    ├── 017_listing_stripe_subscription.sql # stripe_subscription_id on listings
+    └── 023_reservations.sql          # reservations table (row_key PK, listing_id, check_in/out, booked_date, cancelled_on, booking_status, revenue, JSONB) + indexes + RLS. NOT YET APPLIED — see Pacing Chart section
 scripts/
 ├── migrate-airtable.ts        # One-time Airtable → Supabase migration (clients + listings)
 ├── migrate-credentials.ts     # One-time CSV → Supabase migration (client credentials from Airtable)
-└── check-missing-listings.ts  # Compare CSV listings against Supabase DB
+├── check-missing-listings.ts  # Compare CSV listings against Supabase DB
+└── seed-reservations.ts       # Seed ~400 mock reservations across 15 listings for Pacing Chart (idempotent, upserts on row_key). Run once migration 023 is applied
 ```
 
 ## Authentication & Authorization
@@ -200,6 +206,7 @@ scripts/
 - **lead_tags** — name (unique), color (separate namespace from roadmap tags)
 - **lead_tag_assignments** — lead_id (FK), tag_id (FK) junction
 - **lead_team_assignments** — lead_id (FK), profile_id (FK profiles), role
+- **reservations** *(migration defined, NOT yet applied)* — row_key (TEXT PK, format `{pms_name}_{reservation_id}`), listing_id, check_in, check_out, booked_date, cancelled_on, booking_status, no_of_days, rental_revenue, cleaning_fees, currency, booking_channel, pms_name, plus JSONB passthrough. Indexes on listing_id, check_in, check_out, booking_status + composite `(booking_status, check_out, check_in)` for pacing queries. RLS: authenticated SELECT, super_admin write
 
 ## Supabase Storage
 - **avatars** bucket (public) — user profile photos, organized by `{user_id}/` folders with per-user RLS policies
@@ -502,6 +509,72 @@ PriceLabs is the dynamic pricing tool. The Hub syncs listing metrics from PriceL
 - **KPI cards:** Base Price, Recommended Price, MPI(60N), Occ 90N
 - **Tabs:** Reservations, Pricing calendar, and Pacing still show mockup data (require PMS integration)
 - **Listing cards** (client detail pages): Occ(7N), Occ(30N), MPI(30N), Last Booked — all real PriceLabs data
+
+## Pacing Chart (Dashboard Home)
+
+Forward-looking stacked bar chart on the dashboard home showing the next 60 days of portfolio pacing, with each bar split into 4 booking-recency buckets. Above the chart, 4 highlight KPI cards aggregate the visible range.
+
+### Architecture
+- **Component:** `components/dashboard/pacing-chart.tsx` — client component using Recharts + shadcn `ChartContainer`
+- **Data layer:** `lib/pacing.ts` — `getPacingData(supabase)` aggregates the `reservations` table into 60 daily points. Server-only helper (not a server action — mutations vs reads convention)
+- **Mock data:** `lib/pacing-mock.ts` exports `getMockPacingSource()` returning a `PacingSource` (listings metadata + per-listing per-day booking map), plus `aggregatePacing(source, start, end, listingIds)` that the client uses to re-aggregate on every filter/range change. 15 listings across 5 clients and 5 states, generated window: Jan 1 of current year → today + 400 days so every range preset has data. Legacy `getMockPacingData()` wrapper kept for callers that want a one-shot 60-day slice
+- **Wiring:** Dashboard page fetches `pacingSource` in its `Promise.all` and passes it as a prop to `DashboardView`, which renders `<PacingChart source={pacingSource} />` full-width between the KPI row and the Charts row. All aggregation happens client-side inside the chart component
+
+### Bucket rules (locked constants in `lib/pacing.ts`)
+```
+last_3d:  booked_date in [today-3, today]
+last_7d:  booked_date in [today-7, today-3)
+last_14d: booked_date in [today-14, today-7)
+older:    booked_date < today-14
+```
+Buckets are mutually exclusive; `older` is the catch-all. Stored in `BUCKET_BOUNDARIES = { last_3d: 3, last_7d: 7, last_14d: 14 } as const` so seed and aggregator cannot drift.
+
+### Data layer conventions
+- **UTC anchor everywhere.** `today = todayUTC()`; all `stay_date` strings, bucket math, and tick labels are UTC. Comment at the top of `pacing.ts` warns against conflating with property-local TZ
+- **Window:** 60 days forward inclusive of today (`today` through `today + 59`)
+- **Query filters in SQL:** `booking_status = 'booked'`, `check_in < windowEnd`, `check_out > today`, `.limit(5000)` guardrail. TODO to push into a SQL RPC with `generate_series` once the dataset outgrows ~5k rows
+- **Cancellation rule — NOT filtered in SQL.** Per-stay-date check inside the explosion loop: a reservation counts on stay_dates that happened before `cancelled_on`. `cancelled_on <= stay_date` → skip that night
+- **Denominator:** static count of all `listings` rows (not per-day active). Labeled clearly in the tooltip so nobody mistakes it for true occupancy. MVP simplification
+- **`booked_pct`:** `booked_total / total_listings * 100`, clamped to 100, rounded to 1 decimal
+
+### Component
+- **Header controls row:** 3 multi-select filter popovers (Listings / Clients / States) + 1 range dropdown, right-aligned in the `CardHeader`
+  - **`MultiSelectFilter`** — Popover + `Command` (searchable), checkbox column, badge with selection count on the trigger, `Clear selection` row when non-empty. Listing option subtitle shows `{client} · {state}`. Filters are ANDed against each other on the listing set
+  - **`RangeDropdown`** — DropdownMenu. Presets: `3 months` / `6 months` (default) / `1 year` / `Current year`. Pill trigger shows the resolved date range (`Apr 14, 2026 → Oct 10, 2026`). `computeRange(today, preset)` returns `{ startIso, endIso }`; `current_year` spans Jan 1 → Dec 31 of the current year (includes past dates)
+- **Highlights row:** 4 KPI cards (CalendarRange / TrendingUp / Flame / Zap icons): Total booked nights, Booked last 14d, Booked last 7d, Booked last 3d. Recomputed from the filtered+ranged slice. Lightweight `HighlightCard` internal to `pacing-chart.tsx` (does NOT reuse the dashboard `KpiCard`, which is coupled to its module and hrefs)
+- **Colors (ChartConfig):** brand blue stepped on **saturation + lightness** so adjacent shades clear the 1.5:1 non-text contrast threshold:
+  ```ts
+  older:    "hsl(221 40% 85%)"  // lightest
+  last_14d: "hsl(221 55% 70%)"
+  last_7d:  "hsl(221 70% 55%)"
+  last_3d:  "hsl(221 83% 42%)"  // deepest
+  ```
+- **Stack order** (bottom → top): `older` → `last_14d` → `last_7d` → `last_3d`. Darkest (freshest bookings) on top so the recency story reads correctly
+- **Y-axis:** `domain={[0, totalListings]}` with `tickFormatter` converting count → percentage. The raw stack is counts; the axis just relabels them
+- **X-axis tick density:** `pickTickInterval(days.length)` — 7 / 14 / 21 / 30 / 45 depending on range width. For ranges > 130 days the formatter drops the day number and shows month only
+- **Custom tooltip:** `PacingTooltip` shows date header (weekday + full date), one row per non-zero bucket with colored swatch, Total line with count + %, and a muted disclaimer *"Based on N listings. Manual blocks not excluded."*
+- **Custom legend (`InteractiveLegend`)**: replaces `ChartLegend`. 4 buttons with color swatch + label. On mouse enter / focus, `hoveredBucket` state is set and `getBarOpacity(bucket)` drops the non-hovered `<Bar>` fills to `0.15` while the hovered bucket stays at `1`. Also visually dims the other legend items. Keyboard-accessible via `onFocus`/`onBlur`
+- **No chart animation:** every `<Bar>` has `isAnimationActive={false}` — filters re-render the chart continuously, and the re-entry animation creates a jarring flicker
+
+### Responsive
+Single `ChartContainer` now — the old CSS-based daily/weekly split was removed because `pickTickInterval` adapts to any range width. Header controls wrap onto their own row on narrow viewports (`flex-col sm:flex-row`). The chart still needs a dedicated mobile treatment; see **Pending work** below.
+
+### Empty states
+Distinguish two failure modes in a centered `h-[320px]` div (preserves layout):
+- `totalListings === 0` (no listings match filters) → "No listings match the current filters."
+- `hasListings && !hasReservations` → "No reservations in the selected range."
+
+### Current status (mock data)
+The `reservations` table migration (`023_reservations.sql`) and seed script (`scripts/seed-reservations.ts`) are defined but **not yet applied to the dev Supabase project**. `app/(authenticated)/page.tsx` currently imports `getMockPacingSource` from `lib/pacing-mock.ts` so the chart can be developed and eyeballed before the PMS sync is plugged in. Once migration 023 is applied and reservations are seeded, `lib/pacing.ts` needs a `getPacingSource()` sibling that returns the same `PacingSource` shape (listings + per-listing per-day bucket map) so the one-line swap in `page.tsx` still works. A `TODO` comment on the import in `page.tsx` marks the swap point.
+
+### Pending work — Dashboard Home
+- **Single-listing view fix:** when the listings filter is narrowed to exactly one listing, the Y-axis denominator drops to 1 and the chart collapses to a binary 0%/100% strip. Needs a dedicated rendering mode (e.g. show the raw stay_date ribbon with bucket-colored cells instead of a stacked bar against a single-listing denominator)
+- **Column width tuning:** the 4 filter/range controls + 4 highlight cards + chart bar widths need a pass — at 1280px the highlight cards feel cramped and at 1600px the bars are too thin for dense ranges. Investigate a responsive grid that trades off card density vs chart breathing room
+- **Monthly Pacing dashboard:** a second pacing view aggregated by month (12 bars across a rolling year) for high-level portfolio health, rendered below or as a tab alongside the daily view
+- **Reservations table:** a sortable/filterable table of the reservations feeding the pacing chart — same filter set (listings/clients/states/range) reused, columns for listing, guest, check-in/out, booked_date, bucket, revenue. Clicking a bar in the chart should scroll to and highlight the matching rows
+
+### Out of scope (explicit MVP boundaries)
+Group selector, STLY comparison, real `num_blocked` denominator, historical pace curves, PriceLabs/PMS sync.
 
 ## Roles & Permissions System
 
