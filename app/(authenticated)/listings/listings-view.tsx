@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Search,
   ArrowUpDown,
@@ -11,6 +12,9 @@ import {
   Filter,
   Check,
   ChevronsUpDown,
+  MoreVertical,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -42,8 +46,26 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { ListingDialog } from "@/app/(authenticated)/settings/listings/listing-dialog"
+import { deleteListingAction } from "@/app/(authenticated)/settings/listings/actions"
 
 export type FlatListing = {
   id: string
@@ -58,6 +80,19 @@ export type FlatListing = {
   client_status: string | null
 }
 
+type ListingFormData = {
+  id?: string
+  client_id: string
+  name: string
+  listing_id: string | null
+  pricelabs_link: string | null
+  airbnb_link: string | null
+  city: string | null
+  state: string | null
+}
+
+type ClientOption = { id: string; name: string }
+
 type SortField = "name" | "client_name" | "city" | "state"
 type SortDir = "asc" | "desc"
 
@@ -69,14 +104,60 @@ const clientStatusColor: Record<string, string> = {
   inactive: "bg-muted text-muted-foreground border-border",
 }
 
-export function ListingsView({ listings }: { listings: FlatListing[] }) {
+export function ListingsView({
+  listings,
+  clients: allClients,
+  canEdit,
+  canDelete,
+}: {
+  listings: FlatListing[]
+  clients: ClientOption[]
+  canEdit: boolean
+  canDelete: boolean
+}) {
   const [search, setSearch] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [clientFilter, setClientFilter] = useState<string>("all")
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
+  const [editingListing, setEditingListing] = useState<ListingFormData | null>(
+    null
+  )
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<FlatListing | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
+
+  const showActions = canEdit || canDelete
+
+  function handleEdit(listing: FlatListing) {
+    setEditingListing({
+      id: listing.id,
+      client_id: listing.client_id,
+      name: listing.name,
+      listing_id: listing.listing_id,
+      pricelabs_link: listing.pricelabs_link,
+      airbnb_link: listing.airbnb_link,
+      city: listing.city,
+      state: listing.state,
+    })
+    setDialogOpen(true)
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const result = await deleteListingAction(deleteTarget.id)
+    setDeleting(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Listing deleted")
+      setDeleteTarget(null)
+      router.refresh()
+    }
+  }
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -304,13 +385,14 @@ export function ListingsView({ listings }: { listings: FlatListing[] }) {
               <SortHeader field="state">State</SortHeader>
               <TableHead>Airbnb</TableHead>
               <TableHead>PriceLabs</TableHead>
+              {showActions && <TableHead className="w-[60px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={showActions ? 7 : 6}
                   className="text-center text-muted-foreground py-12"
                 >
                   No listings found
@@ -397,12 +479,93 @@ export function ListingsView({ listings }: { listings: FlatListing[] }) {
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
+                  {showActions && (
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8"
+                            aria-label="Listing actions"
+                          >
+                            <MoreVertical className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canEdit && (
+                            <DropdownMenuItem
+                              onSelect={() => handleEdit(listing)}
+                            >
+                              <Pencil className="mr-2 size-4" />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
+                          {canDelete && (
+                            <DropdownMenuItem
+                              onSelect={() => setDeleteTarget(listing)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 size-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {canEdit && (
+        <ListingDialog
+          key={editingListing?.id ?? "new"}
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open)
+            if (!open) setEditingListing(null)
+          }}
+          listing={editingListing ?? undefined}
+          clients={allClients}
+        />
+      )}
+
+      {canDelete && (
+        <AlertDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete listing?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget?.name
+                  ? `"${deleteTarget.name}" will be permanently removed. This cannot be undone.`
+                  : "This listing will be permanently removed. This cannot be undone."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmDelete()
+                }}
+                disabled={deleting}
+                className="bg-destructive text-white hover:bg-destructive/90"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }

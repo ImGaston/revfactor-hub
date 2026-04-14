@@ -24,6 +24,7 @@ export async function createListingAction(input: ListingInput) {
   const { error } = await supabase.from("listings").insert(input)
   if (error) return { error: error.message }
   revalidatePath("/settings/listings")
+  revalidatePath("/listings")
   revalidatePath("/clients")
   return { error: null }
 }
@@ -33,6 +34,7 @@ export async function updateListingAction(id: string, input: ListingInput) {
   const { error } = await supabase.from("listings").update(input).eq("id", id)
   if (error) return { error: error.message }
   revalidatePath("/settings/listings")
+  revalidatePath("/listings")
   revalidatePath("/clients")
   return { error: null }
 }
@@ -42,6 +44,7 @@ export async function deleteListingAction(id: string) {
   const { error } = await supabase.from("listings").delete().eq("id", id)
   if (error) return { error: error.message }
   revalidatePath("/settings/listings")
+  revalidatePath("/listings")
   revalidatePath("/clients")
   return { error: null }
 }
