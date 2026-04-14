@@ -167,6 +167,103 @@ export async function unpublishArticle(id: string) {
   return { error: null }
 }
 
+// ── Categories ─────────────────────────────────────────────────────────────
+
+type CategoryInput = {
+  name: string
+  description?: string
+  icon: string
+  color: string
+  dark_color: string
+  accent_color: string
+}
+
+export async function createCategory(input: CategoryInput) {
+  const supabase = await createClient()
+  const name = input.name.trim()
+  if (!name || name.length < 2) {
+    return { error: "Name must be at least 2 characters" }
+  }
+
+  const slug = generateSlug(name)
+
+  const { data: existing } = await supabase
+    .from("knowledge_categories")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle()
+
+  const finalSlug = existing ? `${slug}-${Date.now()}` : slug
+
+  const { error } = await supabase.from("knowledge_categories").insert({
+    name,
+    slug: finalSlug,
+    description: input.description?.trim() || null,
+    icon: input.icon,
+    color: input.color,
+    dark_color: input.dark_color,
+    accent_color: input.accent_color,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
+export async function updateCategory(id: string, input: CategoryInput) {
+  const supabase = await createClient()
+  const name = input.name.trim()
+  if (!name || name.length < 2) {
+    return { error: "Name must be at least 2 characters" }
+  }
+
+  const { error } = await supabase
+    .from("knowledge_categories")
+    .update({
+      name,
+      description: input.description?.trim() || null,
+      icon: input.icon,
+      color: input.color,
+      dark_color: input.dark_color,
+      accent_color: input.accent_color,
+    })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
+export async function deleteCategory(id: string) {
+  const supabase = await createClient()
+
+  // Check if any articles use this category
+  const { count } = await supabase
+    .from("knowledge_articles")
+    .select("*", { count: "exact", head: true })
+    .eq("category_id", id)
+
+  if (count && count > 0) {
+    return {
+      error: `Cannot delete: ${count} article(s) still use this category. Reassign or delete them first.`,
+    }
+  }
+
+  const { error } = await supabase
+    .from("knowledge_categories")
+    .delete()
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
+// ── Image upload ───────────────────────────────────────────────────────────
+
 export async function uploadImage(formData: FormData) {
   const supabase = await createClient()
   const {

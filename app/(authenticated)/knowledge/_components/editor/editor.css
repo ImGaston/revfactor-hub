@@ -179,8 +179,8 @@
   border-radius: 0.5rem;
 }
 
-/* Active toolbar button style */
-[data-active] {
+/* Active toolbar button style — scoped to editor toolbar only */
+.tiptap-toolbar [data-active="true"] {
   background-color: var(--accent);
   color: var(--accent-foreground);
 }

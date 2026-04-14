@@ -82,7 +82,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
 
   return (
     <>
-      <div className="sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b bg-background p-1.5 rounded-t-lg">
+      <div className="tiptap-toolbar sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b bg-background p-1.5 rounded-t-lg">
         {/* Undo / Redo */}
         <ToolbarButton
           icon={Undo2}

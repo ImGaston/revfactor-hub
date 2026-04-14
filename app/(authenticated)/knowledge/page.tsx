@@ -1,9 +1,7 @@
-import Link from "next/link"
-import { Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
 import { KnowledgeStatCards } from "./_components/stat-cards"
 import { KnowledgeView } from "./_components/knowledge-view"
+import { KnowledgeHeaderActions } from "./_components/knowledge-header-actions"
 import type {
   KnowledgeArticle,
   KnowledgeCategory,
@@ -86,26 +84,24 @@ export default async function KnowledgePage() {
       : 0,
   }
 
-  // TODO: Permission-gate the "Add Article" button using real permissions
+  // TODO: Permission-gate using real permissions
   const canCreate = true
+  const canManageCategories = true
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Knowledge</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Internal reference for RevFactor processes and SOPs
           </p>
         </div>
-        {canCreate && (
-          <Button asChild>
-            <Link href="/knowledge/new">
-              <Plus className="size-4 mr-2" />
-              Add Article
-            </Link>
-          </Button>
-        )}
+        <KnowledgeHeaderActions
+          categories={categories}
+          canCreate={canCreate}
+          canManageCategories={canManageCategories}
+        />
       </div>
 
       <KnowledgeStatCards stats={stats} />
