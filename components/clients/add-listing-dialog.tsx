@@ -69,6 +69,7 @@ export function AddListingDialog({
     const result = await createListingAction({
       client_id: clientId,
       name: name.trim(),
+      status: "active",
       listing_id: plId || null,
       pricelabs_link: plId ? `${PRICELABS_BASE}${plId}` : null,
       airbnb_link: airbnbId.trim()

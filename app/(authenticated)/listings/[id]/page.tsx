@@ -13,7 +13,7 @@ export default async function ListingPage({
   const { data: listing } = await supabase
     .from("listings")
     .select(
-      `id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, created_at, updated_at,
+      `id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, created_at, updated_at,
        pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price,
        pl_cleaning_fees, pl_no_of_bedrooms,
        pl_occupancy_next_7, pl_market_occupancy_next_7,
@@ -40,6 +40,7 @@ export default async function ListingPage({
       listing={{
         id: listing.id,
         name: listing.name,
+        status: listing.status,
         listing_id: listing.listing_id,
         pricelabs_link: listing.pricelabs_link,
         airbnb_link: listing.airbnb_link,
