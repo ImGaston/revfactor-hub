@@ -24,9 +24,9 @@ export default async function DashboardPage() {
     supabase.from("clients").select("*", { count: "exact", head: true }),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "onboarding"),
-    supabase.from("listings").select("*", { count: "exact", head: true }),
+    supabase.from("listings").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("tasks").select("id, status"),
-    supabase.from("tasks").select("id, title, status, tag, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
+    supabase.from("tasks").select("id, title, status, tags, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
     supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
     Promise.resolve(getMockPacingSource()),
   ])
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
             id: t.id as string,
             title: t.title as string,
             status: t.status as string,
-            tag: t.tag as string | null,
+            tags: (t.tags as string[] | null) ?? [],
             clientName: client?.name ?? null,
             ownerName: p?.full_name ?? null,
           }

@@ -1,5 +1,5 @@
 -- ============================================================
--- 023: Reservations table
+-- 023: Reservations table - TODAVIA NO SE CORRIO
 -- Forward-looking reservations data sourced from PMS systems.
 -- Powers the Pacing Chart on the dashboard home.
 -- ============================================================

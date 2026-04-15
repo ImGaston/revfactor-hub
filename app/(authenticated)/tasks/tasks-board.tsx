@@ -147,11 +147,11 @@ export function TasksBoard({ tasks: initialTasks, clients, owners, tags }: Tasks
               description={task.description}
               subtitle={task.clients?.name}
               accentColor={COLUMNS.find((c) => c.id === columnId)?.color}
-              badges={[
-                ...(task.tag
-                  ? [{ label: task.tag, variant: "secondary" as const, color: PRIORITY_COLORS[task.tag.toLowerCase()] }]
-                  : []),
-              ]}
+              badges={(task.tags ?? []).map((t) => ({
+                label: t,
+                variant: "secondary" as const,
+                color: PRIORITY_COLORS[t.toLowerCase()],
+              }))}
               meta={[
                 ...(ownerName
                   ? [{ icon: <User className="size-3" />, label: ownerName }]

@@ -123,7 +123,7 @@ export function CommandPalette({
           ? supabase.from("clients").select("id, name, email, status").order("name")
           : Promise.resolve({ data: null }),
         canViewListings
-          ? supabase.from("listings").select("id, name, city, state, clients(name)").order("name")
+          ? supabase.from("listings").select("id, name, city, state, clients(name)").eq("status", "active").order("name")
           : Promise.resolve({ data: null }),
       ])
 

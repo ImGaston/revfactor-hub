@@ -92,7 +92,7 @@ export async function getPacingData(
   // Fetch listings count (denominator) and reservations overlapping the window
   // in parallel.
   const [{ count: listingsCount }, { data: reservations }] = await Promise.all([
-    supabase.from("listings").select("*", { count: "exact", head: true }),
+    supabase.from("listings").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase
       .from("reservations")
       .select("listing_id, check_in, check_out, booked_date, cancelled_on")

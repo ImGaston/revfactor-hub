@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Plus, Pencil, Trash2, Search, X, ChevronDown, Check, RefreshCw } from "lucide-react"
+import { useState, useMemo, useTransition } from "react"
+import { Plus, Pencil, Trash2, Search, X, ChevronDown, Check, RefreshCw, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Popover,
   PopoverContent,
@@ -31,11 +32,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ListingDialog } from "./listing-dialog"
-import { deleteListingAction, syncPriceLabsAction } from "./actions"
+import { deleteListingAction, syncPriceLabsAction, updateListingStatusAction } from "./actions"
 
 type SettingsListing = {
   id: string
   name: string
+  status: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
@@ -44,6 +46,8 @@ type SettingsListing = {
   client_id: string
   client_name: string | null
 }
+
+type StatusFilter = "all" | "active" | "inactive"
 
 type ClientOption = { id: string; name: string }
 
@@ -55,6 +59,7 @@ export function ListingsSettings({
   clients: ClientOption[]
 }) {
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active")
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
   const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -62,6 +67,17 @@ export function ListingsSettings({
   const [deleteTarget, setDeleteTarget] = useState<SettingsListing | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [, startTransition] = useTransition()
+
+  const statusCounts = useMemo(() => {
+    let active = 0
+    let inactive = 0
+    for (const l of listings) {
+      if (l.status === "inactive") inactive++
+      else active++
+    }
+    return { all: listings.length, active, inactive }
+  }, [listings])
 
   const clientNames = useMemo(() => {
     const names = new Set<string>()
@@ -78,12 +94,13 @@ export function ListingsSettings({
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return listings.filter((l) => {
+      if (statusFilter !== "all" && l.status !== statusFilter) return false
       if (q && !l.name.toLowerCase().includes(q) && !l.listing_id?.toLowerCase().includes(q)) return false
       if (selectedClients.size > 0 && (!l.client_name || !selectedClients.has(l.client_name))) return false
       if (selectedStates.size > 0 && (!l.state || !selectedStates.has(l.state))) return false
       return true
     })
-  }, [listings, search, selectedClients, selectedStates])
+  }, [listings, search, statusFilter, selectedClients, selectedStates])
 
   function toggleFilter(set: Set<string>, value: string, setter: (s: Set<string>) => void) {
     const next = new Set(set)
@@ -134,6 +151,22 @@ export function ListingsSettings({
     }
   }
 
+  function handleToggleStatus(listing: SettingsListing, nextActive: boolean) {
+    const nextStatus = nextActive ? "active" : "inactive"
+    startTransition(async () => {
+      const result = await updateListingStatusAction(listing.id, nextStatus)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(
+          nextActive
+            ? `${listing.name} is now visible`
+            : `${listing.name} hidden from Clients & Listings`
+        )
+      }
+    })
+  }
+
   return (
     <>
       <div className="space-y-4">
@@ -151,6 +184,33 @@ export function ListingsSettings({
               Add Listing
             </Button>
           </div>
+        </div>
+
+        <div className="flex items-center gap-1 border-b">
+          {(["active", "inactive", "all"] as StatusFilter[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "relative px-3 py-2 text-sm font-medium capitalize transition-colors",
+                statusFilter === s
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                {s === "active" && <Eye className="size-3.5" />}
+                {s === "inactive" && <EyeOff className="size-3.5" />}
+                {s}
+                <Badge variant="secondary" className="ml-1 rounded-full px-1.5 text-[10px]">
+                  {statusCounts[s]}
+                </Badge>
+              </span>
+              {statusFilter === s && (
+                <span className="absolute inset-x-0 -bottom-px h-0.5 bg-primary" />
+              )}
+            </button>
+          ))}
         </div>
 
         <div className="relative">
@@ -269,52 +329,68 @@ export function ListingsSettings({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40%] min-w-[180px]">Name</TableHead>
+                <TableHead className="w-[32%] min-w-[180px]">Name</TableHead>
                 <TableHead className="w-[20%] min-w-[120px]">Client</TableHead>
-                <TableHead className="w-[15%] min-w-[100px]">Location</TableHead>
-                <TableHead className="w-[15%] min-w-[90px]">Listing ID</TableHead>
+                <TableHead className="w-[14%] min-w-[100px]">Location</TableHead>
+                <TableHead className="w-[12%] min-w-[90px]">Listing ID</TableHead>
+                <TableHead className="w-[12%] min-w-[90px]">Status</TableHead>
                 <TableHead className="w-[10%] min-w-[80px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((listing) => (
-                <TableRow key={listing.id}>
-                  <TableCell className="font-medium truncate">{listing.name}</TableCell>
-                  <TableCell className="text-muted-foreground truncate">
-                    {listing.client_name ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground truncate">
-                    {[listing.city, listing.state].filter(Boolean).join(", ") || "—"}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground truncate">
-                    {listing.listing_id ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        onClick={() => handleEdit(listing)}
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(listing)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((listing) => {
+                const isActive = listing.status !== "inactive"
+                return (
+                  <TableRow key={listing.id} className={cn(!isActive && "opacity-60")}>
+                    <TableCell className="font-medium truncate">{listing.name}</TableCell>
+                    <TableCell className="text-muted-foreground truncate">
+                      {listing.client_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground truncate">
+                      {[listing.city, listing.state].filter(Boolean).join(", ") || "—"}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground truncate">
+                      {listing.listing_id ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <Switch
+                          checked={isActive}
+                          onCheckedChange={(checked) => handleToggleStatus(listing, checked)}
+                          aria-label={`Toggle ${listing.name} status`}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {isActive ? "Active" : "Hidden"}
+                        </span>
+                      </label>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          onClick={() => handleEdit(listing)}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => setDeleteTarget(listing)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {hasFilters ? "No listings match your filters." : "No listings yet."}
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {hasFilters || statusFilter !== "all" ? "No listings match your filters." : "No listings yet."}
                   </TableCell>
                 </TableRow>
               )}

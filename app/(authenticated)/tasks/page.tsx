@@ -13,7 +13,7 @@ export default async function TasksPage() {
       .order("sort_order"),
     supabase
       .from("clients")
-      .select("id, name, listings(id, name)")
+      .select("id, name, listings(id, name, status)")
       .order("name"),
     supabase
       .from("profiles")
@@ -26,6 +26,19 @@ export default async function TasksPage() {
     label: p.full_name || p.email,
   }))
 
+  const existingTags = new Set<string>(DEFAULT_TAGS)
+  for (const t of tasks ?? []) {
+    for (const tag of (t.tags ?? []) as string[]) {
+      if (tag) existingTags.add(tag)
+    }
+  }
+  const allTags = Array.from(existingTags).sort((a, b) => a.localeCompare(b))
+
+  const filteredClients = (clients ?? []).map((c) => ({
+    ...c,
+    listings: (c.listings ?? []).filter((l: { status?: string }) => l.status !== "inactive"),
+  }))
+
   return (
     <div className="space-y-4">
       <div>
@@ -36,9 +49,9 @@ export default async function TasksPage() {
       </div>
       <TasksBoard
         tasks={tasks ?? []}
-        clients={clients ?? []}
+        clients={filteredClients}
         owners={owners}
-        tags={DEFAULT_TAGS}
+        tags={allTags}
       />
     </div>
   )

@@ -16,7 +16,7 @@ export default async function SettingsListingsPage() {
   const [{ data: listings }, { data: clients }] = await Promise.all([
     supabase
       .from("listings")
-      .select("id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name)")
+      .select("id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name)")
       .order("name"),
     supabase
       .from("clients")
@@ -29,6 +29,7 @@ export default async function SettingsListingsPage() {
     return {
       id: l.id as string,
       name: l.name as string,
+      status: (l.status as string) ?? "active",
       listing_id: l.listing_id as string | null,
       pricelabs_link: l.pricelabs_link as string | null,
       airbnb_link: l.airbnb_link as string | null,

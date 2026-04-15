@@ -12,6 +12,7 @@ export default async function ListingsPage() {
         .select(
           "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name, status)"
         )
+        .eq("status", "active")
         .order("name"),
       supabase.from("clients").select("id, name").order("name"),
       hasPermission("listings", "edit"),

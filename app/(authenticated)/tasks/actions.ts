@@ -8,7 +8,9 @@ export async function createTask(formData: FormData) {
   const description = formData.get("description") as string
   const clientId = formData.get("client_id") as string
   const owner = formData.get("owner") as string
-  const tag = formData.get("tag") as string
+  const tags = JSON.parse(
+    (formData.get("tags") as string) || "[]"
+  ) as string[]
   const status = (formData.get("status") as string) || "todo"
   const listingIds = JSON.parse(
     (formData.get("listing_ids") as string) || "[]"
@@ -36,7 +38,7 @@ export async function createTask(formData: FormData) {
       description: description || null,
       client_id: clientId || null,
       owner: owner || null,
-      tag: tag || null,
+      tags,
       status,
       sort_order: sortOrder,
     })
@@ -79,7 +81,9 @@ export async function updateTask(taskId: string, formData: FormData) {
   const description = formData.get("description") as string
   const clientId = formData.get("client_id") as string
   const owner = formData.get("owner") as string
-  const tag = formData.get("tag") as string
+  const tags = JSON.parse(
+    (formData.get("tags") as string) || "[]"
+  ) as string[]
   const status = formData.get("status") as string
   const listingIds = JSON.parse(
     (formData.get("listing_ids") as string) || "[]"
@@ -96,7 +100,7 @@ export async function updateTask(taskId: string, formData: FormData) {
       description: description || null,
       client_id: clientId || null,
       owner: owner || null,
-      tag: tag || null,
+      tags,
       status: status || "todo",
       updated_at: new Date().toISOString(),
     })

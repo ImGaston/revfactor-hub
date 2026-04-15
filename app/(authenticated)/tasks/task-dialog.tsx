@@ -34,7 +34,8 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Check, ChevronsUpDown, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createTask, updateTask } from "./actions"
 import type { OwnerOption } from "./tasks-board"
@@ -73,6 +74,14 @@ export function TaskDialog({
   const [selectedListings, setSelectedListings] = useState<Set<string>>(
     () => new Set(task?.task_listings?.map((tl) => tl.listing_id) ?? [])
   )
+  const [selectedTags, setSelectedTags] = useState<string[]>(task?.tags ?? [])
+  const [availableTags, setAvailableTags] = useState<string[]>(() =>
+    Array.from(new Set([...tags, ...(task?.tags ?? [])])).sort((a, b) =>
+      a.localeCompare(b)
+    )
+  )
+  const [tagOpen, setTagOpen] = useState(false)
+  const [tagQuery, setTagQuery] = useState("")
   const router = useRouter()
 
   // Reset form when task changes (open for different task or new)
@@ -81,14 +90,55 @@ export function TaskDialog({
     setPrevTaskId(task?.id)
     setClientId(task?.client_id ?? "")
     setSelectedListings(new Set(task?.task_listings?.map((tl) => tl.listing_id) ?? []))
+    setSelectedTags(task?.tags ?? [])
+    setAvailableTags(
+      Array.from(new Set([...tags, ...(task?.tags ?? [])])).sort((a, b) =>
+        a.localeCompare(b)
+      )
+    )
+    setTagQuery("")
     setError("")
   }
   if (!task && prevTaskId) {
     setPrevTaskId(undefined)
     setClientId("")
     setSelectedListings(new Set())
+    setSelectedTags([])
+    setAvailableTags([...tags].sort((a, b) => a.localeCompare(b)))
+    setTagQuery("")
     setError("")
   }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    )
+  }
+
+  function createTag() {
+    const trimmed = tagQuery.trim()
+    if (!trimmed) return
+    const exists = availableTags.find(
+      (t) => t.toLowerCase() === trimmed.toLowerCase()
+    )
+    const canonical = exists ?? trimmed
+    if (!exists) {
+      setAvailableTags((prev) =>
+        [...prev, trimmed].sort((a, b) => a.localeCompare(b))
+      )
+    }
+    if (!selectedTags.includes(canonical)) {
+      setSelectedTags((prev) => [...prev, canonical])
+    }
+    setTagQuery("")
+  }
+
+  const trimmedQuery = tagQuery.trim()
+  const canCreate =
+    trimmedQuery.length > 0 &&
+    !availableTags.some(
+      (t) => t.toLowerCase() === trimmedQuery.toLowerCase()
+    )
 
   const selectedClient = clients.find((c) => c.id === clientId)
   const clientListings = selectedClient?.listings ?? []
@@ -123,6 +173,7 @@ export function TaskDialog({
     const formData = new FormData(e.currentTarget)
     formData.set("client_id", clientId)
     formData.set("listing_ids", JSON.stringify(Array.from(selectedListings)))
+    formData.set("tags", JSON.stringify(selectedTags))
     formData.set("status", isEdit ? (task.status ?? defaultStatus) : defaultStatus)
 
     const result = isEdit
@@ -238,37 +289,128 @@ export function TaskDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="owner">Owner</Label>
-              <Select name="owner" defaultValue={task?.owner ?? undefined}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {owners.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tag">Tag</Label>
-              <Select name="tag" defaultValue={task?.tag ?? undefined}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {tags.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="owner">Owner</Label>
+            <Select name="owner" defaultValue={task?.owner ?? undefined}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {owners.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <Popover open={tagOpen} onOpenChange={setTagOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex min-h-9 w-full flex-wrap items-center gap-1 rounded-md border border-input bg-transparent px-2 py-1.5 text-left text-sm shadow-xs transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {selectedTags.length === 0 ? (
+                    <span className="text-muted-foreground px-1">
+                      Add tags...
+                    </span>
+                  ) : (
+                    selectedTags.map((t) => (
+                      <Badge
+                        key={t}
+                        variant="secondary"
+                        className="gap-1 pl-2 pr-1 font-normal"
+                      >
+                        {t}
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            toggleTag(t)
+                          }}
+                          className="flex size-4 items-center justify-center rounded-sm hover:bg-muted-foreground/20"
+                        >
+                          <X className="size-3" />
+                        </span>
+                      </Badge>
+                    ))
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput
+                    placeholder="Search or create tag..."
+                    value={tagQuery}
+                    onValueChange={setTagQuery}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && canCreate) {
+                        e.preventDefault()
+                        createTag()
+                      }
+                    }}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {canCreate ? (
+                        <button
+                          type="button"
+                          onClick={createTag}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-accent"
+                        >
+                          <Plus className="size-4" />
+                          Create &quot;{trimmedQuery}&quot;
+                        </button>
+                      ) : (
+                        "No tags yet."
+                      )}
+                    </CommandEmpty>
+                    {availableTags.length > 0 && (
+                      <CommandGroup heading="Tags">
+                        {availableTags.map((t) => {
+                          const selected = selectedTags.includes(t)
+                          return (
+                            <CommandItem
+                              key={t}
+                              value={t}
+                              onSelect={() => toggleTag(t)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 size-4",
+                                  selected ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {t}
+                            </CommandItem>
+                          )
+                        })}
+                      </CommandGroup>
+                    )}
+                    {canCreate && availableTags.length > 0 && (
+                      <CommandGroup>
+                        <CommandItem
+                          value={`__create__${trimmedQuery}`}
+                          onSelect={createTag}
+                          className="text-primary"
+                        >
+                          <Plus className="mr-2 size-4" />
+                          Create &quot;{trimmedQuery}&quot;
+                        </CommandItem>
+                      </CommandGroup>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

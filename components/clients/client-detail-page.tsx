@@ -369,11 +369,11 @@ export function ClientDetailPage({
                           </Badge>
                         )
                       })()}
-                      {task.tag && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {task.tag}
+                      {task.tags?.map((t) => (
+                        <Badge key={t} variant="secondary" className="text-[10px]">
+                          {t}
                         </Badge>
-                      )}
+                      ))}
                     </div>
                   </div>
                 ))}

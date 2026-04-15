@@ -1,6 +1,7 @@
 export type Listing = {
   id: string
   name: string
+  status: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
@@ -46,7 +47,7 @@ export type ClientTask = {
   title: string
   status: string
   owner: string | null
-  tag: string | null
+  tags: string[] | null
   profiles?: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
 }
 
@@ -73,7 +74,7 @@ export type Task = {
   description: string | null
   client_id: string | null
   owner: string | null
-  tag: string | null
+  tags: string[]
   status: string
   sort_order: number
   created_at: string

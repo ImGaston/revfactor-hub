@@ -34,7 +34,7 @@ type RecentTask = {
   id: string
   title: string
   status: string
-  tag: string | null
+  tags: string[]
   clientName: string | null
   ownerName: string | null
 }

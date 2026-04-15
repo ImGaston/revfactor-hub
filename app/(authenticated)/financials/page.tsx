@@ -49,6 +49,7 @@ export default async function FinancialsPage() {
     supabase
       .from("listings")
       .select("id, name, client_id, stripe_subscription_id, clients(id, name)")
+      .eq("status", "active")
       .order("name"),
     supabase
       .from("recurring_expenses")

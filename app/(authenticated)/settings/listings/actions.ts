@@ -12,6 +12,7 @@ import {
 type ListingInput = {
   client_id: string
   name: string
+  status: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
@@ -42,6 +43,16 @@ export async function updateListingAction(id: string, input: ListingInput) {
 export async function deleteListingAction(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("listings").delete().eq("id", id)
+  if (error) return { error: error.message }
+  revalidatePath("/settings/listings")
+  revalidatePath("/listings")
+  revalidatePath("/clients")
+  return { error: null }
+}
+
+export async function updateListingStatusAction(id: string, status: "active" | "inactive") {
+  const supabase = await createClient()
+  const { error } = await supabase.from("listings").update({ status }).eq("id", id)
   if (error) return { error: error.message }
   revalidatePath("/settings/listings")
   revalidatePath("/listings")

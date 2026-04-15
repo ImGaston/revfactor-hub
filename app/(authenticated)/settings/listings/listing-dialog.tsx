@@ -25,6 +25,7 @@ type ListingFormData = {
   id?: string
   client_id: string
   name: string
+  status?: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
@@ -72,6 +73,7 @@ function pricelabsIdFromListing(listing?: ListingFormData): string {
 const EMPTY: ListingFormData = {
   client_id: "",
   name: "",
+  status: "active",
   listing_id: null,
   pricelabs_link: null,
   airbnb_link: null,
@@ -116,6 +118,7 @@ export function ListingDialog({
     const input = {
       client_id: form.client_id,
       name: form.name.trim(),
+      status: form.status || "active",
       listing_id: plId || null,
       pricelabs_link: plId ? `${PRICELABS_BASE}${plId}` : null,
       airbnb_link: airbnbId.trim() ? `${AIRBNB_BASE}${extractAirbnbId(airbnbId.trim())}` : null,
@@ -167,6 +170,19 @@ export function ListingDialog({
                       {c.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="listing-status">Status</Label>
+              <Select value={form.status ?? "active"} onValueChange={(v) => set("status", v)}>
+                <SelectTrigger id="listing-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active — visible in Clients & Listings</SelectItem>
+                  <SelectItem value="inactive">Inactive — hidden, only shown here</SelectItem>
                 </SelectContent>
               </Select>
             </div>
