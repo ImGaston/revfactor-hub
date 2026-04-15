@@ -34,8 +34,19 @@ export async function updateClientAction(id: string, input: ClientInput) {
   const supabase = await createClient()
   const { error } = await supabase.from("clients").update(input).eq("id", id)
   if (error) return { error: error.message }
+
+  if (input.status === "inactive") {
+    const { error: listingsError } = await supabase
+      .from("listings")
+      .update({ status: "inactive" })
+      .eq("client_id", id)
+    if (listingsError) return { error: listingsError.message }
+  }
+
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/listings")
+  revalidatePath("/settings/listings")
   return { error: null }
 }
 

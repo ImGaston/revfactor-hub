@@ -95,6 +95,7 @@ type ClientOption = { id: string; name: string }
 
 type SortField = "name" | "client_name" | "city" | "state"
 type SortDir = "asc" | "desc"
+type StatusFilter = "active_onboarding" | "all" | "active" | "onboarding" | "inactive"
 
 const clientStatusColor: Record<string, string> = {
   active:
@@ -118,6 +119,7 @@ export function ListingsView({
   const [search, setSearch] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [clientFilter, setClientFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active_onboarding")
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
@@ -200,6 +202,14 @@ export function ListingsView({
   const filtered = useMemo(() => {
     let result = listings
 
+    if (statusFilter === "active_onboarding") {
+      result = result.filter(
+        (l) => l.client_status === "active" || l.client_status === "onboarding"
+      )
+    } else if (statusFilter !== "all") {
+      result = result.filter((l) => l.client_status === statusFilter)
+    }
+
     if (locationFilter !== "all") {
       result = result.filter((l) => l.state === locationFilter)
     }
@@ -228,18 +238,20 @@ export function ListingsView({
     })
 
     return result
-  }, [listings, search, locationFilter, clientFilter, sortField, sortDir])
+  }, [listings, search, locationFilter, clientFilter, statusFilter, sortField, sortDir])
 
   function SortHeader({
     field,
     children,
+    className,
   }: {
     field: SortField
     children: React.ReactNode
+    className?: string
   }) {
     return (
       <TableHead
-        className="cursor-pointer select-none"
+        className={cn("cursor-pointer select-none", className)}
         onClick={() => toggleSort(field)}
       >
         <div className="flex items-center gap-1">
@@ -251,7 +263,9 @@ export function ListingsView({
   }
 
   const activeFilters =
-    (locationFilter !== "all" ? 1 : 0) + (clientFilter !== "all" ? 1 : 0)
+    (locationFilter !== "all" ? 1 : 0) +
+    (clientFilter !== "all" ? 1 : 0) +
+    (statusFilter !== "active_onboarding" ? 1 : 0)
 
   return (
     <div className="space-y-4">
@@ -273,6 +287,23 @@ export function ListingsView({
             className="pl-9"
           />
         </div>
+
+        {/* Status dropdown (client status) */}
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active_onboarding">Active & Onboarding</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="onboarding">Onboarding</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
 
         {/* State dropdown */}
         <Select value={locationFilter} onValueChange={setLocationFilter}>
@@ -365,6 +396,7 @@ export function ListingsView({
             onClick={() => {
               setLocationFilter("all")
               setClientFilter("all")
+              setStatusFilter("active_onboarding")
             }}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
           >
@@ -375,17 +407,23 @@ export function ListingsView({
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border w-full overflow-x-auto">
+        <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow>
               <SortHeader field="name">Listing</SortHeader>
-              <SortHeader field="client_name">Client</SortHeader>
-              <SortHeader field="city">City</SortHeader>
-              <SortHeader field="state">State</SortHeader>
-              <TableHead>Airbnb</TableHead>
-              <TableHead>PriceLabs</TableHead>
-              {showActions && <TableHead className="w-[60px]"></TableHead>}
+              <SortHeader field="client_name" className="w-[220px]">
+                Client
+              </SortHeader>
+              <SortHeader field="city" className="w-[140px]">
+                City
+              </SortHeader>
+              <SortHeader field="state" className="w-[80px]">
+                State
+              </SortHeader>
+              <TableHead className="w-[90px]">Airbnb</TableHead>
+              <TableHead className="w-[100px]">PriceLabs</TableHead>
+              {showActions && <TableHead className="w-[56px]"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -405,26 +443,28 @@ export function ListingsView({
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => router.push(`/listings/${listing.id}`)}
                 >
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{listing.name}</p>
+                  <TableCell className="overflow-hidden">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{listing.name}</p>
                       {listing.listing_id && (
-                        <p className="text-xs text-muted-foreground font-mono">
+                        <p className="text-xs text-muted-foreground font-mono truncate">
                           ID: {listing.listing_id}
                         </p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="overflow-hidden">
                     {listing.client_name ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <Building2 className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm">{listing.client_name}</span>
+                        <span className="text-sm truncate">
+                          {listing.client_name}
+                        </span>
                         {listing.client_status && (
                           <Badge
                             variant="outline"
                             className={cn(
-                              "text-[9px] capitalize",
+                              "text-[9px] capitalize shrink-0",
                               clientStatusColor[listing.client_status] ?? ""
                             )}
                           >
@@ -436,11 +476,11 @@ export function ListingsView({
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="overflow-hidden">
                     {listing.city ? (
-                      <span className="flex items-center gap-1.5 text-sm">
+                      <span className="flex items-center gap-1.5 text-sm min-w-0">
                         <MapPin className="size-3.5 text-muted-foreground shrink-0" />
-                        {listing.city}
+                        <span className="truncate">{listing.city}</span>
                       </span>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
