@@ -1,6 +1,7 @@
 "use client"
 
-import { useOptimistic, useTransition } from "react"
+import { useOptimistic, useState, useTransition } from "react"
+import { MessageSquare } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
   Card,
@@ -9,19 +10,29 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { toggleOnboardingStep } from "./actions"
+import { OnboardingComments } from "./onboarding-comments"
 import type { OnboardingTemplate, OnboardingProgress } from "@/lib/types"
 
 type ClientRow = {
   id: string
   name: string
   email: string | null
+  commentCount?: number
 }
 
 type Props = {
   client: ClientRow
   templates: OnboardingTemplate[]
   progress: OnboardingProgress[]
+  currentUserId: string | null
 }
 
 type OptimisticProgress = {
@@ -31,8 +42,9 @@ type OptimisticProgress = {
   completedAt: string | null
 }
 
-export function ClientStepperCard({ client, templates, progress }: Props) {
+export function ClientStepperCard({ client, templates, progress, currentUserId }: Props) {
   const [, startTransition] = useTransition()
+  const [commentCount, setCommentCount] = useState(client.commentCount ?? 0)
 
   // Build initial progress map
   const initialSteps: OptimisticProgress[] = templates.map((t) => {
@@ -84,18 +96,42 @@ export function ClientStepperCard({ client, templates, progress }: Props) {
   return (
     <Card>
       <CardHeader className="pb-2 pt-3 px-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-sm font-semibold">{client.name}</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-semibold truncate">{client.name}</CardTitle>
             {client.email && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground truncate">
                 {client.email}
               </p>
             )}
           </div>
-          <Badge variant={pct === 100 ? "default" : "secondary"} className="text-[10px]">
-            {completedCount}/{totalCount} &mdash; {pct}%
-          </Badge>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title="Comments"
+                >
+                  <MessageSquare className="size-3" />
+                  {commentCount}
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Comments — {client.name}</DialogTitle>
+                </DialogHeader>
+                <OnboardingComments
+                  clientId={client.id}
+                  currentUserId={currentUserId}
+                  onCountChange={setCommentCount}
+                />
+              </DialogContent>
+            </Dialog>
+            <Badge variant={pct === 100 ? "default" : "secondary"} className="text-[10px]">
+              {completedCount}/{totalCount} &mdash; {pct}%
+            </Badge>
+          </div>
         </div>
         <div className="mt-1.5 h-1 w-full rounded-full bg-muted overflow-hidden">
           <div

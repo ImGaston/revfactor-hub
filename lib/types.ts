@@ -302,6 +302,16 @@ export type OnboardingProgress = {
   profiles?: { full_name: string | null; email: string } | null
 }
 
+export type OnboardingComment = {
+  id: string
+  client_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  profiles?: { full_name: string | null; email: string; avatar_url: string | null } | null
+}
+
 export type OnboardingResource = {
   id: string
   title: string

@@ -32,6 +32,52 @@ export async function toggleOnboardingStep(
   revalidatePath("/onboarding")
 }
 
+// ─── Comments ──────────────────────────────────────────
+
+export async function listOnboardingComments(clientId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("onboarding_comments")
+    .select("*, profiles(full_name, email, avatar_url)")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: true })
+
+  if (error) return { error: error.message, comments: [] }
+  return { comments: data ?? [] }
+}
+
+export async function createOnboardingComment(clientId: string, content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) return { error: "Comment is empty" }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase.from("onboarding_comments").insert({
+    client_id: clientId,
+    author_id: user.id,
+    content: trimmed,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath("/onboarding")
+  return { success: true }
+}
+
+export async function deleteOnboardingComment(commentId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("onboarding_comments")
+    .delete()
+    .eq("id", commentId)
+  if (error) return { error: error.message }
+  revalidatePath("/onboarding")
+  return { success: true }
+}
+
 // ─── Template CRUD ─────────────────────────────────────
 
 export async function createOnboardingTemplate(formData: FormData) {

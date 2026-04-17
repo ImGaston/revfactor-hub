@@ -12,19 +12,42 @@ type ClientRow = {
   name: string
   email: string | null
   status: string
+  onboarding_date: string | null
+  commentCount: number
 }
 
 export default async function OnboardingPage() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // Fetch onboarding clients
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, name, email, status")
+    .select("id, name, email, status, onboarding_date")
     .eq("status", "onboarding")
     .order("name")
 
-  const onboardingClients = (clients ?? []) as ClientRow[]
+  const rawClients = (clients ?? []) as Omit<ClientRow, "commentCount">[]
+
+  // Fetch comment counts per client
+  const clientIdsForComments = rawClients.map((c) => c.id)
+  const commentCounts = new Map<string, number>()
+  if (clientIdsForComments.length > 0) {
+    const { data: commentRows } = await supabase
+      .from("onboarding_comments")
+      .select("client_id")
+      .in("client_id", clientIdsForComments)
+    for (const row of (commentRows ?? []) as { client_id: string }[]) {
+      commentCounts.set(row.client_id, (commentCounts.get(row.client_id) ?? 0) + 1)
+    }
+  }
+
+  const onboardingClients: ClientRow[] = rawClients.map((c) => ({
+    ...c,
+    commentCount: commentCounts.get(c.id) ?? 0,
+  }))
 
   // Fetch active templates
   const { data: templates } = await supabase
@@ -89,6 +112,7 @@ export default async function OnboardingPage() {
       templates={activeTemplates}
       progress={progressRows}
       resources={(resources ?? []) as OnboardingResource[]}
+      currentUserId={user?.id ?? null}
     />
   )
 }
