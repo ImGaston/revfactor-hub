@@ -6,11 +6,16 @@ const DEFAULT_TAGS = ["Pricing", "Onboarding", "Support", "Marketing", "Operatio
 export default async function TasksPage() {
   const supabase = await createClient()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   const [{ data: tasks }, { data: clients }, { data: profiles }] = await Promise.all([
     supabase
       .from("tasks")
       .select("*, clients(id, name), task_listings(listing_id, listings(id, name)), profiles(full_name, email)")
-      .order("sort_order"),
+      .order("sort_order")
+      .order("created_at", { ascending: false }),
     supabase
       .from("clients")
       .select("id, name, listings(id, name, status)")
@@ -52,6 +57,7 @@ export default async function TasksPage() {
         clients={filteredClients}
         owners={owners}
         tags={allTags}
+        currentUserId={user?.id ?? null}
       />
     </div>
   )

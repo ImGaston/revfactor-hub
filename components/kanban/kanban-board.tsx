@@ -10,7 +10,6 @@ import {
 import { Plus } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
@@ -100,12 +99,12 @@ export function KanbanBoard<T extends { id: string }>({
               </div>
               <Droppable droppableId={col.id}>
                 {(provided, snapshot) => (
-                  <ScrollArea className="flex-1">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        "min-h-[200px] space-y-2 px-2 pb-2",
+                        "min-h-[200px] w-full space-y-2 px-2 pb-2",
                         snapshot.isDraggingOver && "bg-accent/30 rounded-b-lg"
                       )}
                     >
@@ -121,6 +120,7 @@ export function KanbanBoard<T extends { id: string }>({
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={cn(
+                                "w-full min-w-0",
                                 snapshot.isDragging && "opacity-90 shadow-lg"
                               )}
                             >
@@ -136,7 +136,7 @@ export function KanbanBoard<T extends { id: string }>({
                         </p>
                       )}
                     </div>
-                  </ScrollArea>
+                  </div>
                 )}
               </Droppable>
               {renderColumnFooter?.(col.id)}

@@ -120,6 +120,69 @@ export async function updateTask(taskId: string, formData: FormData) {
   return { success: true }
 }
 
+export async function archiveTask(taskId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_archived: true, archived_at: new Date().toISOString() })
+    .eq("id", taskId)
+  if (error) return { error: error.message }
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
+export async function unarchiveTask(taskId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("tasks")
+    .update({ is_archived: false, archived_at: null })
+    .eq("id", taskId)
+  if (error) return { error: error.message }
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
+export async function listTaskComments(taskId: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("task_comments")
+    .select("*, profiles(full_name, email, avatar_url)")
+    .eq("task_id", taskId)
+    .order("created_at", { ascending: true })
+
+  if (error) return { error: error.message, comments: [] }
+  return { comments: data ?? [] }
+}
+
+export async function createTaskComment(taskId: string, content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) return { error: "Comment is empty" }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { error } = await supabase.from("task_comments").insert({
+    task_id: taskId,
+    author_id: user.id,
+    content: trimmed,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
+export async function deleteTaskComment(commentId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase.from("task_comments").delete().eq("id", commentId)
+  if (error) return { error: error.message }
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
 export async function deleteTask(taskId: string) {
   const supabase = await createClient()
 

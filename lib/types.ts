@@ -77,10 +77,22 @@ export type Task = {
   tags: string[]
   status: string
   sort_order: number
+  is_archived?: boolean
+  archived_at?: string | null
   created_at: string
   clients?: { id: string; name: string } | null
   profiles?: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
   task_listings?: { listing_id: string; listings: { id: string; name: string } }[]
+}
+
+export type TaskComment = {
+  id: string
+  task_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  profiles?: { full_name: string | null; email: string; avatar_url: string | null } | null
 }
 
 type ProfileRef = { full_name: string | null; email: string }

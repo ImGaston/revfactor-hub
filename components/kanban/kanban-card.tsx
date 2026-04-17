@@ -23,6 +23,7 @@ type KanbanCardProps = {
   onMoveToColumn: (columnId: string) => void
   onClick?: () => void
   onArchive?: () => void
+  archiveLabel?: string
   onComplete?: () => void
   onDelete?: () => void
   statusIndicator?: React.ReactNode
@@ -40,6 +41,7 @@ export function KanbanCard({
   onMoveToColumn,
   onClick,
   onArchive,
+  archiveLabel = "Archive",
   onComplete,
   onDelete,
   statusIndicator,
@@ -48,14 +50,14 @@ export function KanbanCard({
 
   return (
     <div
-      className="group rounded-md border-l-[3px] border border-l-transparent bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/30 cursor-grab active:cursor-grabbing"
+      className="group w-full min-w-0 max-w-full overflow-hidden rounded-md border-l-[3px] border border-l-transparent bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/30 cursor-grab active:cursor-grabbing [overflow-wrap:anywhere]"
       style={{ borderLeftColor: accentColor ?? "hsl(var(--border))" }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           {statusIndicator}
-          <p className="font-medium leading-tight">{title}</p>
+          <p className="font-medium leading-tight break-words min-w-0">{title}</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -87,7 +89,7 @@ export function KanbanCard({
             {onArchive && (
               <DropdownMenuItem onClick={onArchive}>
                 <Archive className="mr-2 size-3.5" />
-                Archive
+                {archiveLabel}
               </DropdownMenuItem>
             )}
             {onDelete && (
@@ -100,7 +102,7 @@ export function KanbanCard({
         </DropdownMenu>
       </div>
       {description && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground break-words">
           {description}
         </p>
       )}

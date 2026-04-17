@@ -33,13 +33,14 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createTask, updateTask } from "./actions"
 import type { OwnerOption } from "./tasks-board"
 import type { Task } from "@/lib/types"
+import { TaskComments } from "./task-comments"
+import { Separator } from "@/components/ui/separator"
 
 type ClientWithListings = {
   id: string
@@ -55,6 +56,7 @@ type TaskDialogProps = {
   owners: OwnerOption[]
   tags: string[]
   task?: Task | null
+  currentUserId?: string | null
 }
 
 export function TaskDialog({
@@ -65,6 +67,7 @@ export function TaskDialog({
   owners,
   tags,
   task,
+  currentUserId,
 }: TaskDialogProps) {
   const isEdit = !!task
   const [loading, setLoading] = useState(false)
@@ -195,7 +198,7 @@ export function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Task" : "New Task"}</DialogTitle>
         </DialogHeader>
@@ -270,7 +273,7 @@ export function TaskDialog({
                     : "Select all"}
                 </button>
               </div>
-              <ScrollArea className="max-h-36 rounded-md border p-2">
+              <div className="max-h-36 overflow-y-auto rounded-md border p-2">
                 <div className="space-y-1.5">
                   {clientListings.map((listing) => (
                     <label
@@ -285,7 +288,7 @@ export function TaskDialog({
                     </label>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
 
@@ -419,6 +422,13 @@ export function TaskDialog({
             {loading ? (isEdit ? "Saving..." : "Creating...") : (isEdit ? "Save Changes" : "Create Task")}
           </Button>
         </form>
+
+        {isEdit && task && (
+          <>
+            <Separator className="my-4" />
+            <TaskComments taskId={task.id} currentUserId={currentUserId ?? null} />
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )
