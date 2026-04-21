@@ -64,7 +64,7 @@ export type Client = {
   assembly_link: string | null
   assembly_client_id: string | null
   assembly_company_id: string | null
-  dashboard_token: string | null
+  dashboard_token?: string | null
   listings: Listing[]
   tasks: ClientTask[]
 }
