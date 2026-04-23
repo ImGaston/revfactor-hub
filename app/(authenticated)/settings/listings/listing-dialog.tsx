@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createListingAction, updateListingAction } from "./actions"
+import { createListingAction, getClientOptionsAction, updateListingAction } from "./actions"
 
 type ListingFormData = {
   id?: string
@@ -85,18 +85,28 @@ export function ListingDialog({
   open,
   onOpenChange,
   listing,
-  clients,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   listing?: ListingFormData
-  clients: ClientOption[]
 }) {
   const isEdit = !!listing?.id
   const [form, setForm] = useState<ListingFormData>(listing ?? EMPTY)
   const [airbnbId, setAirbnbId] = useState(airbnbIdFromLink(listing?.airbnb_link ?? null))
   const [pricelabsId, setPricelabsId] = useState(pricelabsIdFromListing(listing))
   const [saving, setSaving] = useState(false)
+  const [clients, setClients] = useState<ClientOption[] | null>(null)
+
+  useEffect(() => {
+    if (!open || clients) return
+    let cancelled = false
+    getClientOptionsAction().then((data) => {
+      if (!cancelled) setClients(data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, clients])
 
   function set<K extends keyof ListingFormData>(key: K, value: ListingFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -160,12 +170,18 @@ export function ListingDialog({
 
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="listing-client">Client *</Label>
-              <Select value={form.client_id} onValueChange={(v) => set("client_id", v)}>
+              <Select
+                value={form.client_id}
+                onValueChange={(v) => set("client_id", v)}
+                disabled={clients === null}
+              >
                 <SelectTrigger id="listing-client">
-                  <SelectValue placeholder="Select client" />
+                  <SelectValue
+                    placeholder={clients === null ? "Loading clients..." : "Select client"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {clients.map((c) => (
+                  {(clients ?? []).map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
                     </SelectItem>

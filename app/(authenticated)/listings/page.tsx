@@ -5,18 +5,16 @@ import { ListingsView } from "./listings-view"
 export default async function ListingsPage() {
   const supabase = await createClient()
 
-  const [{ data: listings }, { data: clients }, canEdit, canDelete] =
-    await Promise.all([
-      supabase
-        .from("listings")
-        .select(
-          "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name, status)"
-        )
-        .order("name"),
-      supabase.from("clients").select("id, name").order("name"),
-      hasPermission("listings", "edit"),
-      hasPermission("listings", "delete"),
-    ])
+  const [{ data: listings }, canEdit, canDelete] = await Promise.all([
+    supabase
+      .from("listings")
+      .select(
+        "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name, status)"
+      )
+      .order("name"),
+    hasPermission("listings", "edit"),
+    hasPermission("listings", "delete"),
+  ])
 
   const flatListings = (listings ?? []).map((l: Record<string, unknown>) => {
     const client = l.clients as {
@@ -41,7 +39,6 @@ export default async function ListingsPage() {
   return (
     <ListingsView
       listings={flatListings}
-      clients={clients ?? []}
       canEdit={canEdit}
       canDelete={canDelete}
     />

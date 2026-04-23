@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { updateClientEmailAction } from "@/app/(authenticated)/settings/clients/actions"
 import { cn } from "@/lib/utils"
-import type { Client } from "@/lib/types"
+import type { ClientListItem } from "@/lib/types"
 
 const statusColor: Record<string, string> = {
   active: "bg-green-500/10 text-green-700 border-green-300 dark:text-green-400 dark:border-green-700",
@@ -34,7 +34,7 @@ export function ClientsTable({
   clients,
   isSuperAdmin,
 }: {
-  clients: Client[]
+  clients: ClientListItem[]
   isSuperAdmin: boolean
 }) {
   const [sortField, setSortField] = useState<SortField>("name")

@@ -13,16 +13,10 @@ export default async function SettingsListingsPage() {
 
   const supabase = await createClient()
 
-  const [{ data: listings }, { data: clients }] = await Promise.all([
-    supabase
-      .from("listings")
-      .select("id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name)")
-      .order("name"),
-    supabase
-      .from("clients")
-      .select("id, name")
-      .order("name"),
-  ])
+  const { data: listings } = await supabase
+    .from("listings")
+    .select("id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name)")
+    .order("name")
 
   const flatListings = (listings ?? []).map((l: Record<string, unknown>) => {
     const client = l.clients as { id: string; name: string } | null
@@ -40,10 +34,5 @@ export default async function SettingsListingsPage() {
     }
   })
 
-  return (
-    <ListingsSettings
-      listings={flatListings}
-      clients={clients ?? []}
-    />
-  )
+  return <ListingsSettings listings={flatListings} />
 }

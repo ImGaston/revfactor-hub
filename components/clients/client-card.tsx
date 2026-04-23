@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import type { Client } from "@/lib/types"
+import type { ClientListItem } from "@/lib/types"
 
 const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
@@ -15,7 +15,7 @@ export function ClientCard({
   client,
   isSuperAdmin: _isSuperAdmin,
 }: {
-  client: Client
+  client: ClientListItem
   isSuperAdmin: boolean
 }) {
   return (

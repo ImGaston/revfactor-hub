@@ -91,8 +91,6 @@ type ListingFormData = {
   state: string | null
 }
 
-type ClientOption = { id: string; name: string }
-
 type SortField = "name" | "client_name" | "city" | "state"
 type SortDir = "asc" | "desc"
 type StatusFilter = "active_onboarding" | "all" | "active" | "onboarding" | "inactive"
@@ -107,12 +105,10 @@ const clientStatusColor: Record<string, string> = {
 
 export function ListingsView({
   listings,
-  clients: allClients,
   canEdit,
   canDelete,
 }: {
   listings: FlatListing[]
-  clients: ClientOption[]
   canEdit: boolean
   canDelete: boolean
 }) {
@@ -570,7 +566,6 @@ export function ListingsView({
             if (!open) setEditingListing(null)
           }}
           listing={editingListing ?? undefined}
-          clients={allClients}
         />
       )}
 

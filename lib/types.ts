@@ -69,6 +69,21 @@ export type Client = {
   tasks: ClientTask[]
 }
 
+// Narrower shape for the /clients list view — only the fields the table/cards consume.
+// Keeps the list query lean vs. the full `Client` shape used in detail pages.
+export type ClientListItem = {
+  id: string
+  name: string
+  status: string
+  email: string | null
+  billing_amount: number | null
+  onboarding_date: string | null
+  ending_date: string | null
+  assembly_client_id: string | null
+  listings: { id: string; status: string }[]
+  tasks: { id: string; status: string }[]
+}
+
 export type Task = {
   id: string
   title: string
