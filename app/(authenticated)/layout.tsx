@@ -1,3 +1,4 @@
+import { cookies } from "next/headers"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AppSidebar } from "@/components/layout/app-sidebar"
@@ -12,16 +13,19 @@ export default async function AuthenticatedLayout({
 }: {
   children: React.ReactNode
 }) {
-  const profile = await getProfile()
+  const [profile, cookieStore] = await Promise.all([getProfile(), cookies()])
 
   const permissions = profile ? await getRolePermissions(profile.role) : []
   const permissionMap =
     profile?.role === "super_admin" ? {} : buildPermissionMap(permissions)
 
+  const sidebarCookie = cookieStore.get("sidebar_state")?.value
+  const defaultOpen = sidebarCookie !== "false"
+
   return (
     <TooltipProvider>
       <BreadcrumbProvider>
-        <SidebarProvider>
+        <SidebarProvider defaultOpen={defaultOpen}>
           <AppSidebar profile={profile} />
           <SidebarInset>
             <TopBar profile={profile} permissionMap={permissionMap} />

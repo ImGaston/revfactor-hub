@@ -26,9 +26,10 @@ export type StripeSubscriptionSummary = {
   customerName: string | null
   customerId: string
   planName: string | null
-  amount: number // in dollars
+  amount: number // total recurring amount in dollars, summed across all items × quantity
   currency: string
   interval: string | null
+  itemCount: number
   currentPeriodStart: number
   currentPeriodEnd: number
   cancelAtPeriodEnd: boolean
@@ -88,6 +89,41 @@ function mapInvoice(inv: Stripe.Invoice): StripeInvoiceSummary {
 
 // --- Subscriptions ---
 
+function summarizeSubscription(sub: Stripe.Subscription): StripeSubscriptionSummary {
+  const customer = sub.customer as Stripe.Customer
+  const items = sub.items.data
+  const firstItem = items[0]
+  const totalCents = items.reduce(
+    (acc, i) => acc + (i.price?.unit_amount ?? 0) * (i.quantity ?? 1),
+    0,
+  )
+  const firstQty = firstItem?.quantity ?? 1
+  const firstLabel = firstItem?.price?.nickname ?? firstItem?.price?.product?.toString() ?? null
+  const planName =
+    items.length > 1
+      ? `${items.length} items`
+      : firstQty > 1 && firstLabel
+        ? `${firstLabel} × ${firstQty}`
+        : firstLabel
+
+  return {
+    id: sub.id,
+    status: sub.status,
+    customerEmail: customer?.email ?? null,
+    customerName: customer?.name ?? null,
+    customerId: customer?.id ?? (typeof sub.customer === "string" ? sub.customer : ""),
+    planName,
+    amount: centsToDollars(totalCents),
+    currency: firstItem?.price?.currency ?? "usd",
+    interval: firstItem?.price?.recurring?.interval ?? null,
+    itemCount: items.length,
+    currentPeriodStart: firstItem?.current_period_start ?? sub.created,
+    currentPeriodEnd: firstItem?.current_period_end ?? sub.created,
+    cancelAtPeriodEnd: sub.cancel_at_period_end,
+    created: sub.created,
+  }
+}
+
 export async function listSubscriptions(): Promise<StripeSubscriptionSummary[]> {
   const stripe = getStripeClient()
   const subs: StripeSubscriptionSummary[] = []
@@ -96,26 +132,29 @@ export async function listSubscriptions(): Promise<StripeSubscriptionSummary[]> 
     expand: ["data.customer"],
     limit: 100,
   })) {
-    const customer = sub.customer as Stripe.Customer
-    const item = sub.items.data[0]
-    subs.push({
-      id: sub.id,
-      status: sub.status,
-      customerEmail: customer?.email ?? null,
-      customerName: customer?.name ?? null,
-      customerId: customer?.id ?? (typeof sub.customer === "string" ? sub.customer : ""),
-      planName: item?.price?.nickname ?? item?.price?.product?.toString() ?? null,
-      amount: centsToDollars(item?.price?.unit_amount ?? 0),
-      currency: item?.price?.currency ?? "usd",
-      interval: item?.price?.recurring?.interval ?? null,
-      currentPeriodStart: item?.current_period_start ?? sub.created,
-      currentPeriodEnd: item?.current_period_end ?? sub.created,
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-      created: sub.created,
-    })
+    subs.push(summarizeSubscription(sub))
   }
 
   return subs
+}
+
+export async function getSubscription(id: string): Promise<StripeSubscriptionSummary | null> {
+  const stripe = getStripeClient()
+  try {
+    const sub = await stripe.subscriptions.retrieve(id, { expand: ["customer"] })
+    return summarizeSubscription(sub)
+  } catch {
+    return null
+  }
+}
+
+export async function listInvoicesBySubscription(
+  subscriptionId: string,
+  limit: number = 4,
+): Promise<StripeInvoiceSummary[]> {
+  const stripe = getStripeClient()
+  const result = await stripe.invoices.list({ subscription: subscriptionId, limit })
+  return result.data.map(mapInvoice)
 }
 
 // --- Customers ---

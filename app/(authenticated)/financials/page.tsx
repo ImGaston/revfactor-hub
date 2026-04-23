@@ -3,13 +3,52 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
 import {
   isStripeConfigured,
-  listSubscriptions,
   getMonthlyRevenue,
   getRevenueOnTheBooks,
   getRevenueHistory,
 } from "@/lib/stripe"
 import { FinancialsView } from "./financials-view"
 import type { StripeSubscriptionSummary, StripeRevenueSummary } from "@/lib/stripe"
+
+type StripeSubscriptionRow = {
+  id: string
+  status: string
+  customer_id: string
+  customer_email: string | null
+  customer_name: string | null
+  plan_name: string | null
+  amount: number | string
+  currency: string
+  interval: string | null
+  item_count: number
+  current_period_start: string | null
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  created: string
+}
+
+function rowToSubscription(r: StripeSubscriptionRow): StripeSubscriptionSummary {
+  return {
+    id: r.id,
+    status: r.status,
+    customerEmail: r.customer_email,
+    customerName: r.customer_name,
+    customerId: r.customer_id,
+    planName: r.plan_name,
+    amount: Number(r.amount),
+    currency: r.currency,
+    interval: r.interval,
+    itemCount: r.item_count,
+    currentPeriodStart: r.current_period_start
+      ? Math.floor(new Date(r.current_period_start).getTime() / 1000)
+      : Math.floor(new Date(r.created).getTime() / 1000),
+    currentPeriodEnd: r.current_period_end
+      ? Math.floor(new Date(r.current_period_end).getTime() / 1000)
+      : Math.floor(new Date(r.created).getTime() / 1000),
+    cancelAtPeriodEnd: r.cancel_at_period_end,
+    created: Math.floor(new Date(r.created).getTime() / 1000),
+  }
+}
 
 export default async function FinancialsPage() {
   const profile = await getProfile()
@@ -32,7 +71,8 @@ export default async function FinancialsPage() {
     clientsResult,
     listingsResult,
     recurringResult,
-    stripeData,
+    mirrorSubsResult,
+    stripeAggregates,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -55,17 +95,25 @@ export default async function FinancialsPage() {
       .from("recurring_expenses")
       .select("*, expense_categories(id, name, type)")
       .order("description"),
+    supabase
+      .from("stripe_subscriptions")
+      .select(
+        "id, status, customer_id, customer_email, customer_name, plan_name, amount, currency, interval, item_count, current_period_start, current_period_end, cancel_at_period_end, created",
+      )
+      .order("created", { ascending: false }),
     stripeConfigured
       ? Promise.all([
-          listSubscriptions().catch(() => [] as StripeSubscriptionSummary[]),
           getMonthlyRevenue(currentYear, currentMonth).catch(() => ({ totalRevenue: 0, invoiceCount: 0, invoices: [] }) as StripeRevenueSummary),
           getRevenueOnTheBooks().catch(() => ({ total: 0, invoices: [] })),
           getRevenueHistory(6).catch(() => []),
         ])
-      : Promise.resolve([[], { totalRevenue: 0, invoiceCount: 0, invoices: [] }, { total: 0, invoices: [] }, []] as const),
+      : Promise.resolve([{ totalRevenue: 0, invoiceCount: 0, invoices: [] }, { total: 0, invoices: [] }, []] as const),
   ])
 
-  const [subscriptions, monthlyRevenue, revenueOnBooks, revenueHistory] = stripeData
+  const subscriptions = (mirrorSubsResult.data ?? []).map((r) =>
+    rowToSubscription(r as StripeSubscriptionRow),
+  )
+  const [monthlyRevenue, revenueOnBooks, revenueHistory] = stripeAggregates
 
   return (
     <FinancialsView

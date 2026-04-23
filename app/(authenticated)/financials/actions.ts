@@ -1,8 +1,11 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
 import { isStripeConfigured, listCustomers, searchCustomerByEmail } from "@/lib/stripe"
+import { syncStripeData } from "@/lib/stripe-sync"
+import { getProfile } from "@/lib/supabase/profile"
 
 // ─── Expenses ───────────────────────────────────────────
 
@@ -394,4 +397,29 @@ export async function generateMonthExpenses(yearMonth: string) {
 
   revalidatePath("/financials")
   return { error: null, generated, skipped }
+}
+
+// ─── Stripe mirror sync ─────────────────────────────────
+
+export async function syncStripeNow() {
+  if (!isStripeConfigured()) return { error: "Stripe not configured" }
+  const profile = await getProfile()
+  if (profile?.role !== "super_admin") return { error: "Unauthorized" }
+
+  try {
+    const admin = createAdminClient()
+    const result = await syncStripeData(admin)
+    revalidatePath("/financials")
+    return {
+      error: null,
+      subscriptions: result.subscriptions.upserted,
+      invoices: result.invoices.upserted,
+      warnings: [
+        ...result.subscriptions.errors.map((e) => `subs: ${e}`),
+        ...result.invoices.errors.map((e) => `invoices: ${e}`),
+      ],
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Unknown error" }
+  }
 }

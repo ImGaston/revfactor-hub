@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Search, Link2, Link2Off, Zap, Building2 } from "lucide-react"
+import Link from "next/link"
+import { Search, Link2, Link2Off, Zap, Building2, Eye, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,7 @@ import {
 import type { StripeSubscriptionSummary } from "@/lib/stripe"
 import { LinkStripeDialog } from "./link-stripe-dialog"
 import { LinkSubscriptionDialog } from "./link-subscription-dialog"
-import { unlinkStripeCustomer, autoLinkStripeCustomers } from "./actions"
+import { unlinkStripeCustomer, autoLinkStripeCustomers, syncStripeNow } from "./actions"
 
 type ClientRef = { id: string; name: string; email: string | null; stripe_customer_id: string | null }
 type ListingRef = { id: string; name: string; client_id: string; stripe_subscription_id: string | null; clients: { id: string; name: string } | null }
@@ -61,6 +62,7 @@ export function SubscriptionsTable({
   const [linkingCustomer, setLinkingCustomer] = useState<{ id: string; email: string | null; name: string | null } | null>(null)
   const [linkingSubscription, setLinkingSubscription] = useState<{ subscriptionId: string; customerId: string; planName: string | null } | null>(null)
   const [autoLinking, setAutoLinking] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   // Build maps
   const stripeToClient = new Map<string, ClientRef>()
@@ -97,6 +99,19 @@ export function SubscriptionsTable({
       toast.error(result.error)
     } else {
       toast.success("Client unlinked from Stripe")
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true)
+    const result = await syncStripeNow()
+    setSyncing(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(
+        `Synced ${result.subscriptions} subscriptions and ${result.invoices} invoices`,
+      )
     }
   }
 
@@ -156,6 +171,15 @@ export function SubscriptionsTable({
           <Zap className="mr-1.5 size-3.5" />
           {autoLinking ? "Linking..." : "Auto-link by email"}
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSync}
+          disabled={syncing}
+        >
+          <RefreshCw className={`mr-1.5 size-3.5 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Syncing..." : "Sync from Stripe"}
+        </Button>
       </div>
 
       {/* Table */}
@@ -171,7 +195,7 @@ export function SubscriptionsTable({
               <TableHead>Period</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Listings</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead className="w-[120px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -262,17 +286,30 @@ export function SubscriptionsTable({
                     </TableCell>
                     {/* Actions */}
                     <TableCell>
-                      {linkedClient && (
+                      <div className="flex items-center gap-1">
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7"
-                          onClick={() => handleUnlink(linkedClient.id)}
-                          title="Unlink client"
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
                         >
-                          <Link2Off className="size-3.5 text-muted-foreground" />
+                          <Link href={`/financials/subscriptions/${sub.id}`}>
+                            <Eye className="mr-1 size-3.5" />
+                            View
+                          </Link>
                         </Button>
-                      )}
+                        {linkedClient && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-7"
+                            onClick={() => handleUnlink(linkedClient.id)}
+                            title="Unlink client"
+                          >
+                            <Link2Off className="size-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
