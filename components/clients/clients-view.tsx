@@ -5,7 +5,7 @@ import { Search, LayoutGrid, Table as TableIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ClientCard } from "./client-card"
 import { ClientsTable } from "./clients-table"
-import type { Client } from "@/lib/types"
+import type { ClientListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const statuses = ["active", "onboarding", "inactive"] as const
@@ -14,7 +14,7 @@ export function ClientsView({
   clients,
   isSuperAdmin,
 }: {
-  clients: Client[]
+  clients: ClientListItem[]
   isSuperAdmin: boolean
 }) {
   const [search, setSearch] = useState("")

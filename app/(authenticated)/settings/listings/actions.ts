@@ -20,6 +20,17 @@ type ListingInput = {
   state: string | null
 }
 
+export async function getClientOptionsAction(): Promise<
+  { id: string; name: string }[]
+> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("clients")
+    .select("id, name")
+    .order("name")
+  return data ?? []
+}
+
 export async function createListingAction(input: ListingInput) {
   const supabase = await createClient()
   const { error } = await supabase.from("listings").insert(input)

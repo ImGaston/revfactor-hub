@@ -49,14 +49,10 @@ type SettingsListing = {
 
 type StatusFilter = "all" | "active" | "inactive"
 
-type ClientOption = { id: string; name: string }
-
 export function ListingsSettings({
   listings,
-  clients,
 }: {
   listings: SettingsListing[]
-  clients: ClientOption[]
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active")
@@ -404,7 +400,6 @@ export function ListingsSettings({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         listing={editing}
-        clients={clients}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
