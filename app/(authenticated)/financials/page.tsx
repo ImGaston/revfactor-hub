@@ -72,6 +72,7 @@ export default async function FinancialsPage() {
     listingsResult,
     recurringResult,
     mirrorSubsResult,
+    clientStripeCustomersResult,
     stripeAggregates,
   ] = await Promise.all([
     supabase
@@ -101,6 +102,9 @@ export default async function FinancialsPage() {
         "id, status, customer_id, customer_email, customer_name, plan_name, amount, currency, interval, item_count, current_period_start, current_period_end, cancel_at_period_end, created",
       )
       .order("created", { ascending: false }),
+    supabase
+      .from("client_stripe_customers")
+      .select("client_id, stripe_customer_id"),
     stripeConfigured
       ? Promise.all([
           getMonthlyRevenue(currentYear, currentMonth).catch(() => ({ totalRevenue: 0, invoiceCount: 0, invoices: [] }) as StripeRevenueSummary),
@@ -125,6 +129,7 @@ export default async function FinancialsPage() {
       expenses={expensesResult.data ?? []}
       categories={categoriesResult.data ?? []}
       clients={clientsResult.data ?? []}
+      clientStripeCustomers={(clientStripeCustomersResult.data ?? []) as { client_id: string; stripe_customer_id: string }[]}
       listings={
         (listingsResult.data ?? []).map((l) => ({
           id: l.id as string,

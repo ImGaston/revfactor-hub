@@ -49,11 +49,13 @@ const statusColors: Record<string, string> = {
 export function SubscriptionsTable({
   subscriptions,
   clients,
+  clientStripeCustomers,
   listings,
   stripeConfigured,
 }: {
   subscriptions: StripeSubscriptionSummary[]
   clients: ClientRef[]
+  clientStripeCustomers: { client_id: string; stripe_customer_id: string }[]
   listings: ListingRef[]
   stripeConfigured: boolean
 }) {
@@ -64,10 +66,14 @@ export function SubscriptionsTable({
   const [autoLinking, setAutoLinking] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
-  // Build maps
+  // Build lookup: Stripe customer ID → Hub client. Source of truth is the
+  // client_stripe_customers junction (a client may own multiple Stripe customers).
+  const clientsById = new Map<string, ClientRef>()
+  for (const c of clients) clientsById.set(c.id, c)
   const stripeToClient = new Map<string, ClientRef>()
-  for (const c of clients) {
-    if (c.stripe_customer_id) stripeToClient.set(c.stripe_customer_id, c)
+  for (const row of clientStripeCustomers) {
+    const client = clientsById.get(row.client_id)
+    if (client) stripeToClient.set(row.stripe_customer_id, client)
   }
 
   // Build subscription → listings map
@@ -93,12 +99,12 @@ export function SubscriptionsTable({
     return true
   })
 
-  async function handleUnlink(clientId: string) {
-    const result = await unlinkStripeCustomer(clientId)
+  async function handleUnlink(clientId: string, stripeCustomerId: string) {
+    const result = await unlinkStripeCustomer(clientId, stripeCustomerId)
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success("Client unlinked from Stripe")
+      toast.success("Stripe customer unlinked from client")
     }
   }
 
@@ -303,7 +309,7 @@ export function SubscriptionsTable({
                             variant="ghost"
                             size="icon"
                             className="size-7"
-                            onClick={() => handleUnlink(linkedClient.id)}
+                            onClick={() => handleUnlink(linkedClient.id, sub.customerId)}
                             title="Unlink client"
                           >
                             <Link2Off className="size-3.5 text-muted-foreground" />
@@ -327,7 +333,7 @@ export function SubscriptionsTable({
           stripeCustomerId={linkingCustomer.id}
           stripeCustomerEmail={linkingCustomer.email}
           stripeCustomerName={linkingCustomer.name}
-          clients={clients.filter((c) => !c.stripe_customer_id)}
+          clients={clients}
         />
       )}
 

@@ -191,6 +191,20 @@ export async function searchCustomerByEmail(email: string): Promise<StripeCustom
   }
 }
 
+export async function searchCustomersByEmail(email: string): Promise<StripeCustomerSummary[]> {
+  const stripe = getStripeClient()
+  const result = await stripe.customers.search({
+    query: `email:'${email}'`,
+    limit: 100,
+  })
+  return result.data.map((c) => ({
+    id: c.id,
+    email: c.email ?? null,
+    name: c.name ?? null,
+    created: c.created,
+  }))
+}
+
 // --- Revenue ---
 
 export async function getMonthlyRevenue(year: number, month: number): Promise<StripeRevenueSummary> {

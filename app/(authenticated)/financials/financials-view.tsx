@@ -49,6 +49,7 @@ export function FinancialsView({
   expenses,
   categories,
   clients,
+  clientStripeCustomers,
   listings,
   recurring,
 }: {
@@ -60,6 +61,7 @@ export function FinancialsView({
   expenses: Expense[]
   categories: ExpenseCategory[]
   clients: ClientRef[]
+  clientStripeCustomers: { client_id: string; stripe_customer_id: string }[]
   listings: ListingRef[]
   recurring: RecurringExpense[]
 }) {
@@ -285,6 +287,7 @@ export function FinancialsView({
           <SubscriptionsTable
             subscriptions={subscriptions}
             clients={clients}
+            clientStripeCustomers={clientStripeCustomers}
             listings={listings}
             stripeConfigured={stripeConfigured}
           />

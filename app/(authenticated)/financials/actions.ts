@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { revalidatePath } from "next/cache"
-import { isStripeConfigured, listCustomers, searchCustomerByEmail } from "@/lib/stripe"
+import { isStripeConfigured, listCustomers, searchCustomersByEmail } from "@/lib/stripe"
 import { syncStripeData } from "@/lib/stripe-sync"
 import { getProfile } from "@/lib/supabase/profile"
 
@@ -122,29 +122,85 @@ export async function deleteExpenseCategory(id: string) {
 }
 
 // ─── Stripe Customer Linking ────────────────────────────
+//
+// Source of truth: `client_stripe_customers` junction (N Stripe customers → 1 Hub client).
+// `clients.stripe_customer_id` is kept as a "primary" convenience pointer, set to the
+// first linked customer and not automatically rebalanced afterwards.
 
 export async function linkStripeCustomer(clientId: string, stripeCustomerId: string) {
   const supabase = await createClient()
-  const { error } = await supabase
-    .from("clients")
-    .update({ stripe_customer_id: stripeCustomerId })
-    .eq("id", clientId)
 
-  if (error) return { error: error.message }
+  const { error: junctionError } = await supabase
+    .from("client_stripe_customers")
+    .upsert({ client_id: clientId, stripe_customer_id: stripeCustomerId })
+  if (junctionError) return { error: junctionError.message }
+
+  // Set primary if the client doesn't have one yet.
+  const { data: client } = await supabase
+    .from("clients")
+    .select("stripe_customer_id")
+    .eq("id", clientId)
+    .single()
+
+  if (!client?.stripe_customer_id) {
+    const { error: primaryError } = await supabase
+      .from("clients")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", clientId)
+    if (primaryError) return { error: primaryError.message }
+  }
 
   revalidatePath("/financials")
   revalidatePath("/clients")
   return { error: null }
 }
 
-export async function unlinkStripeCustomer(clientId: string) {
+export async function unlinkStripeCustomer(clientId: string, stripeCustomerId?: string) {
   const supabase = await createClient()
-  const { error } = await supabase
-    .from("clients")
-    .update({ stripe_customer_id: null })
-    .eq("id", clientId)
 
-  if (error) return { error: error.message }
+  if (stripeCustomerId) {
+    // Unlink just this one customer
+    const { error: delError } = await supabase
+      .from("client_stripe_customers")
+      .delete()
+      .eq("client_id", clientId)
+      .eq("stripe_customer_id", stripeCustomerId)
+    if (delError) return { error: delError.message }
+
+    // If this was the primary, promote another linked customer (or clear)
+    const { data: client } = await supabase
+      .from("clients")
+      .select("stripe_customer_id")
+      .eq("id", clientId)
+      .single()
+
+    if (client?.stripe_customer_id === stripeCustomerId) {
+      const { data: remaining } = await supabase
+        .from("client_stripe_customers")
+        .select("stripe_customer_id")
+        .eq("client_id", clientId)
+        .limit(1)
+        .maybeSingle()
+
+      await supabase
+        .from("clients")
+        .update({ stripe_customer_id: remaining?.stripe_customer_id ?? null })
+        .eq("id", clientId)
+    }
+  } else {
+    // Unlink everything for this client
+    const { error: delError } = await supabase
+      .from("client_stripe_customers")
+      .delete()
+      .eq("client_id", clientId)
+    if (delError) return { error: delError.message }
+
+    const { error: primaryError } = await supabase
+      .from("clients")
+      .update({ stripe_customer_id: null })
+      .eq("id", clientId)
+    if (primaryError) return { error: primaryError.message }
+  }
 
   revalidatePath("/financials")
   revalidatePath("/clients")
@@ -156,28 +212,50 @@ export async function autoLinkStripeCustomers() {
 
   const supabase = await createClient()
 
-  // Get all clients with email that don't have a stripe_customer_id yet
+  // All clients with an email — we may find NEW Stripe customers even for clients
+  // that already have a primary, because the old 1:1 auto-link only linked one.
   const { data: clients, error: clientsError } = await supabase
     .from("clients")
     .select("id, email, stripe_customer_id")
     .not("email", "is", null)
-    .is("stripe_customer_id", null)
 
   if (clientsError) return { error: clientsError.message, linked: 0 }
   if (!clients || clients.length === 0) return { error: null, linked: 0 }
+
+  // Pull what's already in the junction so we don't re-insert
+  const { data: existing } = await supabase
+    .from("client_stripe_customers")
+    .select("stripe_customer_id")
+  const alreadyLinked = new Set((existing ?? []).map((r) => r.stripe_customer_id))
 
   let linked = 0
 
   for (const client of clients) {
     if (!client.email) continue
     try {
-      const stripeCustomer = await searchCustomerByEmail(client.email)
-      if (stripeCustomer) {
-        const { error } = await supabase
+      const matches = await searchCustomersByEmail(client.email)
+      if (matches.length === 0) continue
+
+      const toInsert = matches
+        .filter((m) => !alreadyLinked.has(m.id))
+        .map((m) => ({ client_id: client.id, stripe_customer_id: m.id }))
+
+      if (toInsert.length > 0) {
+        const { error: junctionError } = await supabase
+          .from("client_stripe_customers")
+          .upsert(toInsert)
+        if (!junctionError) {
+          linked += toInsert.length
+          for (const row of toInsert) alreadyLinked.add(row.stripe_customer_id)
+        }
+      }
+
+      // Set primary if missing
+      if (!client.stripe_customer_id && matches[0]) {
+        await supabase
           .from("clients")
-          .update({ stripe_customer_id: stripeCustomer.id })
+          .update({ stripe_customer_id: matches[0].id })
           .eq("id", client.id)
-        if (!error) linked++
       }
     } catch {
       // Skip failed lookups, continue with others
