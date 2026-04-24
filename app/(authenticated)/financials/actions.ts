@@ -545,7 +545,6 @@ export async function createClientFromStripeCustomer(input: {
     .insert({
       name: input.name.trim(),
       email: input.email.trim(),
-      phone: input.phone ?? null,
       status: "onboarding",
       stripe_customer_id: input.stripeCustomerId,
       assembly_client_id: assemblyClientId,
