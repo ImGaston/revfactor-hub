@@ -7,6 +7,7 @@ import {
   getRevenueOnTheBooks,
   getRevenueHistory,
 } from "@/lib/stripe"
+import { isAssemblyConfigured } from "@/lib/assembly"
 import { FinancialsView } from "./financials-view"
 import type { StripeSubscriptionSummary, StripeRevenueSummary } from "@/lib/stripe"
 
@@ -140,6 +141,7 @@ export default async function FinancialsPage() {
         }))
       }
       recurring={recurringResult.data ?? []}
+      assemblyConfigured={isAssemblyConfigured()}
     />
   )
 }

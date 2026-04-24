@@ -24,6 +24,7 @@ import type { Expense, ExpenseCategory, RecurringExpense } from "@/lib/types"
 import { SubscriptionsTable } from "./subscriptions-table"
 import { ExpensesTable } from "./expenses-table"
 import { RecurringExpensesTable } from "./recurring-expenses-table"
+import { NewSubscriptionsSection } from "./new-subscriptions-section"
 
 type ClientRef = { id: string; name: string; email: string | null; stripe_customer_id: string | null }
 type ListingRef = { id: string; name: string; client_id: string; stripe_subscription_id: string | null; clients: { id: string; name: string } | null }
@@ -52,6 +53,7 @@ export function FinancialsView({
   clientStripeCustomers,
   listings,
   recurring,
+  assemblyConfigured,
 }: {
   stripeConfigured: boolean
   subscriptions: StripeSubscriptionSummary[]
@@ -64,6 +66,7 @@ export function FinancialsView({
   clientStripeCustomers: { client_id: string; stripe_customer_id: string }[]
   listings: ListingRef[]
   recurring: RecurringExpense[]
+  assemblyConfigured: boolean
 }) {
   const now = new Date()
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
@@ -129,6 +132,15 @@ export function FinancialsView({
 
         {/* ─── Overview ─── */}
         <TabsContent value="overview" className="space-y-4">
+          {/* Pending action: subs without Hub client or without listings */}
+          <NewSubscriptionsSection
+            subscriptions={subscriptions}
+            clients={clients}
+            clientStripeCustomers={clientStripeCustomers}
+            listings={listings}
+            assemblyConfigured={assemblyConfigured}
+          />
+
           {/* KPI Cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <KpiCard

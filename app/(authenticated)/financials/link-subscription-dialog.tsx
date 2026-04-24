@@ -28,6 +28,7 @@ export function LinkSubscriptionDialog({
   planName,
   listings,
   clients,
+  clientStripeCustomers,
   currentListingIds,
 }: {
   open: boolean
@@ -37,17 +38,30 @@ export function LinkSubscriptionDialog({
   planName: string | null
   listings: ListingRef[]
   clients: ClientRef[]
+  clientStripeCustomers: { client_id: string; stripe_customer_id: string }[]
   currentListingIds: string[]
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentListingIds))
   const [search, setSearch] = useState("")
+  const [showAll, setShowAll] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Find the linked client for this customer
-  const linkedClient = clients.find((c) => c.stripe_customer_id === customerId)
+  // Resolve the Hub client for this Stripe customer via the junction table.
+  const linkedClientId = clientStripeCustomers.find(
+    (r) => r.stripe_customer_id === customerId,
+  )?.client_id
+  const linkedClient = linkedClientId
+    ? clients.find((c) => c.id === linkedClientId) ?? null
+    : null
 
-  // Sort listings: client's listings first, then others. Filter by search.
-  const filteredListings = listings
+  // When a client is linked, restrict the picker to that client's listings (UX
+  // requirement). User can opt-in to "show all" if they need to override.
+  const baseListings =
+    linkedClient && !showAll
+      ? listings.filter((l) => l.client_id === linkedClient.id)
+      : listings
+
+  const filteredListings = baseListings
     .filter((l) => {
       if (!search) return true
       const q = search.toLowerCase()
@@ -57,7 +71,7 @@ export function LinkSubscriptionDialog({
       )
     })
     .sort((a, b) => {
-      // Client's listings first
+      // Client's listings first when "show all" is on, then alphabetical.
       const aIsClient = linkedClient && a.client_id === linkedClient.id ? 0 : 1
       const bIsClient = linkedClient && b.client_id === linkedClient.id ? 0 : 1
       if (aIsClient !== bIsClient) return aIsClient - bIsClient
@@ -108,13 +122,29 @@ export function LinkSubscriptionDialog({
             )}
           </div>
 
-          {/* Search */}
-          <Input
-            placeholder="Search listings..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-8 text-sm"
-          />
+          {/* Search + show-all toggle (only when client is linked) */}
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="Search listings..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-8 text-sm flex-1"
+            />
+            {linkedClient && (
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+                <Checkbox
+                  checked={showAll}
+                  onCheckedChange={(v) => setShowAll(v === true)}
+                />
+                Show all listings
+              </label>
+            )}
+          </div>
+          {linkedClient && !showAll && (
+            <p className="text-xs text-muted-foreground">
+              Showing only listings of <span className="font-medium">{linkedClient.name}</span>.
+            </p>
+          )}
 
           {/* Listing checkboxes */}
           <ScrollArea className="h-[280px] rounded-md border p-2">

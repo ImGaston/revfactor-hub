@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache"
 import { isStripeConfigured, listCustomers, searchCustomersByEmail } from "@/lib/stripe"
 import { syncStripeData } from "@/lib/stripe-sync"
 import { getProfile } from "@/lib/supabase/profile"
+import {
+  isAssemblyConfigured,
+  findOrCreateAssemblyClient,
+  assemblyClientMessagesUrl,
+} from "@/lib/assembly"
 
 // ─── Expenses ───────────────────────────────────────────
 
@@ -475,6 +480,102 @@ export async function generateMonthExpenses(yearMonth: string) {
 
   revalidatePath("/financials")
   return { error: null, generated, skipped }
+}
+
+// ─── Create Hub client (+ optionally Assembly) from a Stripe customer ─
+
+export async function createClientFromStripeCustomer(input: {
+  stripeCustomerId: string
+  name: string
+  email: string
+  phone?: string | null
+  alsoCreateAssembly: boolean
+}) {
+  if (!input.name?.trim()) return { error: "Name is required" }
+  if (!input.email?.trim()) return { error: "Email is required" }
+  if (!input.stripeCustomerId) return { error: "Stripe customer ID is required" }
+
+  const profile = await getProfile()
+  if (profile?.role !== "super_admin") return { error: "Unauthorized" }
+
+  const supabase = await createClient()
+  const admin = createAdminClient()
+
+  // Guard: this Stripe customer must not already be linked to a Hub client.
+  const { data: existingLink } = await supabase
+    .from("client_stripe_customers")
+    .select("client_id")
+    .eq("stripe_customer_id", input.stripeCustomerId)
+    .maybeSingle()
+  if (existingLink) {
+    return { error: "This Stripe customer is already linked to a Hub client" }
+  }
+
+  let assemblyClientId: string | null = null
+  let assemblyLink: string | null = null
+
+  if (input.alsoCreateAssembly) {
+    if (!isAssemblyConfigured()) {
+      return { error: "Assembly is not configured" }
+    }
+    const nameParts = input.name.trim().split(/\s+/)
+    const givenName = nameParts[0]
+    const familyName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : givenName
+
+    try {
+      const assemblyClient = await findOrCreateAssemblyClient({
+        givenName,
+        familyName,
+        email: input.email,
+        phone: input.phone ?? undefined,
+        sendInvite: true,
+      })
+      assemblyClientId = assemblyClient.id
+      assemblyLink = assemblyClientMessagesUrl(assemblyClient.id)
+    } catch (err) {
+      return {
+        error: `Assembly: ${err instanceof Error ? err.message : "unknown error"}`,
+      }
+    }
+  }
+
+  // Create Hub client
+  const { data: newClient, error: insertError } = await admin
+    .from("clients")
+    .insert({
+      name: input.name.trim(),
+      email: input.email.trim(),
+      phone: input.phone ?? null,
+      status: "onboarding",
+      stripe_customer_id: input.stripeCustomerId,
+      assembly_client_id: assemblyClientId,
+      assembly_link: assemblyLink,
+    })
+    .select("id")
+    .single()
+
+  if (insertError || !newClient) {
+    return { error: `Hub client insert failed: ${insertError?.message ?? "unknown"}` }
+  }
+
+  // Link Stripe customer in junction
+  const { error: junctionError } = await admin
+    .from("client_stripe_customers")
+    .insert({
+      client_id: newClient.id,
+      stripe_customer_id: input.stripeCustomerId,
+    })
+  if (junctionError) {
+    return { error: `Junction insert failed: ${junctionError.message}` }
+  }
+
+  revalidatePath("/financials")
+  revalidatePath("/clients")
+  return {
+    error: null,
+    clientId: newClient.id,
+    assemblyClientId,
+  }
 }
 
 // ─── Stripe mirror sync ─────────────────────────────────
