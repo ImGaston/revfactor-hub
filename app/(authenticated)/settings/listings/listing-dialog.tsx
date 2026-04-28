@@ -36,7 +36,7 @@ type ListingFormData = {
 type ClientOption = { id: string; name: string }
 
 const AIRBNB_BASE = "https://www.airbnb.com/rooms/"
-const PRICELABS_BASE = "https://app.pricelabs.co/pricing_dashboard?listings="
+const PRICELABS_BASE = "https://app.pricelabs.co/pricing?listings="
 
 function extractAirbnbId(value: string): string {
   if (value.includes("airbnb.com/rooms/")) {
@@ -48,7 +48,7 @@ function extractAirbnbId(value: string): string {
 
 function extractPricelabsId(value: string): string {
   if (value.includes("pricelabs.co")) {
-    const match = value.match(/listings=(\d+)/)
+    const match = value.match(/listings=([^&\s]+)/)
     return match?.[1] ?? value
   }
   return value

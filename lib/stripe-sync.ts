@@ -36,6 +36,45 @@ export async function syncStripeData(supabase: SupabaseClient): Promise<SyncResu
   const stripe = getStripeClient()
   const now = new Date().toISOString()
 
+  // --- Invoices (fetched first so we can use them as a fallback for sub.amount
+  //     when the Stripe price has no flat unit_amount, e.g. tiered/metered)  ---
+
+  const invoiceRows: Record<string, unknown>[] = []
+  const invErrors: string[] = []
+  // Most-recent invoice per subscription (by created desc). We iterate newest
+  // first (Stripe default), so the FIRST invoice seen per sub is the latest.
+  const latestInvoiceBySub = new Map<string, { amount: number; created: number }>()
+
+  for await (const inv of stripe.invoices.list({ limit: 100 })) {
+    const subField = (inv as unknown as { subscription?: string | { id: string } | null }).subscription
+    const subscriptionId =
+      typeof subField === "string" ? subField : subField?.id ?? null
+
+    if (subscriptionId && !latestInvoiceBySub.has(subscriptionId)) {
+      // Prefer amount_paid when the invoice is settled, else amount_due.
+      const amount = inv.amount_paid > 0 ? inv.amount_paid : inv.amount_due
+      latestInvoiceBySub.set(subscriptionId, { amount, created: inv.created })
+    }
+
+    invoiceRows.push({
+      id: inv.id,
+      subscription_id: subscriptionId,
+      customer_id: typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? null,
+      customer_email: inv.customer_email ?? null,
+      customer_name: inv.customer_name ?? null,
+      amount_due: centsToDollars(inv.amount_due),
+      amount_paid: centsToDollars(inv.amount_paid),
+      status: inv.status,
+      description: inv.description,
+      created: unixToIso(inv.created),
+      due_date: unixToIso(inv.due_date),
+      period_start: unixToIso(inv.period_start),
+      period_end: unixToIso(inv.period_end),
+      raw_json: inv,
+      synced_at: now,
+    })
+  }
+
   // --- Subscriptions ---
 
   const subRows: Record<string, unknown>[] = []
@@ -53,6 +92,10 @@ export async function syncStripeData(supabase: SupabaseClient): Promise<SyncResu
       (acc, i) => acc + (i.price?.unit_amount ?? 0) * (i.quantity ?? 1),
       0,
     )
+    // Fallback to the most recent invoice when the price has no flat unit_amount
+    // (tiered/metered pricing returns unit_amount: null, so totalCents ends at 0).
+    const fallbackCents = latestInvoiceBySub.get(sub.id)?.amount ?? 0
+    const effectiveCents = totalCents > 0 ? totalCents : fallbackCents
     const firstQty = firstItem?.quantity ?? 1
     const firstLabel =
       firstItem?.price?.nickname ?? firstItem?.price?.product?.toString() ?? null
@@ -71,7 +114,7 @@ export async function syncStripeData(supabase: SupabaseClient): Promise<SyncResu
       customer_email: customer?.email ?? null,
       customer_name: customer?.name ?? null,
       plan_name: planName,
-      amount: centsToDollars(totalCents),
+      amount: centsToDollars(effectiveCents),
       currency: firstItem?.price?.currency ?? "usd",
       interval: firstItem?.price?.recurring?.interval ?? null,
       item_count: items.length,
@@ -98,35 +141,6 @@ export async function syncStripeData(supabase: SupabaseClient): Promise<SyncResu
       .delete()
       .not("id", "in", `(${subIds.map((id) => `"${id}"`).join(",")})`)
     if (pruneErr) subErrors.push(`prune: ${pruneErr.message}`)
-  }
-
-  // --- Invoices (all, no retention limit) ---
-
-  const invoiceRows: Record<string, unknown>[] = []
-  const invErrors: string[] = []
-
-  for await (const inv of stripe.invoices.list({ limit: 100 })) {
-    const subField = (inv as unknown as { subscription?: string | { id: string } | null }).subscription
-    const subscriptionId =
-      typeof subField === "string" ? subField : subField?.id ?? null
-
-    invoiceRows.push({
-      id: inv.id,
-      subscription_id: subscriptionId,
-      customer_id: typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? null,
-      customer_email: inv.customer_email ?? null,
-      customer_name: inv.customer_name ?? null,
-      amount_due: centsToDollars(inv.amount_due),
-      amount_paid: centsToDollars(inv.amount_paid),
-      status: inv.status,
-      description: inv.description,
-      created: unixToIso(inv.created),
-      due_date: unixToIso(inv.due_date),
-      period_start: unixToIso(inv.period_start),
-      period_end: unixToIso(inv.period_end),
-      raw_json: inv,
-      synced_at: now,
-    })
   }
 
   // Upsert in chunks to stay under payload limits

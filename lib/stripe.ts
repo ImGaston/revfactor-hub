@@ -142,7 +142,20 @@ export async function getSubscription(id: string): Promise<StripeSubscriptionSum
   const stripe = getStripeClient()
   try {
     const sub = await stripe.subscriptions.retrieve(id, { expand: ["customer"] })
-    return summarizeSubscription(sub)
+    const summary = summarizeSubscription(sub)
+
+    // Fallback when the Stripe price has no flat unit_amount (tiered/metered):
+    // use the most recent invoice amount so the UI reflects actual billing.
+    if (summary.amount === 0) {
+      const latest = await stripe.invoices.list({ subscription: id, limit: 1 })
+      const inv = latest.data[0]
+      if (inv) {
+        const cents = inv.amount_paid > 0 ? inv.amount_paid : inv.amount_due
+        if (cents > 0) summary.amount = centsToDollars(cents)
+      }
+    }
+
+    return summary
   } catch {
     return null
   }

@@ -273,7 +273,7 @@ scripts/
 
 ### Listing Form (Settings > Listings)
 - Airbnb field accepts **only the numeric ID**, not full URLs; auto-constructs `https://www.airbnb.com/rooms/{id}`
-- **PriceLabs / Listing ID** is a single unified field that sets both `listing_id` and `pricelabs_link` (`https://app.pricelabs.co/pricing_dashboard?listings={id}`)
+- **PriceLabs / Listing ID** is a single unified field that sets both `listing_id` and `pricelabs_link` (`https://app.pricelabs.co/pricing?listings={id}`)
 - If a user pastes a full URL, the ID is extracted automatically
 - A preview of the generated link is shown below each field
 - When editing an existing listing, the ID is extracted from the stored link
