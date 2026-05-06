@@ -33,6 +33,7 @@ type ClientRow = {
   status: string
   onboarding_date: string | null
   commentCount: number
+  listingCount: number
 }
 
 type Props = {
@@ -41,6 +42,7 @@ type Props = {
   progress: OnboardingProgress[]
   resources: OnboardingResource[]
   currentUserId: string | null
+  isSuperAdmin: boolean
 }
 
 type SortKey = "name" | "progress" | "start_date" | "comments"
@@ -52,6 +54,7 @@ export function OnboardingView({
   progress,
   resources,
   currentUserId,
+  isSuperAdmin,
 }: Props) {
   const [view, setView] = useState<"cards" | "table">("table")
   const [search, setSearch] = useState("")
@@ -259,6 +262,7 @@ export function OnboardingView({
                       templates={templates}
                       progress={clientProgress}
                       currentUserId={currentUserId}
+                      isSuperAdmin={isSuperAdmin}
                     />
                   )
                 })}
@@ -275,6 +279,7 @@ export function OnboardingView({
               templates={templates}
               progress={progress}
               currentUserId={currentUserId}
+              isSuperAdmin={isSuperAdmin}
             />
           )}
         </>

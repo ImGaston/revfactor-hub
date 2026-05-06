@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { getProfile } from "@/lib/supabase/profile"
 import { OnboardingView } from "./onboarding-view"
 import type {
   OnboardingTemplate,
@@ -14,13 +15,16 @@ type ClientRow = {
   status: string
   onboarding_date: string | null
   commentCount: number
+  listingCount: number
 }
 
 export default async function OnboardingPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const [{ data: { user } }, profile] = await Promise.all([
+    supabase.auth.getUser(),
+    getProfile(),
+  ])
+  const isSuperAdmin = profile?.role === "super_admin"
 
   // Fetch onboarding clients
   const { data: clients } = await supabase
@@ -29,24 +33,37 @@ export default async function OnboardingPage() {
     .eq("status", "onboarding")
     .order("name")
 
-  const rawClients = (clients ?? []) as Omit<ClientRow, "commentCount">[]
+  const rawClients = (clients ?? []) as Omit<ClientRow, "commentCount" | "listingCount">[]
 
-  // Fetch comment counts per client
-  const clientIdsForComments = rawClients.map((c) => c.id)
+  // Fetch comment + listing counts per client in parallel
+  const clientIdsForCounts = rawClients.map((c) => c.id)
   const commentCounts = new Map<string, number>()
-  if (clientIdsForComments.length > 0) {
-    const { data: commentRows } = await supabase
-      .from("onboarding_comments")
-      .select("client_id")
-      .in("client_id", clientIdsForComments)
-    for (const row of (commentRows ?? []) as { client_id: string }[]) {
+  const listingCounts = new Map<string, number>()
+
+  if (clientIdsForCounts.length > 0) {
+    const [commentsRes, listingsRes] = await Promise.all([
+      supabase
+        .from("onboarding_comments")
+        .select("client_id")
+        .in("client_id", clientIdsForCounts),
+      supabase
+        .from("listings")
+        .select("client_id")
+        .in("client_id", clientIdsForCounts),
+    ])
+
+    for (const row of (commentsRes.data ?? []) as { client_id: string }[]) {
       commentCounts.set(row.client_id, (commentCounts.get(row.client_id) ?? 0) + 1)
+    }
+    for (const row of (listingsRes.data ?? []) as { client_id: string }[]) {
+      listingCounts.set(row.client_id, (listingCounts.get(row.client_id) ?? 0) + 1)
     }
   }
 
   const onboardingClients: ClientRow[] = rawClients.map((c) => ({
     ...c,
     commentCount: commentCounts.get(c.id) ?? 0,
+    listingCount: listingCounts.get(c.id) ?? 0,
   }))
 
   // Fetch active templates
@@ -113,6 +130,7 @@ export default async function OnboardingPage() {
       progress={progressRows}
       resources={(resources ?? []) as OnboardingResource[]}
       currentUserId={user?.id ?? null}
+      isSuperAdmin={isSuperAdmin}
     />
   )
 }

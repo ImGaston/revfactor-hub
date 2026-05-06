@@ -3,6 +3,41 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 
+// ─── Update client status ─────────────────────────────
+
+const VALID_STATUSES = ["active", "onboarding", "inactive"] as const
+
+export async function updateClientStatus(
+  clientId: string,
+  status: string
+): Promise<{ error: string | null }> {
+  if (!VALID_STATUSES.includes(status as (typeof VALID_STATUSES)[number])) {
+    return { error: `Invalid status: ${status}` }
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("clients")
+    .update({ status })
+    .eq("id", clientId)
+
+  if (error) return { error: error.message }
+
+  if (status === "inactive") {
+    await supabase
+      .from("listings")
+      .update({ status: "inactive" })
+      .eq("client_id", clientId)
+  }
+
+  revalidatePath("/onboarding")
+  revalidatePath("/clients")
+  revalidatePath("/settings/clients")
+  revalidatePath("/listings")
+  revalidatePath("/settings/listings")
+  return { error: null }
+}
+
 // ─── Toggle step completion ────────────────────────────
 
 export async function toggleOnboardingStep(
