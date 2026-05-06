@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
+import { isStripeConfigured } from "@/lib/stripe"
 import {
-  isStripeConfigured,
-  getMonthlyRevenue,
-  getRevenueOnTheBooks,
-  getRevenueHistory,
-} from "@/lib/stripe"
+  getMonthlyRevenueFromMirror,
+  getRevenueOnTheBooksFromMirror,
+  getRevenueHistoryFromMirror,
+} from "@/lib/stripe-revenue"
 import { isAssemblyConfigured } from "@/lib/assembly"
 import { FinancialsView } from "./financials-view"
 import type { StripeSubscriptionSummary, StripeRevenueSummary } from "@/lib/stripe"
@@ -106,13 +106,11 @@ export default async function FinancialsPage() {
     supabase
       .from("client_stripe_customers")
       .select("client_id, stripe_customer_id"),
-    stripeConfigured
-      ? Promise.all([
-          getMonthlyRevenue(currentYear, currentMonth).catch(() => ({ totalRevenue: 0, invoiceCount: 0, invoices: [] }) as StripeRevenueSummary),
-          getRevenueOnTheBooks().catch(() => ({ total: 0, invoices: [] })),
-          getRevenueHistory(6).catch(() => []),
-        ])
-      : Promise.resolve([{ totalRevenue: 0, invoiceCount: 0, invoices: [] }, { total: 0, invoices: [] }, []] as const),
+    Promise.all([
+      getMonthlyRevenueFromMirror(supabase, currentYear, currentMonth),
+      getRevenueOnTheBooksFromMirror(supabase),
+      getRevenueHistoryFromMirror(supabase, 6),
+    ]),
   ])
 
   const subscriptions = (mirrorSubsResult.data ?? []).map((r) =>
