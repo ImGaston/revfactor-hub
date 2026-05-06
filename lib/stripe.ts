@@ -266,16 +266,14 @@ export async function getRevenueOnTheBooks(): Promise<{ total: number; invoices:
 
 export async function getRevenueHistory(months: number = 6): Promise<{ month: string; revenue: number }[]> {
   const now = new Date()
-  const results: { month: string; revenue: number }[] = []
-
-  for (let i = months - 1; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const year = date.getFullYear()
-    const month = date.getMonth() + 1
-    const { totalRevenue } = await getMonthlyRevenue(year, month)
-    const label = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
-    results.push({ month: label, revenue: totalRevenue })
-  }
-
-  return results
+  const promises = Array.from({ length: months }, (_, i) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1)
+    return getMonthlyRevenue(date.getFullYear(), date.getMonth() + 1).then(
+      ({ totalRevenue }) => ({
+        month: date.toLocaleDateString("en-US", { month: "short", year: "2-digit" }),
+        revenue: totalRevenue,
+      }),
+    )
+  })
+  return Promise.all(promises)
 }
