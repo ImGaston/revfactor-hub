@@ -1,10 +1,14 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, LayoutGrid, Table as TableIcon } from "lucide-react"
+import { Search, LayoutGrid, Table as TableIcon, Download } from "lucide-react"
+import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { ClientCard } from "./client-card"
 import { ClientsTable } from "./clients-table"
+import { escapeCSV, downloadCSV } from "@/lib/csv"
+import { getClientsExportData } from "@/app/(authenticated)/clients/export-actions"
 import type { ClientListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +26,45 @@ export function ClientsView({
     new Set(["active", "onboarding"])
   )
   const [view, setView] = useState<"cards" | "table">("table")
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const data = await getClientsExportData(filtered.map((c) => c.id))
+      const headers = [
+        "name",
+        "email",
+        "status",
+        "onboarding_date",
+        "ending_date",
+        "contract_term",
+        "assembly_client_id",
+        "assembly_link",
+        "listing_count",
+        "open_task_count",
+        ...(isSuperAdmin ? ["billing_amount"] : []),
+      ]
+      const rows = data.map((c) => [
+        escapeCSV(c.name),
+        escapeCSV(c.email),
+        escapeCSV(c.status),
+        escapeCSV(c.onboarding_date),
+        escapeCSV(c.ending_date),
+        escapeCSV(c.contract_term),
+        escapeCSV(c.assembly_client_id),
+        escapeCSV(c.assembly_link),
+        escapeCSV(c.listing_count),
+        escapeCSV(c.open_task_count),
+        ...(isSuperAdmin ? [escapeCSV(c.billing_amount)] : []),
+      ])
+      downloadCSV(rows, headers, `clients-${new Date().toISOString().slice(0, 10)}.csv`)
+    } catch {
+      toast.error("Failed to export clients")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
@@ -61,6 +104,16 @@ export function ClientsView({
             {filtered.length} of {clients.length} clients
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || filtered.length === 0}
+          >
+            <Download className="size-3.5 mr-1.5" />
+            {exporting ? "Exporting..." : "Export"}
+          </Button>
         <div className="flex items-center rounded-md border p-0.5">
           <button
             onClick={() => setView("cards")}
@@ -86,6 +139,7 @@ export function ClientsView({
             <TableIcon className="size-4" />
             Table
           </button>
+        </div>
         </div>
       </div>
 

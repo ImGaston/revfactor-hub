@@ -8,6 +8,7 @@ import { PipelineKanban, STAGE_COLUMNS } from "./pipeline-kanban"
 import { PipelineTable } from "./pipeline-table"
 import { PipelineCompleted } from "./pipeline-completed"
 import { ImportLeadsDialog } from "./import-leads-dialog"
+import { escapeCSV, downloadCSV } from "@/lib/csv"
 import type { Lead, LeadTag } from "@/lib/types"
 
 type ProfileOption = {
@@ -21,14 +22,6 @@ type PipelineTabsProps = {
   leads: Lead[]
   tags: LeadTag[]
   profiles: ProfileOption[]
-}
-
-function escapeCSV(value: string | null | undefined): string {
-  if (!value) return ""
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
 }
 
 function exportLeadsCSV(leads: Lead[]) {
@@ -70,11 +63,11 @@ function exportLeadsCSV(leads: Lead[]) {
     escapeCSV(l.location),
     escapeCSV(l.start_date),
     escapeCSV(l.end_date),
-    l.contract_sent ? "true" : "false",
-    l.contract_signed ? "true" : "false",
+    escapeCSV(l.contract_sent),
+    escapeCSV(l.contract_signed),
     escapeCSV(l.client_portal_url),
-    l.is_archived ? "true" : "false",
-    l.is_completed ? "true" : "false",
+    escapeCSV(l.is_archived),
+    escapeCSV(l.is_completed),
     escapeCSV(
       l.lead_tag_assignments?.map((a) => a.lead_tags.name).join("; ") ?? ""
     ),
@@ -86,14 +79,7 @@ function exportLeadsCSV(leads: Lead[]) {
     escapeCSV(l.created_at),
   ])
 
-  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = `pipeline-leads-${new Date().toISOString().slice(0, 10)}.csv`
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadCSV(rows, headers, `pipeline-leads-${new Date().toISOString().slice(0, 10)}.csv`)
 }
 
 export function PipelineTabs({ leads, tags, profiles }: PipelineTabsProps) {

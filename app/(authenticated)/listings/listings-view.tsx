@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  Download,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -64,6 +65,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { escapeCSV, downloadCSV } from "@/lib/csv"
+import { getListingsExportData } from "@/app/(authenticated)/listings/export-actions"
 import { ListingDialog } from "@/app/(authenticated)/settings/listings/listing-dialog"
 import { deleteListingAction } from "@/app/(authenticated)/settings/listings/actions"
 
@@ -125,9 +128,42 @@ export function ListingsView({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<FlatListing | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const router = useRouter()
 
   const showActions = canEdit || canDelete
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const data = await getListingsExportData(filtered.map((l) => l.id))
+      const headers = [
+        "name", "client_name", "client_status", "city", "state", "listing_id",
+        "airbnb_link", "pricelabs_link", "status", "base_price", "min_price",
+        "max_price", "recommended_base_price", "cleaning_fees", "bedrooms",
+        "occ_7d", "market_occ_7d", "occ_30d", "market_occ_30d",
+        "occ_past_90d", "market_occ_past_90d", "mpi_30d", "mpi_60d",
+        "last_booked_date", "wknd_occ_30d", "market_wknd_occ_30d", "pl_synced_at",
+      ]
+      const rows = data.map((l) => [
+        escapeCSV(l.name), escapeCSV(l.client_name), escapeCSV(l.client_status),
+        escapeCSV(l.city), escapeCSV(l.state), escapeCSV(l.listing_id),
+        escapeCSV(l.airbnb_link), escapeCSV(l.pricelabs_link), escapeCSV(l.status),
+        escapeCSV(l.base_price), escapeCSV(l.min_price), escapeCSV(l.max_price),
+        escapeCSV(l.recommended_base_price), escapeCSV(l.cleaning_fees),
+        escapeCSV(l.bedrooms), escapeCSV(l.occ_7d), escapeCSV(l.market_occ_7d),
+        escapeCSV(l.occ_30d), escapeCSV(l.market_occ_30d), escapeCSV(l.occ_past_90d),
+        escapeCSV(l.market_occ_past_90d), escapeCSV(l.mpi_30d), escapeCSV(l.mpi_60d),
+        escapeCSV(l.last_booked_date), escapeCSV(l.wknd_occ_30d),
+        escapeCSV(l.market_wknd_occ_30d), escapeCSV(l.pl_synced_at),
+      ])
+      downloadCSV(rows, headers, `listings-${new Date().toISOString().slice(0, 10)}.csv`)
+    } catch {
+      toast.error("Failed to export listings")
+    } finally {
+      setExporting(false)
+    }
+  }
 
   function handleEdit(listing: FlatListing) {
     setEditingListing({
@@ -265,11 +301,22 @@ export function ListingsView({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
-        <p className="text-sm text-muted-foreground">
-          {filtered.length} of {listings.length} listings
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} of {listings.length} listings
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting || filtered.length === 0}
+        >
+          <Download className="size-3.5 mr-1.5" />
+          {exporting ? "Exporting..." : "Export"}
+        </Button>
       </div>
 
       {/* Search + Filters row */}
