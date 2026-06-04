@@ -40,7 +40,7 @@ const EMPTY: ClientFormData = {
   email: null,
   status: "active",
   assembly_link: null,
-  onboarding_date: null,
+  onboarding_date: new Date().toISOString().split("T")[0],
   ending_date: null,
   billing_amount: null,
   autopayment_set_up: false,

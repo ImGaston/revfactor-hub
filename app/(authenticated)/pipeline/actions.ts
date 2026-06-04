@@ -519,6 +519,7 @@ export async function createAssemblyClientForLead(leadId: string) {
         name: lead.full_name,
         email: lead.email,
         status: "onboarding",
+        onboarding_date: new Date().toISOString().split("T")[0],
         assembly_link: assemblyLink,
         assembly_client_id: assemblyClient.id,
       })
