@@ -1,12 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
 import { isAssemblyConfigured } from "@/lib/assembly"
+import { isStripeConfigured } from "@/lib/stripe"
 import { notFound } from "next/navigation"
 import { ClientDetailPage } from "@/components/clients/client-detail-page"
 import {
   linkAssemblyClientAction,
   unlinkAssemblyClientAction,
 } from "@/app/(authenticated)/settings/clients/actions"
+import {
+  createClientStripeCheckoutAction,
+  getStripeSubscriptionOptionsAction,
+} from "./stripe-actions"
 
 export default async function ClientPage({
   params,
@@ -18,8 +23,9 @@ export default async function ClientPage({
     createClient(),
     getProfile(),
   ])
+  const isSuperAdmin = profile?.role === "super_admin"
 
-  const [{ data: client }, { data: credentials }] = await Promise.all([
+  const [{ data: client }, { data: credentials }, stripeCustomersResult] = await Promise.all([
     supabase
       .from("clients")
       .select(
@@ -33,12 +39,22 @@ export default async function ClientPage({
       .eq("client_id", id)
       .order("software")
       .order("name"),
+    isSuperAdmin
+      ? supabase
+          .from("client_stripe_customers")
+          .select("stripe_customer_id")
+          .eq("client_id", id)
+          .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
   ])
 
   if (!client) notFound()
 
   const filteredClient = {
     ...client,
+    billing_amount: isSuperAdmin ? client.billing_amount : null,
+    autopayment_set_up: isSuperAdmin ? client.autopayment_set_up : false,
+    stripe_dashboard: isSuperAdmin ? client.stripe_dashboard : null,
     listings: (client.listings ?? []).filter((l: { status?: string }) => l.status !== "inactive"),
   }
 
@@ -46,10 +62,18 @@ export default async function ClientPage({
     <ClientDetailPage
       client={filteredClient}
       credentials={credentials ?? []}
-      isSuperAdmin={profile?.role === "super_admin"}
+      isSuperAdmin={isSuperAdmin}
       assemblyConfigured={isAssemblyConfigured()}
+      stripeConfigured={isSuperAdmin && isStripeConfigured()}
+      stripeCustomerIds={
+        isSuperAdmin
+          ? (stripeCustomersResult.data ?? []).map((row) => row.stripe_customer_id as string)
+          : []
+      }
       onLinkAssembly={linkAssemblyClientAction}
       onUnlinkAssembly={unlinkAssemblyClientAction}
+      onLoadStripeOptions={isSuperAdmin ? getStripeSubscriptionOptionsAction : undefined}
+      onCreateStripeCheckout={isSuperAdmin ? createClientStripeCheckoutAction : undefined}
     />
   )
 }

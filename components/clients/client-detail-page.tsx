@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import {
+  AlertCircle,
   ExternalLink,
   Mail,
   Calendar,
@@ -22,8 +23,19 @@ import {
   Copy,
 } from "lucide-react"
 import { toast } from "sonner"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import {
   Select,
@@ -32,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { StripeSubscriptionPriceOption } from "@/lib/stripe"
 import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
@@ -145,32 +158,103 @@ function formatDate(date: string | null) {
   })
 }
 
+function stripeCustomerDashboardUrl(customerId: string) {
+  return `https://dashboard.stripe.com/customers/${customerId}`
+}
+
+function formatPriceOption(option: StripeSubscriptionPriceOption) {
+  const amount =
+    option.amount == null
+      ? "Variable"
+      : new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: option.currency.toUpperCase(),
+        }).format(option.amount)
+  const interval =
+    option.intervalCount > 1
+      ? `every ${option.intervalCount} ${option.interval}s`
+      : `/${option.interval}`
+  return `${amount} ${interval}`
+}
+
 export function ClientDetailPage({
   client,
   credentials = [],
   isSuperAdmin,
   assemblyConfigured,
+  stripeConfigured,
+  stripeCustomerIds = [],
   onLinkAssembly,
   onUnlinkAssembly,
+  onLoadStripeOptions,
+  onCreateStripeCheckout,
 }: {
   client: Client
   credentials?: ClientCredential[]
   isSuperAdmin: boolean
   assemblyConfigured: boolean
+  stripeConfigured: boolean
+  stripeCustomerIds?: string[]
   onLinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
   onUnlinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
+  onLoadStripeOptions?: () => Promise<{
+    error: string | null
+    options: StripeSubscriptionPriceOption[]
+  }>
+  onCreateStripeCheckout?: (input: {
+    clientId: string
+    priceId: string
+    includeOnboardingFee?: boolean
+    onboardingFeeAmount?: number
+  }) => Promise<{
+    error: string | null
+    checkoutUrl: string | null
+    checkoutSessionId?: string
+    stripeCustomerId?: string
+    stripeDashboardUrl?: string
+  }>
 }) {
   const [linking, setLinking] = useState(false)
   const [sortBy, setSortBy] = useState<SortOption>("name")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
   const [addListingOpen, setAddListingOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [stripeDialogOpen, setStripeDialogOpen] = useState(false)
+  const [stripeOptions, setStripeOptions] = useState<StripeSubscriptionPriceOption[]>([])
+  const [stripeOptionsLoaded, setStripeOptionsLoaded] = useState(false)
+  const [loadingStripeOptions, setLoadingStripeOptions] = useState(false)
+  const [selectedPriceId, setSelectedPriceId] = useState("")
+  const [creatingCheckout, setCreatingCheckout] = useState(false)
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
+  const [localStripeCustomerIds, setLocalStripeCustomerIds] = useState(stripeCustomerIds)
+  const [includeOnboardingFee, setIncludeOnboardingFee] = useState(stripeCustomerIds.length === 0)
+  const [onboardingFeeAmount, setOnboardingFeeAmount] = useState("125")
+  const [stripeDashboardUrl, setStripeDashboardUrl] = useState<string | null>(
+    client.stripe_dashboard ?? (stripeCustomerIds[0] ? stripeCustomerDashboardUrl(stripeCustomerIds[0]) : null)
+  )
 
   const sortedListings = useMemo(
     () => sortListings(client.listings, sortBy, sortDir),
     [client.listings, sortBy, sortDir]
   )
   const isLinked = !!client.assembly_client_id
+  const hasStripeCustomer = localStripeCustomerIds.length > 0
+  const selectedOption = stripeOptions.find((option) => option.priceId === selectedPriceId) ?? null
+
+  const loadStripeOptions = useCallback(async () => {
+    if (!stripeConfigured || !onLoadStripeOptions || stripeOptionsLoaded || loadingStripeOptions) return
+    setLoadingStripeOptions(true)
+    const result = await onLoadStripeOptions()
+    setLoadingStripeOptions(false)
+    if (result.error) {
+      toast.error(result.error)
+      setStripeOptionsLoaded(true)
+      return
+    }
+    setStripeOptions(result.options)
+    setSelectedPriceId((current) => current || result.options[0]?.priceId || "")
+    setStripeOptionsLoaded(true)
+  }, [loadingStripeOptions, onLoadStripeOptions, stripeConfigured, stripeOptionsLoaded])
 
   async function handleLink() {
     if (!onLinkAssembly) return
@@ -213,6 +297,58 @@ export function ClientDetailPage({
         toast.error("Could not copy. Link: " + url, { duration: 10000 })
       }
     }
+  }
+
+  async function handleCopyCheckout() {
+    if (!checkoutUrl) return
+    try {
+      await navigator.clipboard.writeText(checkoutUrl)
+      toast.success("Checkout link copied")
+    } catch {
+      toast.error("Could not copy checkout link")
+    }
+  }
+
+  async function handleStripeDialogOpenChange(open: boolean) {
+    setStripeDialogOpen(open)
+    if (open) {
+      await loadStripeOptions()
+    }
+  }
+
+  async function handleCreateStripeCheckout() {
+    if (!onCreateStripeCheckout || !selectedPriceId) return
+    const parsedOnboardingFee = Number(onboardingFeeAmount)
+    if (includeOnboardingFee && (!Number.isFinite(parsedOnboardingFee) || parsedOnboardingFee < 0)) {
+      toast.error("Enter a valid onboarding fee")
+      return
+    }
+    setCreatingCheckout(true)
+    const result = await onCreateStripeCheckout({
+      clientId: client.id,
+      priceId: selectedPriceId,
+      includeOnboardingFee,
+      onboardingFeeAmount: parsedOnboardingFee,
+    })
+    setCreatingCheckout(false)
+
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    setCheckoutUrl(result.checkoutUrl)
+    if (result.stripeDashboardUrl) {
+      setStripeDashboardUrl(result.stripeDashboardUrl)
+    } else if (result.stripeCustomerId) {
+      setStripeDashboardUrl(stripeCustomerDashboardUrl(result.stripeCustomerId))
+    }
+    if (result.stripeCustomerId) {
+      setLocalStripeCustomerIds((current) =>
+        current.includes(result.stripeCustomerId!) ? current : [...current, result.stripeCustomerId!]
+      )
+    }
+    toast.success(hasStripeCustomer ? "Checkout link created" : "Stripe customer and checkout link created")
   }
 
   async function handleUnlink() {
@@ -287,16 +423,34 @@ export function ClientDetailPage({
         </InfoRow>
 
         <div className="flex flex-wrap gap-2">
-          {isSuperAdmin && client.stripe_dashboard && (
+          {isSuperAdmin && stripeDashboardUrl && (
             <Button variant="outline" size="sm" asChild>
               <a
-                href={client.stripe_dashboard}
+                href={stripeDashboardUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Stripe
                 <ExternalLink className="ml-1 size-3" />
               </a>
+            </Button>
+          )}
+          {isSuperAdmin && (
+            <Button
+              variant={hasStripeCustomer ? "outline" : "default"}
+              size="sm"
+              onClick={() => handleStripeDialogOpenChange(true)}
+              disabled={!stripeConfigured}
+              title={
+                stripeConfigured
+                  ? hasStripeCustomer
+                    ? "Create a subscription checkout link for this client"
+                    : "Create a Stripe customer and subscription checkout link"
+                  : "Stripe is not configured"
+              }
+            >
+              <CreditCard className="mr-1 size-3" />
+              {hasStripeCustomer ? "New Stripe Checkout" : "Create Stripe customer"}
             </Button>
           )}
           {isLinked && client.assembly_link && (
@@ -584,6 +738,194 @@ export function ClientDetailPage({
         }}
         isSuperAdmin={isSuperAdmin}
       />
+
+      <Dialog open={stripeDialogOpen} onOpenChange={handleStripeDialogOpenChange}>
+        <DialogContent className="overflow-hidden sm:max-w-lg">
+          <DialogHeader className="min-w-0">
+            <DialogTitle>Stripe subscription checkout</DialogTitle>
+            <DialogDescription className="max-w-full text-wrap">
+              Create a Stripe customer for this Hub client and generate a subscription checkout link.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-w-0 flex-col gap-4 overflow-hidden">
+            {!stripeConfigured && (
+              <Alert>
+                <AlertCircle className="size-4" />
+                <AlertTitle>Stripe is not configured</AlertTitle>
+                <AlertDescription>
+                  Add STRIPE_SECRET_KEY before creating Stripe customers or checkout links.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {stripeConfigured && (
+              <>
+                <div className="overflow-hidden rounded-md border bg-muted/30 p-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{client.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {client.email ?? "No email on this Hub client"}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={hasStripeCustomer ? "secondary" : "outline"}
+                      className="shrink-0"
+                    >
+                      {hasStripeCustomer ? "Stripe linked" : "No Stripe customer"}
+                    </Badge>
+                  </div>
+                  {hasStripeCustomer && (
+                    <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+                      {localStripeCustomerIds[0]}
+                    </p>
+                  )}
+                </div>
+
+                {loadingStripeOptions ? (
+                  <div className="flex items-center gap-2 rounded-md border p-3 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading subscription types...
+                  </div>
+                ) : stripeOptionsLoaded && stripeOptions.length === 0 ? (
+                  <Alert>
+                    <AlertCircle className="size-4" />
+                    <AlertTitle>No subscription types found</AlertTitle>
+                    <AlertDescription>
+                      Stripe options are deduced from existing subscriptions, and none have an active recurring price yet.
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <div className="flex min-w-0 flex-col gap-2 overflow-hidden">
+                    <label className="text-sm font-medium" htmlFor="stripe-price">
+                      Subscription type
+                    </label>
+                    <Select
+                      value={selectedPriceId}
+                      onValueChange={setSelectedPriceId}
+                      disabled={!stripeOptionsLoaded || stripeOptions.length === 0}
+                    >
+                      <SelectTrigger
+                        id="stripe-price"
+                        className="w-full min-w-0 max-w-full overflow-hidden [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+                      >
+                        <SelectValue placeholder="Select a subscription type">
+                          {selectedOption ? (
+                            <span className="block min-w-0 max-w-full truncate">
+                              {selectedOption.label} - {formatPriceOption(selectedOption)}
+                            </span>
+                          ) : null}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        className="w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-3rem)] overflow-hidden"
+                      >
+                        {stripeOptions.map((option) => (
+                          <SelectItem
+                            key={option.priceId}
+                            value={option.priceId}
+                            className="min-w-0 max-w-full"
+                          >
+                            <span className="block min-w-0 max-w-full truncate">
+                              {option.label} - {formatPriceOption(option)}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedOption && (
+                      <p className="text-xs text-muted-foreground">
+                        Used by {selectedOption.subscriptionCount} existing Stripe subscription
+                        {selectedOption.subscriptionCount === 1 ? "" : "s"}.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3">
+                  <label
+                    htmlFor="include-onboarding-fee"
+                    className="flex cursor-pointer items-start gap-3"
+                  >
+                    <Checkbox
+                      id="include-onboarding-fee"
+                      checked={includeOnboardingFee}
+                      onCheckedChange={(checked) => setIncludeOnboardingFee(checked === true)}
+                    />
+                    <span className="flex min-w-0 flex-col gap-1">
+                      <span className="text-sm font-medium">Include onboarding fee</span>
+                      <span className="text-xs text-muted-foreground">
+                        Included by default for clients without a Stripe customer.
+                      </span>
+                    </span>
+                  </label>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">$</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="10000"
+                      step="0.01"
+                      value={onboardingFeeAmount}
+                      onChange={(event) => setOnboardingFeeAmount(event.target.value)}
+                      disabled={!includeOnboardingFee}
+                      aria-label="Onboarding fee amount"
+                      className="max-w-36"
+                    />
+                    <span className="text-xs text-muted-foreground">one-time</span>
+                  </div>
+                </div>
+
+                {checkoutUrl && (
+                  <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
+                    <p className="text-sm font-medium">Checkout link ready</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">
+                      {checkoutUrl}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" asChild>
+                        <a href={checkoutUrl} target="_blank" rel="noopener noreferrer">
+                          Open Checkout
+                          <ExternalLink className="ml-1 size-3" />
+                        </a>
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleCopyCheckout}>
+                        <Copy className="mr-1 size-3" />
+                        Copy link
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStripeDialogOpen(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={handleCreateStripeCheckout}
+              disabled={
+                !stripeConfigured ||
+                !selectedPriceId ||
+                creatingCheckout ||
+                loadingStripeOptions ||
+                stripeOptions.length === 0
+              }
+            >
+              {creatingCheckout ? (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              ) : (
+                <CreditCard className="mr-1 size-3" />
+              )}
+              {hasStripeCustomer ? "Create Checkout" : "Create Customer + Checkout"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

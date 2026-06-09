@@ -53,7 +53,9 @@ Display:
 - API client: `lib/stripe.ts`.
 - Secret key: server-only `STRIPE_SECRET_KEY`.
 - Financials page is server-side gated to `super_admin`.
-- Clients can link to Stripe customers; listings can link to subscriptions via `stripe_subscription_id`.
+- Client to Stripe customer links use the `client_stripe_customers` junction table as the source of truth; do not rely on `clients.stripe_customer_id`.
+- Client detail pages let `super_admin` users create or reuse a Stripe customer from `client_stripe_customers`, choose a subscription type deduced from existing Stripe subscriptions, and generate a Checkout Session in `subscription` mode.
+- Listings can link to subscriptions via `stripe_subscription_id`.
 - Financial UI includes subscriptions, revenue trend, expenses, recurring expenses, and linking dialogs.
 - Non-super_admin users may create/edit clients if permitted, but must not see or modify billing fields.
 

@@ -44,7 +44,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - Product planning: `roadmap_items`, ideas/posts tables, comments, votes, boards/tags.
 - Onboarding: `onboarding_steps`, onboarding templates/progress/resources/comments.
 - Sales pipeline: `leads`, `lead_tags`, `lead_tag_assignments`, `lead_team_assignments`, `lead_notes`.
-- Financials: `expenses`, `expense_categories`, `recurring_expenses`.
+- Financials: `expenses`, `expense_categories`, `recurring_expenses`, `stripe_subscriptions`, `stripe_invoices`, `client_stripe_customers`.
 - Calendar/notes: `calendar_events`, `notes`.
 - Pacing/PMS foundation: `reservations` is defined in migration `023_reservations.sql` but not yet applied to the dev Supabase project.
 
