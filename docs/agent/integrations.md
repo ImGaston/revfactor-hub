@@ -1,6 +1,7 @@
 # Integrations — RevFactor Hub
 
 ## Assembly CRM
+
 Assembly is the client communication platform for CRM, messaging, and contracts.
 
 - API base: `https://api.assembly.com/v1`.
@@ -11,45 +12,57 @@ Assembly is the client communication platform for CRM, messaging, and contracts.
 - Error handling: `assemblyFetch` reads response bodies on errors and logs details.
 
 Client linking:
+
 - Clients link to Assembly by email via `searchAssemblyClientByEmail`.
 - Store `assembly_client_id` always and `assembly_company_id` if the client belongs to a company.
 - Generate `assembly_link` based on company vs individual context.
 - Server actions: `linkAssemblyClientAction`, `unlinkAssemblyClientAction` in settings clients actions.
 
 Pipeline integration:
+
 - `createAssemblyClientForLead(leadId)` finds or creates an Assembly client, sends portal invite, saves `assembly_client_id`, and creates a Hub client with status `onboarding`.
 - `sendContractToAssembly(leadId, contractTemplateId)` creates a contract from a selected template, sends a welcome chat message, and marks `contract_sent`.
 - Contract templates are fetched server-side and passed to lead detail for selection.
 - `full_name` splits into `givenName` and `familyName`; single-word names repeat for both fields.
 
 Deep links:
+
 - Individual chat: `https://dashboard.assembly.com/clients/users/details/{assembly_client_id}/messages`
 - Company chat: `https://dashboard.assembly.com/companies/{assembly_company_id}/messages`
 - Company chat is primary when a company exists; keep a separate Direct Chat link.
 
 Pending Assembly work:
+
 - Inline message reads, reusable message/contact components, Integrations settings tab, send-message dialog, bulk link, contract status polling, optional sent-message audit log.
 
 ## PriceLabs
+
 PriceLabs is the dynamic pricing tool.
 
 - API base: `https://api.pricelabs.co/v1`.
 - Auth: `X-API-Key` from server-only `PRICELABS_API_KEY`.
 - API client: `lib/pricelabs.ts`.
+- Shared sync service: `lib/pricelabs-sync.ts`; both the manual action and cron must use it.
 - Sync strategy: Vercel cron at `/api/cron/sync-pricelabs` daily 8:00 UTC plus manual Settings > Listings sync.
 - Matching: PriceLabs listing `id` matches `listings.listing_id`.
 - Storage: synced metrics live as `pl_*` columns on `listings`.
 - Occupancy values may arrive as strings like `"100 %"` and must be parsed with `parseOccupancy()`.
+- Optional numeric fields may arrive as strings such as `"Unavailable"` and date fields may arrive as `"-"`; normalize these values to `null` before writing to Supabase.
 - 30+ day occupancy fields use adjusted API prefixes, not plain `occupancy_*`.
+- Sync results are tracked per Hub listing as `synced`, `not_found`, or `failed`; never discard Supabase update errors.
+- Duplicate PriceLabs IDs update every matching Hub listing and emit a structured warning for cleanup.
 
 Synced fields include base/min/max/recommended price, cleaning fees, bedrooms, 7/30/90-day occupancy and market occupancy, MPI 30/60, last booked date, weekend occupancy, push enabled, refreshed and synced timestamps.
 
 Display:
+
 - Listing detail shows real PriceLabs data with a green synced banner, or amber Preview when not synced.
 - Listing cards on client detail pages use real Occ(7N), Occ(30N), MPI(30N), Last Booked.
+- Settings > Listings shows the last successful PriceLabs sync and the current manual-run result for each listing.
 - Reservations, pricing calendar, and pacing tabs still depend on PMS/reservations work.
 
 ## Stripe and Financials
+
 - API client: `lib/stripe.ts`.
 - Secret key: server-only `STRIPE_SECRET_KEY`.
 - Financials page is server-side gated to `super_admin`.
@@ -60,6 +73,7 @@ Display:
 - Non-super_admin users may create/edit clients if permitted, but must not see or modify billing fields.
 
 ## Pacing Chart
+
 Dashboard home has a forward-looking stacked bar chart of portfolio pacing.
 
 - Component: `components/dashboard/pacing-chart.tsx`.
@@ -78,6 +92,7 @@ older:    booked_date < today-14
 ```
 
 Data conventions:
+
 - Use UTC anchors everywhere for `today`, `stay_date`, bucket math, and tick labels.
 - Window is 60 days forward inclusive of today.
 - SQL filters: `booking_status = 'booked'`, `check_in < windowEnd`, `check_out > today`, `.limit(5000)`.
@@ -86,6 +101,7 @@ Data conventions:
 - `booked_pct` is `booked_total / total_listings * 100`, clamped to 100 and rounded to 1 decimal.
 
 Chart conventions:
+
 - Header controls: multi-select Listings, Clients, States plus range dropdown.
 - Default range: 6 months; other presets are 3 months, 1 year, current year.
 - Stack order bottom to top: `older`, `last_14d`, `last_7d`, `last_3d`.
@@ -93,13 +109,16 @@ Chart conventions:
 - Empty states distinguish no matching listings from no reservations in range.
 
 Pending pacing work:
+
 - Single-listing rendering mode, column width tuning, monthly pacing dashboard, reservations table linked from bars.
 - Out of scope for MVP: group selector, STLY comparison, real blocked-night denominator, historical pace curves, PMS sync.
 
 ## Landing Page to Pipeline Webhook
+
 See `docs/webhook-pipeline-integration.md` for the detailed implementation reference.
 
 Expected Hub endpoint:
+
 - `POST /api/webhooks/new-lead`
 - Auth via `x-webhook-secret` matched against server-only `WEBHOOK_SECRET`.
 - Use admin client because the request is server-to-server and has no Supabase user session.
@@ -108,6 +127,7 @@ Expected Hub endpoint:
 - Do not use `revalidatePath`; Hub users see new leads after reload/navigation.
 
 Landing page caller:
+
 - Make the fetch server-side and never expose `WEBHOOK_SECRET` in the browser.
 - Use a 5-second timeout.
 - Log failures but do not block the user scheduling flow.

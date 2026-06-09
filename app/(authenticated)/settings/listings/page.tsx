@@ -15,7 +15,9 @@ export default async function SettingsListingsPage() {
 
   const { data: listings } = await supabase
     .from("listings")
-    .select("id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name)")
+    .select(
+      "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, clients(id, name)"
+    )
     .order("name")
 
   const flatListings = (listings ?? []).map((l: Record<string, unknown>) => {
@@ -31,6 +33,7 @@ export default async function SettingsListingsPage() {
       state: l.state as string | null,
       client_id: l.client_id as string,
       client_name: client?.name ?? null,
+      pl_synced_at: l.pl_synced_at as string | null,
     }
   })
 

@@ -17,18 +17,18 @@ export type PriceLabsListing = {
   country: string
   city_name: string
   state: string
-  no_of_bedrooms: number
-  cleaning_fees: number
+  no_of_bedrooms: number | string | null | undefined
+  cleaning_fees: number | string | null | undefined
   channel_listing_details: PriceLabsChannelDetail[]
-  min: number
-  base: number
-  max: number | null
+  min: number | string | null | undefined
+  base: number | string | null | undefined
+  max: number | string | null | undefined
   group: string
   subgroup: string
   tags: string
   notes: string | null
   isHidden: boolean
-  push_enabled: boolean
+  push_enabled: boolean | null | undefined
   // Occupancy fields come as strings like "100 %" from PriceLabs API
   // 7-day uses "occupancy_*", 30+ uses "adjusted_occupancy_*"
   occupancy_next_7: string | number | undefined
@@ -37,12 +37,12 @@ export type PriceLabsListing = {
   market_adjusted_occupancy_next_30: string | number | undefined
   adjusted_occupancy_next_90: string | number | undefined
   market_adjusted_occupancy_next_90: string | number | undefined
-  recommended_base_price: number
+  recommended_base_price: number | string | null | undefined
   last_date_pushed: string | null
-  last_refreshed_at: string | null
+  last_refreshed_at: string | null | undefined
   // Additional fields from API
-  mpi_next_30: number | undefined
-  mpi_next_60: number | undefined
+  mpi_next_30: number | string | null | undefined
+  mpi_next_60: number | string | null | undefined
   last_booked_date: string | null | undefined
   weekend_adjusted_occupancy_next_30: string | number | undefined
   market_weekend_adjusted_occupancy_next_30: string | number | undefined
@@ -103,10 +103,37 @@ export async function fetchPriceLabsListings(
  * Parse a percentage string like "100 %" or "57 %" → integer (100, 57)
  * Also handles plain numbers.
  */
-export function parseOccupancy(val: string | number | null | undefined): number | null {
-  if (val == null) return null
-  if (typeof val === "number") return val
+export function parseOccupancy(
+  val: string | number | null | undefined
+): number | null {
+  return parseNullableNumber(val)
+}
+
+export function parseNullableNumber(val: unknown): number | null {
+  if (typeof val === "number") return Number.isFinite(val) ? val : null
+  if (typeof val !== "string") return null
+
+  const normalized = val.trim().toLowerCase()
+  if (
+    !normalized ||
+    normalized === "-" ||
+    normalized === "unavailable" ||
+    normalized === "n/a" ||
+    normalized === "null"
+  ) {
+    return null
+  }
+
   const cleaned = val.replace(/[^0-9.-]/g, "")
   const num = parseFloat(cleaned)
-  return isNaN(num) ? null : num
+  return Number.isFinite(num) ? num : null
+}
+
+export function parsePriceLabsDate(val: unknown): string | null {
+  if (typeof val !== "string") return null
+  const normalized = val.trim()
+  if (!normalized || normalized === "-") return null
+
+  const timestamp = Date.parse(normalized)
+  return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString()
 }
