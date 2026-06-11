@@ -49,6 +49,7 @@ import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
 import { AddListingDialog } from "./add-listing-dialog"
+import { PricingDashboardButton } from "./pricing-dashboard-button"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { ClientDialog } from "@/app/(authenticated)/settings/clients/client-dialog"
 
@@ -268,37 +269,6 @@ export function ClientDetailPage({
     }
   }
 
-  async function handleCopyEmbed() {
-    if (!client.dashboard_token) {
-      toast.error("This client has no dashboard token yet")
-      return
-    }
-    const url = `https://assembly-pricelabs.vercel.app/api/dashboard/${client.id}?token=${client.dashboard_token}`
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-      } else {
-        throw new Error("Clipboard API unavailable")
-      }
-      toast.success("Embed link copied")
-    } catch {
-      const ta = document.createElement("textarea")
-      ta.value = url
-      ta.style.position = "fixed"
-      ta.style.opacity = "0"
-      document.body.appendChild(ta)
-      ta.focus()
-      ta.select()
-      const ok = document.execCommand("copy")
-      document.body.removeChild(ta)
-      if (ok) {
-        toast.success("Embed link copied")
-      } else {
-        toast.error("Could not copy. Link: " + url, { duration: 10000 })
-      }
-    }
-  }
-
   async function handleCopyCheckout() {
     if (!checkoutUrl) return
     try {
@@ -498,6 +468,7 @@ export function ClientDetailPage({
               Link to Assembly
             </Button>
           )}
+          <PricingDashboardButton dashboardUrl={client.dashboard_url} />
           {isLinked && (
             <Button
               variant="ghost"
@@ -510,20 +481,6 @@ export function ClientDetailPage({
               Unlink
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyEmbed}
-            disabled={!client.dashboard_token}
-            title={
-              client.dashboard_token
-                ? "Copy dashboard embed link for Assembly portal"
-                : "No dashboard token set for this client"
-            }
-          >
-            <Copy className="mr-1 size-3" />
-            Copy embed link
-          </Button>
         </div>
       </div>
 

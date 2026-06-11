@@ -29,7 +29,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `components/ui/` — shadcn/ui components.
 - `components/layout/` — sidebar, top bar, breadcrumb context.
 - `components/dashboard/pacing-chart.tsx` — forward stacked bar pacing chart with recency buckets and KPI highlights.
-- `components/clients/` — client cards, tables, detail panels, credentials, add-listing dialog.
+- `components/clients/` — client cards, tables, detail panels, credentials, add-listing dialog, and the private Pricing Dashboard copy action.
 - `components/kanban/` — generic typed kanban board and cards using `@hello-pangea/dnd`.
 - `components/theme-provider.tsx` and `theme-toggle.tsx` — theme support.
 - `lib/supabase/client.ts` — browser Supabase client.
@@ -40,7 +40,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 
 ## Database Tables
 - Auth/profile: `profiles`, `roles`, `role_permissions`.
-- Client/listing ops: `clients`, `listings`, `client_credentials`, `tasks`, `task_listings`.
+- Client/listing ops: `clients`, `listings`, `client_credentials`, `tasks`, `task_listings`. `clients.dashboard_url` stores each client's private Pricing Dashboard link.
 - Product planning: `roadmap_items`, ideas/posts tables, comments, votes, boards/tags.
 - Onboarding: `onboarding_steps`, onboarding templates/progress/resources/comments.
 - Sales pipeline: `leads`, `lead_tags`, `lead_tag_assignments`, `lead_team_assignments`, `lead_notes`.

@@ -2,6 +2,12 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-06-11 — Client Pricing Dashboard Link
+
+- Added a compact Pricing Dashboard copy action to client detail pages using `clients.dashboard_url`.
+- Added accessible copy confirmation, unavailable state, Clipboard API error handling, and a legacy copy fallback.
+- Removed the client detail dependency on `dashboard_token` and kept private URLs out of logs and error messages.
+
 ## 2026-06-09 — PriceLabs Sync Diagnostics
 
 - Centralized manual and cron PriceLabs synchronization in `lib/pricelabs-sync.ts`.

@@ -51,6 +51,10 @@
 - The unified PriceLabs / Listing ID field sets both `listing_id` and `pricelabs_link` using `https://app.pricelabs.co/pricing?listings={id}`.
 - If a full URL is pasted, extract the ID and show a generated link preview.
 
+## Client Pricing Dashboard
+- Client detail pages read the private embed link directly from `clients.dashboard_url`.
+- Present `dashboard_url` as a compact copy action alongside the other client integration buttons; never expose or reconstruct a separate dashboard token, and never include the URL in logs, analytics, or error messages.
+
 ## Environment
 Required variables:
 
