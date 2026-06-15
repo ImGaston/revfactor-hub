@@ -110,14 +110,25 @@ export function SubscriptionsTable({
 
   async function handleSync() {
     setSyncing(true)
-    const result = await syncStripeNow()
-    setSyncing(false)
-    if (result.error) {
-      toast.error(result.error)
-    } else {
-      toast.success(
-        `Synced ${result.subscriptions} subscriptions and ${result.invoices} invoices`,
-      )
+    try {
+      const result = await syncStripeNow()
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        const warnings = result.warnings ?? []
+        toast.success(
+          `Synced ${result.subscriptions ?? 0} subscriptions, ${result.invoices ?? 0} invoices, and ${result.payouts ?? 0} payouts`,
+          warnings.length > 0
+            ? {
+                description: `${warnings.length} warning${warnings.length === 1 ? "" : "s"} reported`,
+              }
+            : undefined,
+        )
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Stripe sync failed")
+    } finally {
+      setSyncing(false)
     }
   }
 

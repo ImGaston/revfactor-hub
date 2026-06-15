@@ -48,7 +48,10 @@ export type ClientTask = {
   status: string
   owner: string | null
   tags: string[] | null
-  profiles?: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
+  profiles?:
+    | { full_name: string | null; email: string }
+    | { full_name: string | null; email: string }[]
+    | null
 }
 
 export type Client = {
@@ -97,8 +100,14 @@ export type Task = {
   archived_at?: string | null
   created_at: string
   clients?: { id: string; name: string } | null
-  profiles?: { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
-  task_listings?: { listing_id: string; listings: { id: string; name: string } }[]
+  profiles?:
+    | { full_name: string | null; email: string }
+    | { full_name: string | null; email: string }[]
+    | null
+  task_listings?: {
+    listing_id: string
+    listings: { id: string; name: string }
+  }[]
 }
 
 export type TaskComment = {
@@ -108,7 +117,11 @@ export type TaskComment = {
   content: string
   created_at: string
   updated_at: string
-  profiles?: { full_name: string | null; email: string; avatar_url: string | null } | null
+  profiles?: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  } | null
 }
 
 type ProfileRef = { full_name: string | null; email: string }
@@ -161,7 +174,11 @@ export type Comment = {
   parent_comment_id: string | null
   created_at: string
   updated_at: string
-  profiles?: { full_name: string | null; avatar_url: string | null; email: string } | null
+  profiles?: {
+    full_name: string | null
+    avatar_url: string | null
+    email: string
+  } | null
   like_count?: number
   dislike_count?: number
   user_reaction?: "like" | "dislike" | null
@@ -190,10 +207,20 @@ export type Expense = {
   created_by: string | null
   recurring_expense_id: string | null
   recurring_month: string | null
+  bank_transaction_id: string | null
   created_at: string
   updated_at: string
   // Joined fields
   expense_categories?: { id: string; name: string; type: string } | null
+  expense_listing_allocations?: ExpenseListingAllocation[]
+}
+
+export type ExpenseListingAllocation = {
+  id: string
+  expense_id: string
+  listing_id: string
+  amount_cents: number
+  listings?: { id: string; name: string } | null
 }
 
 export type RecurringExpense = {
@@ -212,6 +239,127 @@ export type RecurringExpense = {
   updated_at: string
   // Joined fields
   expense_categories?: { id: string; name: string; type: string } | null
+}
+
+export type StripePayout = {
+  id: string
+  amount_cents: number
+  currency: string
+  status: string
+  arrival_date: string
+  created: string
+  automatic: boolean
+  reconciliation_status: string | null
+  failure_code: string | null
+  failure_message: string | null
+  synced_at: string
+}
+
+export type FinancialCashSnapshot = {
+  id: string
+  operating_cash_cents: number
+  tax_cash_cents: number
+  effective_date: string
+  notes: string | null
+  created_at: string
+}
+
+export type FinancialScenario = {
+  id: string
+  name: string
+  description: string | null
+  start_month: string
+  horizon_months: number
+  created_at: string
+  updated_at: string
+}
+
+export type FinancialScenarioListing = {
+  id: string
+  scenario_id: string
+  source_listing_id: string | null
+  name: string
+  monthly_revenue_cents: number
+  start_month: string
+  end_month: string | null
+}
+
+export type FinancialScenarioEvent = {
+  id: string
+  scenario_id: string
+  kind:
+    | "fixed_expense"
+    | "variable_expense"
+    | "growth_investment"
+    | "capital_contribution"
+  description: string
+  amount_cents: number
+  recurrence: "one_time" | "monthly"
+  start_month: string
+  end_month: string | null
+}
+
+export type FinancialScenarioEventAllocation = {
+  id: string
+  event_id: string
+  scenario_listing_id: string
+  amount_cents: number
+}
+
+// ─── Bank statements ────────────────────────────────────
+
+export type BankAccount = {
+  id: string
+  account_number: string
+  label: string
+  role: "income" | "opex" | "tax" | "partner" | "other"
+  is_internal: boolean
+  created_at: string
+}
+
+export type BankStatementImport = {
+  id: string
+  account_id: string
+  filename: string
+  period_start: string | null
+  period_end: string | null
+  row_count: number
+  imported_count: number
+  skipped_count: number
+  imported_by: string | null
+  created_at: string
+}
+
+export type BankFlowClass =
+  | "external_income"
+  | "external_expense"
+  | "internal_transfer"
+  | "profit_first"
+  | "unknown"
+
+export type BankTransaction = {
+  id: string
+  account_id: string
+  import_id: string | null
+  txn_date: string
+  payee: string | null
+  counterparty_account: string | null
+  txn_type: string | null
+  direction: "in" | "out"
+  description: string | null
+  reference: string | null
+  status: string | null
+  amount_cents: number
+  currency: string
+  balance_cents: number | null
+  flow_class: BankFlowClass
+  matched_payout_id: string | null
+  matched_transfer_id: string | null
+  expense_id: string | null
+  dedupe_hash: string
+  created_at: string
+  // Joined fields
+  bank_accounts?: { id: string; account_number: string; label: string } | null
 }
 
 // ─── Credentials ────────────────────────────────────────
@@ -280,7 +428,11 @@ export type Lead = {
   lead_team_assignments?: {
     profile_id: string
     role: string
-    profiles: { full_name: string | null; email: string; avatar_url: string | null }
+    profiles: {
+      full_name: string | null
+      email: string
+      avatar_url: string | null
+    }
   }[]
 }
 
@@ -291,7 +443,11 @@ export type LeadNote = {
   content: string
   created_at: string
   updated_at: string
-  profiles?: { full_name: string | null; email: string; avatar_url: string | null }
+  profiles?: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  }
 }
 
 // ─── Onboarding ─────────────────────────────────────────
@@ -325,7 +481,11 @@ export type OnboardingComment = {
   content: string
   created_at: string
   updated_at: string
-  profiles?: { full_name: string | null; email: string; avatar_url: string | null } | null
+  profiles?: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  } | null
 }
 
 export type OnboardingResource = {

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Building2, Check } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Building2, Plus } from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -15,7 +16,13 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { linkSubscriptionToListings } from "./actions"
+import {
+  ListingFormFields,
+  EMPTY_LISTING_VALUES,
+  buildListingFields,
+  type ListingFormValues,
+} from "@/components/listings/listing-form-fields"
+import { createListingForClient, linkSubscriptionToListings } from "./actions"
 
 type ClientRef = { id: string; name: string; email: string | null; stripe_customer_id: string | null }
 type ListingRef = { id: string; name: string; client_id: string; stripe_subscription_id: string | null; clients: { id: string; name: string } | null }
@@ -45,6 +52,16 @@ export function LinkSubscriptionDialog({
   const [search, setSearch] = useState("")
   const [showAll, setShowAll] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [newListing, setNewListing] = useState<ListingFormValues>({
+    ...EMPTY_LISTING_VALUES,
+  })
+  const [creating, setCreating] = useState(false)
+  const router = useRouter()
+
+  function resetNewListing() {
+    setNewListing({ ...EMPTY_LISTING_VALUES })
+  }
 
   // Resolve the Hub client for this Stripe customer via the junction table.
   const linkedClientId = clientStripeCustomers.find(
@@ -90,6 +107,37 @@ export function LinkSubscriptionDialog({
     })
   }
 
+  async function handleCreateListing(event: React.FormEvent) {
+    event.preventDefault()
+    if (!linkedClient) return
+    if (!newListing.name.trim()) {
+      toast.error("Name is required")
+      return
+    }
+    setCreating(true)
+    const fields = buildListingFields(newListing)
+    const result = await createListingForClient({
+      clientId: linkedClient.id,
+      name: fields.name,
+      listingId: fields.listing_id,
+      pricelabsLink: fields.pricelabs_link,
+      airbnbLink: fields.airbnb_link,
+      city: fields.city,
+      state: fields.state,
+    })
+    setCreating(false)
+    if (result.error || !result.listingId) {
+      toast.error(result.error ?? "Could not create listing")
+      return
+    }
+    // Auto-select the new listing and refresh so it appears in the list.
+    setSelectedIds((prev) => new Set(prev).add(result.listingId!))
+    resetNewListing()
+    setAddOpen(false)
+    toast.success("Listing created and selected")
+    router.refresh()
+  }
+
   async function handleSave() {
     setSaving(true)
     const result = await linkSubscriptionToListings(subscriptionId, [...selectedIds])
@@ -104,7 +152,7 @@ export function LinkSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Link Listings to Subscription</DialogTitle>
           <DialogDescription>
@@ -121,6 +169,47 @@ export function LinkSubscriptionDialog({
               <p className="text-xs text-muted-foreground">Client: {linkedClient.name}</p>
             )}
           </div>
+
+          {/* Quick-add a listing already associated to the linked client */}
+          {linkedClient && (
+            <div className="rounded-md border p-3">
+              {!addOpen ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setAddOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  New listing for {linkedClient.name}
+                </Button>
+              ) : (
+                <form onSubmit={handleCreateListing} className="space-y-3">
+                  <ListingFormFields
+                    values={newListing}
+                    onChange={setNewListing}
+                    idPrefix="qa-listing"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setAddOpen(false)
+                        resetNewListing()
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" size="sm" disabled={creating}>
+                      {creating ? "Creating..." : "Create & select"}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
 
           {/* Search + show-all toggle (only when client is linked) */}
           <div className="flex items-center gap-2">

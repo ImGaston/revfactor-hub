@@ -12,6 +12,7 @@ import {
   createClientStripeCheckoutAction,
   getStripeSubscriptionOptionsAction,
 } from "./stripe-actions"
+import { getClientStripeBilling } from "@/lib/client-stripe-billing"
 
 export default async function ClientPage({
   params,
@@ -25,7 +26,12 @@ export default async function ClientPage({
   ])
   const isSuperAdmin = profile?.role === "super_admin"
 
-  const [{ data: client }, { data: credentials }, stripeCustomersResult] = await Promise.all([
+  const [
+    { data: client },
+    { data: credentials },
+    stripeCustomersResult,
+    billingByClient,
+  ] = await Promise.all([
     supabase
       .from("clients")
       .select(
@@ -46,13 +52,16 @@ export default async function ClientPage({
           .eq("client_id", id)
           .order("created_at", { ascending: true })
       : Promise.resolve({ data: [] }),
+    isSuperAdmin
+      ? getClientStripeBilling(supabase, [id])
+      : Promise.resolve(new Map<string, number>()),
   ])
 
   if (!client) notFound()
 
   const filteredClient = {
     ...client,
-    billing_amount: isSuperAdmin ? client.billing_amount : null,
+    billing_amount: isSuperAdmin ? (billingByClient.get(id) ?? null) : null,
     autopayment_set_up: isSuperAdmin ? client.autopayment_set_up : false,
     stripe_dashboard: isSuperAdmin ? client.stripe_dashboard : null,
     listings: (client.listings ?? []).filter((l: { status?: string }) => l.status !== "inactive"),

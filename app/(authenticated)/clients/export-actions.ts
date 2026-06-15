@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/supabase/profile"
+import { getClientStripeBilling } from "@/lib/client-stripe-billing"
 
 export type ClientExportRow = {
   name: string
@@ -21,14 +23,20 @@ export async function getClientsExportData(
 ): Promise<ClientExportRow[]> {
   if (clientIds.length === 0) return []
 
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("clients")
-    .select(
-      "name, email, status, onboarding_date, ending_date, contract_term, assembly_client_id, assembly_link, billing_amount, listings(id, status), tasks(id, status)"
-    )
-    .in("id", clientIds)
-    .order("name")
+  const [supabase, profile] = await Promise.all([createClient(), getProfile()])
+  const isSuperAdmin = profile?.role === "super_admin"
+  const [{ data, error }, billingByClient] = await Promise.all([
+    supabase
+      .from("clients")
+      .select(
+        "id, name, email, status, onboarding_date, ending_date, contract_term, assembly_client_id, assembly_link, listings(id, status), tasks(id, status)"
+      )
+      .in("id", clientIds)
+      .order("name"),
+    isSuperAdmin
+      ? getClientStripeBilling(supabase, clientIds)
+      : Promise.resolve(new Map<string, number>()),
+  ])
 
   if (error) throw new Error(error.message)
 
@@ -41,7 +49,7 @@ export async function getClientsExportData(
     contract_term: c.contract_term,
     assembly_client_id: c.assembly_client_id,
     assembly_link: c.assembly_link,
-    billing_amount: c.billing_amount,
+    billing_amount: isSuperAdmin ? (billingByClient.get(c.id) ?? null) : null,
     listing_count: (c.listings ?? []).filter(
       (l: { status: string }) => l.status !== "inactive"
     ).length,

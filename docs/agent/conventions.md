@@ -50,6 +50,7 @@
 - Settings > Listings accepts numeric Airbnb IDs only and builds `https://www.airbnb.com/rooms/{id}`.
 - The unified PriceLabs / Listing ID field sets both `listing_id` and `pricelabs_link` using `https://app.pricelabs.co/pricing?listings={id}`.
 - If a full URL is pasted, extract the ID and show a generated link preview.
+- All "add/edit listing" forms share `components/listings/listing-form-fields.tsx` (Name, City, State selector, Airbnb ID, PriceLabs/Listing ID) plus its helpers `buildListingFields`, `listingValuesFromRecord`, `EMPTY_LISTING_VALUES`. Reused by `components/clients/add-listing-dialog.tsx`, `settings/listings/listing-dialog.tsx`, and the financials `link-subscription-dialog.tsx` quick-add. State is a code selector from `lib/us-states.ts` (always store the 2-letter code) — do not use a free-text State input.
 
 ## Client Pricing Dashboard
 - Client detail pages read the private embed link directly from `clients.dashboard_url`.

@@ -38,9 +38,11 @@ import { deleteExpense, markExpensePaid, markExpenseUnpaid } from "./actions"
 export function ExpensesTable({
   expenses,
   categories,
+  listings,
 }: {
   expenses: Expense[]
   categories: ExpenseCategory[]
+  listings: { id: string; name: string }[]
 }) {
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<string>("all")
@@ -51,7 +53,9 @@ export function ExpensesTable({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Get unique months from expenses for filter
-  const months = [...new Set(expenses.map((e) => e.date.substring(0, 7)))].sort().reverse()
+  const months = [...new Set(expenses.map((e) => e.date.substring(0, 7)))]
+    .sort()
+    .reverse()
 
   const filtered = expenses.filter((e) => {
     if (typeFilter !== "all" && e.type !== typeFilter) return false
@@ -101,8 +105,8 @@ export function ExpensesTable({
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+        <div className="relative max-w-sm min-w-[200px] flex-1">
+          <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="Search expenses..."
             value={search}
@@ -117,7 +121,9 @@ export function ExpensesTable({
           <SelectContent>
             <SelectItem value="all">All months</SelectItem>
             {months.map((m) => (
-              <SelectItem key={m} value={m}>{formatMonth(m)}</SelectItem>
+              <SelectItem key={m} value={m}>
+                {formatMonth(m)}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -142,7 +148,13 @@ export function ExpensesTable({
           </SelectContent>
         </Select>
         <div className="ml-auto">
-          <Button size="sm" onClick={() => { setEditingExpense(null); setDialogOpen(true) }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setEditingExpense(null)
+              setDialogOpen(true)
+            }}
+          >
             <Plus className="mr-1.5 size-3.5" />
             Add Expense
           </Button>
@@ -151,9 +163,13 @@ export function ExpensesTable({
 
       {/* Summary */}
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span>{filtered.length} expense{filtered.length !== 1 ? "s" : ""}</span>
+        <span>
+          {filtered.length} expense{filtered.length !== 1 ? "s" : ""}
+        </span>
         <span className="text-muted-foreground/50">|</span>
-        <span className="font-mono font-medium text-foreground">${totalFiltered.toLocaleString()}</span>
+        <span className="font-mono font-medium text-foreground">
+          ${totalFiltered.toLocaleString()}
+        </span>
         <span>total</span>
       </div>
 
@@ -174,33 +190,61 @@ export function ExpensesTable({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                  {expenses.length === 0 ? "No expenses yet" : "No matching expenses"}
+                <TableCell
+                  colSpan={7}
+                  className="py-8 text-center text-muted-foreground"
+                >
+                  {expenses.length === 0
+                    ? "No expenses yet"
+                    : "No matching expenses"}
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((expense) => (
-                <TableRow key={expense.id} className={expense.is_paid ? "opacity-60" : ""}>
+                <TableRow
+                  key={expense.id}
+                  className={expense.is_paid ? "opacity-60" : ""}
+                >
                   <TableCell className="text-sm">
-                    {new Date(expense.date + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {new Date(expense.date + "T00:00:00").toLocaleDateString(
+                      "en-US",
+                      { month: "short", day: "numeric" }
+                    )}
                   </TableCell>
                   <TableCell>
                     <div>
-                      <span className="font-medium text-sm">{expense.description}</span>
+                      <span className="text-sm font-medium">
+                        {expense.description}
+                      </span>
                       {expense.notes && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{expense.notes}</p>
+                        <p className="max-w-[200px] truncate text-xs text-muted-foreground">
+                          {expense.notes}
+                        </p>
+                      )}
+                      {(expense.expense_listing_allocations?.length ?? 0) >
+                        0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {expense.expense_listing_allocations!.length} listing
+                          {expense.expense_listing_allocations!.length !== 1
+                            ? "s"
+                            : ""}
+                        </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     {expense.expense_categories ? (
-                      <Badge variant="outline" className="text-xs">{expense.expense_categories.name}</Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {expense.expense_categories.name}
+                      </Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs capitalize">{expense.type}</Badge>
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {expense.type}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm font-medium">
                     ${Number(expense.amount).toLocaleString()}
@@ -226,7 +270,10 @@ export function ExpensesTable({
                         variant="ghost"
                         size="icon"
                         className="size-7"
-                        onClick={() => { setEditingExpense(expense); setDialogOpen(true) }}
+                        onClick={() => {
+                          setEditingExpense(expense)
+                          setDialogOpen(true)
+                        }}
                       >
                         <Pencil className="size-3.5 text-muted-foreground" />
                       </Button>
@@ -249,14 +296,21 @@ export function ExpensesTable({
 
       {/* Expense Dialog */}
       <ExpenseDialog
+        key={`${editingExpense?.id ?? "new"}-${dialogOpen}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         expense={editingExpense}
         categories={categories}
+        listings={listings}
       />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deletingId} onOpenChange={(open) => { if (!open) setDeletingId(null) }}>
+      <AlertDialog
+        open={!!deletingId}
+        onOpenChange={(open) => {
+          if (!open) setDeletingId(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete expense?</AlertDialogTitle>
@@ -266,7 +320,10 @@ export function ExpensesTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
