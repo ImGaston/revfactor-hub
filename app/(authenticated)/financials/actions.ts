@@ -1244,3 +1244,41 @@ export async function addBankTransactionToExpense(transactionId: string) {
   revalidatePath("/financials")
   return { error: null }
 }
+
+// Dismiss an unpaid invoice from the Financials "payment issues" card. Keyed by
+// Stripe invoice id so it stays hidden across re-syncs.
+export async function dismissPaymentIssue(invoiceId: string) {
+  await requireSuperAdmin()
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { error } = await supabase
+    .from("dismissed_payment_issues")
+    .upsert(
+      { invoice_id: invoiceId, dismissed_by: user?.id ?? null },
+      { onConflict: "invoice_id" }
+    )
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/financials")
+  return { error: null }
+}
+
+// Restore a previously dismissed invoice back into the payment-issues card.
+export async function restorePaymentIssue(invoiceId: string) {
+  await requireSuperAdmin()
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from("dismissed_payment_issues")
+    .delete()
+    .eq("invoice_id", invoiceId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/financials")
+  return { error: null }
+}
