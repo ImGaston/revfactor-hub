@@ -11,21 +11,17 @@ import type {
   ExpenseCategory,
   FinancialCashSnapshot,
   RecurringExpense,
+  StripeInvoice,
   StripePayout,
 } from "@/lib/types"
 import { BankSection } from "./bank-section"
 import { ExpensesTable } from "./expenses-table"
 import { FinancialOverview } from "./financial-overview"
 import { NewSubscriptionsSection } from "./new-subscriptions-section"
+import { PaymentIssuesSection } from "./payment-issues-section"
+import type { ClientRef } from "./payment-issues"
 import { PlanningSection } from "./planning-section"
 import { SubscriptionsTable } from "./subscriptions-table"
-
-type ClientRef = {
-  id: string
-  name: string
-  email: string | null
-  stripe_customer_id: string | null
-}
 
 type ListingRef = {
   id: string
@@ -50,6 +46,8 @@ export function FinancialsView({
   cashSnapshot,
   bankAccounts,
   bankTransactions,
+  unpaidInvoices,
+  dismissedInvoiceIds,
 }: {
   stripeConfigured: boolean
   subscriptions: StripeSubscriptionSummary[]
@@ -69,6 +67,8 @@ export function FinancialsView({
   cashSnapshot: FinancialCashSnapshot | null
   bankAccounts: BankAccount[]
   bankTransactions: BankTransaction[]
+  unpaidInvoices: StripeInvoice[]
+  dismissedInvoiceIds: string[]
 }) {
   const currentMonth = new Date().toISOString().slice(0, 7)
   const unpaidExpenses = expenses.filter(
@@ -123,6 +123,14 @@ export function FinancialsView({
         </TabsList>
 
         <TabsContent value="overview" className="flex flex-col gap-4">
+          <PaymentIssuesSection
+            invoices={unpaidInvoices}
+            subscriptions={subscriptions}
+            clients={clients}
+            clientStripeCustomers={clientStripeCustomers}
+            assemblyConfigured={assemblyConfigured}
+            dismissedInvoiceIds={dismissedInvoiceIds}
+          />
           <NewSubscriptionsSection
             subscriptions={subscriptions}
             clients={clients}

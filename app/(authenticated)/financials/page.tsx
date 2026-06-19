@@ -72,6 +72,8 @@ export default async function FinancialsPage() {
     cashSnapshotResult,
     bankAccountsResult,
     bankTransactionsResult,
+    unpaidInvoicesResult,
+    dismissedIssuesResult,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -82,7 +84,9 @@ export default async function FinancialsPage() {
     supabase.from("expense_categories").select("*").order("name"),
     supabase
       .from("clients")
-      .select("id, name, email, stripe_customer_id")
+      .select(
+        "id, name, email, stripe_customer_id, assembly_link, assembly_client_id, assembly_company_id"
+      )
       .order("name"),
     supabase
       .from("listings")
@@ -130,6 +134,16 @@ export default async function FinancialsPage() {
       )
       .order("txn_date", { ascending: false })
       .limit(1000),
+    // Unpaid invoices only — drive the "payment issues" section. Filtering by
+    // status keeps the payload small.
+    supabase
+      .from("stripe_invoices")
+      .select(
+        "id, subscription_id, customer_id, customer_email, customer_name, amount_due, amount_paid, status, created, due_date, period_end"
+      )
+      .in("status", ["open", "uncollectible"])
+      .order("created", { ascending: false }),
+    supabase.from("dismissed_payment_issues").select("invoice_id"),
   ])
 
   const subscriptions = (mirrorSubsResult.data ?? []).map((r) =>
@@ -164,6 +178,10 @@ export default async function FinancialsPage() {
       cashSnapshot={cashSnapshotResult.data ?? null}
       bankAccounts={bankAccountsResult.data ?? []}
       bankTransactions={bankTransactionsResult.data ?? []}
+      unpaidInvoices={unpaidInvoicesResult.data ?? []}
+      dismissedInvoiceIds={
+        (dismissedIssuesResult.data ?? []).map((r) => r.invoice_id as string)
+      }
     />
   )
 }

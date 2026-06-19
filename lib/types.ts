@@ -255,6 +255,20 @@ export type StripePayout = {
   synced_at: string
 }
 
+export type StripeInvoice = {
+  id: string
+  subscription_id: string | null
+  customer_id: string | null
+  customer_email: string | null
+  customer_name: string | null
+  amount_due: number | string
+  amount_paid: number | string
+  status: string | null
+  created: string
+  due_date: string | null
+  period_end: string | null
+}
+
 export type FinancialCashSnapshot = {
   id: string
   operating_cash_cents: number
