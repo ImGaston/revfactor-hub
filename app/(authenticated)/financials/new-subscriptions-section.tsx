@@ -294,6 +294,7 @@ export function NewSubscriptionsSection({
           listings={listings}
           clients={clients}
           clientStripeCustomers={clientStripeCustomers}
+          subscriptions={subscriptions}
           currentListingIds={(subToListings.get(linkTarget.subscriptionId) ?? []).map((l) => l.id)}
         />
       )}

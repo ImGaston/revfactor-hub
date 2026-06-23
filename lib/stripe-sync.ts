@@ -155,14 +155,22 @@ export async function syncStripeData(
   const subCountByCustomer = new Map<string, number>()
   const subByCustomer = new Map<string, string>()
 
+  // `status: "all"` also mirrors canceled subscriptions so a listing linked to a
+  // since-canceled subscription stays visible in Financials (the default list omits
+  // canceled subs). Billing and "new subscriptions" already filter by status, so
+  // mirroring canceled rows does not affect those views.
   for await (const sub of stripe.subscriptions.list({
+    status: "all",
     expand: ["data.customer"],
     limit: 100,
   })) {
     const customer = sub.customer as Stripe.Customer
     const customerId =
       customer?.id ?? (typeof sub.customer === "string" ? sub.customer : null)
-    if (customerId) {
+    // Only count subscriptions that the default (non-"all") list would have
+    // returned, so the single-subscription payout fallback below keeps the same
+    // behavior it had before we started mirroring canceled subs.
+    if (customerId && sub.status !== "canceled" && sub.status !== "incomplete_expired") {
       subCountByCustomer.set(
         customerId,
         (subCountByCustomer.get(customerId) ?? 0) + 1

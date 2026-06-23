@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
+import { getProfile } from "@/lib/supabase/profile"
 import { ListingDetail } from "./listing-detail"
+import type { ListingSubscriptionOption } from "./change-listing-subscription-dialog"
 
 export default async function ListingPage({
   params,
@@ -10,10 +12,11 @@ export default async function ListingPage({
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: listing } = await supabase
-    .from("listings")
-    .select(
-      `id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, created_at, updated_at,
+  const [{ data: listing }, profile] = await Promise.all([
+    supabase
+      .from("listings")
+      .select(
+        `id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, stripe_subscription_id, created_at, updated_at,
        pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price,
        pl_cleaning_fees, pl_no_of_bedrooms,
        pl_occupancy_next_7, pl_market_occupancy_next_7,
@@ -23,9 +26,11 @@ export default async function ListingPage({
        pl_wknd_occupancy_next_30, pl_market_wknd_occupancy_next_30,
        pl_push_enabled, pl_last_refreshed_at, pl_synced_at,
        clients(id, name, status)`
-    )
-    .eq("id", id)
-    .single()
+      )
+      .eq("id", id)
+      .single(),
+    getProfile(),
+  ])
 
   if (!listing) notFound()
 
@@ -34,6 +39,44 @@ export default async function ListingPage({
     | { id: string; name: string; status: string }[]
     | null
   const client = Array.isArray(clientRaw) ? clientRaw[0] ?? null : clientRaw
+
+  // Subscription management is financial data — super_admin only. We load the
+  // mirrored subscriptions (now including canceled ones) and the Stripe customers
+  // linked to this listing's client to drive the reassignment picker.
+  const canManageSubscription = profile?.role === "super_admin"
+  let subscriptionOptions: ListingSubscriptionOption[] = []
+  let clientCustomerIds: string[] = []
+
+  if (canManageSubscription) {
+    const [subsResult, customersResult] = await Promise.all([
+      supabase
+        .from("stripe_subscriptions")
+        .select(
+          "id, status, customer_id, customer_name, plan_name, amount, currency, interval"
+        )
+        .order("created", { ascending: false }),
+      listing.client_id
+        ? supabase
+            .from("client_stripe_customers")
+            .select("stripe_customer_id")
+            .eq("client_id", listing.client_id)
+        : Promise.resolve({ data: [] as { stripe_customer_id: string }[] }),
+    ])
+
+    subscriptionOptions = (subsResult.data ?? []).map((s) => ({
+      id: s.id as string,
+      status: s.status as string,
+      customerId: s.customer_id as string,
+      customerName: (s.customer_name as string | null) ?? null,
+      planName: (s.plan_name as string | null) ?? null,
+      amount: Number(s.amount),
+      currency: (s.currency as string) ?? "usd",
+      interval: (s.interval as string | null) ?? null,
+    }))
+    clientCustomerIds = (customersResult.data ?? []).map(
+      (r) => r.stripe_customer_id as string
+    )
+  }
 
   return (
     <ListingDetail
@@ -71,6 +114,12 @@ export default async function ListingPage({
         pl_synced_at: listing.pl_synced_at,
       }}
       client={client}
+      canManageSubscription={canManageSubscription}
+      currentSubscriptionId={
+        (listing.stripe_subscription_id as string | null) ?? null
+      }
+      subscriptionOptions={subscriptionOptions}
+      clientCustomerIds={clientCustomerIds}
     />
   )
 }
