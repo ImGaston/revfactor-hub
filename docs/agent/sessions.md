@@ -2,6 +2,15 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-06-22 — Reassign a Listing's Subscription
+
+- Root cause of "can't see/change a listing's subscription": the Stripe sync listed subscriptions without `status: "all"`, so canceled subs never entered the `stripe_subscriptions` mirror and a listing linked to a since-canceled sub became invisible in Financials.
+- Fixed the sync (`lib/stripe-sync.ts`) to mirror canceled subs, excluding `canceled`/`incomplete_expired` from the single-subscription payout-attribution fallback maps so reconciliation is unchanged.
+- Added `setListingSubscription(listingId, subscriptionId|null)` action (only touches that listing; does not clear sub-mates like `linkSubscriptionToListings`).
+- Listing detail page (`listings/[id]`) now shows a `super_admin`-only Subscription card + `change-listing-subscription-dialog.tsx` to view/reassign/clear the listing's subscription (current sub shown even if canceled/orphaned).
+- `link-subscription-dialog.tsx` now names the *other* subscription a listing is attached to (customer + status) instead of a generic note; `subscriptions` array passed from the table and new-subscriptions section.
+- Verified end-to-end in the running app: typecheck clean; the orphaned canceled link rendered as "Not found in Stripe / canceled"; reassigned the real case (Beach Rd | FL | Trey → `sub_1TjiRc…` K Properties) and confirmed in DB; Financials dialog showed "linked to Jane Ng · active".
+
 ## 2026-06-15 — Quick-add Listing inside Link-Subscription Dialog
 
 - Added a "New listing for {client}" quick-add form inside `link-subscription-dialog.tsx` (shown when the subscription's customer maps to a Hub client). It calls the new `createListingForClient` action (inserts an active listing for the client, returns the id), auto-selects it, and `router.refresh()` so it appears in the list. Speeds up onboarding new clients with no listings.

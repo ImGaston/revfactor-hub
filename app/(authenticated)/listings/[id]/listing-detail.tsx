@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import {
   ArrowLeft,
   ExternalLink,
@@ -13,9 +14,14 @@ import {
   Clock,
   RefreshCw,
   Activity,
+  CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  ChangeListingSubscriptionDialog,
+  type ListingSubscriptionOption,
+} from "./change-listing-subscription-dialog"
 import {
   Card,
   CardContent,
@@ -41,6 +47,15 @@ type ClientData = {
   name: string
   status: string
 } | null
+
+const subscriptionStatusColors: Record<string, string> = {
+  active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  paused: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  canceled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  past_due: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  trialing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  incomplete: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+}
 
 // ─── Mock Data (fallback when PriceLabs not synced) ─────────
 // Reservations, reviews, pricing calendar, and pacing
@@ -236,12 +251,25 @@ function occColor(occ: number, marketOcc: number | null): "red" | "amber" | "gre
 export function ListingDetail({
   listing,
   client,
+  canManageSubscription = false,
+  currentSubscriptionId = null,
+  subscriptionOptions = [],
+  clientCustomerIds = [],
 }: {
   listing: ListingWithMetrics
   client: ClientData
+  canManageSubscription?: boolean
+  currentSubscriptionId?: string | null
+  subscriptionOptions?: ListingSubscriptionOption[]
+  clientCustomerIds?: string[]
 }) {
   const hasPLData = listing.pl_synced_at != null
   const maxRevenue = Math.max(...MOCK_MONTHLY_REVENUE.map((m) => m.revenue))
+  const [subDialogOpen, setSubDialogOpen] = useState(false)
+
+  const currentSubscription = currentSubscriptionId
+    ? subscriptionOptions.find((s) => s.id === currentSubscriptionId) ?? null
+    : null
 
   return (
     <div className="space-y-6">
@@ -338,6 +366,71 @@ export function ListingDetail({
             use real data once PMS and Airbnb integrations are connected.
           </p>
         </div>
+      )}
+
+      {/* ─── Subscription (super_admin only) ───────────── */}
+      {canManageSubscription && (
+        <div className="rounded-lg border px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <CreditCard className="size-4 text-muted-foreground shrink-0" />
+            {currentSubscription ? (
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-sm font-medium truncate">
+                  {currentSubscription.customerName ?? "Subscription"}
+                </span>
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "text-[10px]",
+                    subscriptionStatusColors[currentSubscription.status] ?? ""
+                  )}
+                >
+                  {currentSubscription.status}
+                </Badge>
+                <Link
+                  href={`/financials/subscriptions/${currentSubscription.id}`}
+                  className="text-xs text-muted-foreground font-mono hover:underline truncate"
+                >
+                  {currentSubscription.id}
+                </Link>
+              </div>
+            ) : currentSubscriptionId ? (
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-xs text-muted-foreground font-mono truncate">
+                  {currentSubscriptionId}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] text-amber-700 border-amber-300 dark:text-amber-400"
+                >
+                  Not found in Stripe / canceled
+                </Badge>
+              </div>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                No subscription linked
+              </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSubDialogOpen(true)}
+          >
+            Change subscription
+          </Button>
+        </div>
+      )}
+
+      {canManageSubscription && (
+        <ChangeListingSubscriptionDialog
+          open={subDialogOpen}
+          onOpenChange={setSubDialogOpen}
+          listingId={listing.id}
+          currentSubscriptionId={currentSubscriptionId}
+          subscriptions={subscriptionOptions}
+          clientCustomerIds={clientCustomerIds}
+        />
       )}
 
       {/* ─── PriceLabs KPI Row ─────────────────────────── */}

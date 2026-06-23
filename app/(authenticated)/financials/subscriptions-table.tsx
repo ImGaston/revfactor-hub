@@ -359,6 +359,7 @@ export function SubscriptionsTable({
           listings={listings}
           clients={clients}
           clientStripeCustomers={clientStripeCustomers}
+          subscriptions={subscriptions}
           currentListingIds={
             (subToListings.get(linkingSubscription.subscriptionId) ?? []).map((l) => l.id)
           }

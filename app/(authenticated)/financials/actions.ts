@@ -429,6 +429,31 @@ export async function unlinkSubscriptionFromListing(listingId: string) {
   return { error: null }
 }
 
+// Set (or clear) the subscription of a single listing. Unlike
+// `linkSubscriptionToListings`, this only touches the given listing and never
+// clears other listings sharing the subscription — correct for reassigning a
+// listing from the listing's own detail page.
+export async function setListingSubscription(
+  listingId: string,
+  subscriptionId: string | null
+) {
+  await requireSuperAdmin()
+  if (!listingId) return { error: "Missing listing" }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("listings")
+    .update({ stripe_subscription_id: subscriptionId })
+    .eq("id", listingId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/financials")
+  revalidatePath("/listings")
+  revalidatePath(`/listings/${listingId}`)
+  return { error: null }
+}
+
 // Create a new active listing already associated to a client, from the
 // "Link Listings to Subscription" dialog. Returns the new listing id so the
 // caller can auto-select it.

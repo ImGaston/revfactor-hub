@@ -22,6 +22,7 @@ import {
   buildListingFields,
   type ListingFormValues,
 } from "@/components/listings/listing-form-fields"
+import type { StripeSubscriptionSummary } from "@/lib/stripe"
 import { createListingForClient, linkSubscriptionToListings } from "./actions"
 
 type ClientRef = { id: string; name: string; email: string | null; stripe_customer_id: string | null }
@@ -37,6 +38,7 @@ export function LinkSubscriptionDialog({
   clients,
   clientStripeCustomers,
   currentListingIds,
+  subscriptions = [],
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -47,7 +49,11 @@ export function LinkSubscriptionDialog({
   clients: ClientRef[]
   clientStripeCustomers: { client_id: string; stripe_customer_id: string }[]
   currentListingIds: string[]
+  subscriptions?: StripeSubscriptionSummary[]
 }) {
+  // Resolve a listing's *other* subscription to a human label so the user knows
+  // exactly which subscription a listing is currently attached to.
+  const subById = new Map(subscriptions.map((s) => [s.id, s]))
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentListingIds))
   const [search, setSearch] = useState("")
   const [showAll, setShowAll] = useState(false)
@@ -246,6 +252,12 @@ export function LinkSubscriptionDialog({
                 {filteredListings.map((listing) => {
                   const isSelected = selectedIds.has(listing.id)
                   const isOtherSub = listing.stripe_subscription_id && listing.stripe_subscription_id !== subscriptionId
+                  const otherSub = isOtherSub
+                    ? subById.get(listing.stripe_subscription_id!)
+                    : undefined
+                  const otherSubLabel = otherSub
+                    ? `${otherSub.customerName ?? otherSub.planName ?? "subscription"} · ${otherSub.status}`
+                    : listing.stripe_subscription_id
                   return (
                     <label
                       key={listing.id}
@@ -265,7 +277,9 @@ export function LinkSubscriptionDialog({
                         <p className="text-xs text-muted-foreground truncate ml-5">
                           {listing.clients?.name ?? "No client"}
                           {isOtherSub && (
-                            <span className="text-amber-600 ml-1">(linked to another subscription)</span>
+                            <span className="text-amber-600 ml-1">
+                              (linked to {otherSubLabel})
+                            </span>
                           )}
                         </p>
                       </div>
