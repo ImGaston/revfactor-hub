@@ -11,7 +11,6 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
-  Clock,
   RefreshCw,
   Activity,
   CreditCard,
@@ -25,22 +24,18 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-import type { ListingWithMetrics } from "@/lib/types"
+import type { ListingReport, ListingWithMetrics } from "@/lib/types"
+import {
+  ReportOverview,
+  ReportMarket,
+  ReportBookingWindow,
+  ReportPacing,
+} from "./listing-report-dashboard"
 
 type ClientData = {
   id: string
@@ -55,57 +50,6 @@ const subscriptionStatusColors: Record<string, string> = {
   past_due: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   trialing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   incomplete: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
-}
-
-// ─── Mock Data (fallback when PriceLabs not synced) ─────────
-// Reservations, reviews, pricing calendar, and pacing
-// are NOT available from PriceLabs /listings endpoint.
-// They will be replaced when PMS + Airbnb integrations are connected.
-
-const MOCK_MONTHLY_REVENUE = [
-  { month: "May 2025", revenue: 7200, nights: 24, adr: 300 },
-  { month: "Jun 2025", revenue: 9100, nights: 28, adr: 325 },
-  { month: "Jul 2025", revenue: 10500, nights: 30, adr: 350 },
-  { month: "Aug 2025", revenue: 9800, nights: 29, adr: 338 },
-  { month: "Sep 2025", revenue: 7600, nights: 25, adr: 304 },
-  { month: "Oct 2025", revenue: 8200, nights: 27, adr: 304 },
-  { month: "Nov 2025", revenue: 6900, nights: 23, adr: 300 },
-  { month: "Dec 2025", revenue: 8100, nights: 26, adr: 312 },
-  { month: "Jan 2026", revenue: 7400, nights: 24, adr: 308 },
-  { month: "Feb 2026", revenue: 7900, nights: 25, adr: 316 },
-  { month: "Mar 2026", revenue: 8625, nights: 27, adr: 319 },
-  { month: "Apr 2026", revenue: 4200, nights: 14, adr: 300 },
-]
-
-const MOCK_UPCOMING_RESERVATIONS = [
-  { id: "1", guest: "Sarah M.", checkin: "2026-04-10", checkout: "2026-04-14", nights: 4, total: 1200, source: "Airbnb", status: "confirmed" },
-  { id: "2", guest: "James K.", checkin: "2026-04-16", checkout: "2026-04-20", nights: 4, total: 1340, source: "Airbnb", status: "confirmed" },
-  { id: "3", guest: "Ana R.", checkin: "2026-04-22", checkout: "2026-04-25", nights: 3, total: 870, source: "Direct", status: "pending" },
-  { id: "4", guest: "Michael P.", checkin: "2026-04-28", checkout: "2026-05-03", nights: 5, total: 1650, source: "Airbnb", status: "confirmed" },
-  { id: "5", guest: "Laura T.", checkin: "2026-05-05", checkout: "2026-05-09", nights: 4, total: 1280, source: "VRBO", status: "confirmed" },
-]
-
-const MOCK_PRICELABS_RATES = [
-  { date: "2026-04-07", basePrice: 295, suggestedPrice: 310, minPrice: 250, booked: false },
-  { date: "2026-04-08", basePrice: 295, suggestedPrice: 305, minPrice: 250, booked: false },
-  { date: "2026-04-09", basePrice: 295, suggestedPrice: 320, minPrice: 250, booked: false },
-  { date: "2026-04-10", basePrice: 295, suggestedPrice: 300, minPrice: 250, booked: true },
-  { date: "2026-04-11", basePrice: 310, suggestedPrice: 340, minPrice: 260, booked: true },
-  { date: "2026-04-12", basePrice: 330, suggestedPrice: 365, minPrice: 280, booked: true },
-  { date: "2026-04-13", basePrice: 330, suggestedPrice: 355, minPrice: 280, booked: true },
-  { date: "2026-04-14", basePrice: 295, suggestedPrice: 290, minPrice: 250, booked: false },
-  { date: "2026-04-15", basePrice: 295, suggestedPrice: 285, minPrice: 250, booked: false },
-  { date: "2026-04-16", basePrice: 295, suggestedPrice: 335, minPrice: 250, booked: true },
-  { date: "2026-04-17", basePrice: 295, suggestedPrice: 330, minPrice: 250, booked: true },
-  { date: "2026-04-18", basePrice: 310, suggestedPrice: 350, minPrice: 260, booked: true },
-  { date: "2026-04-19", basePrice: 330, suggestedPrice: 370, minPrice: 280, booked: true },
-  { date: "2026-04-20", basePrice: 295, suggestedPrice: 310, minPrice: 250, booked: false },
-]
-
-const MOCK_PACING = {
-  currentMonth: { booked: 21, available: 30, revenue: 6300, stlyRevenue: 5800 },
-  nextMonth: { booked: 18, available: 31, revenue: 5580, stlyRevenue: 6100 },
-  monthAfter: { booked: 10, available: 30, revenue: 3200, stlyRevenue: 5400 },
 }
 
 // ─── Helper Components ──────────────────────────────────────
@@ -199,38 +143,6 @@ function KPICard({
   )
 }
 
-function BarMockup({
-  value,
-  max,
-  color,
-}: {
-  value: number
-  max: number
-  color: string
-}) {
-  const pct = Math.min((value / max) * 100, 100)
-  return (
-    <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
-      <div
-        className={cn("h-full rounded-full transition-all", color)}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  )
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00")
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function formatCurrency(n: number) {
-  return `$${n.toLocaleString()}`
-}
-
 /**
  * Color based on listing occupancy vs market occupancy:
  * Red:    occ < 0.8 × market
@@ -251,6 +163,7 @@ function occColor(occ: number, marketOcc: number | null): "red" | "amber" | "gre
 export function ListingDetail({
   listing,
   client,
+  report = null,
   canManageSubscription = false,
   currentSubscriptionId = null,
   subscriptionOptions = [],
@@ -258,13 +171,13 @@ export function ListingDetail({
 }: {
   listing: ListingWithMetrics
   client: ClientData
+  report?: ListingReport | null
   canManageSubscription?: boolean
   currentSubscriptionId?: string | null
   subscriptionOptions?: ListingSubscriptionOption[]
   clientCustomerIds?: string[]
 }) {
   const hasPLData = listing.pl_synced_at != null
-  const maxRevenue = Math.max(...MOCK_MONTHLY_REVENUE.map((m) => m.revenue))
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
   const currentSubscription = currentSubscriptionId
@@ -518,650 +431,29 @@ export function ListingDetail({
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="reservations">Reservations</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          <TabsTrigger value="market">Market Position</TabsTrigger>
+          <TabsTrigger value="window">Booking Window</TabsTrigger>
           <TabsTrigger value="pacing">Pacing</TabsTrigger>
         </TabsList>
 
-        {/* ─── Overview Tab ────────────────────────────────── */}
+        {/* ─── Overview Tab (Report Builder) ───────────────── */}
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Monthly Revenue Chart (mock — needs PMS data) */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base">Monthly Revenue</CardTitle>
-                <CardDescription>
-                  Last 12 months revenue performance
-                  {!hasPLData && " (mockup data)"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {MOCK_MONTHLY_REVENUE.map((m) => (
-                    <div
-                      key={m.month}
-                      className="grid grid-cols-[100px_1fr_80px] items-center gap-3"
-                    >
-                      <span className="text-xs text-muted-foreground truncate">
-                        {m.month}
-                      </span>
-                      <BarMockup
-                        value={m.revenue}
-                        max={maxRevenue}
-                        color="bg-primary"
-                      />
-                      <span className="text-xs font-mono text-right">
-                        ${m.revenue.toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* PriceLabs stats sidebar */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Market Comparison</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Your Occ (30N)
-                    </span>
-                    <span className="font-medium font-mono">
-                      {listing.pl_occupancy_next_30 != null
-                        ? `${listing.pl_occupancy_next_30}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Market Occ (30N)
-                    </span>
-                    <span className="font-medium font-mono">
-                      {listing.pl_market_occupancy_next_30 != null
-                        ? `${listing.pl_market_occupancy_next_30}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Wknd Occ (30N)
-                    </span>
-                    <span className="font-medium font-mono">
-                      {listing.pl_wknd_occupancy_next_30 != null
-                        ? `${listing.pl_wknd_occupancy_next_30}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Mkt Wknd (30N)
-                    </span>
-                    <span className="font-medium font-mono">
-                      {listing.pl_market_wknd_occupancy_next_30 != null
-                        ? `${listing.pl_market_wknd_occupancy_next_30}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      MPI (30N)
-                    </span>
-                    <span
-                      className={cn(
-                        "font-bold font-mono",
-                        listing.pl_mpi_next_30 != null && listing.pl_mpi_next_30 >= 1
-                          ? "text-green-600 dark:text-green-400"
-                          : listing.pl_mpi_next_30 != null
-                            ? "text-red-600 dark:text-red-400"
-                            : ""
-                      )}
-                    >
-                      {listing.pl_mpi_next_30 ?? "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      MPI (60N)
-                    </span>
-                    <span
-                      className={cn(
-                        "font-bold font-mono",
-                        listing.pl_mpi_next_60 != null && listing.pl_mpi_next_60 >= 1
-                          ? "text-green-600 dark:text-green-400"
-                          : listing.pl_mpi_next_60 != null
-                            ? "text-red-600 dark:text-red-400"
-                            : ""
-                      )}
-                    >
-                      {listing.pl_mpi_next_60 ?? "—"}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Listing Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {listing.pl_no_of_bedrooms != null && (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Bedrooms
-                        </span>
-                        <span className="font-medium font-mono">
-                          {listing.pl_no_of_bedrooms}
-                        </span>
-                      </div>
-                      <Separator />
-                    </>
-                  )}
-                  {listing.pl_cleaning_fees != null && (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          Cleaning Fee
-                        </span>
-                        <span className="font-medium font-mono">
-                          ${listing.pl_cleaning_fees}
-                        </span>
-                      </div>
-                      <Separator />
-                    </>
-                  )}
-                  {listing.pl_last_booked_date && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Last Booked
-                      </span>
-                      <span className="font-medium font-mono">
-                        {new Date(listing.pl_last_booked_date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Occ 90N
-                    </span>
-                    <span className="font-medium font-mono">
-                      {listing.pl_occupancy_past_90 != null
-                        ? `${listing.pl_occupancy_past_90}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Mkt Occ 90N
-                    </span>
-                    <span className="font-medium font-mono text-muted-foreground">
-                      {listing.pl_market_occupancy_past_90 != null
-                        ? `${listing.pl_market_occupancy_past_90}%`
-                        : "—"}
-                    </span>
-                  </div>
-                  {listing.pl_last_refreshed_at && (
-                    <>
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Clock className="size-3.5" />
-                          PL Refreshed
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(listing.pl_last_refreshed_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <ReportOverview report={report} />
         </TabsContent>
 
-        {/* ─── Reservations Tab (mock — needs PMS) ─────────── */}
-        <TabsContent value="reservations" className="space-y-4">
-          {!hasPLData && (
-            <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Reservation data requires PMS integration (coming soon).
-              </p>
-            </div>
-          )}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Upcoming Reservations
-              </CardTitle>
-              <CardDescription>
-                Next 30 days of confirmed and pending bookings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Guest</TableHead>
-                      <TableHead>Check-in</TableHead>
-                      <TableHead>Check-out</TableHead>
-                      <TableHead className="text-center">Nights</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {MOCK_UPCOMING_RESERVATIONS.map((res) => (
-                      <TableRow key={res.id}>
-                        <TableCell className="font-medium">
-                          {res.guest}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(res.checkin)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {formatDate(res.checkout)}
-                        </TableCell>
-                        <TableCell className="text-center font-mono text-sm">
-                          {res.nights}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {formatCurrency(res.total)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {res.source}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "text-[10px] capitalize",
-                              res.status === "confirmed"
-                                ? "bg-green-500/10 text-green-700 border-green-300 dark:text-green-400"
-                                : "bg-amber-500/10 text-amber-700 border-amber-300 dark:text-amber-400"
-                            )}
-                          >
-                            {res.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  This Month
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono">8 bookings</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  27 nights booked
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Avg Nightly Rate
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono">$319</div>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  +6% vs last month
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Cancellation Rate
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono">3.2%</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  1 cancellation in 31 bookings
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* ─── Market Position Tab ─────────────────────────── */}
+        <TabsContent value="market" className="space-y-4">
+          <ReportMarket report={report} />
         </TabsContent>
 
-        {/* ─── Pricing Tab (mock — needs PriceLabs rates API) ── */}
-        <TabsContent value="pricing" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                PriceLabs Rate Calendar
-              </CardTitle>
-              <CardDescription>
-                Base price vs suggested price for the next 14 days
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Day</TableHead>
-                      <TableHead className="text-right">Base</TableHead>
-                      <TableHead className="text-right">Suggested</TableHead>
-                      <TableHead className="text-right">Min</TableHead>
-                      <TableHead className="text-right">Diff</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {MOCK_PRICELABS_RATES.map((r) => {
-                      const diff = r.suggestedPrice - r.basePrice
-                      const diffPct = ((diff / r.basePrice) * 100).toFixed(1)
-                      const d = new Date(r.date + "T00:00:00")
-                      const dayName = d.toLocaleDateString("en-US", {
-                        weekday: "short",
-                      })
-                      const isWeekend = d.getDay() === 0 || d.getDay() === 5 || d.getDay() === 6
-                      return (
-                        <TableRow
-                          key={r.date}
-                          className={cn(
-                            r.booked && "bg-primary/5",
-                            isWeekend && !r.booked && "bg-muted/30"
-                          )}
-                        >
-                          <TableCell className="text-sm">
-                            {formatDate(r.date)}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {dayName}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm">
-                            ${r.basePrice}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm font-medium">
-                            ${r.suggestedPrice}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                            ${r.minPrice}
-                          </TableCell>
-                          <TableCell
-                            className={cn(
-                              "text-right font-mono text-sm",
-                              diff > 0
-                                ? "text-green-600 dark:text-green-400"
-                                : diff < 0
-                                  ? "text-red-600 dark:text-red-400"
-                                  : "text-muted-foreground"
-                            )}
-                          >
-                            {diff > 0 ? "+" : ""}
-                            {diffPct}%
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {r.booked ? (
-                              <Badge className="text-[10px] bg-primary">
-                                Booked
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] text-muted-foreground"
-                              >
-                                Open
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Price Range
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono">
-                  {listing.pl_min_price != null && listing.pl_max_price != null
-                    ? `$${listing.pl_min_price} – $${listing.pl_max_price}`
-                    : "$250 – $370"}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {hasPLData ? "PriceLabs min/max range" : "Based on PriceLabs dynamic pricing"}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Base vs Recommended
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {listing.pl_base_price != null && listing.pl_recommended_base_price != null ? (
-                  <>
-                    <div
-                      className={cn(
-                        "text-xl font-bold font-mono",
-                        listing.pl_recommended_base_price >= listing.pl_base_price
-                          ? "text-green-600 dark:text-green-400"
-                          : "text-red-600 dark:text-red-400"
-                      )}
-                    >
-                      {listing.pl_recommended_base_price >= listing.pl_base_price ? "+" : ""}
-                      {(
-                        ((listing.pl_recommended_base_price - listing.pl_base_price) /
-                          listing.pl_base_price) *
-                        100
-                      ).toFixed(1)}
-                      %
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      ${listing.pl_base_price} → ${listing.pl_recommended_base_price} recommended
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-xl font-bold font-mono text-green-600 dark:text-green-400">
-                      +7.2%
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      PriceLabs recommends higher rates
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Push Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono">
-                  {listing.pl_push_enabled != null
-                    ? listing.pl_push_enabled
-                      ? "Enabled"
-                      : "Disabled"
-                    : "—"}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  PriceLabs price push to PMS
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* ─── Booking Window Tab ──────────────────────────── */}
+        <TabsContent value="window" className="space-y-4">
+          <ReportBookingWindow report={report} />
         </TabsContent>
 
-        {/* ─── Pacing Tab (mock — needs PMS data) ──────────── */}
+        {/* ─── Pacing Tab (Report Builder) ─────────────────── */}
         <TabsContent value="pacing" className="space-y-4">
-          {!hasPLData && (
-            <div className="rounded-lg border border-dashed border-amber-400/50 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2">
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                Pacing data requires PMS integration (coming soon). Showing mockup data.
-              </p>
-            </div>
-          )}
-          <div className="grid gap-4 lg:grid-cols-3">
-            {[
-              { label: "This Month (Apr)", data: MOCK_PACING.currentMonth },
-              { label: "Next Month (May)", data: MOCK_PACING.nextMonth },
-              { label: "Jun 2026", data: MOCK_PACING.monthAfter },
-            ].map(({ label, data }) => {
-              const occPct = Math.round((data.booked / data.available) * 100)
-              const revenueVsStly = data.stlyRevenue
-                ? (
-                    ((data.revenue - data.stlyRevenue) / data.stlyRevenue) *
-                    100
-                  ).toFixed(1)
-                : null
-              const isAhead = data.revenue >= data.stlyRevenue
-
-              return (
-                <Card key={label}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{label}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5">
-                        <span className="text-muted-foreground">Occupancy</span>
-                        <span className="font-mono font-medium">
-                          {data.booked}/{data.available} nights ({occPct}%)
-                        </span>
-                      </div>
-                      <BarMockup
-                        value={data.booked}
-                        max={data.available}
-                        color={
-                          occPct >= 80
-                            ? "bg-green-500"
-                            : occPct >= 50
-                              ? "bg-amber-500"
-                              : "bg-red-400"
-                        }
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Revenue</span>
-                        <span className="font-mono font-medium">
-                          {formatCurrency(data.revenue)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">STLY</span>
-                        <span className="font-mono text-muted-foreground">
-                          {formatCurrency(data.stlyRevenue)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">vs STLY</span>
-                        <span
-                          className={cn(
-                            "font-mono font-medium flex items-center gap-1",
-                            isAhead
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
-                          )}
-                        >
-                          {isAhead ? (
-                            <TrendingUp className="size-3" />
-                          ) : (
-                            <TrendingDown className="size-3" />
-                          )}
-                          {revenueVsStly && Number(revenueVsStly) > 0 ? "+" : ""}
-                          {revenueVsStly}%
-                        </span>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Implied ADR</span>
-                      <span className="font-mono font-medium">
-                        {formatCurrency(Math.round(data.revenue / data.booked))}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                90-Day Pacing Summary
-              </CardTitle>
-              <CardDescription>
-                Booking pace compared to same time last year
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Booked Revenue
-                  </p>
-                  <p className="text-lg font-bold font-mono mt-1">$15,080</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">STLY Revenue</p>
-                  <p className="text-lg font-bold font-mono mt-1">$17,300</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Gap to Close</p>
-                  <p className="text-lg font-bold font-mono mt-1 text-red-600 dark:text-red-400">
-                    -$2,220
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Nights to Sell</p>
-                  <p className="text-lg font-bold font-mono mt-1">42 nights</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ReportPacing report={report} />
         </TabsContent>
       </Tabs>
     </div>

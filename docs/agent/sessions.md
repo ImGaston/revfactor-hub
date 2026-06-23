@@ -2,6 +2,16 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-06-23 — PriceLabs Report Builder Integration
+
+- New integration ingesting the PriceLabs Report Builder monthly grid (234 listings × 12 months, 20 listing + 35 month fields) into native Supabase tables, surfaced on each listing's detail page.
+- Migration `035_report_builder.sql`: `report_runs` (state machine + observability + pruned `raw_envelope`), `report_listings` (`listing_id` text PK), `report_metrics` (grain listing × month × run, unique `listing_id+period+report_run_id`), `report_group_overrides`; adds `idx_listings_listing_id`; RLS = authenticated SELECT, writes via admin client.
+- `lib/report-builder/`: `client.ts` (3-call API, poll keeps `/v1/` + `X-API-Key`), `schema.ts` (rename + 20/35 split + `Year Month`→period), `ingest.ts` (client resolution by Listing ID → Group Name override → name; chunked upsert; prune to last 30 envelopes), `runner.ts` (`advanceReportBuilder` idempotent state machine: reap/resume/trigger + ~45s inline poll), `queries.ts` (`getListingReport`).
+- Orchestration: **chained onto the existing `sync-pricelabs` cron** (08:00 UTC) — runs `advanceReportBuilder` after the `pl_*` sync with the remaining function budget (`inlineDeadlineMs`); no new cron job (stays at 2, Hobby cap). Manual **Sync Report Builder** button (same logic via `syncReportBuilderAction`); `/api/cron/report-builder` kept as an unscheduled on-demand endpoint. Group-override management UI in Settings → Listings. Template pinned via `PRICELABS_REPORT_TEMPLATE_ID` (12127), else resolved by name.
+- Display: `listings/[id]` Overview "Monthly Revenue" now uses real `rental_revenue`+YoY; new **Year Review** tab (Revenue/STLY/YoY, RevPAR vs market, RevPAR Index, occupancy, booking window). Degrades to empty/mock when no completed run matches.
+- Verified: `pnpm typecheck` clean; `pnpm lint` clean for all new/changed files (pre-existing errors elsewhere untouched). NOT yet verified in-browser: needs migration `035` applied to Supabase + one sync run (live API). Confirmed by user: same `PRICELABS_API_KEY`, template id `12127`.
+- NOTE: an early version wrote files to the main repo path instead of the worktree; corrected — all changes now live on branch `claude/vibrant-montalcini-b959fb`, main restored (its pre-existing `.gitignore` change left intact).
+
 ## 2026-06-22 — Reassign a Listing's Subscription
 
 - Root cause of "can't see/change a listing's subscription": the Stripe sync listed subscriptions without `status: "all"`, so canceled subs never entered the `stripe_subscriptions` mirror and a listing linked to a since-canceled sub became invisible in Financials.

@@ -41,6 +41,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `lib/supabase/admin.ts` — service-role admin client.
 - `lib/profile.ts`, `lib/permissions.ts`, `lib/permissions.server.ts`, `lib/types.ts`, `lib/utils.ts` — shared profile, permission, type, utility helpers.
 - `lib/assembly.ts`, `lib/pricelabs.ts`, `lib/stripe.ts`, `lib/pacing.ts`, `lib/pacing-mock.ts` — integration and data-layer helpers.
+- `lib/report-builder/` — PriceLabs Report Builder: `client.ts` (3-call API), `schema.ts` (API→snake_case rename + 20/35 split + period parse), `ingest.ts` (resolve client, chunked upsert, prune), `runner.ts` (`advanceReportBuilder` state machine), `queries.ts` (`getListingReport` for the detail page).
 - `lib/financial-planning.ts` — cent-based Profit First allocation, scenario forecast, runway, and allocation validation.
 - `lib/client-stripe-billing.ts` — derives each client's current monthly Billing from Stripe customers linked through `client_stripe_customers`.
 - `lib/bank-import.ts` — pure, client+server-safe Relay CSV parser, transaction classifier, vendor-category/recurring/payout matchers, and dedupe-hash builder for the bank statement import.
@@ -56,12 +57,13 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - Bank reconciliation: `bank_accounts` (seeded internal accounts + Profit First role), `bank_statement_imports` (per-file audit), `bank_transactions` (classified rows; links to `stripe_payouts` and `expenses`). `expenses.bank_transaction_id` links bank-created expenses. UI: Financials **Bank** tab → `bank-section.tsx`, `bank-import-dialog.tsx`, shared `bank-flow.ts`.
 - Calendar/notes: `calendar_events`, `notes`.
 - Pacing/PMS foundation: `reservations` is defined in migration `023_reservations.sql` but not yet applied to the dev Supabase project.
+- Report Builder (migration `035_report_builder.sql`): `report_runs` (ingestion state machine + observability + pruned `raw_envelope`), `report_listings` (listing attrs, `listing_id` text PK), `report_metrics` (monthly metrics, grain listing × month × run), `report_group_overrides` (Group Name → client fallback). Adds `idx_listings_listing_id`.
 
 ## Storage, Views, and Scripts
 
 - Supabase Storage: public `avatars` bucket organized by `{user_id}/`.
 - Key views: `client_portfolio_summary`, `onboarding_progress`, and analytics/count views used by roadmap/knowledge features.
-- Cron: `app/api/cron/sync-pricelabs/route.ts` runs daily PriceLabs sync at 8:00 UTC with `CRON_SECRET`.
+- Cron: `app/api/cron/sync-pricelabs/route.ts` (daily 8:00 UTC) also chains the Report Builder ingestion (`advanceReportBuilder`) after the `pl_*` sync, and `app/api/cron/sync-stripe/route.ts` (8:30 UTC). All authed with `CRON_SECRET`. `app/api/cron/report-builder/route.ts` stays as an on-demand endpoint (no scheduled cron) — same logic, also exposed via the manual button.
 - Scripts: `scripts/migrate-airtable.ts`, `scripts/migrate-credentials.ts`, `scripts/check-missing-listings.ts`, `scripts/seed-reservations.ts`.
 
 ## Domain Terms

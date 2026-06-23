@@ -13,12 +13,31 @@ export default async function SettingsListingsPage() {
 
   const supabase = await createClient()
 
-  const { data: listings } = await supabase
-    .from("listings")
-    .select(
-      "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, clients(id, name)"
-    )
-    .order("name")
+  const [{ data: listings }, { data: overrideRows }] = await Promise.all([
+    supabase
+      .from("listings")
+      .select(
+        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, clients(id, name)"
+      )
+      .order("name"),
+    supabase
+      .from("report_group_overrides")
+      .select("id, group_name, client_id, note, created_by, created_at, clients(name)")
+      .order("group_name"),
+  ])
+
+  const overrides = (overrideRows ?? []).map((row: Record<string, unknown>) => {
+    const client = row.clients as { name: string } | null
+    return {
+      id: row.id as string,
+      group_name: row.group_name as string,
+      client_id: row.client_id as string,
+      note: (row.note as string | null) ?? null,
+      created_by: (row.created_by as string | null) ?? null,
+      created_at: row.created_at as string,
+      client_name: client?.name ?? null,
+    }
+  })
 
   const flatListings = (listings ?? []).map((l: Record<string, unknown>) => {
     const client = l.clients as { id: string; name: string } | null
@@ -37,5 +56,5 @@ export default async function SettingsListingsPage() {
     }
   })
 
-  return <ListingsSettings listings={flatListings} />
+  return <ListingsSettings listings={flatListings} overrides={overrides} />
 }
