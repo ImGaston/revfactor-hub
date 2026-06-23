@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
+import { getListingReport } from "@/lib/report-builder/queries"
 import { ListingDetail } from "./listing-detail"
 import type { ListingSubscriptionOption } from "./change-listing-subscription-dialog"
 
@@ -33,6 +34,9 @@ export default async function ListingPage({
   ])
 
   if (!listing) notFound()
+
+  // Monthly Report Builder series for this listing (latest completed run).
+  const report = await getListingReport(supabase, listing.listing_id)
 
   const clientRaw = listing.clients as
     | { id: string; name: string; status: string }
@@ -114,6 +118,7 @@ export default async function ListingPage({
         pl_synced_at: listing.pl_synced_at,
       }}
       client={client}
+      report={report}
       canManageSubscription={canManageSubscription}
       currentSubscriptionId={
         (listing.stripe_subscription_id as string | null) ?? null

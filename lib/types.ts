@@ -512,3 +512,73 @@ export type OnboardingResource = {
   created_at: string
   updated_at: string
 }
+
+// ─── Report Builder (PriceLabs) ─────────────────────────
+
+export type ReportListing = {
+  listing_id: string
+  listing_name: string | null
+  group_name: string | null
+  sub_group_name: string | null
+  property_name: string | null
+  city: string | null
+  latitude: number | null
+  longitude: number | null
+  bedroom_count: number | null
+  unit_count: number | null
+  pms_name: string | null
+  is_parent: boolean | null
+  sync_on: boolean | null
+  base_price: number | null
+  min_price: number | null
+  max_price: number | null
+  base_price_recommendation: number | null
+  tags: string[] | null
+  last_booked_date: string | null
+  hub_listing_id: string | null
+  hub_client_id: string | null
+  report_run_id: string | null
+  updated_at: string
+}
+
+// One month of metrics for a listing (subset selected by the dashboard).
+export type ReportMetric = {
+  period: string
+  period_label: string | null
+  rental_revenue: number | null
+  rental_revenue_stly: number | null
+  rental_revenue_ly: number | null
+  rental_revenue_stly_yoy_pct: number | null
+  rental_adr: number | null
+  rental_adr_stly: number | null
+  rental_adr_ly: number | null
+  rental_adr_stly_yoy_pct: number | null
+  market_adr: number | null
+  market_adr_stly_yoy_pct: number | null
+  rental_revpar: number | null
+  market_revpar: number | null
+  revpar_index: number | null
+  adjusted_occupancy_pct: number | null
+  adjusted_occupancy_ly_pct: number | null
+  market_occupancy_pct: number | null
+  median_booking_window: number | null
+  median_booking_window_ly: number | null
+  market_median_booking_window: number | null
+  potential_revenue_open_inventory: number | null
+}
+
+// Bundle handed to the listing detail page: monthly series + freshness.
+export type ListingReport = {
+  attributes: ReportListing
+  metrics: ReportMetric[]
+  runCompletedAt: string | null
+}
+
+export type ReportGroupOverride = {
+  id: string
+  group_name: string
+  client_id: string
+  note: string | null
+  created_by: string | null
+  created_at: string
+}

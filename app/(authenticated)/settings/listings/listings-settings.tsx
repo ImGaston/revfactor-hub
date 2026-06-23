@@ -44,9 +44,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ListingDialog } from "./listing-dialog"
+import { ReportOverrides, type ReportOverrideRow } from "./report-overrides"
 import {
   deleteListingAction,
   syncPriceLabsAction,
+  syncReportBuilderAction,
   updateListingStatusAction,
 } from "./actions"
 
@@ -82,8 +84,10 @@ function formatSyncDate(value: string): string {
 
 export function ListingsSettings({
   listings,
+  overrides,
 }: {
   listings: SettingsListing[]
+  overrides: ReportOverrideRow[]
 }) {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -95,6 +99,7 @@ export function ListingsSettings({
   const [deleteTarget, setDeleteTarget] = useState<SettingsListing | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncingReport, setSyncingReport] = useState(false)
   const [syncResults, setSyncResults] = useState<
     Record<string, ListingSyncRunResult>
   >({})
@@ -232,6 +237,39 @@ export function ListingsSettings({
     }
   }
 
+  async function handleSyncReport() {
+    setSyncingReport(true)
+    try {
+      const result = await syncReportBuilderAction()
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      if (result.status === "completed") {
+        toast.success(
+          `Report Builder synced: ${result.metricRowCount ?? 0} rows, ${
+            result.listingCount ?? 0
+          } listings${
+            result.unresolvedCount ? `, ${result.unresolvedCount} unresolved` : ""
+          }`
+        )
+        router.refresh()
+      } else if (result.status === "polling") {
+        toast.info(
+          "Report is still generating. Click Sync again in a minute to resume."
+        )
+      } else {
+        toast.warning(result.message ?? "Report Builder sync finished")
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Report Builder sync failed"
+      )
+    } finally {
+      setSyncingReport(false)
+    }
+  }
+
   function handleToggleStatus(listing: SettingsListing, nextActive: boolean) {
     const nextStatus = nextActive ? "active" : "inactive"
     startTransition(async () => {
@@ -267,6 +305,17 @@ export function ListingsSettings({
                 className={cn("mr-1 size-4", syncing && "animate-spin")}
               />
               {syncing ? "Syncing..." : "Sync PriceLabs"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSyncReport}
+              disabled={syncingReport}
+            >
+              <RefreshCw
+                className={cn("mr-1 size-4", syncingReport && "animate-spin")}
+              />
+              {syncingReport ? "Syncing..." : "Sync Report Builder"}
             </Button>
             <Button size="sm" onClick={handleNew}>
               <Plus className="mr-1 size-4" />
@@ -552,6 +601,8 @@ export function ListingsSettings({
             </TableBody>
           </Table>
         </div>
+
+        <ReportOverrides overrides={overrides} />
       </div>
 
       <ListingDialog

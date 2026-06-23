@@ -61,6 +61,22 @@ Display:
 - Settings > Listings shows the last successful PriceLabs sync and the current manual-run result for each listing.
 - Reservations, pricing calendar, and pacing tabs still depend on PMS/reservations work.
 
+### PriceLabs Report Builder
+
+Net-new integration (migration `035_report_builder.sql`, `lib/report-builder/`) that ingests a **monthly** listing × month grid for the whole portfolio in a single API call — distinct from the daily `pl_*` current-state snapshot on `listings`.
+
+- API base: `https://api.pricelabs.co/v1/report_builder`. Auth: `X-API-Key` from `PRICELABS_API_KEY` (same key as `lib/pricelabs.ts`). Client: `lib/report-builder/client.ts`.
+- Three calls: `GET /templates` → `POST /data {template_id}` (inline data **or** `{request_id, status: IN_PROGRESS}`) → `POST /poll {request_id}` until `status: completed`. The poll endpoint **does** carry the `/v1/` prefix and **does** require `X-API-Key` (SwaggerHub omitted both → 404/401). The generation session expires **30 min** after `request_id` is issued.
+- Always use the bounded **`rm-listings`** template (resolved by name, or pin via `PRICELABS_REPORT_TEMPLATE_ID`). Wide templates balloon to ~100 MB; the bounded one is ~4.4 MB for the whole portfolio.
+- Payload shape (validated): envelope `{ data: { report_data[], report_currency }, request_id, error_reason }`; 234 listings × 12 months, 55 fields per row = 20 listing-level + 35 month-level. `Listing ID` is a heterogeneous STRING (huge Airbnb ints that overflow bigint AND UUIDs) → all keys are `text`. Period derives from `Year Month` (`"2026-01.Jan"` → `2026-01-01`), **not** the standalone `Year`. `report_currency` is per-run (USD today), only in the envelope.
+- Tables: `report_runs` (async state machine + observability + pruned `raw_envelope`), `report_listings` (20 attrs, upsert by `listing_id` per run), `report_metrics` (35 typed metrics, grain listing × month × run, unique `listing_id+period+report_run_id`), `report_group_overrides` (Group Name → client fallback). No jsonb for live data.
+- Rename API→snake_case lives **only** in `lib/report-builder/schema.ts` (`METRIC_FIELD_MAP`). `RevPar`→`rental_revpar`, `Average Market RevPar`→`market_revpar`, `Market Penetration RevPar Index`→`revpar_index`, `Occupancy`→`adjusted_occupancy_pct`, `ADR`→`rental_adr`, `Booking Window`→`median_booking_window`, `Available and Bookable dates Recommended Potential Revenue`→`potential_revenue_open_inventory`; STLY/LY/YoY follow the same pattern.
+- Client resolution (`lib/report-builder/ingest.ts`): match `Listing ID` → `listings.listing_id` (hard key) → `client_id`; else Group Name via `report_group_overrides`, then exact `clients.name`; unresolved listings keep `group_name` as a label and are counted in `report_runs.unresolved_count`.
+- Orchestration (Hobby-safe, no extra cron): the ingestion is **chained onto the existing daily `sync-pricelabs` cron** (08:00 UTC) — after the `pl_*` sync, `sync-pricelabs/route.ts` calls `advanceReportBuilder` with the time left in the function budget (`inlineDeadlineMs`, headroom under `maxDuration 60`). The state machine reaps expired polling runs, resumes an in-window one, else triggers + bounded inline polls. A manual **Sync Report Builder** button in Settings → Listings (`syncReportBuilderAction`) runs the same logic so a human can close out a slow report within the 30-min window. `app/api/cron/report-builder/route.ts` remains as an on-demand HTTP endpoint (CRON_SECRET) but has no schedule. If reports regularly exceed the inline window, add a Pro per-minute resume cron.
+- Retention: `raw_envelope` kept only for the last 30 completed runs (pruned in `ingest.ts`); metadata of all runs is retained.
+- Display: `listings/[id]` Overview "Monthly Revenue" uses real `rental_revenue` (with YoY) when a completed run exists; a new **Year Review** tab shows the monthly table (Revenue/STLY/YoY, RevPAR vs market, RevPAR Index, occupancy, booking window). Degrades to the mock/empty state when there's no matching run (`getListingReport` returns null; queries swallow missing-table errors).
+- Snapshots (future): `report_runs.raw_envelope` of the last 30 runs is the intended source; not built yet.
+
 ## Stripe and Financials
 
 - API client: `lib/stripe.ts`.

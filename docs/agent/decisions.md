@@ -18,6 +18,14 @@ Dialog-only lookup lists, such as clients in listing dialogs, should load when t
 
 Do not refactor large interactive detail pages into streamed server shells by default. The complexity is not justified for current dataset sizes.
 
+## 2026-06-23 — Report Builder Lands in Native Supabase Tables, Not BigQuery
+
+The PriceLabs Report Builder monthly grid (234 listings × 12 months = ~2,808 rows/run) goes into three native Supabase tables (`report_listings`, `report_metrics`, `report_runs`) plus a `report_group_overrides` fallback — not BigQuery. STLY/LY/YoY arrive precalculated and the volume is tiny, so a native typed table is simpler and type-safe; BigQuery stays for the daily `pl_*` firehose. `report_metrics` keeps per-run history (unique `listing_id+period+report_run_id`); the dashboard reads the latest completed run. `Listing ID` is `text` (heterogeneous UUIDs + 19-digit ints that overflow bigint). One API call covers the whole portfolio. The rename to snake_case lives only in `lib/report-builder/schema.ts`.
+
+## 2026-06-23 — Report Builder Orchestration: Chained onto the PriceLabs Cron + Manual Resume (Hobby-safe)
+
+The async flow (trigger → 30-min poll window → ingest) must not hang a Vercel function. `advanceReportBuilder` is an idempotent state machine that reaps expired runs, resumes an in-window polling run, or triggers + bounded-inline-polls. It is **chained onto the existing daily `sync-pricelabs` cron** (08:00 UTC) instead of adding a new cron job — keeps us at 2 crons (Hobby cap) and reuses the same `PRICELABS_API_KEY`. The chained call passes `inlineDeadlineMs` = remaining function budget so the combined run stays under `maxDuration 60`. A manual **Sync Report Builder** button runs the same logic so a human can close out a slow report within the 30-min window; `/api/cron/report-builder` stays as an unscheduled on-demand endpoint. `raw_envelope` is kept only for the last 30 completed runs. If reports routinely exceed the inline window, add a Pro per-minute resume cron — do not block a function waiting.
+
 ## 2026-06-04 — Shared Agent Memory Lives in `docs/agent/`
 
 Project memory for Codex and Claude is versioned in `docs/agent/`, while root `AGENTS.md` and `CLAUDE.md` stay short routing files. `.claude/` remains local/ignored and is not the shared source of truth.
