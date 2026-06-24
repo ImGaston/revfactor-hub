@@ -71,6 +71,7 @@ Net-new integration (migration `035_report_builder.sql`, `lib/report-builder/`) 
 - Payload shape (validated): envelope `{ data: { report_data[], report_currency }, request_id, error_reason }`; 234 listings × 12 months, 65 fields per row = 20 listing-level + 45 month-level (migration `036` added 10: market penetration index + booked-nights / occupancy / rental-revenue pickup windows). `Listing ID` is a heterogeneous STRING (huge Airbnb ints that overflow bigint AND UUIDs) → all keys are `text`. Period derives from `Year Month` (`"2026-01.Jan"` → `2026-01-01`), **not** the standalone `Year`. `report_currency` is per-run (USD today), only in the envelope.
 - Tables: `report_runs` (async state machine + observability + pruned `raw_envelope`), `report_listings` (20 attrs, upsert by `listing_id` per run), `report_metrics` (45 typed metrics, grain listing × month × run, unique `listing_id+period+report_run_id`), `report_group_overrides` (Group Name → client fallback). No jsonb for live data.
 - Rename API→snake_case lives **only** in `lib/report-builder/schema.ts` (`METRIC_FIELD_MAP`). `RevPar`→`rental_revpar`, `Average Market RevPar`→`market_revpar`, `Market Penetration RevPar Index`→`revpar_index`, `Occupancy`→`adjusted_occupancy_pct`, `ADR`→`rental_adr`, `Booking Window`→`median_booking_window`, `Available and Bookable dates Recommended Potential Revenue`→`potential_revenue_open_inventory`; STLY/LY/YoY follow the same pattern.
+- **Field names are exact and sometimes terse — verify against `raw_envelope`, do not guess from the friendly column label.** The pickup/penetration metrics ship as `Occupancy Pickup 7`, `Occupancy Pickup 8 14`, `Occupancy Pickup 15 30`, `Num Booked Pickup 7/14/30`, `Rental Revenue Pickup 7/8 14/15 30`, `Market Penetration Index` — NOT `Occupancy Pickup (7 Days)` etc. A wrong key yields silent null (no error), so the column ingests as all-zero. The original 036 mapping guessed friendly labels and shipped all-zero until corrected 2026-06-24.
 - Client resolution (`lib/report-builder/ingest.ts`): match `Listing ID` → `listings.listing_id` (hard key) → `client_id`; else Group Name via `report_group_overrides`, then exact `clients.name`; unresolved listings keep `group_name` as a label and are counted in `report_runs.unresolved_count`.
 - Orchestration (Hobby-safe, no extra cron): the ingestion is **chained onto the existing daily `sync-pricelabs` cron** (08:00 UTC) — after the `pl_*` sync, `sync-pricelabs/route.ts` calls `advanceReportBuilder` with the time left in the function budget (`inlineDeadlineMs`, headroom under `maxDuration 60`). The state machine reaps expired polling runs, resumes an in-window one, else triggers + bounded inline polls. A manual **Sync Report Builder** button in Settings → Listings (`syncReportBuilderAction`) runs the same logic so a human can close out a slow report within the 30-min window. `app/api/cron/report-builder/route.ts` remains as an on-demand HTTP endpoint (CRON_SECRET) but has no schedule. If reports regularly exceed the inline window, add a Pro per-minute resume cron.
 - Retention: `raw_envelope` kept only for the last 30 completed runs (pruned in `ingest.ts`); metadata of all runs is retained.
@@ -115,44 +116,33 @@ Implemented in migration `033_bank_statements.sql`, `lib/bank-import.ts`, the Fi
 
 ## Pacing Chart
 
-Dashboard home has a forward-looking stacked bar chart of portfolio pacing.
+The dashboard home's pacing visual is the **Monthly Pacing** chart (real Report Builder data) — see the Monthly Pacing section below.
 
-- Component: `components/dashboard/pacing-chart.tsx`.
-- Data layer: `lib/pacing.ts`.
-- Mock data: `lib/pacing-mock.ts`.
-- Current state: `023_reservations.sql` and `scripts/seed-reservations.ts` exist but are not yet applied to the dev Supabase project.
-- Dashboard currently uses `getMockPacingSource`; after reservations are applied, add a `getPacingSource()` sibling returning the same `PacingSource` shape.
+The earlier **daily** pacing chart that ran on mock data was removed from the home on 2026-06-24 ("no nos sirve"): deleted `components/dashboard/pacing-chart.tsx` and `lib/pacing-mock.ts`. The reservations-based data layer for a *real* daily pacing chart remains dormant on disk with no UI consumer:
 
-Bucket rules:
+- Data layer: `lib/pacing.ts` (`getPacingData`) — forward 60-day window, recency buckets `last_3d / last_7d / last_14d / older`, denominator = static listings count.
+- Schema: `023_reservations.sql` + `scripts/seed-reservations.ts` — never applied/seeded on the dev Supabase project.
+- To revive a daily chart: apply migration 023, seed reservations, build a new client component consuming `getPacingData` (git history has the old `pacing-chart.tsx` for reference). Otherwise these can be deleted as dead code.
+
+### Monthly Pacing (Report Builder)
+
+Sibling chart on the dashboard home: one stacked column per calendar month, built on `report_metrics` (Report Builder monthly grid) instead of daily reservations.
+
+- Component: `components/dashboard/monthly-pacing-chart.tsx`.
+- Data layer: `lib/monthly-pacing.ts` (`getMonthlyPacingSource` server fetch + `aggregateMonthlyPacing` pure aggregator). Reads the latest *completed* `report_runs`; degrades to an empty state on any query error (e.g. missing pickup columns).
+- Bar height = month's `adjusted_occupancy_pct`, decomposed by booking recency (all in occupancy percentage points, so the stack sums to occupancy):
 
 ```text
-last_3d:  booked_date in [today-3, today]
-last_7d:  booked_date in [today-7, today-3)
-last_14d: booked_date in [today-14, today-7)
-older:    booked_date < today-14
+pickup_7d     = occupancy_pickup_7d        (booked last 7 days)
+pickup_8_14d  = occupancy_pickup_8_14d     (booked 8–14 days ago)
+pickup_15_30d = occupancy_pickup_15_30d    (booked 15–30 days ago)
+older         = adjusted_occupancy_pct − (the three pickups)   (30+ days ago)
 ```
 
-Data conventions:
-
-- Use UTC anchors everywhere for `today`, `stay_date`, bucket math, and tick labels.
-- Window is 60 days forward inclusive of today.
-- SQL filters: `booking_status = 'booked'`, `check_in < windowEnd`, `check_out > today`, `.limit(5000)`.
-- Cancellation is handled per stay date in the loop; do not filter it only in SQL.
-- Denominator is static count of all listings, not per-day active availability.
-- `booked_pct` is `booked_total / total_listings * 100`, clamped to 100 and rounded to 1 decimal.
-
-Chart conventions:
-
-- Header controls: multi-select Listings, Clients, States plus range dropdown.
-- Default range: 6 months; other presets are 3 months, 1 year, current year.
-- Stack order bottom to top: `older`, `last_14d`, `last_7d`, `last_3d`.
-- No bar animation; filter re-renders should not flicker.
-- Empty states distinguish no matching listings from no reservations in range.
-
-Pending pacing work:
-
-- Single-listing rendering mode, column width tuning, monthly pacing dashboard, reservations table linked from bars.
-- Out of scope for MVP: group selector, STLY comparison, real blocked-night denominator, historical pace curves, PMS sync.
+- Uses `occupancy_pickup_*` (already non-overlapping), NOT `booked_nights_pickup_*` (which are cumulative 7d⊆14d⊆30d and in nights). Pickups are clamped at 0; net-negative recency folds into `older`.
+- Portfolio value per month = simple average across selected listings (no available-nights column to weight by; documented in the footer).
+- Filters: Listings, Clients (via `report_listings.hub_client_id` → `clients.name`, fallback `group_name`), Cities (`report_listings.city`). No range dropdown — renders all months in the run.
+- **Row-cap pagination:** one run is listing × month (~2.8k rows) and this project enforces PostgREST `db-max-rows = 1000`, so `getMonthlyPacingSource` pages `report_metrics` with `.range()` (1000/page, stable `period, listing_id` order). A single unbounded select silently drops the latest months — exactly where pickup lives. See `decisions.md` (2026-06-24).
 
 ## Landing Page to Pipeline Webhook
 

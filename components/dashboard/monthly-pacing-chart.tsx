@@ -2,14 +2,7 @@
 
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import {
-  CalendarRange,
-  Check,
-  ChevronDown,
-  Flame,
-  TrendingUp,
-  Zap,
-} from "lucide-react"
+import { CalendarRange, Check, ChevronDown, Flame, TrendingUp, Zap } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -33,112 +26,44 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-import type { PacingBucket, PacingDayPoint } from "@/lib/pacing"
-import { aggregatePacing, type PacingSource } from "@/lib/pacing-mock"
+import {
+  aggregateMonthlyPacing,
+  type MonthlyPacingBucket,
+  type MonthlyPacingPoint,
+  type MonthlyPacingSource,
+} from "@/lib/monthly-pacing"
 
-// Brand blue stepped on saturation + lightness so adjacent shades clear the
-// 1.5:1 non-text contrast threshold. Darkest = freshest bookings.
+// Same brand-blue ramp as the daily Pacing chart. Darkest = freshest pickup.
 const pacingConfig: ChartConfig = {
-  older: { label: "Booked 14+ days ago", color: "hsl(221 40% 85%)" },
-  last_14d: { label: "Booked 7–14 days ago", color: "hsl(221 55% 70%)" },
-  last_7d: { label: "Booked 3–7 days ago", color: "hsl(221 70% 55%)" },
-  last_3d: { label: "Booked last 3 days", color: "hsl(221 83% 42%)" },
+  older: { label: "Booked 30+ days ago", color: "hsl(221 40% 85%)" },
+  pickup_15_30d: { label: "Pickup 15–30 days", color: "hsl(221 55% 70%)" },
+  pickup_8_14d: { label: "Pickup 8–14 days", color: "hsl(221 70% 55%)" },
+  pickup_7d: { label: "Pickup last 7 days", color: "hsl(221 83% 42%)" },
 }
 
-const BUCKET_LABEL: Record<PacingBucket, string> = {
-  older: "14+ days ago",
-  last_14d: "7–14 days ago",
-  last_7d: "3–7 days ago",
-  last_3d: "Last 3 days",
+const BUCKET_LABEL: Record<MonthlyPacingBucket, string> = {
+  older: "30+ days ago",
+  pickup_15_30d: "15–30 days",
+  pickup_8_14d: "8–14 days",
+  pickup_7d: "Last 7 days",
 }
 
-const MS_PER_DAY = 86_400_000
-
-type RangePreset = "3m" | "6m" | "1y" | "current_year"
-
-const RANGE_LABELS: Record<RangePreset, string> = {
-  "3m": "3 months",
-  "6m": "6 months",
-  "1y": "1 year",
-  current_year: "Current year",
-}
-
-function parseISO(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number)
-  return new Date(Date.UTC(y, m - 1, d))
-}
-
-function toISO(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function computeRange(
-  todayIso: string,
-  preset: RangePreset
-): { startIso: string; endIso: string } {
-  const today = parseISO(todayIso)
-  const year = today.getUTCFullYear()
-  if (preset === "current_year") {
-    return {
-      startIso: toISO(new Date(Date.UTC(year, 0, 1))),
-      endIso: toISO(new Date(Date.UTC(year, 11, 31))),
-    }
-  }
-  const daysForward = preset === "3m" ? 90 : preset === "6m" ? 180 : 365
-  const end = new Date(today.getTime() + (daysForward - 1) * MS_PER_DAY)
-  return { startIso: todayIso, endIso: toISO(end) }
-}
-
-function formatDate(iso: string, opts?: Intl.DateTimeFormatOptions): string {
-  const date = parseISO(iso)
-  return date.toLocaleDateString("en-US", {
+function formatPeriod(iso: string, opts?: Intl.DateTimeFormatOptions): string {
+  const [y, m] = iso.split("-").map(Number)
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-US", {
     timeZone: "UTC",
     month: "short",
-    day: "numeric",
+    year: "2-digit",
     ...opts,
   })
 }
 
-function formatRangeLabel(startIso: string, endIso: string): string {
-  const start = parseISO(startIso)
-  const end = parseISO(endIso)
-  const fmt: Intl.DateTimeFormatOptions = {
-    timeZone: "UTC",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }
-  const s = start.toLocaleDateString("en-US", fmt)
-  const e = end.toLocaleDateString("en-US", fmt)
-  return `${s} → ${e}`
-}
-
-function pickTickInterval(numDays: number): number {
-  if (numDays <= 65) return 7
-  if (numDays <= 130) return 14
-  if (numDays <= 200) return 21
-  if (numDays <= 280) return 30
-  return 45
-}
-
-type TooltipPayloadItem = {
-  dataKey?: string | number
-  name?: string | number
-  value?: number
-  color?: string
-  payload?: PacingDayPoint
-}
+type TooltipPayloadItem = { payload?: MonthlyPacingPoint }
 
 function PacingTooltip({
   active,
@@ -153,12 +78,17 @@ function PacingTooltip({
   const point = payload[0]?.payload
   if (!point) return null
 
-  const ordered: PacingBucket[] = ["last_3d", "last_7d", "last_14d", "older"]
+  const ordered: MonthlyPacingBucket[] = [
+    "pickup_7d",
+    "pickup_8_14d",
+    "pickup_15_30d",
+    "older",
+  ]
 
   return (
-    <div className="grid min-w-44 gap-1.5 rounded-xl bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10">
+    <div className="grid min-w-48 gap-1.5 rounded-xl bg-popover px-3 py-2 text-xs text-popover-foreground shadow-lg ring-1 ring-foreground/5 dark:ring-foreground/10">
       <div className="font-medium">
-        {formatDate(point.stay_date, { weekday: "short", year: "numeric" })}
+        {formatPeriod(point.period, { month: "long", year: "numeric" })}
       </div>
       <div className="grid gap-1">
         {ordered.map((key) => {
@@ -173,19 +103,19 @@ function PacingTooltip({
                 />
                 <span className="text-muted-foreground">{BUCKET_LABEL[key]}</span>
               </div>
-              <span className="font-mono tabular-nums">{value}</span>
+              <span className="font-mono tabular-nums">{value}%</span>
             </div>
           )
         })}
       </div>
       <div className="mt-1 flex items-center justify-between border-t pt-1.5">
-        <span className="text-muted-foreground">Total</span>
+        <span className="text-muted-foreground">Occupancy</span>
         <span className="font-mono font-medium tabular-nums">
-          {point.booked_total} ({point.booked_pct}%)
+          {point.occupancy_pct}%
         </span>
       </div>
       <p className="mt-0.5 text-[10px] italic text-muted-foreground/70">
-        Based on {totalListings} listings. Manual blocks not excluded.
+        Avg across {totalListings} listings · pickup = booking recency.
       </p>
     </div>
   )
@@ -199,7 +129,7 @@ function HighlightCard({
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
-  value: number
+  value: string
   sub: string
 }) {
   return (
@@ -212,7 +142,7 @@ function HighlightCard({
         </div>
         <div className="mt-3">
           <p className="text-2xl font-semibold tracking-tight tabular-nums">
-            {value.toLocaleString()}
+            {value}
           </p>
           <p className="text-xs text-muted-foreground">{label}</p>
         </div>
@@ -319,53 +249,19 @@ function MultiSelectFilter({
   )
 }
 
-function RangeDropdown({
-  preset,
-  onChange,
-  startIso,
-  endIso,
-}: {
-  preset: RangePreset
-  onChange: (next: RangePreset) => void
-  startIso: string
-  endIso: string
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs font-normal"
-        >
-          {formatRangeLabel(startIso, endIso)}
-          <ChevronDown className="size-3 text-muted-foreground" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        {(Object.keys(RANGE_LABELS) as RangePreset[]).map((key) => (
-          <DropdownMenuItem
-            key={key}
-            onSelect={() => onChange(key)}
-            className="justify-between text-xs"
-          >
-            {RANGE_LABELS[key]}
-            {preset === key && <Check className="size-3" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function InteractiveLegend({
   hovered,
   setHovered,
 }: {
-  hovered: PacingBucket | null
-  setHovered: (b: PacingBucket | null) => void
+  hovered: MonthlyPacingBucket | null
+  setHovered: (b: MonthlyPacingBucket | null) => void
 }) {
-  const order: PacingBucket[] = ["last_3d", "last_7d", "last_14d", "older"]
+  const order: MonthlyPacingBucket[] = [
+    "pickup_7d",
+    "pickup_8_14d",
+    "pickup_15_30d",
+    "older",
+  ]
   return (
     <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
       {order.map((key) => {
@@ -399,78 +295,66 @@ function InteractiveLegend({
   )
 }
 
-export function PacingChart({ source }: { source: PacingSource }) {
-  const [preset, setPreset] = React.useState<RangePreset>("6m")
+export function MonthlyPacingChart({ source }: { source: MonthlyPacingSource }) {
   const [listingFilter, setListingFilter] = React.useState<string[]>([])
   const [clientFilter, setClientFilter] = React.useState<string[]>([])
-  const [stateFilter, setStateFilter] = React.useState<string[]>([])
-  const [hoveredBucket, setHoveredBucket] = React.useState<PacingBucket | null>(
-    null
-  )
-
-  const { startIso, endIso } = React.useMemo(
-    () => computeRange(source.today, preset),
-    [source.today, preset]
-  )
+  const [cityFilter, setCityFilter] = React.useState<string[]>([])
+  const [hoveredBucket, setHoveredBucket] =
+    React.useState<MonthlyPacingBucket | null>(null)
 
   const filteredListingIds = React.useMemo(() => {
     return source.listings
       .filter(
-        (l) => clientFilter.length === 0 || clientFilter.includes(l.client_id)
+        (l) =>
+          clientFilter.length === 0 ||
+          (l.client_id !== null && clientFilter.includes(l.client_id))
       )
-      .filter(
-        (l) => stateFilter.length === 0 || stateFilter.includes(l.state)
-      )
+      .filter((l) => cityFilter.length === 0 || cityFilter.includes(l.city))
       .filter(
         (l) => listingFilter.length === 0 || listingFilter.includes(l.id)
       )
       .map((l) => l.id)
-  }, [source.listings, listingFilter, clientFilter, stateFilter])
+  }, [source.listings, listingFilter, clientFilter, cityFilter])
 
-  const { days, highlights } = React.useMemo(
-    () => aggregatePacing(source, startIso, endIso, filteredListingIds),
-    [source, startIso, endIso, filteredListingIds]
+  const { months, highlights } = React.useMemo(
+    () => aggregateMonthlyPacing(source, filteredListingIds),
+    [source, filteredListingIds]
   )
 
   const totalListings = highlights.total_listings
-  const possibleNights = totalListings * days.length
-  const hasReservations = highlights.total_booked_nights > 0
-  const hasListings = totalListings > 0
+  const hasData = months.length > 0
+  const yMax = React.useMemo(() => {
+    const max = months.reduce((m, p) => Math.max(m, p.occupancy_pct), 0)
+    return Math.min(100, Math.max(20, Math.ceil(max / 10) * 10))
+  }, [months])
 
   const listingOptions: FilterOption[] = React.useMemo(
     () =>
       source.listings.map((l) => ({
         value: l.id,
         label: l.name,
-        sub: `${l.client_name} · ${l.state}`,
+        sub: `${l.client_name} · ${l.city}`,
       })),
     [source.listings]
   )
 
   const clientOptions: FilterOption[] = React.useMemo(() => {
     const seen = new Map<string, string>()
-    source.listings.forEach((l) => seen.set(l.client_id, l.client_name))
-    return Array.from(seen.entries()).map(([value, label]) => ({
-      value,
-      label,
-    }))
+    source.listings.forEach((l) => {
+      if (l.client_id) seen.set(l.client_id, l.client_name)
+    })
+    return Array.from(seen.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
   }, [source.listings])
 
-  const stateOptions: FilterOption[] = React.useMemo(() => {
-    const states = Array.from(new Set(source.listings.map((l) => l.state)))
-    states.sort()
-    return states.map((s) => ({ value: s, label: s }))
+  const cityOptions: FilterOption[] = React.useMemo(() => {
+    const cities = Array.from(new Set(source.listings.map((l) => l.city)))
+    cities.sort()
+    return cities.map((c) => ({ value: c, label: c }))
   }, [source.listings])
 
-  const tickInterval = pickTickInterval(days.length)
-  const tickFormatter = (value: string, index: number) => {
-    if (index % tickInterval !== 0) return ""
-    const opts: Intl.DateTimeFormatOptions =
-      days.length > 130 ? { month: "short" } : { month: "short", day: "numeric" }
-    return formatDate(value, opts)
-  }
-
-  const getBarOpacity = (bucket: PacingBucket) =>
+  const getBarOpacity = (bucket: MonthlyPacingBucket) =>
     hoveredBucket === null || hoveredBucket === bucket ? 1 : 0.15
 
   const renderEmpty = (msg: string) => (
@@ -484,9 +368,9 @@ export function PacingChart({ source }: { source: PacingSource }) {
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Pacing</CardTitle>
+            <CardTitle>Monthly Pacing</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Daily booked % across the portfolio, layered by booking recency
+              Occupancy % per month, layered by booking recency (pickup)
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -504,17 +388,11 @@ export function PacingChart({ source }: { source: PacingSource }) {
               onChange={setClientFilter}
             />
             <MultiSelectFilter
-              label="States"
-              options={stateOptions}
-              selected={stateFilter}
-              onChange={setStateFilter}
-              width="w-40"
-            />
-            <RangeDropdown
-              preset={preset}
-              onChange={setPreset}
-              startIso={startIso}
-              endIso={endIso}
+              label="Cities"
+              options={cityOptions}
+              selected={cityFilter}
+              onChange={setCityFilter}
+              width="w-48"
             />
           </div>
         </div>
@@ -524,43 +402,41 @@ export function PacingChart({ source }: { source: PacingSource }) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <HighlightCard
             icon={CalendarRange}
-            label="Total booked nights"
-            value={highlights.total_booked_nights}
-            sub={
-              possibleNights > 0
-                ? `of ${possibleNights.toLocaleString()} possible`
-                : "no listings selected"
-            }
+            label="Avg occupancy"
+            value={`${highlights.avg_occupancy_pct}%`}
+            sub={`across ${months.length} months`}
           />
           <HighlightCard
             icon={TrendingUp}
-            label="Booked last 14 days"
-            value={highlights.booked_last_14d}
-            sub="within selected range"
+            label="Avg pickup 15–30d"
+            value={`${highlights.avg_pickup_15_30d}%`}
+            sub="occupancy pts gained"
           />
           <HighlightCard
             icon={Flame}
-            label="Booked last 7 days"
-            value={highlights.booked_last_7d}
-            sub="within selected range"
+            label="Avg pickup 8–14d"
+            value={`${highlights.avg_pickup_8_14d}%`}
+            sub="occupancy pts gained"
           />
           <HighlightCard
             icon={Zap}
-            label="Booked last 3 days"
-            value={highlights.booked_last_3d}
+            label="Avg pickup last 7d"
+            value={`${highlights.avg_pickup_7d}%`}
             sub="freshest pickup"
           />
         </div>
 
-        {!hasListings ? (
-          renderEmpty("No listings match the current filters.")
-        ) : !hasReservations ? (
-          renderEmpty("No reservations in the selected range.")
+        {!hasData ? (
+          renderEmpty(
+            source.runCompletedAt === null
+              ? "No completed Report Builder run yet."
+              : "No monthly metrics match the current filters."
+          )
         ) : (
           <>
             <ChartContainer config={pacingConfig} className="h-[320px] w-full">
               <BarChart
-                data={days}
+                data={months}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
               >
                 <CartesianGrid
@@ -568,30 +444,25 @@ export function PacingChart({ source }: { source: PacingSource }) {
                   className="stroke-muted/30"
                 />
                 <XAxis
-                  dataKey="stay_date"
+                  dataKey="period"
                   tickLine={false}
                   axisLine={false}
-                  interval={0}
-                  tickFormatter={tickFormatter}
+                  tickFormatter={(v) => formatPeriod(v)}
                   className="text-xs"
                 />
                 <YAxis
-                  domain={[0, totalListings]}
+                  domain={[0, yMax]}
                   allowDecimals={false}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) =>
-                    totalListings > 0
-                      ? `${Math.round((v / totalListings) * 100)}%`
-                      : `${v}`
-                  }
+                  tickFormatter={(v) => `${v}%`}
                   className="text-xs"
                 />
                 <ChartTooltip
                   cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
                   content={<PacingTooltip totalListings={totalListings} />}
                 />
-                {/* Stack order: bottom -> top. Darkest (last_3d) is on top */}
+                {/* Stack order: bottom -> top. Darkest (pickup_7d) on top. */}
                 <Bar
                   dataKey="older"
                   stackId="pacing"
@@ -600,24 +471,24 @@ export function PacingChart({ source }: { source: PacingSource }) {
                   isAnimationActive={false}
                 />
                 <Bar
-                  dataKey="last_14d"
+                  dataKey="pickup_15_30d"
                   stackId="pacing"
-                  fill="var(--color-last_14d)"
-                  fillOpacity={getBarOpacity("last_14d")}
+                  fill="var(--color-pickup_15_30d)"
+                  fillOpacity={getBarOpacity("pickup_15_30d")}
                   isAnimationActive={false}
                 />
                 <Bar
-                  dataKey="last_7d"
+                  dataKey="pickup_8_14d"
                   stackId="pacing"
-                  fill="var(--color-last_7d)"
-                  fillOpacity={getBarOpacity("last_7d")}
+                  fill="var(--color-pickup_8_14d)"
+                  fillOpacity={getBarOpacity("pickup_8_14d")}
                   isAnimationActive={false}
                 />
                 <Bar
-                  dataKey="last_3d"
+                  dataKey="pickup_7d"
                   stackId="pacing"
-                  fill="var(--color-last_3d)"
-                  fillOpacity={getBarOpacity("last_3d")}
+                  fill="var(--color-pickup_7d)"
+                  fillOpacity={getBarOpacity("pickup_7d")}
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={false}
                 />
@@ -631,8 +502,8 @@ export function PacingChart({ source }: { source: PacingSource }) {
         )}
       </CardContent>
       <CardFooter className="text-[11px] italic text-muted-foreground/70">
-        Booked % uses selected listings as the denominator. Manual blocks not
-        excluded.
+        Monthly occupancy split by booking recency. Portfolio = simple average
+        across selected listings (not weighted by available nights).
       </CardFooter>
     </Card>
   )

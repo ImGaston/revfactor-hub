@@ -81,21 +81,23 @@ export const METRIC_FIELD_MAP = {
   // Open inventory
   potential_revenue_open_inventory:
     "Available and Bookable dates Recommended Potential Revenue",
-  // Market penetration (occupancy-based; distinct from revpar_index)
-  market_penetration_index_pct: "Market Penetration Index %",
+  // Market penetration (occupancy-based; distinct from revpar_index).
+  // NOTE: the API ships terse keys ("Market Penetration Index", "Num Booked
+  // Pickup 7", "Occupancy Pickup 8 14") — NOT the friendly column labels. These
+  // must match the raw report_data keys exactly or parseMetrics yields null.
+  market_penetration_index_pct: "Market Penetration Index",
   // Booked nights pickup (cumulative trailing windows)
-  booked_nights_pickup_7d: "Booked Nights Pickup (7 Days)",
-  booked_nights_pickup_14d: "Booked Nights Pickup (14 Days)",
-  booked_nights_pickup_30d: "Booked Nights Pickup (30 Days)",
+  booked_nights_pickup_7d: "Num Booked Pickup 7",
+  booked_nights_pickup_14d: "Num Booked Pickup 14",
+  booked_nights_pickup_30d: "Num Booked Pickup 30",
   // Occupancy pickup (bucketed windows)
-  occupancy_pickup_7d: "Occupancy Pickup (7 Days)",
-  occupancy_pickup_8_14d: "Occupancy Pickup (between 8 and 14 days)",
-  occupancy_pickup_15_30d: "Occupancy Pickup (between 15 and 30 days)",
+  occupancy_pickup_7d: "Occupancy Pickup 7",
+  occupancy_pickup_8_14d: "Occupancy Pickup 8 14",
+  occupancy_pickup_15_30d: "Occupancy Pickup 15 30",
   // Rental revenue pickup (bucketed windows)
-  rental_revenue_pickup_7d: "Rental Revenue Pickup (7 Days)",
-  rental_revenue_pickup_8_14d: "Rental Revenue Pickup (between 8 and 14 days)",
-  rental_revenue_pickup_15_30d:
-    "Rental Revenue Pickup (between 15 and 30 days)",
+  rental_revenue_pickup_7d: "Rental Revenue Pickup 7",
+  rental_revenue_pickup_8_14d: "Rental Revenue Pickup 8 14",
+  rental_revenue_pickup_15_30d: "Rental Revenue Pickup 15 30",
 } as const
 
 export type MetricColumn = keyof typeof METRIC_FIELD_MAP

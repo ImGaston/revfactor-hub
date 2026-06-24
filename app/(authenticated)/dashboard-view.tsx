@@ -6,7 +6,6 @@ import {
   CheckSquare,
   TrendingUp,
   TrendingDown,
-  Clock,
   Rocket,
   ArrowUpRight,
 } from "lucide-react"
@@ -19,9 +18,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
-import { Bar, BarChart, XAxis, YAxis, Area, AreaChart, CartesianGrid } from "recharts"
-import { PacingChart } from "@/components/dashboard/pacing-chart"
-import type { PacingSource } from "@/lib/pacing-mock"
+import { Bar, BarChart, XAxis, YAxis } from "recharts"
+import { MonthlyPacingChart } from "@/components/dashboard/monthly-pacing-chart"
+import type { MonthlyPacingSource } from "@/lib/monthly-pacing"
 
 type TasksByStatus = {
   todo: number
@@ -50,28 +49,6 @@ type DashboardStats = {
   roadmapInProgress: number
 }
 
-// Mock monthly revenue data for the area chart
-const revenueData = [
-  { month: "Oct", revenue: 18500, target: 17000 },
-  { month: "Nov", revenue: 21200, target: 19000 },
-  { month: "Dec", revenue: 28400, target: 24000 },
-  { month: "Jan", revenue: 16800, target: 18000 },
-  { month: "Feb", revenue: 19600, target: 20000 },
-  { month: "Mar", revenue: 24100, target: 22000 },
-]
-
-const revenueConfig: ChartConfig = {
-  revenue: { label: "Revenue", color: "hsl(221 83% 53%)" },
-  target: { label: "Target", color: "hsl(220 14% 80%)" },
-}
-
-// Mock portfolio performance data
-const performanceData = [
-  { metric: "ADR", value: 285, change: 12 },
-  { metric: "Occupancy", value: 74, change: -3 },
-  { metric: "RevPAR", value: 211, change: 8 },
-]
-
 const taskBarData = [
   { name: "To Do", value: 0, fill: "hsl(220 9% 46%)" },
   { name: "In Progress", value: 0, fill: "hsl(217 91% 60%)" },
@@ -98,15 +75,13 @@ const statusLabels: Record<string, string> = {
 }
 
 export function DashboardView({
-  isSuperAdmin,
   stats,
   recentTasks,
-  pacingSource,
+  monthlyPacingSource,
 }: {
-  isSuperAdmin: boolean
   stats: DashboardStats
   recentTasks: RecentTask[]
-  pacingSource: PacingSource
+  monthlyPacingSource: MonthlyPacingSource
 }) {
   const barData = taskBarData.map((d, i) => {
     const keys = ["todo", "in_progress", "waiting", "done"] as const
@@ -166,87 +141,8 @@ export function DashboardView({
         />
       </div>
 
-      {/* Pacing Chart — full width */}
-      <PacingChart source={pacingSource} />
-
-      {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Revenue Chart - only for super_admin */}
-        {isSuperAdmin && (
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Portfolio Revenue</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Monthly managed revenue vs target (mock data)
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={revenueConfig} className="h-[260px] w-full">
-                <AreaChart data={revenueData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} className="text-xs" />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    className="text-xs"
-                    tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-                  />
-                  <ChartTooltip
-                    content={<ChartTooltipContent formatter={(value) => `$${Number(value).toLocaleString()}`} />}
-                  />
-                  <defs>
-                    <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(221 83% 53%)" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="hsl(221 83% 53%)" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <Area
-                    type="monotone"
-                    dataKey="target"
-                    stroke="hsl(220 14% 80%)"
-                    strokeDasharray="4 4"
-                    fill="none"
-                    strokeWidth={1.5}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(221 83% 53%)"
-                    fill="url(#fillRevenue)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Portfolio KPIs */}
-        <Card className={isSuperAdmin ? "" : "lg:col-span-1"}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Portfolio Performance</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Key STR metrics (mock data)
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-5 pt-2">
-            {performanceData.map((m) => (
-              <div key={m.metric} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{m.metric}</p>
-                  <p className="text-2xl font-semibold font-mono">
-                    {m.metric === "Occupancy" ? `${m.value}%` : `$${m.value}`}
-                  </p>
-                </div>
-                <div className={`flex items-center gap-1 text-sm font-medium ${m.change >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {m.change >= 0 ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
-                  {m.change >= 0 ? "+" : ""}{m.change}%
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Monthly Pacing Chart — full width */}
+      <MonthlyPacingChart source={monthlyPacingSource} />
 
       {/* Bottom Row */}
       <div className="grid gap-4 lg:grid-cols-3">

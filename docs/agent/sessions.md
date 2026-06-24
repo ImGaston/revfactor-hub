@@ -2,6 +2,18 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-06-24 — Monthly Pacing Chart
+
+- Added a monthly stacked-column pacing chart to the dashboard home, mirroring the daily Pacing chart but built on `report_metrics` (Report Builder monthly grid).
+- New files: `lib/monthly-pacing.ts` (fetch + aggregate), `components/dashboard/monthly-pacing-chart.tsx`. Wired through `app/(authenticated)/page.tsx` → `dashboard-view.tsx`.
+- Bar height = `adjusted_occupancy_pct`, stacked by booking recency using `occupancy_pickup_7d / 8_14d / 15_30d` (already non-overlapping) + a derived `older` residual; stack sums to occupancy. See `integrations.md` → Monthly Pacing.
+- Verified: typecheck passes; occupancy values render and match SQL against the latest completed run.
+- Fixed two follow-on bugs found while populating the chart:
+  1. **Empty pickup metrics** — `METRIC_FIELD_MAP` in `lib/report-builder/schema.ts` mapped the 10 new 036 metrics to invented friendly labels (`Occupancy Pickup (7 Days)`) instead of the actual terse payload keys (`Occupancy Pickup 7`, `Num Booked Pickup 7`, `Market Penetration Index`, …). Wrong key → silent null → all-zero columns. Corrected the names and backfilled both completed runs from their stored `raw_envelope` via SQL (no PriceLabs re-call).
+  2. **Only 5 of 12 months rendering** — `getMonthlyPacingSource` read `report_metrics` in one request; the project's PostgREST `db-max-rows = 1000` capped it to the earliest ~5 months. Switched to `.range()` pagination (`fetchAllMetrics`). See `decisions.md` (2026-06-24).
+- Verified end-to-end in the browser: all 12 months render with booking-recency layering; pickup concentrated on near-future months as expected.
+- Removed the old mock **daily** Pacing chart from the dashboard home (it only ever ran on `getMockPacingSource`): deleted `components/dashboard/pacing-chart.tsx` + `lib/pacing-mock.ts`, unwired from `page.tsx`/`dashboard-view.tsx`. Kept `lib/pacing.ts` (real reservations data layer, dormant, no UI) + migration 023 + seed script. Monthly Pacing is now the dashboard's only pacing chart.
+
 ## 2026-06-23 — PriceLabs Report Builder Integration
 
 - New integration ingesting the PriceLabs Report Builder monthly grid (234 listings × 12 months, 20 listing + 35 month fields) into native Supabase tables, surfaced on each listing's detail page.
