@@ -2,6 +2,12 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-06-24 — Paginate Large `report_metrics` Reads (db-max-rows = 1000)
+
+This Supabase project enforces PostgREST `db-max-rows = 1000`: a single select is capped at 1000 rows even with an explicit `.limit()` higher than that. A full Report Builder run is listing × month (~234 × 12 = 2.8k rows), so any unbounded or single-request read of `report_metrics` silently returns only the earliest ~4–5 months (ordered by `period`). For the Monthly Pacing chart that dropped exactly the near-future months where pickup lives, so the chart looked empty/flat with no error.
+
+Decision: reads that can exceed 1000 rows must page with `.range(from, from+999)` under a stable total order (`period, listing_id`), looping until a short page. Implemented in `lib/monthly-pacing.ts` (`fetchAllMetrics`). If per-listing-month volume grows much larger, move the per-month aggregation into a Postgres RPC that returns ~12 rows instead of shipping the full grid to the client. Applies to any future `report_metrics` consumer (the listing detail report reads a single listing, so it stays under the cap).
+
 ## 2026-04-18 — No Page-Level ISR on Authenticated Routes
 
 Authenticated route data should not use `export const revalidate = N`. The app has a tiny internal user base where stale data is noticeable, and auth-cookie cache segmentation limits hit rate. If a query later proves expensive and stable, use targeted cache tags instead.

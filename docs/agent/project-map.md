@@ -31,7 +31,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 
 - `components/ui/` — shadcn/ui components.
 - `components/layout/` — sidebar, top bar, breadcrumb context.
-- `components/dashboard/pacing-chart.tsx` — forward stacked bar pacing chart with recency buckets and KPI highlights.
+- `components/dashboard/monthly-pacing-chart.tsx` — the dashboard's pacing chart: monthly stacked columns (occupancy % by booking recency) built on `report_metrics`; data layer in `lib/monthly-pacing.ts`. (The old mock daily `pacing-chart.tsx` was removed 2026-06-24.)
 - `components/clients/` — client cards, tables, detail panels, credentials, add-listing dialog, and the private Pricing Dashboard copy action.
 - `components/listings/listing-form-fields.tsx` — shared listing form fields (Name, City, State selector, Airbnb ID, PriceLabs/Listing ID) + helpers, reused by every add/edit-listing surface. `lib/us-states.ts` holds the US state codes.
 - `components/kanban/` — generic typed kanban board and cards using `@hello-pangea/dnd`.
@@ -40,7 +40,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `lib/supabase/server.ts` — server Supabase client with cookies.
 - `lib/supabase/admin.ts` — service-role admin client.
 - `lib/profile.ts`, `lib/permissions.ts`, `lib/permissions.server.ts`, `lib/types.ts`, `lib/utils.ts` — shared profile, permission, type, utility helpers.
-- `lib/assembly.ts`, `lib/pricelabs.ts`, `lib/stripe.ts`, `lib/pacing.ts`, `lib/pacing-mock.ts` — integration and data-layer helpers.
+- `lib/assembly.ts`, `lib/pricelabs.ts`, `lib/stripe.ts`, `lib/monthly-pacing.ts` — integration and data-layer helpers. (`lib/pacing.ts` is the dormant reservations-based daily-pacing data layer with no UI consumer; see integrations.md.)
 - `lib/report-builder/` — PriceLabs Report Builder: `client.ts` (3-call API), `schema.ts` (API→snake_case rename + 20/35 split + period parse), `ingest.ts` (resolve client, chunked upsert, prune), `runner.ts` (`advanceReportBuilder` state machine), `queries.ts` (`getListingReport` for the detail page).
 - `lib/financial-planning.ts` — cent-based Profit First allocation, scenario forecast, runway, and allocation validation.
 - `lib/client-stripe-billing.ts` — derives each client's current monthly Billing from Stripe customers linked through `client_stripe_customers`.
