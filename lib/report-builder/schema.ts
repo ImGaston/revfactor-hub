@@ -2,8 +2,8 @@
 // The API ships "friendly" PriceLabs field names; the hub stores stable
 // snake_case columns. The rename lives HERE and nowhere else.
 //
-// A report row has 55 fields: 20 listing-level (constant across the 12 months
-// of a listing) + 35 month-level. We split and rename per row, deriving the
+// A report row has 65 fields: 20 listing-level (constant across the 12 months
+// of a listing) + 45 month-level. We split and rename per row, deriving the
 // period from "Year Month" (NOT the standalone "Year", which is just part of
 // the period key).
 
@@ -81,6 +81,21 @@ export const METRIC_FIELD_MAP = {
   // Open inventory
   potential_revenue_open_inventory:
     "Available and Bookable dates Recommended Potential Revenue",
+  // Market penetration (occupancy-based; distinct from revpar_index)
+  market_penetration_index_pct: "Market Penetration Index %",
+  // Booked nights pickup (cumulative trailing windows)
+  booked_nights_pickup_7d: "Booked Nights Pickup (7 Days)",
+  booked_nights_pickup_14d: "Booked Nights Pickup (14 Days)",
+  booked_nights_pickup_30d: "Booked Nights Pickup (30 Days)",
+  // Occupancy pickup (bucketed windows)
+  occupancy_pickup_7d: "Occupancy Pickup (7 Days)",
+  occupancy_pickup_8_14d: "Occupancy Pickup (between 8 and 14 days)",
+  occupancy_pickup_15_30d: "Occupancy Pickup (between 15 and 30 days)",
+  // Rental revenue pickup (bucketed windows)
+  rental_revenue_pickup_7d: "Rental Revenue Pickup (7 Days)",
+  rental_revenue_pickup_8_14d: "Rental Revenue Pickup (between 8 and 14 days)",
+  rental_revenue_pickup_15_30d:
+    "Rental Revenue Pickup (between 15 and 30 days)",
 } as const
 
 export type MetricColumn = keyof typeof METRIC_FIELD_MAP
