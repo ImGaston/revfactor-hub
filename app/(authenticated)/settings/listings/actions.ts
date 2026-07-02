@@ -10,6 +10,7 @@ import { advanceReportBuilder } from "@/lib/report-builder/runner"
 import { getProfile } from "@/lib/supabase/profile"
 import { hasPermission } from "@/lib/permissions.server"
 import type { ReportGroupOverride } from "@/lib/types"
+import type { SeoMetricRow } from "@/lib/seo-metrics"
 
 type ListingInput = {
   client_id: string
@@ -219,4 +220,46 @@ export async function deleteReportGroupOverrideAction(id: string) {
 
   revalidatePath("/settings/listings")
   return { error: null }
+}
+
+// ─── SEO Metrics upload (Rankbreeze listing-metrics CSV) ──────────────────
+//
+// `seo_metrics` is a read-side VIEW; we write raw CSV rows to its base table
+// `seo_metrics_raw` and the view derives metric slugs, side, and hub
+// listing/client ids on read.
+
+/**
+ * Clear any existing `seo_metrics_raw` rows for the given download date(s) so a
+ * re-upload of the same snapshot replaces rather than duplicates. Called once
+ * before streaming chunks.
+ */
+export async function clearSeoMetricsForDatesAction(downloadDates: string[]) {
+  if (!(await hasPermission("listings", "edit"))) {
+    return { error: "Not authorized" }
+  }
+  if (downloadDates.length === 0) return { error: null }
+
+  const { error } = await createAdminClient()
+    .from("seo_metrics_raw")
+    .delete()
+    .in("download_date", downloadDates)
+  if (error) return { error: error.message }
+  return { error: null }
+}
+
+/**
+ * Insert one chunk of parsed SEO metric rows verbatim into `seo_metrics_raw`.
+ */
+export async function insertSeoMetricsChunkAction(rows: SeoMetricRow[]) {
+  if (!(await hasPermission("listings", "edit"))) {
+    return { error: "Not authorized", inserted: 0 }
+  }
+  if (rows.length === 0) return { error: null, inserted: 0 }
+
+  const { error } = await createAdminClient()
+    .from("seo_metrics_raw")
+    .insert(rows)
+  if (error) return { error: error.message, inserted: 0 }
+
+  return { error: null, inserted: rows.length }
 }

@@ -9,6 +9,9 @@ type SchedulerBookingPayload = {
   visitorEmail: string
   visitorPhone?: string | null
   visitorAirbnbLink?: string | null
+  visitorAddress?: string | null
+  visitorHeardAbout?: string | null
+  visitorReferralName?: string | null
   visitorNotes?: string | null
   date: string
   startTime: string
@@ -64,6 +67,9 @@ export async function POST(request: NextRequest) {
 
   const descriptionParts: string[] = []
   if (body.visitorAirbnbLink) descriptionParts.push(`Airbnb: ${body.visitorAirbnbLink}`)
+  if (body.visitorAddress) descriptionParts.push(`Address: ${body.visitorAddress}`)
+  if (body.visitorHeardAbout) descriptionParts.push(`Heard about us: ${body.visitorHeardAbout}`)
+  if (body.visitorReferralName) descriptionParts.push(`Referral: ${body.visitorReferralName}`)
   if (body.visitorNotes) descriptionParts.push(`Notes: ${body.visitorNotes}`)
   if (body.meetLink) descriptionParts.push(`Meet: ${body.meetLink}`)
   if (body.hostName) descriptionParts.push(`Host: ${body.hostName}`)
@@ -91,6 +97,7 @@ export async function POST(request: NextRequest) {
       lead_source: "scheduler",
       scheduled_date: scheduledDate,
       timezone: body.timezone || null,
+      location: body.visitorAddress || null,
       description,
       stage,
       sort_order: sortOrder,
