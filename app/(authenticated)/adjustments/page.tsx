@@ -9,7 +9,7 @@ const ADJUSTMENT_SELECT = `
   date_from, date_to, booking_window, urgency, requested_by, origin_message,
   status, resolver_id, resolved_at, reviewer_id, controlled_at, created_by,
   created_at, updated_at,
-  clients(id, name),
+  clients:clients_basic(id, name),
   listings(id, name, listing_id, pricelabs_link, airbnb_link),
   resolver:profiles!adjustments_resolver_id_fkey(full_name, email),
   reviewer:profiles!adjustments_reviewer_id_fkey(full_name, email)

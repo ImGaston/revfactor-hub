@@ -2,6 +2,15 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-03 — RLS Hardening (038) Before India Contractor Accounts
+
+- Migration `038_rls_hardening.sql` (written + applied to prod via Supabase MCP): all `USING (true)` SELECT policies → `has_permission(resource,'view')` (019 pattern); leftover `USING (true)` writes on tasks/leads/roadmap/knowledge/onboarding-progress → `create`/`edit`/`delete`; author-own comment INSERTs now also require the module's `view`.
+- Found and fixed two extra holes while auditing `pg_policies`: users could self-promote via `UPDATE profiles SET role=…` (now blocked by `profiles_role_guard` trigger, super_admin/admin-client exempt), and `post_with_counts`/`knowledge_category_article_counts`/`seo_metrics` were definer views bypassing RLS (now `security_invoker = true`).
+- New `clients_basic` definer view (`id, name, status`) + switched the Adjustments queue and `/a/[token]` authed queries from `clients(id, name)` to `clients:clients_basic(id, name)` so contractors resolve client names without reading `clients` (billing, `dashboard_token`, emails stay locked behind `clients:view`). PostgREST embeds the view through the underlying FK without hints.
+- `financial_*` and `expense_listing_allocations` were already super_admin-only (`ALL` policies); `notes`/`calendar_events` tables don't exist (resources only); `pricelabs_reservations_airbnb`/`seo_metrics_raw` are RLS-enabled with no policies (deny; admin-client only).
+- Verified with a temp SQL-created user (deleted after, no orphan rows): as super_admin — dashboard, clients (+detail with billing/credentials), listings, financials, tasks, pipeline, adjustments, roadmap, knowledge, onboarding, `/a/<token>` all render with data; `pnpm typecheck` clean. As contractor — REST with the user's JWT returns `[]` on 28 sensitive tables and errors on role PATCH / tasks / leads inserts; UI sidebar = Dashboard/Adjustments/Settings, queue + card fully operable (posted note, marked resolved, no control button), `/financials` redirects, dashboard degrades to zeros without crashing.
+- Docs updated: decisions.md (closure entry + accepted residuals incl. admin's `financials:view=true`), conventions.md (permission-based RLS rules, `clients_basic`, role-guard trigger, `security_invoker` default), project-map.md (038 + views), CLAUDE.md/AGENTS.md (critical rule, kept identical). **India contractor accounts are now unblocked**; `WHATSAPP_GROUP_INVITE_URL` in Vercel prod still pending.
+
 ## 2026-07-03 — Adjustments Module (v1)
 
 - New module converting WhatsApp change requests into atomic, traceable records. Migration `037_adjustments.sql`: `adjustments` + `adjustment_comments` tables, RLS via `has_permission('adjustments', …)`, seeds for super_admin/admin, and a widened `role_permissions.action` CHECK adding `publish` (fixing code/DB drift from the knowledge module) and the new `control` action.

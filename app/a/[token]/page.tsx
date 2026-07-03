@@ -110,7 +110,7 @@ export default async function AdjustmentPage({
         .from("adjustments")
         .select(
           `*,
-           clients(id, name),
+           clients:clients_basic(id, name),
            listings(id, name, listing_id, pricelabs_link, airbnb_link),
            resolver:profiles!adjustments_resolver_id_fkey(full_name, email),
            reviewer:profiles!adjustments_reviewer_id_fkey(full_name, email)`
