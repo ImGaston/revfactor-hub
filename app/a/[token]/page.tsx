@@ -9,8 +9,10 @@ import { hasPermission } from "@/lib/permissions.server"
 import {
   adjustmentStatusLabel,
   adjustmentSummary,
+  airbnbRoomUrl,
   type AdjustmentSummaryFields,
 } from "@/lib/adjustments"
+import { getAirbnbOgImage } from "@/lib/airbnb-og.server"
 import type { Adjustment, AdjustmentComment } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { AdjustmentShell, AdjustmentCard } from "./adjustment-card"
@@ -62,6 +64,11 @@ export async function generateMetadata({
     .filter(Boolean)
     .join(" · ")
 
+  // Single-listing adjustments reuse the Airbnb listing photo for the
+  // WhatsApp preview; portfolio scope or a failed scrape falls back to the logo.
+  const roomUrl = adjustment.listings ? airbnbRoomUrl(adjustment.listings) : null
+  const listingImage = roomUrl ? await getAirbnbOgImage(roomUrl) : null
+
   return {
     metadataBase: new URL("https://hub.revfactor.io"),
     title: `${title} — RevFactor Adjustment`,
@@ -70,7 +77,7 @@ export async function generateMetadata({
       title,
       description,
       siteName: "RevFactor Hub",
-      images: ["/revfactor-logo/RevFactor_Favicon_Cedar.png"],
+      images: [listingImage ?? "/revfactor-logo/RevFactor_Favicon_Cedar.png"],
     },
   }
 }

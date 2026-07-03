@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { hasPermission } from "@/lib/permissions.server"
-import { NOTE_REQUIRED_STATUSES } from "@/lib/adjustments"
+import { NOTE_REQUIRED_STATUSES, OPEN_STATUSES } from "@/lib/adjustments"
 import type { AdjustmentStatus } from "@/lib/types"
 import { revalidatePath } from "next/cache"
 
@@ -58,6 +58,64 @@ export async function createAdjustment(formData: FormData) {
 
   revalidateAdjustment(data.public_token)
   return { success: true, id: data.id, publicToken: data.public_token }
+}
+
+export async function updateAdjustment(adjustmentId: string, formData: FormData) {
+  const scope = formData.get("scope") as string
+  const clientId = formData.get("client_id") as string
+  const listingId = (formData.get("listing_id") as string) || null
+  const tag = formData.get("tag") as string
+  const targetValue = (formData.get("target_value") as string) || null
+  const dateFrom = (formData.get("date_from") as string) || null
+  const dateTo = (formData.get("date_to") as string) || null
+  const bookingWindow = (formData.get("booking_window") as string) || null
+  const urgency = (formData.get("urgency") as string) || "medium"
+  const requestedBy = (formData.get("requested_by") as string) || null
+  const originMessage = (formData.get("origin_message") as string) || null
+
+  if (!clientId) return { error: "Client is required" }
+  if (!tag) return { error: "Tag is required" }
+  if (scope === "single_listing" && !listingId)
+    return { error: "Listing is required for single-listing adjustments" }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: current, error: fetchError } = await supabase
+    .from("adjustments")
+    .select("status, public_token")
+    .eq("id", adjustmentId)
+    .single()
+
+  if (fetchError || !current) return { error: fetchError?.message ?? "Adjustment not found" }
+  if (!OPEN_STATUSES.includes(current.status as AdjustmentStatus))
+    return { error: "The change was already made — reopen the adjustment to edit it" }
+
+  const { error } = await supabase
+    .from("adjustments")
+    .update({
+      scope,
+      client_id: clientId,
+      listing_id: scope === "single_listing" ? listingId : null,
+      tag,
+      target_value: targetValue,
+      date_from: dateFrom,
+      date_to: dateTo,
+      booking_window: bookingWindow,
+      urgency,
+      requested_by: requestedBy,
+      origin_message: originMessage,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", adjustmentId)
+
+  if (error) return { error: error.message }
+
+  revalidateAdjustment(current.public_token)
+  return { success: true }
 }
 
 export async function duplicateAdjustment(adjustmentId: string) {

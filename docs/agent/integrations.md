@@ -144,6 +144,16 @@ older         = adjusted_occupancy_pct − (the three pickups)   (30+ days ago)
 - Filters: Listings, Clients (via `report_listings.hub_client_id` → `clients.name`, fallback `group_name`), Cities (`report_listings.city`). No range dropdown — renders all months in the run.
 - **Row-cap pagination:** one run is listing × month (~2.8k rows) and this project enforces PostgREST `db-max-rows = 1000`, so `getMonthlyPacingSource` pages `report_metrics` with `.range()` (1000/page, stable `period, listing_id` order). A single unbounded select silently drops the latest months — exactly where pickup lives. See `decisions.md` (2026-06-24).
 
+## Airbnb OG Image (Adjustments share card)
+
+The public share page `/a/[token]` uses the Airbnb listing photo as its `og:image` for single-listing adjustments (WhatsApp previews). Implementation: `lib/airbnb-og.server.ts` + `airbnbRoomUrl()` in `lib/adjustments.ts`, wired in `generateMetadata` of `app/a/[token]/page.tsx`.
+
+- Airbnb serves OG tags only to browser user agents — the fetch must send a Chrome-like `User-Agent`; a default server UA gets a bot wall.
+- The room page HTML (~700 KB) is cached via Next data cache (`next: { revalidate: 86400 }`, under Vercel's 2 MB per-entry limit); the extracted URL is not persisted in the DB.
+- The scrape races a 4s timer (no AbortSignal, to keep the fetch cacheable) and returns `null` on any failure; callers fall back to the RevFactor logo (also used for portfolio-scope adjustments).
+- The `a0.muscache.com` image URLs are hotlinkable — WhatsApp fetches them directly, no proxying needed.
+- Residual risk: Airbnb may block Vercel datacenter IPs. If that happens, next step is caching the URL in a `listings` column.
+
 ## Landing Page to Pipeline Webhook
 
 See `docs/webhook-pipeline-integration.md` for the detailed implementation reference.

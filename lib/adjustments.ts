@@ -75,6 +75,13 @@ export function airbnbMulticalendarUrl(listing: ListingLinkFields): string | nul
   return match ? `https://www.airbnb.com/multicalendar/${match[1]}` : null
 }
 
+export function airbnbRoomUrl(listing: ListingLinkFields): string | null {
+  if (listing.airbnb_link) return listing.airbnb_link
+  if (listing.listing_id && /^\d+$/.test(listing.listing_id))
+    return `https://www.airbnb.com/rooms/${listing.listing_id}`
+  return null
+}
+
 export function adjustmentShareUrl(publicToken: string): string {
   const base =
     typeof window !== "undefined"

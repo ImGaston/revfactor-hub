@@ -21,21 +21,24 @@ export default async function AdjustmentsPage() {
 
   const supabase = await createClient()
 
-  const [{ data: adjustments }, canControl, canCreate] = await Promise.all([
-    supabase
-      .from("adjustments")
-      .select(ADJUSTMENT_SELECT)
-      .order("created_at", { ascending: false })
-      .limit(500),
-    hasPermission("adjustments", "control"),
-    hasPermission("adjustments", "create"),
-  ])
+  const [{ data: adjustments }, canControl, canCreate, canEdit] =
+    await Promise.all([
+      supabase
+        .from("adjustments")
+        .select(ADJUSTMENT_SELECT)
+        .order("created_at", { ascending: false })
+        .limit(500),
+      hasPermission("adjustments", "control"),
+      hasPermission("adjustments", "create"),
+      hasPermission("adjustments", "edit"),
+    ])
 
   return (
     <AdjustmentsView
       adjustments={(adjustments ?? []) as unknown as Adjustment[]}
       canControl={canControl}
       canCreate={canCreate}
+      canEdit={canEdit}
       whatsappInviteUrl={process.env.WHATSAPP_GROUP_INVITE_URL ?? null}
     />
   )

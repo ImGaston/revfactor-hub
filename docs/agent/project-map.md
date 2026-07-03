@@ -26,7 +26,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `app/(authenticated)/financials/` — super_admin-only payout cash dashboard, Profit First allocations, expenses, subscriptions, saved 12-month planning scenarios, and Relay bank statement import/reconciliation (Bank tab). (The Recurring-expenses tab was removed; costs are managed only through expenses.)
 - `app/(authenticated)/settings/` — account, clients, listings, users, roles, boards/tags, onboarding settings.
 - `app/(authenticated)/calendar/page.tsx` and `notes/page.tsx` — calendar and notes views.
-- `app/(authenticated)/adjustments/` — Adjustments triage queue (open by urgency+age with stale flags, "awaiting control" mini-queue, recently closed), create dialog (copies share link + opens the WhatsApp group), server actions.
+- `app/(authenticated)/adjustments/` — Adjustments triage queue (open by urgency+age with stale flags, "awaiting control" mini-queue with inline PriceLabs link + one-click Confirm control, recently closed collapsed to 3 with Show all), client filter, create/edit dialog (create copies share link + opens the WhatsApp group; edit only while status is in `OPEN_STATUSES`, enforced in `updateAdjustment`), server actions.
 - `app/a/[token]/page.tsx` — public adjustment card ("public shell + authed core" on the same URL): serves Open Graph meta and a read-only non-sensitive shell without a session (fetched via admin client by `public_token`; `proxy.ts` exempts `/a/` and `/api/` from the login redirect), and the full interactive card (notes, status transitions, resolver/control trail) when logged in.
 
 ## Components and Libraries

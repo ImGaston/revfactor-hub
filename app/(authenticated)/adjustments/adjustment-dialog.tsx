@@ -27,7 +27,8 @@ import {
   BOOKING_WINDOWS,
   adjustmentShareUrl,
 } from "@/lib/adjustments"
-import { createAdjustment, getAdjustmentFormOptions } from "./actions"
+import type { Adjustment } from "@/lib/types"
+import { createAdjustment, getAdjustmentFormOptions, updateAdjustment } from "./actions"
 
 type ClientOption = {
   id: string
@@ -40,11 +41,13 @@ export function AdjustmentDialog({
   onOpenChange,
   whatsappInviteUrl,
   defaultClientId,
+  adjustment,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   whatsappInviteUrl: string | null
   defaultClientId?: string
+  adjustment?: Adjustment | null
 }) {
   const [clients, setClients] = useState<ClientOption[] | null>(null)
   const [saving, setSaving] = useState(false)
@@ -70,16 +73,37 @@ export function AdjustmentDialog({
     }
   }, [open, clients])
 
+  // Edit mode: prefill from the existing adjustment when the dialog opens
+  useEffect(() => {
+    if (!open || !adjustment) return
+    setClientId(adjustment.client_id)
+    setScope(adjustment.scope)
+    setListingId(adjustment.listing_id ?? "")
+    setTag(adjustment.tag)
+    setTargetValue(adjustment.target_value ?? "")
+    setDateFrom(adjustment.date_from ?? "")
+    setDateTo(adjustment.date_to ?? "")
+    setBookingWindow(adjustment.booking_window ?? "")
+    setUrgency(adjustment.urgency)
+    setRequestedBy(adjustment.requested_by ?? "")
+    setOriginMessage(adjustment.origin_message ?? "")
+  }, [open, adjustment])
+
   const selectedClient = clients?.find((c) => c.id === clientId)
 
-  // Single-listing clients: picking the client picks the listing
+  // Single-listing clients: picking the client picks the listing. Keeps a
+  // selection that already belongs to the client (edit-mode prefill).
   useEffect(() => {
-    if (scope === "single_listing" && selectedClient?.listings.length === 1) {
-      setListingId(selectedClient.listings[0].id)
-    } else {
+    if (scope !== "single_listing") {
       setListingId("")
+      return
     }
-  }, [clientId, scope, selectedClient])
+    if (!selectedClient) return
+    if (selectedClient.listings.some((l) => l.id === listingId)) return
+    setListingId(
+      selectedClient.listings.length === 1 ? selectedClient.listings[0].id : ""
+    )
+  }, [clientId, scope, selectedClient, listingId])
 
   function resetForm() {
     setClientId(defaultClientId ?? "")
@@ -97,6 +121,14 @@ export function AdjustmentDialog({
 
   async function handleSave() {
     setSaving(true)
+    try {
+      await submit()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function submit() {
     const formData = new FormData()
     formData.set("scope", scope)
     formData.set("client_id", clientId)
@@ -110,8 +142,18 @@ export function AdjustmentDialog({
     formData.set("requested_by", requestedBy)
     formData.set("origin_message", originMessage)
 
+    if (adjustment) {
+      const result = await updateAdjustment(adjustment.id, formData)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success("Adjustment updated")
+      onOpenChange(false)
+      return
+    }
+
     const result = await createAdjustment(formData)
-    setSaving(false)
 
     if (result.error || !result.publicToken) {
       toast.error(result.error ?? "Failed to create adjustment")
@@ -139,7 +181,7 @@ export function AdjustmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New Adjustment</DialogTitle>
+          <DialogTitle>{adjustment ? "Edit Adjustment" : "New Adjustment"}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">
@@ -298,7 +340,11 @@ export function AdjustmentDialog({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={saving || !canSave}>
-            {saving ? "Creating…" : "Create & copy link"}
+            {saving
+              ? "Saving…"
+              : adjustment
+                ? "Save changes"
+                : "Create & copy link"}
           </Button>
         </DialogFooter>
       </DialogContent>

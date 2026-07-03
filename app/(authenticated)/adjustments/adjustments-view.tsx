@@ -6,9 +6,13 @@ import { toast } from "sonner"
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
+  ChevronUp,
   ClipboardCopy,
   Copy,
+  ExternalLink,
   MoreHorizontal,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react"
@@ -43,6 +47,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -62,6 +73,7 @@ import {
   adjustmentSummary,
   adjustmentTagLabel,
   buildWhatsappUpdate,
+  pricelabsUrl,
 } from "@/lib/adjustments"
 import {
   deleteAdjustment,
@@ -102,36 +114,54 @@ export function AdjustmentsView({
   adjustments,
   canControl,
   canCreate,
+  canEdit,
   whatsappInviteUrl,
 }: {
   adjustments: Adjustment[]
   canControl: boolean
   canCreate: boolean
+  canEdit: boolean
   whatsappInviteUrl: string | null
 }) {
   const [createOpen, setCreateOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Adjustment | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Adjustment | null>(null)
+  const [clientFilter, setClientFilter] = useState("all")
   const [noteTarget, setNoteTarget] = useState<{
     adjustment: Adjustment
     status: AdjustmentStatus
   } | null>(null)
 
+  const clientOptions = useMemo(() => {
+    const byId = new Map<string, string>()
+    for (const a of adjustments) {
+      if (a.client_id && a.clients?.name) byId.set(a.client_id, a.clients.name)
+    }
+    return [...byId.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [adjustments])
+
   const { triage, awaitingControl, closed } = useMemo(() => {
-    const triage = adjustments
+    const visible =
+      clientFilter === "all"
+        ? adjustments
+        : adjustments.filter((a) => a.client_id === clientFilter)
+    const triage = visible
       .filter((a) => OPEN_STATUSES.includes(a.status))
       .sort(
         (a, b) =>
           URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
           a.created_at.localeCompare(b.created_at)
       )
-    const awaitingControl = adjustments
+    const awaitingControl = visible
       .filter((a) => a.status === "resolved")
       .sort((a, b) => (a.resolved_at ?? "").localeCompare(b.resolved_at ?? ""))
-    const closed = adjustments
+    const closed = visible
       .filter((a) => a.status === "controlled" || a.status === "rejected")
       .slice(0, 20)
     return { triage, awaitingControl, closed }
-  }, [adjustments])
+  }, [adjustments, clientFilter])
 
   async function copyLink(adjustment: Adjustment) {
     await navigator.clipboard.writeText(adjustmentShareUrl(adjustment.public_token))
@@ -178,12 +208,27 @@ export function AdjustmentsView({
             Change requests, triaged so nothing falls through the cracks.
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus />
-            New Adjustment
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All clients" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All clients</SelectItem>
+              {clientOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {canCreate && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus />
+              New Adjustment
+            </Button>
+          )}
+        </div>
       </div>
 
       <QueueSection
@@ -192,8 +237,10 @@ export function AdjustmentsView({
         adjustments={triage}
         emptyLabel="No open adjustments"
         canControl={canControl}
+        canEdit={canEdit}
         onCopyLink={copyLink}
         onStatusChange={handleStatusChange}
+        onEdit={setEditTarget}
         onDuplicate={handleDuplicate}
         onDelete={setDeleteTarget}
         onCopyUpdate={copyUpdate}
@@ -206,11 +253,14 @@ export function AdjustmentsView({
         adjustments={awaitingControl}
         emptyLabel="Nothing waiting for control"
         canControl={canControl}
+        canEdit={canEdit}
         onCopyLink={copyLink}
         onStatusChange={handleStatusChange}
+        onEdit={setEditTarget}
         onDuplicate={handleDuplicate}
         onDelete={setDeleteTarget}
         onCopyUpdate={copyUpdate}
+        showControlActions
       />
 
       <QueueSection
@@ -219,17 +269,27 @@ export function AdjustmentsView({
         adjustments={closed}
         emptyLabel="Nothing closed yet"
         canControl={canControl}
+        canEdit={canEdit}
         onCopyLink={copyLink}
         onStatusChange={handleStatusChange}
+        onEdit={setEditTarget}
         onDuplicate={handleDuplicate}
         onDelete={setDeleteTarget}
         onCopyUpdate={copyUpdate}
+        collapsedLimit={3}
       />
 
       <AdjustmentDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         whatsappInviteUrl={whatsappInviteUrl}
+      />
+
+      <AdjustmentDialog
+        open={!!editTarget}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        whatsappInviteUrl={whatsappInviteUrl}
+        adjustment={editTarget}
       />
 
       <StatusNoteDialog
@@ -265,25 +325,38 @@ function QueueSection({
   adjustments,
   emptyLabel,
   canControl,
+  canEdit,
   onCopyLink,
   onStatusChange,
+  onEdit,
   onDuplicate,
   onDelete,
   onCopyUpdate,
   flagStale = false,
+  showControlActions = false,
+  collapsedLimit,
 }: {
   title: string
   description: string
   adjustments: Adjustment[]
   emptyLabel: string
   canControl: boolean
+  canEdit: boolean
   onCopyLink: (a: Adjustment) => void
   onStatusChange: (a: Adjustment, s: AdjustmentStatus) => void
+  onEdit: (a: Adjustment) => void
   onDuplicate: (a: Adjustment) => void
   onDelete: (a: Adjustment) => void
   onCopyUpdate: (a: Adjustment) => void
   flagStale?: boolean
+  showControlActions?: boolean
+  collapsedLimit?: number
 }) {
+  const [expanded, setExpanded] = useState(false)
+  const collapsed = collapsedLimit !== undefined && !expanded
+  const visible = collapsed ? adjustments.slice(0, collapsedLimit) : adjustments
+  const hiddenCount = adjustments.length - visible.length
+
   return (
     <section className="space-y-2">
       <div className="flex items-baseline gap-2">
@@ -305,11 +378,12 @@ function QueueSection({
                 <TableHead>Urgency</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Age</TableHead>
+                {showControlActions && <TableHead />}
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {adjustments.map((adjustment) => {
+              {visible.map((adjustment) => {
                 const stale =
                   flagStale &&
                   adjustment.urgency === "high" &&
@@ -350,6 +424,34 @@ function QueueSection({
                     <TableCell className="text-sm text-muted-foreground">
                       {ageLabel(adjustment.created_at)}
                     </TableCell>
+                    {showControlActions && (
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          {adjustment.listings &&
+                            pricelabsUrl(adjustment.listings) && (
+                              <Button asChild variant="outline" size="sm">
+                                <a
+                                  href={pricelabsUrl(adjustment.listings)!}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <ExternalLink />
+                                  PriceLabs
+                                </a>
+                              </Button>
+                            )}
+                          {canControl && (
+                            <Button
+                              size="sm"
+                              onClick={() => onStatusChange(adjustment, "controlled")}
+                            >
+                              <Check />
+                              Confirm control
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -366,6 +468,12 @@ function QueueSection({
                             <Check />
                             Copy WhatsApp update
                           </DropdownMenuItem>
+                          {canEdit && OPEN_STATUSES.includes(adjustment.status) && (
+                            <DropdownMenuItem onClick={() => onEdit(adjustment)}>
+                              <Pencil />
+                              Edit
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>Move to…</DropdownMenuSubTrigger>
                             <DropdownMenuSubContent>
@@ -404,6 +512,29 @@ function QueueSection({
               })}
             </TableBody>
           </Table>
+          {collapsedLimit !== undefined &&
+            (hiddenCount > 0 || expanded) && (
+              <div className="border-t p-1.5 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => setExpanded((v) => !v)}
+                >
+                  {expanded ? (
+                    <>
+                      <ChevronUp />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown />
+                      Show all {adjustments.length}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
         </div>
       )}
     </section>

@@ -2,6 +2,18 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-03 — Adjustments Queue UX (filter, edit, inline control, collapsed closed)
+
+- `/adjustments` gains: client filter (Select over clients present in the data, filters all three sections), Edit menu item + edit mode in `AdjustmentDialog` (only while status ∈ `OPEN_STATUSES`; `updateAdjustment` server action re-checks status server-side), inline "PriceLabs" link + "Confirm control" button on Awaiting-control rows (control still permission-gated via `canControl`), and Recently closed collapsed to 3 rows with a Show all/Show less toggle (`collapsedLimit` prop on `QueueSection`).
+- `AdjustmentDialog` save is wrapped in try/finally so a thrown server action doesn't leave the button stuck on "Saving…". The listing auto-pick effect now preserves a prefilled listing that belongs to the selected client.
+- Verified E2E in the local app with temp SQL rows (deleted after): edit prefill+save persisted, Confirm control set `reviewer_id`/`controlled_at`, filter and collapse behaved; `pnpm typecheck` clean. Note: newly added server actions 500 under Turbopack HMR (`reading 'apply'`) until the dev server restarts.
+
+## 2026-07-03 — Airbnb OG Image on Adjustments Share Card
+
+- `/a/[token]` `generateMetadata` now scrapes the Airbnb room page's `og:image` for single-listing adjustments so WhatsApp previews show the listing photo; portfolio scope / scrape failure falls back to the RevFactor logo.
+- New `lib/airbnb-og.server.ts` (browser UA required, 24h Next data cache, 4s race timeout, no DB persistence) and `airbnbRoomUrl()` in `lib/adjustments.ts`. Details in `integrations.md`.
+- Verified locally: curl of the share page returns the `a0.muscache.com` image in the meta tag; `pnpm typecheck` clean.
+
 ## 2026-07-03 — RLS Hardening (038) Before India Contractor Accounts
 
 - Migration `038_rls_hardening.sql` (written + applied to prod via Supabase MCP): all `USING (true)` SELECT policies → `has_permission(resource,'view')` (019 pattern); leftover `USING (true)` writes on tasks/leads/roadmap/knowledge/onboarding-progress → `create`/`edit`/`delete`; author-own comment INSERTs now also require the module's `view`.
