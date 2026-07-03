@@ -31,8 +31,17 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // If not logged in and not on public routes, redirect to login
-  if (!user && pathname !== "/login" && !pathname.startsWith("/auth/")) {
+  // If not logged in and not on public routes, redirect to login.
+  // /a/<token> is the public adjustment shell: WhatsApp's OG scraper and
+  // link recipients hit it without a session; the page itself only serves
+  // non-sensitive fields until the viewer logs in.
+  if (
+    !user &&
+    pathname !== "/login" &&
+    !pathname.startsWith("/auth/") &&
+    !pathname.startsWith("/a/") &&
+    !pathname.startsWith("/api/")
+  ) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     return NextResponse.redirect(url)

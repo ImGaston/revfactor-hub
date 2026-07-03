@@ -2,6 +2,16 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-03 — Adjustments Module (v1)
+
+- New module converting WhatsApp change requests into atomic, traceable records. Migration `037_adjustments.sql`: `adjustments` + `adjustment_comments` tables, RLS via `has_permission('adjustments', …)`, seeds for super_admin/admin, and a widened `role_permissions.action` CHECK adding `publish` (fixing code/DB drift from the knowledge module) and the new `control` action.
+- Flow: create dialog (lazy-fetched client/listing options; single-listing clients auto-select) → on save copies the `/a/<public_token>` share link and opens the WhatsApp group (`WHATSAPP_GROUP_INVITE_URL` env; a single deep-link can't open a group AND pre-fill text) → team opens the card → resolver marks `resolved` → an internal with `adjustments:control` marks `controlled`. `issue`/`rejected` require a note (enforced in the server action, stored as a comment). "Copy WhatsApp update" builds the ✅ close-the-loop message.
+- `/a/[token]` is "public shell + authed core" on one URL: `generateMetadata` OG tags (first OG use in the repo; client+listing shown by decision) + non-sensitive read-only shell fetched with the admin client (RLS blocks anon), full card with notes/actions behind a session. `proxy.ts` now exempts `/a/` and `/api/` (see decisions.md — the `/api/` interception was also breaking webhook-style auth).
+- Triage queue at `/adjustments`: open items by urgency+age with stale flags (high urgency ≥2 days), "awaiting control" mini-queue, recently closed; `loading.tsx` skeleton. Per-client changelog card appended on `clients/[id]`. Sidebar is now permission-filtered (`resource:view`) with an Adjustments item; backfilled missing `knowledge` rows for admin/super_admin in the live `role_permissions` so nothing disappears.
+- Verified: `pnpm typecheck` clean; public shell, OG meta, PriceLabs/Airbnb-multicalendar shortcuts (both the pricelabs_link and airbnb_link-regex paths), 404 on bad token, and webhook 401-not-redirect all confirmed live with a temporary DB row (deleted after). Authed views (queue, create dialog, card actions, client block) compile but need a logged-in visual pass — no credentials in the preview browser.
+- Contractor role created same day (`adjustments:view` + `edit` only — `control` deliberately withheld so India can't self-control; an initial all-actions toggle was corrected). Portfolio-scope cards ship without a per-listing shortcut and that's final — the plan's "group URL" open item turned out to be the WhatsApp invite (configured via `WHATSAPP_GROUP_INVITE_URL`), not a PriceLabs group view.
+- Pending: RLS hardening BEFORE creating India accounts (decisions.md 2026-07-03); set `WHATSAPP_GROUP_INVITE_URL` in Vercel prod.
+
 ## 2026-06-24 — Monthly Pacing Chart
 
 - Added a monthly stacked-column pacing chart to the dashboard home, mirroring the daily Pacing chart but built on `report_metrics` (Report Builder monthly grid).

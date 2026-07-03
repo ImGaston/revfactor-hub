@@ -18,6 +18,7 @@
 - Permissions live in `role_permissions` with resource/action pairs.
 - Server permission checks use `lib/permissions.server.ts`; client-safe checks use `lib/permissions.ts`.
 - Settings tabs are permission-gated by resource/action, not role names.
+- Sidebar nav items carry a `resource` key and are filtered by `permissionMap["{resource}:view"]` (super_admin sees all; Financials keeps its explicit super_admin flag). When adding a module, add its resource to `RESOURCES` in `lib/permissions.ts`, seed `role_permissions` in the migration, and confirm existing roles have the `view` row — the live table is UI-managed and can drift from migration seeds (knowledge was missing for admin until 2026-07-03).
 - Financial data and `/financials` are `super_admin` only. Enforce this server-side and pass `isSuperAdmin` to UI components for conditional rendering.
 - RLS is enabled across tables. `get_my_role()` is a SECURITY DEFINER helper to avoid recursive policies.
 
@@ -67,7 +68,10 @@ PRICELABS_API_KEY=
 ASSEMBLY_API_KEY=
 STRIPE_SECRET_KEY=
 CRON_SECRET=
+WHATSAPP_GROUP_INVITE_URL=
 ```
+
+`WHATSAPP_GROUP_INVITE_URL` is the team WhatsApp group invite (`https://chat.whatsapp.com/<code>`), read server-side in the Adjustments create flow only. Never expose it on the public `/a/` shell or in Open Graph tags — anyone with the invite link can join the group.
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
 

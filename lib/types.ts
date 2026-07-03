@@ -513,6 +513,80 @@ export type OnboardingResource = {
   updated_at: string
 }
 
+// ─── Adjustments ────────────────────────────────────────
+
+export type AdjustmentScope = "portfolio" | "single_listing"
+
+export type AdjustmentTag =
+  | "min_stay"
+  | "price"
+  | "min_price"
+  | "max_price"
+  | "discount"
+  | "availability"
+  | "other"
+
+export type AdjustmentStatus =
+  | "open"
+  | "in_progress"
+  | "resolved"
+  | "controlled"
+  | "issue"
+  | "rejected"
+
+export type AdjustmentUrgency = "low" | "medium" | "high"
+
+export type AdjustmentBookingWindow = "last_minute" | "far_out"
+
+export type Adjustment = {
+  id: string
+  public_token: string
+  scope: AdjustmentScope
+  client_id: string
+  listing_id: string | null
+  tag: AdjustmentTag
+  target_value: string | null
+  date_from: string | null
+  date_to: string | null
+  booking_window: AdjustmentBookingWindow | null
+  urgency: AdjustmentUrgency
+  requested_by: string | null
+  origin_message: string | null
+  status: AdjustmentStatus
+  resolver_id: string | null
+  resolved_at: string | null
+  reviewer_id: string | null
+  controlled_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  clients?: { id: string; name: string } | null
+  listings?: {
+    id: string
+    name: string
+    listing_id: string | null
+    pricelabs_link: string | null
+    airbnb_link: string | null
+  } | null
+  resolver?: { full_name: string | null; email: string } | null
+  reviewer?: { full_name: string | null; email: string } | null
+}
+
+export type AdjustmentComment = {
+  id: string
+  adjustment_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  profiles?: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  } | null
+}
+
 // ─── Report Builder (PriceLabs) ─────────────────────────
 
 export type ReportListing = {

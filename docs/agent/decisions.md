@@ -2,6 +2,18 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-03 — Adjustments v1: UI-only Gating for the Future `contractor` Role; Harden RLS Before Creating India Accounts
+
+Most tables' RLS SELECT policies are `TO authenticated USING (true)` — including `client_credentials` and `stripe_payouts` — so any hub account (including a future `contractor` role for the India team) can read them through the Supabase REST API regardless of what the UI hides. Decision (Gastón): ship Adjustments v1 with UI-only gating (permission-filtered sidebar + `adjustments:view` page checks) and **harden RLS before creating any contractor accounts** — migrate sensitive-table SELECT policies to `public.has_permission(resource, 'view')` following the `019_permission_based_rls.sql` pattern. Do not create India accounts until that migration lands. The `contractor` role exists (created 2026-07-03 via Settings → Roles) with exactly `adjustments:view` + `adjustments:edit` — NOT `control`/`delete`/`create`: `edit` is required to mark resolved/issue (RLS gates the UPDATE), while withholding `control` preserves the two-step closure (India cannot self-control its own work).
+
+## 2026-07-03 — Adjustments: Custom `control` Permission Action; OG Preview Shows Client + Listing
+
+The two-step closure (`resolved → controlled`, internal-only) is gated by a custom permission action `adjustments:control` rather than a hardcoded role list, per the "permission, not role" rule. Migration `037_adjustments.sql` widened the `role_permissions.action` CHECK to `('view','create','edit','delete','publish','control')` — this also fixed a latent drift: `publish` existed in `lib/permissions.ts` since the knowledge module but was never added to the DB constraint (role creation with a publish row would have violated it). The WhatsApp Open Graph preview intentionally shows full client + listing names (Gastón accepted the forward-outside-the-group leak risk in exchange for at-a-glance context in the chat). The public shell must never include `requested_by`, `origin_message`, notes, or people — those render only behind a session.
+
+## 2026-07-03 — `proxy.ts` Exempts `/a/` and `/api/` From the Login Redirect
+
+`proxy.ts` (Next 16's middleware replacement — note the filename when searching for "middleware") redirected every sessionless request to `/login`, which would have blocked WhatsApp's OG scraper on `/a/<token>` and was also intercepting webhook/cron endpoints that authenticate with their own secrets (`x-webhook-secret`, `CRON_SECRET`). Both prefixes are now exempt; `/a/` pages serve only non-sensitive fields until login, and `/api/` routes keep enforcing their own auth (verified: unauthenticated POST now gets the route's 401, not a 307 to /login).
+
 ## 2026-06-24 — Paginate Large `report_metrics` Reads (db-max-rows = 1000)
 
 This Supabase project enforces PostgREST `db-max-rows = 1000`: a single select is capped at 1000 rows even with an explicit `.limit()` higher than that. A full Report Builder run is listing × month (~234 × 12 = 2.8k rows), so any unbounded or single-request read of `report_metrics` silently returns only the earliest ~4–5 months (ordered by `period`). For the Monthly Pacing chart that dropped exactly the near-future months where pickup lives, so the chart looked empty/flat with no error.

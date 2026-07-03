@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
+import {
+  ClientAdjustmentsCard,
+  type ClientAdjustmentItem,
+} from "@/components/adjustments/client-adjustments-card"
 import { isAssemblyConfigured } from "@/lib/assembly"
 import { isStripeConfigured } from "@/lib/stripe"
 import { notFound } from "next/navigation"
@@ -26,11 +31,14 @@ export default async function ClientPage({
   ])
   const isSuperAdmin = profile?.role === "super_admin"
 
+  const canViewAdjustments = await hasPermission("adjustments", "view")
+
   const [
     { data: client },
     { data: credentials },
     stripeCustomersResult,
     billingByClient,
+    adjustmentsResult,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -55,6 +63,16 @@ export default async function ClientPage({
     isSuperAdmin
       ? getClientStripeBilling(supabase, [id])
       : Promise.resolve(new Map<string, number>()),
+    canViewAdjustments
+      ? supabase
+          .from("adjustments")
+          .select(
+            "id, public_token, scope, tag, target_value, status, created_at, controlled_at, listings(name)"
+          )
+          .eq("client_id", id)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : Promise.resolve({ data: [] }),
   ])
 
   if (!client) notFound()
@@ -68,7 +86,8 @@ export default async function ClientPage({
   }
 
   return (
-    <ClientDetailPage
+    <div className="space-y-6">
+      <ClientDetailPage
       client={filteredClient}
       credentials={credentials ?? []}
       isSuperAdmin={isSuperAdmin}
@@ -83,6 +102,14 @@ export default async function ClientPage({
       onUnlinkAssembly={unlinkAssemblyClientAction}
       onLoadStripeOptions={isSuperAdmin ? getStripeSubscriptionOptionsAction : undefined}
       onCreateStripeCheckout={isSuperAdmin ? createClientStripeCheckoutAction : undefined}
-    />
+      />
+      {canViewAdjustments && (
+        <ClientAdjustmentsCard
+          adjustments={
+            (adjustmentsResult.data ?? []) as unknown as ClientAdjustmentItem[]
+          }
+        />
+      )}
+    </div>
   )
 }
