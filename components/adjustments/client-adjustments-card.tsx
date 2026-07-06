@@ -3,14 +3,14 @@ import { SlidersHorizontal } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { adjustmentStatusLabel, adjustmentTagLabel } from "@/lib/adjustments"
+import { adjustmentStatusLabel, adjustmentTypeLabel } from "@/lib/adjustments"
 
 // Minimal per-client changelog row — only what the QBR glance needs
 export type ClientAdjustmentItem = {
   id: string
   public_token: string
   scope: string
-  tag: string
+  type: string
   target_value: string | null
   status: string
   created_at: string
@@ -58,7 +58,7 @@ export function ClientAdjustmentsCard({
                   href={`/a/${a.public_token}`}
                   className="min-w-0 flex-1 truncate font-medium hover:underline"
                 >
-                  {adjustmentTagLabel(a.tag)}
+                  {adjustmentTypeLabel(a.type)}
                   {a.target_value ? ` ${a.target_value}` : ""}
                   <span className="ml-1 font-normal text-muted-foreground">
                     · {a.scope === "portfolio" ? "portfolio" : a.listings?.name}

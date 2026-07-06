@@ -2,7 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { hasPermission } from "@/lib/permissions.server"
-import { NOTE_REQUIRED_STATUSES, OPEN_STATUSES } from "@/lib/adjustments"
+import {
+  NOTE_REQUIRED_STATUSES,
+  OPEN_STATUSES,
+  validateAdjustmentInput,
+} from "@/lib/adjustments"
 import type { AdjustmentStatus } from "@/lib/types"
 import { revalidatePath } from "next/cache"
 
@@ -11,23 +15,27 @@ function revalidateAdjustment(publicToken?: string | null) {
   if (publicToken) revalidatePath(`/a/${publicToken}`)
 }
 
+// Conditional per-type validation + hidden-field clearing lives in the shared normalizer
+function parseAdjustmentForm(formData: FormData) {
+  return validateAdjustmentInput({
+    scope: formData.get("scope") as string,
+    clientId: formData.get("client_id") as string,
+    listingId: (formData.get("listing_id") as string) || null,
+    type: formData.get("type") as string,
+    targetValue: (formData.get("target_value") as string) || null,
+    dateFrom: (formData.get("date_from") as string) || null,
+    dateTo: (formData.get("date_to") as string) || null,
+    bookingWindow: (formData.get("booking_window") as string) || null,
+    origin: (formData.get("origin") as string) || "internal",
+  })
+}
+
 export async function createAdjustment(formData: FormData) {
-  const scope = formData.get("scope") as string
-  const clientId = formData.get("client_id") as string
-  const listingId = (formData.get("listing_id") as string) || null
-  const tag = formData.get("tag") as string
-  const targetValue = (formData.get("target_value") as string) || null
-  const dateFrom = (formData.get("date_from") as string) || null
-  const dateTo = (formData.get("date_to") as string) || null
-  const bookingWindow = (formData.get("booking_window") as string) || null
+  const parsed = parseAdjustmentForm(formData)
+  if ("error" in parsed) return { error: parsed.error }
   const urgency = (formData.get("urgency") as string) || "medium"
   const requestedBy = (formData.get("requested_by") as string) || null
   const originMessage = (formData.get("origin_message") as string) || null
-
-  if (!clientId) return { error: "Client is required" }
-  if (!tag) return { error: "Tag is required" }
-  if (scope === "single_listing" && !listingId)
-    return { error: "Listing is required for single-listing adjustments" }
 
   const supabase = await createClient()
   const {
@@ -38,14 +46,7 @@ export async function createAdjustment(formData: FormData) {
   const { data, error } = await supabase
     .from("adjustments")
     .insert({
-      scope,
-      client_id: clientId,
-      listing_id: scope === "single_listing" ? listingId : null,
-      tag,
-      target_value: targetValue,
-      date_from: dateFrom,
-      date_to: dateTo,
-      booking_window: bookingWindow,
+      ...parsed.value,
       urgency,
       requested_by: requestedBy,
       origin_message: originMessage,
@@ -61,22 +62,11 @@ export async function createAdjustment(formData: FormData) {
 }
 
 export async function updateAdjustment(adjustmentId: string, formData: FormData) {
-  const scope = formData.get("scope") as string
-  const clientId = formData.get("client_id") as string
-  const listingId = (formData.get("listing_id") as string) || null
-  const tag = formData.get("tag") as string
-  const targetValue = (formData.get("target_value") as string) || null
-  const dateFrom = (formData.get("date_from") as string) || null
-  const dateTo = (formData.get("date_to") as string) || null
-  const bookingWindow = (formData.get("booking_window") as string) || null
+  const parsed = parseAdjustmentForm(formData)
+  if ("error" in parsed) return { error: parsed.error }
   const urgency = (formData.get("urgency") as string) || "medium"
   const requestedBy = (formData.get("requested_by") as string) || null
   const originMessage = (formData.get("origin_message") as string) || null
-
-  if (!clientId) return { error: "Client is required" }
-  if (!tag) return { error: "Tag is required" }
-  if (scope === "single_listing" && !listingId)
-    return { error: "Listing is required for single-listing adjustments" }
 
   const supabase = await createClient()
   const {
@@ -97,14 +87,7 @@ export async function updateAdjustment(adjustmentId: string, formData: FormData)
   const { error } = await supabase
     .from("adjustments")
     .update({
-      scope,
-      client_id: clientId,
-      listing_id: scope === "single_listing" ? listingId : null,
-      tag,
-      target_value: targetValue,
-      date_from: dateFrom,
-      date_to: dateTo,
-      booking_window: bookingWindow,
+      ...parsed.value,
       urgency,
       requested_by: requestedBy,
       origin_message: originMessage,
@@ -128,7 +111,7 @@ export async function duplicateAdjustment(adjustmentId: string) {
   const { data: source, error: fetchError } = await supabase
     .from("adjustments")
     .select(
-      "scope, client_id, listing_id, tag, target_value, date_from, date_to, booking_window, urgency, requested_by, origin_message"
+      "scope, client_id, listing_id, type, target_value, date_from, date_to, booking_window, urgency, origin, requested_by, origin_message"
     )
     .eq("id", adjustmentId)
     .single()

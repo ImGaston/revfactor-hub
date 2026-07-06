@@ -30,11 +30,14 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import type { Adjustment, AdjustmentComment, AdjustmentStatus } from "@/lib/types"
 import {
+  SETUP_CONTROL_CHECKLIST,
+  adjustmentOriginLabel,
   adjustmentShareUrl,
   adjustmentStatusLabel,
-  adjustmentTagLabel,
+  adjustmentTypeLabel,
   airbnbMulticalendarUrl,
   buildWhatsappUpdate,
+  isEscalated,
   pricelabsUrl,
 } from "@/lib/adjustments"
 import { resolveProfile } from "@/lib/types"
@@ -70,7 +73,7 @@ function formatDate(date: string | null): string | null {
 type ShellAdjustment = Pick<
   Adjustment,
   | "scope"
-  | "tag"
+  | "type"
   | "target_value"
   | "date_from"
   | "date_to"
@@ -109,7 +112,7 @@ export function AdjustmentShell({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-semibold tracking-tight">
-            {adjustmentTagLabel(adjustment.tag)}
+            {adjustmentTypeLabel(adjustment.type)}
             {adjustment.target_value ? ` ${adjustment.target_value}` : ""}
           </h1>
           <Badge className={URGENCY_BADGE[adjustment.urgency]}>
@@ -228,27 +231,37 @@ export function AdjustmentCard({
 
   const resolver = resolveProfile(adjustment.resolver)
   const reviewer = resolveProfile(adjustment.reviewer)
+  // HostPricing proposals: moving out of `open` is the internal approval step
+  const isProposal =
+    adjustment.origin === "hostpricing" && adjustment.status === "open"
 
   return (
     <div className="space-y-4">
       <AdjustmentShell adjustment={adjustment}>
         <Separator />
 
-        {(adjustment.requested_by || adjustment.origin_message) && (
-          <div className="space-y-2 text-sm">
-            {adjustment.requested_by && (
-              <p>
-                <span className="text-muted-foreground">Requested by:</span>{" "}
-                {adjustment.requested_by}
-              </p>
+        <div className="space-y-2 text-sm">
+          <p>
+            <span className="text-muted-foreground">Origin:</span>{" "}
+            {adjustmentOriginLabel(adjustment.origin)}
+            {isEscalated(adjustment) && (
+              <Badge className="ml-2 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
+                client escalation
+              </Badge>
             )}
-            {adjustment.origin_message && (
-              <blockquote className="rounded-md border-l-2 bg-muted/50 p-3 text-muted-foreground">
-                {adjustment.origin_message}
-              </blockquote>
-            )}
-          </div>
-        )}
+          </p>
+          {adjustment.requested_by && (
+            <p>
+              <span className="text-muted-foreground">Requested by:</span>{" "}
+              {adjustment.requested_by}
+            </p>
+          )}
+          {adjustment.origin_message && (
+            <blockquote className="rounded-md border-l-2 bg-muted/50 p-3 text-muted-foreground">
+              {adjustment.origin_message}
+            </blockquote>
+          )}
+        </div>
 
         {(resolver || reviewer) && (
           <div className="space-y-1 text-sm text-muted-foreground">
@@ -271,10 +284,26 @@ export function AdjustmentCard({
           </div>
         )}
 
+        {adjustment.type === "setup" &&
+          adjustment.status === "resolved" &&
+          canControl && (
+            <div className="rounded-md border bg-muted/50 p-3 text-sm">
+              <p className="mb-1 font-medium">Before confirming control, verify:</p>
+              <ul className="space-y-0.5 text-muted-foreground">
+                {SETUP_CONTROL_CHECKLIST.map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <Check className="size-3.5" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
         <div className="flex flex-wrap gap-2">
           {canEdit && adjustment.status === "open" && (
             <Button size="sm" onClick={() => changeStatus("in_progress")}>
-              Start
+              {isProposal ? "Approve proposal" : "Start"}
             </Button>
           )}
           {canEdit &&
@@ -302,7 +331,7 @@ export function AdjustmentCard({
                   </Button>
                 )}
                 <Button size="sm" variant="outline" onClick={() => setNoteStatus("rejected")}>
-                  Reject
+                  {isProposal ? "Deny" : "Reject"}
                 </Button>
               </>
             )}
@@ -384,6 +413,7 @@ export function AdjustmentCard({
 
       <StatusNoteDialog
         status={noteStatus}
+        isProposal={isProposal}
         onClose={() => setNoteStatus(null)}
         onSave={async (status, note) => {
           const ok = await changeStatus(status, note)
@@ -396,10 +426,12 @@ export function AdjustmentCard({
 
 function StatusNoteDialog({
   status,
+  isProposal,
   onClose,
   onSave,
 }: {
   status: AdjustmentStatus | null
+  isProposal: boolean
   onClose: () => void
   onSave: (status: AdjustmentStatus, note: string) => Promise<void>
 }) {
@@ -411,7 +443,11 @@ function StatusNoteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {status === "rejected" ? "Reject adjustment" : "Mark as issue"}
+            {status !== "rejected"
+              ? "Mark as issue"
+              : isProposal
+                ? "Deny proposal"
+                : "Reject adjustment"}
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">

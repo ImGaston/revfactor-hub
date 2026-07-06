@@ -67,7 +67,7 @@ export default async function ClientPage({
       ? supabase
           .from("adjustments")
           .select(
-            "id, public_token, scope, tag, target_value, status, created_at, controlled_at, listings(name)"
+            "id, public_token, scope, type, target_value, status, created_at, controlled_at, listings(name)"
           )
           .eq("client_id", id)
           .order("created_at", { ascending: false })

@@ -517,14 +517,21 @@ export type OnboardingResource = {
 
 export type AdjustmentScope = "portfolio" | "single_listing"
 
-export type AdjustmentTag =
+export type AdjustmentType =
+  | "setup"
   | "min_stay"
   | "price"
   | "min_price"
   | "max_price"
+  | "target_payout"
+  | "checkin_checkout"
   | "discount"
+  | "markup_fees"
   | "availability"
+  | "review"
   | "other"
+
+export type AdjustmentOrigin = "client" | "internal" | "hostpricing"
 
 export type AdjustmentStatus =
   | "open"
@@ -544,12 +551,13 @@ export type Adjustment = {
   scope: AdjustmentScope
   client_id: string
   listing_id: string | null
-  tag: AdjustmentTag
+  type: AdjustmentType
   target_value: string | null
   date_from: string | null
   date_to: string | null
   booking_window: AdjustmentBookingWindow | null
   urgency: AdjustmentUrgency
+  origin: AdjustmentOrigin
   requested_by: string | null
   origin_message: string | null
   status: AdjustmentStatus

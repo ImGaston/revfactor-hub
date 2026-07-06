@@ -35,7 +35,7 @@ const getPublicAdjustment = cache(
     const { data } = await supabase
       .from("adjustments")
       .select(
-        `id, public_token, scope, tag, target_value, date_from, date_to,
+        `id, public_token, scope, type, target_value, date_from, date_to,
          booking_window, urgency, status, created_at,
          clients(name),
          listings(id, name, listing_id, pricelabs_link, airbnb_link)`

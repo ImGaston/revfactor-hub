@@ -2,6 +2,18 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-06 — Adjustments Types & Origin (spec v0.1, migration 039)
+
+Implements the "Adjustments — Types & Fields Spec v0.1" (derived from the Hostpricing WhatsApp audit). Decisions confirmed with Gastón:
+
+- **Column `tag` renamed to `type`** and widened from 7 to 12 CHECK values (`setup`, `min_stay`, `price`, `min_price`, `max_price`, `target_payout`, `checkin_checkout`, `discount`, `markup_fees`, `availability`, `review`, `other`). The old 7 values map 1:1 — no backfill. Rename chosen over keeping `tag` so code matches the spec vocabulary; `type` is non-reserved in Postgres and safe in PostgREST selects.
+- **New `origin` column** (`client` / `internal` / `hostpricing`, NOT NULL default `internal`). `requested_by` stays as complementary free text. Origin analytics deliberately out of scope for v1 — capture now, exploit later.
+- **Conditional field requirements are app-level only** (columns stay nullable): the shared `validateAdjustmentInput()` + `ADJUSTMENT_TYPE_CONFIG` in `lib/adjustments.ts` are the single source of truth for the dialog's `canSave` and the server actions, and the server normalizer nulls fields a type doesn't show. `setup` forces `single_listing` scope and requires the listing to exist in the Hub (data hygiene: Hub record first, then the setup ticket).
+- **`origin=hostpricing` does NOT invert the two-step close** — no new states or permissions. `open` = proposal pending internal approval; internal moves it to `in_progress` (approve) or `rejected` (deny, note required); India applies and marks `resolved`; internal confirms `controlled`. Pure UI/labels layer ("Pending approval" badge, "Approve proposal"/"Deny" actions). HostPricing tickets are created by internal users on India's behalf; contractor keeps no `adjustments:create`.
+- **Setup reviewer = anyone with `adjustments:control`** (no fixed-person rule, no new permission). The control step for `setup` shows a static, non-persisted checklist hint (markup, min/base price, LOS, promos, sync, access); persisted checklist deferred to v2 if the hint falls short.
+- **`origin` is NOT exposed on the public shell** at `/a/<token>` — same sensitivity class as `requested_by` (leaks internal/contractor workflow to anyone holding the link). Authed card shows it.
+- **Deploy ordering:** old code selects `tag`, new code selects `type`; migration 039 and the Vercel deploy must go out back-to-back (transient breakage window accepted for a 2–3-user internal tool; a two-phase zero-downtime migration was judged not worth it).
+
 ## 2026-07-03 — RLS Hardened to Permission-Based Policies (038); India Accounts Unblocked
 
 Closes the commitment below. Migration `038_rls_hardening.sql` (applied to prod the same day) migrated every `TO authenticated USING (true)` SELECT — and the leftover `USING (true)` writes on tasks/leads/roadmap/knowledge/onboarding-progress — to `public.has_permission(<resource>, <action>)`. Resource mapping: `client_credentials`→`clients`, `stripe_*`/`bank_*`/`expenses`/`expense_categories`/`recurring_expenses`/`client_stripe_customers`/`dismissed_payment_issues`→`financials`, `leads`/`lead_*`→`pipeline`, `report_*`→`listings`, everything else to its own module resource. Also fixed in 038: (a) **privilege escalation** — any user could `UPDATE` their own `profiles.role` via REST; now blocked by the `profiles_role_guard` trigger unless super_admin (admin client exempt via `auth.uid() IS NULL`); (b) `post_with_counts`, `knowledge_category_article_counts`, and `seo_metrics` were definer views bypassing RLS — now `security_invoker = true`.

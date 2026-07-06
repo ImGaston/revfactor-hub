@@ -22,12 +22,14 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  ADJUSTMENT_TAGS,
+  ADJUSTMENT_ORIGINS,
+  ADJUSTMENT_TYPES,
+  ADJUSTMENT_TYPE_CONFIG,
   ADJUSTMENT_URGENCIES,
   BOOKING_WINDOWS,
   adjustmentShareUrl,
 } from "@/lib/adjustments"
-import type { Adjustment } from "@/lib/types"
+import type { Adjustment, AdjustmentType } from "@/lib/types"
 import { createAdjustment, getAdjustmentFormOptions, updateAdjustment } from "./actions"
 
 type ClientOption = {
@@ -55,7 +57,8 @@ export function AdjustmentDialog({
   const [clientId, setClientId] = useState(defaultClientId ?? "")
   const [scope, setScope] = useState("single_listing")
   const [listingId, setListingId] = useState("")
-  const [tag, setTag] = useState("")
+  const [adjustmentType, setAdjustmentType] = useState("")
+  const [origin, setOrigin] = useState("internal")
   const [targetValue, setTargetValue] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
@@ -63,6 +66,9 @@ export function AdjustmentDialog({
   const [urgency, setUrgency] = useState("medium")
   const [requestedBy, setRequestedBy] = useState("")
   const [originMessage, setOriginMessage] = useState("")
+
+  const config = ADJUSTMENT_TYPE_CONFIG[adjustmentType as AdjustmentType] ?? null
+  const isSetup = adjustmentType === "setup"
 
   useEffect(() => {
     if (open && !clients) {
@@ -79,7 +85,8 @@ export function AdjustmentDialog({
     setClientId(adjustment.client_id)
     setScope(adjustment.scope)
     setListingId(adjustment.listing_id ?? "")
-    setTag(adjustment.tag)
+    setAdjustmentType(adjustment.type)
+    setOrigin(adjustment.origin)
     setTargetValue(adjustment.target_value ?? "")
     setDateFrom(adjustment.date_from ?? "")
     setDateTo(adjustment.date_to ?? "")
@@ -90,6 +97,11 @@ export function AdjustmentDialog({
   }, [open, adjustment])
 
   const selectedClient = clients?.find((c) => c.id === clientId)
+
+  // Initial setup is always per listing (data hygiene: client + listing must exist first)
+  useEffect(() => {
+    if (isSetup) setScope("single_listing")
+  }, [isSetup])
 
   // Single-listing clients: picking the client picks the listing. Keeps a
   // selection that already belongs to the client (edit-mode prefill).
@@ -109,7 +121,8 @@ export function AdjustmentDialog({
     setClientId(defaultClientId ?? "")
     setScope("single_listing")
     setListingId("")
-    setTag("")
+    setAdjustmentType("")
+    setOrigin("internal")
     setTargetValue("")
     setDateFrom("")
     setDateTo("")
@@ -133,7 +146,8 @@ export function AdjustmentDialog({
     formData.set("scope", scope)
     formData.set("client_id", clientId)
     formData.set("listing_id", listingId)
-    formData.set("tag", tag)
+    formData.set("type", adjustmentType)
+    formData.set("origin", origin)
     formData.set("target_value", targetValue)
     formData.set("date_from", dateFrom)
     formData.set("date_to", dateTo)
@@ -174,8 +188,16 @@ export function AdjustmentDialog({
     onOpenChange(false)
   }
 
+  // Mirrors validateAdjustmentInput — the server re-checks and normalizes
+  const hasListingIfNeeded = isSetup || scope === "single_listing" ? !!listingId : true
+  const hasTargetIfNeeded = !config?.requiresTarget || !!targetValue.trim()
+  const hasDateFromIfNeeded = !config?.requiresDateFrom || !!dateFrom
   const canSave =
-    !!clientId && !!tag && (scope === "portfolio" || !!listingId)
+    !!clientId &&
+    !!adjustmentType &&
+    hasListingIfNeeded &&
+    hasTargetIfNeeded &&
+    hasDateFromIfNeeded
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,15 +224,21 @@ export function AdjustmentDialog({
             </div>
             <div className="grid gap-1.5">
               <Label>Scope</Label>
-              <Select value={scope} onValueChange={setScope}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single_listing">Single listing</SelectItem>
-                  <SelectItem value="portfolio">Portfolio (group)</SelectItem>
-                </SelectContent>
-              </Select>
+              {isSetup ? (
+                <p className="flex h-9 items-center text-sm text-muted-foreground">
+                  Initial setup is always per listing
+                </p>
+              ) : (
+                <Select value={scope} onValueChange={setScope}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single_listing">Single listing</SelectItem>
+                    <SelectItem value="portfolio">Portfolio (group)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
@@ -240,13 +268,13 @@ export function AdjustmentDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label>Change</Label>
-              <Select value={tag} onValueChange={setTag}>
+              <Label>Type</Label>
+              <Select value={adjustmentType} onValueChange={setAdjustmentType}>
                 <SelectTrigger>
                   <SelectValue placeholder="What changes?" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ADJUSTMENT_TAGS.map((t) => (
+                  {ADJUSTMENT_TYPES.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
@@ -255,50 +283,89 @@ export function AdjustmentDialog({
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Target value</Label>
-              <Input
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-                placeholder="e.g. → 3 nights"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>From</Label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>To</Label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Booking window</Label>
-              <Select value={bookingWindow} onValueChange={setBookingWindow}>
+              <Label>Origin</Label>
+              <Select value={origin} onValueChange={setOrigin}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Optional" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {BOOKING_WINDOWS.map((w) => (
-                    <SelectItem key={w.value} value={w.value}>
-                      {w.label}
+                  {ADJUSTMENT_ORIGINS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {origin === "hostpricing" && (
+            <p className="text-xs text-muted-foreground">
+              Created on HostPricing&apos;s behalf — it will start as a proposal
+              pending internal approval.
+            </p>
+          )}
+
+          {(!config || config.showsTarget) && (
+            <div className="grid gap-1.5">
+              <Label>
+                Target value
+                {config && !config.requiresTarget && (
+                  <span className="font-normal text-muted-foreground"> (optional)</span>
+                )}
+              </Label>
+              <Input
+                value={targetValue}
+                onChange={(e) => setTargetValue(e.target.value)}
+                placeholder={config?.targetPlaceholder || "e.g. → 3 nights"}
+              />
+            </div>
+          )}
+
+          {(!config || config.showsDates) && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>
+                  From
+                  {config && !config.requiresDateFrom && (
+                    <span className="font-normal text-muted-foreground"> (optional)</span>
+                  )}
+                </Label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>To</Label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            {(!config || config.showsBookingWindow) && (
+              <div className="grid gap-1.5">
+                <Label>Booking window</Label>
+                <Select value={bookingWindow} onValueChange={setBookingWindow}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Optional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOOKING_WINDOWS.map((w) => (
+                      <SelectItem key={w.value} value={w.value}>
+                        {w.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label>Urgency</Label>
               <Select value={urgency} onValueChange={setUrgency}>
@@ -333,6 +400,11 @@ export function AdjustmentDialog({
               placeholder="Paste the WhatsApp message so context isn't lost"
               rows={3}
             />
+            {origin === "client" && !originMessage.trim() && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Paste the owner&apos;s message here so the request context isn&apos;t lost.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>

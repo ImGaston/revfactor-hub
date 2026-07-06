@@ -67,12 +67,16 @@ import {
   ADJUSTMENT_STATUSES,
   NOTE_REQUIRED_STATUSES,
   OPEN_STATUSES,
+  SETUP_CONTROL_CHECKLIST,
   STALE_HIGH_URGENCY_DAYS,
+  adjustmentOriginLabel,
   adjustmentShareUrl,
   adjustmentStatusLabel,
+  adjustmentStatusLabelFor,
   adjustmentSummary,
-  adjustmentTagLabel,
+  adjustmentTypeLabel,
   buildWhatsappUpdate,
+  isEscalated,
   pricelabsUrl,
 } from "@/lib/adjustments"
 import {
@@ -88,6 +92,12 @@ const URGENCY_BADGE: Record<string, string> = {
   high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
   medium: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   low: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+}
+
+// Only non-internal origins get a badge — internal is the default and would be noise
+const ORIGIN_BADGE: Record<string, string> = {
+  client: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  hostpricing: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -152,6 +162,7 @@ export function AdjustmentsView({
       .sort(
         (a, b) =>
           URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
+          Number(isEscalated(b)) - Number(isEscalated(a)) ||
           a.created_at.localeCompare(b.created_at)
       )
     const awaitingControl = visible
@@ -395,7 +406,7 @@ function QueueSection({
                         href={`/a/${adjustment.public_token}`}
                         className="font-medium hover:underline"
                       >
-                        {adjustmentTagLabel(adjustment.tag)}
+                        {adjustmentTypeLabel(adjustment.type)}
                         {adjustment.target_value ? ` ${adjustment.target_value}` : ""}
                       </Link>
                       {stale && (
@@ -404,12 +415,31 @@ function QueueSection({
                           stale
                         </span>
                       )}
+                      {isEscalated(adjustment) && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
+                          <AlertTriangle className="size-3" />
+                          client escalation
+                        </span>
+                      )}
+                      {showControlActions && adjustment.type === "setup" && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Verify: {SETUP_CONTROL_CHECKLIST.join(" · ").toLowerCase()}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {adjustment.clients?.name}
                       {adjustment.scope === "single_listing" && adjustment.listings
                         ? ` · ${adjustment.listings.name}`
                         : " · portfolio"}
+                      {adjustment.origin !== "internal" && (
+                        <Badge
+                          variant="outline"
+                          className={`ml-2 ${ORIGIN_BADGE[adjustment.origin]}`}
+                        >
+                          {adjustmentOriginLabel(adjustment.origin)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge className={URGENCY_BADGE[adjustment.urgency]}>
@@ -418,7 +448,7 @@ function QueueSection({
                     </TableCell>
                     <TableCell>
                       <Badge className={STATUS_BADGE[adjustment.status]}>
-                        {adjustmentStatusLabel(adjustment.status)}
+                        {adjustmentStatusLabelFor(adjustment)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -482,14 +512,26 @@ function QueueSection({
                                   s.value !== adjustment.status &&
                                   (s.value !== "controlled" ||
                                     (canControl && adjustment.status === "resolved"))
-                              ).map((s) => (
-                                <DropdownMenuItem
-                                  key={s.value}
-                                  onClick={() => onStatusChange(adjustment, s.value)}
-                                >
-                                  {s.label}
-                                </DropdownMenuItem>
-                              ))}
+                              ).map((s) => {
+                                // HostPricing proposals: moving out of `open` is the approval step
+                                const isProposal =
+                                  adjustment.origin === "hostpricing" &&
+                                  adjustment.status === "open"
+                                const label =
+                                  isProposal && s.value === "in_progress"
+                                    ? "Approve → In Progress"
+                                    : isProposal && s.value === "rejected"
+                                      ? "Deny (reject)"
+                                      : s.label
+                                return (
+                                  <DropdownMenuItem
+                                    key={s.value}
+                                    onClick={() => onStatusChange(adjustment, s.value)}
+                                  >
+                                    {label}
+                                  </DropdownMenuItem>
+                                )
+                              })}
                             </DropdownMenuSubContent>
                           </DropdownMenuSub>
                           <DropdownMenuItem onClick={() => onDuplicate(adjustment)}>
@@ -570,7 +612,12 @@ function StatusNoteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {target?.status === "rejected" ? "Reject adjustment" : "Mark as issue"}
+            {target?.status !== "rejected"
+              ? "Mark as issue"
+              : target.adjustment.origin === "hostpricing" &&
+                  target.adjustment.status === "open"
+                ? "Deny proposal"
+                : "Reject adjustment"}
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">

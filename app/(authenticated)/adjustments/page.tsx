@@ -5,8 +5,8 @@ import type { Adjustment } from "@/lib/types"
 import { AdjustmentsView } from "./adjustments-view"
 
 const ADJUSTMENT_SELECT = `
-  id, public_token, scope, client_id, listing_id, tag, target_value,
-  date_from, date_to, booking_window, urgency, requested_by, origin_message,
+  id, public_token, scope, client_id, listing_id, type, target_value,
+  date_from, date_to, booking_window, urgency, origin, requested_by, origin_message,
   status, resolver_id, resolved_at, reviewer_id, controlled_at, created_by,
   created_at, updated_at,
   clients:clients_basic(id, name),

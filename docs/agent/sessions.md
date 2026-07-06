@@ -2,6 +2,14 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-06 — Adjustments Types & Origin (spec v0.1)
+
+- Migration `039_adjustments_types_origin.sql` (written, **not yet applied**): renames `adjustments.tag` → `type`, widens the CHECK to 12 values, adds `origin` (`client`/`internal`/`hostpricing`, default `internal`). Must be applied back-to-back with the deploy (old code selects `tag`).
+- `lib/adjustments.ts`: `ADJUSTMENT_TYPES` (12 spec labels), `ADJUSTMENT_ORIGINS`, `ADJUSTMENT_TYPE_CONFIG` per-type field config (shows/requires target, dates, booking window + dynamic placeholder), shared `validateAdjustmentInput()` normalizer used by both the dialog and the server actions, `isEscalated()`, `adjustmentStatusLabelFor()` ("Pending approval" for hostpricing+open), `SETUP_CONTROL_CHECKLIST`.
+- Dialog: Type + Origin selects, conditional fields per type, setup mode (forced single_listing, hidden target/dates/booking window), owner-message hint when `origin=client`, values preserved on type switch (server nulls hidden fields on save).
+- Queue: "client escalation" flag (high urgency + client origin, sorts first within high), origin badge for non-internal, hostpricing approve/deny labels, setup verify hint in Awaiting control. Card: origin line, escalation badge, "Approve proposal"/"Deny" for proposals, static setup checklist before Confirm control. Public shell exposes `type` but **not** `origin`.
+- `pnpm typecheck` clean; decisions recorded in `decisions.md` (2026-07-06).
+
 ## 2026-07-03 — Adjustments Queue UX (filter, edit, inline control, collapsed closed)
 
 - `/adjustments` gains: client filter (Select over clients present in the data, filters all three sections), Edit menu item + edit mode in `AdjustmentDialog` (only while status ∈ `OPEN_STATUSES`; `updateAdjustment` server action re-checks status server-side), inline "PriceLabs" link + "Confirm control" button on Awaiting-control rows (control still permission-gated via `canControl`), and Recently closed collapsed to 3 rows with a Show all/Show less toggle (`collapsedLimit` prop on `QueueSection`).
