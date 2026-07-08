@@ -2,6 +2,11 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-08 — SEO Metrics Upload: Partial/Single-Listing Exports
+
+- Settings → Listings SEO upload now replaces rows scoped by download date **and** the Airbnb IDs in the file (`clearSeoMetricsForUploadAction`, ID list chunked ×200 for PostgREST URL limits; null-ID rows cleared only when the file has them). Single-listing Rankbreeze exports refresh just that listing instead of wiping the date's snapshot.
+- Same uploader/UI handles full and partial files (the preview badge already shows listing count); card description updated. `pnpm typecheck` clean.
+
 ## 2026-07-08 — Rankbreeze Link on Listing Detail
 
 - Listing detail header (`listings/[id]/listing-detail.tsx`) gains a Rankbreeze button next to Airbnb/PriceLabs: outline button to `app.rankbreeze.com/rankings/<rankbreeze_id>` when the association exists; amber alert variant (AlertTriangle, tooltip → Settings → Listings SEO upload) linking to the rankings home when it doesn't.

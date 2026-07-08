@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { parseSeoMetricsCsv, type SeoMetricRow } from "@/lib/seo-metrics"
 import {
-  clearSeoMetricsForDatesAction,
+  clearSeoMetricsForUploadAction,
   insertSeoMetricsChunkAction,
 } from "./actions"
 
@@ -66,7 +66,11 @@ export function SeoMetricsUpload() {
     setUploading(true)
     setProgress(0)
     try {
-      const cleared = await clearSeoMetricsForDatesAction(parsed.downloadDates)
+      const cleared = await clearSeoMetricsForUploadAction(
+        parsed.downloadDates,
+        parsed.distinctAirbnbIds,
+        parsed.rows.some((r) => !r.airbnb_id)
+      )
       if (cleared.error) {
         toast.error(`Failed to clear old data: ${cleared.error}`)
         return
@@ -102,10 +106,12 @@ export function SeoMetricsUpload() {
             SEO Metrics Upload
           </CardTitle>
           <CardDescription>
-            Upload the Rankbreeze <span className="font-mono">listing-metrics</span>{" "}
+            Upload a Rankbreeze <span className="font-mono">listing-metrics</span>{" "}
             CSV to load impressions, views, conversion, occupancy, ADR, and search
-            rank into <span className="font-mono">seo_metrics</span>. Re-uploading a
-            file replaces existing rows for the same download date.
+            rank into <span className="font-mono">seo_metrics</span>. Full and
+            single-listing exports both work: re-uploading replaces existing rows
+            only for the listings and download date in the file, so a partial
+            export refreshes those listings without touching the rest.
           </CardDescription>
         </div>
         <input

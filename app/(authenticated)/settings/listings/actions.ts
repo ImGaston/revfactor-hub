@@ -228,22 +228,47 @@ export async function deleteReportGroupOverrideAction(id: string) {
 // `seo_metrics_raw` and the view derives metric slugs, side, and hub
 // listing/client ids on read.
 
+// PostgREST encodes `.in()` filters in the URL, so large ID lists are chunked.
+const CLEAR_ID_CHUNK = 200
+
 /**
- * Clear any existing `seo_metrics_raw` rows for the given download date(s) so a
- * re-upload of the same snapshot replaces rather than duplicates. Called once
- * before streaming chunks.
+ * Clear existing `seo_metrics_raw` rows for the download date(s) — but only for
+ * the Airbnb IDs present in the upload — so a re-upload replaces rather than
+ * duplicates. Scoping by listing makes single-listing (or partial) Rankbreeze
+ * exports safe: they refresh their own listings without wiping the rest of the
+ * snapshot for that date. Called once before streaming chunks.
  */
-export async function clearSeoMetricsForDatesAction(downloadDates: string[]) {
+export async function clearSeoMetricsForUploadAction(
+  downloadDates: string[],
+  airbnbIds: string[],
+  hasRowsWithoutAirbnbId: boolean
+) {
   if (!(await hasPermission("listings", "edit"))) {
     return { error: "Not authorized" }
   }
   if (downloadDates.length === 0) return { error: null }
 
-  const { error } = await createAdminClient()
-    .from("seo_metrics_raw")
-    .delete()
-    .in("download_date", downloadDates)
-  if (error) return { error: error.message }
+  const admin = createAdminClient()
+  for (let i = 0; i < airbnbIds.length; i += CLEAR_ID_CHUNK) {
+    const { error } = await admin
+      .from("seo_metrics_raw")
+      .delete()
+      .in("download_date", downloadDates)
+      .in("airbnb_id", airbnbIds.slice(i, i + CLEAR_ID_CHUNK))
+    if (error) return { error: error.message }
+  }
+
+  // The upload itself may carry rows with no Airbnb ID; clear their previous
+  // null-ID counterparts for the same dates so those don't duplicate either.
+  if (hasRowsWithoutAirbnbId) {
+    const { error } = await admin
+      .from("seo_metrics_raw")
+      .delete()
+      .in("download_date", downloadDates)
+      .is("airbnb_id", null)
+    if (error) return { error: error.message }
+  }
+
   return { error: null }
 }
 
