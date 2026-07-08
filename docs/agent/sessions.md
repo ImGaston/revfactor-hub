@@ -2,6 +2,13 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-08 — Rankbreeze Link on Listing Detail
+
+- Listing detail header (`listings/[id]/listing-detail.tsx`) gains a Rankbreeze button next to Airbnb/PriceLabs: outline button to `app.rankbreeze.com/rankings/<rankbreeze_id>` when the association exists; amber alert variant (AlertTriangle, tooltip → Settings → Listings SEO upload) linking to the rankings home when it doesn't.
+- `listings/[id]/page.tsx` derives `rankbreezeId` from `seo_metrics_raw` in parallel with `getListingReport`, matching `airbnb_id` against `listing_id` and the numeric ID in `airbnb_link` (newest row wins; `idx_seo_raw_airbnb` already existed).
+- Migration `040_seo_metrics_read_policy.sql` applied to prod: SELECT policy on `seo_metrics_raw` via `has_permission('listings','view')`.
+- Verified both states in the browser; `pnpm typecheck` clean.
+
 ## 2026-07-06 — Adjustments Types & Origin (spec v0.1)
 
 - Migration `039_adjustments_types_origin.sql` (written, **not yet applied**): renames `adjustments.tag` → `type`, widens the CHECK to 12 values, adds `origin` (`client`/`internal`/`hostpricing`, default `internal`). Must be applied back-to-back with the deploy (old code selects `tag`).

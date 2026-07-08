@@ -2,6 +2,10 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-08 — Rankbreeze Link on Listing Detail (migration 040)
+
+The listing detail header now shows a Rankbreeze button next to Airbnb/PriceLabs. The association is **derived, not stored**: the newest `seo_metrics_raw` row whose `airbnb_id` matches either `listings.listing_id` or the numeric ID extracted from `airbnb_link` (`/rooms/(\d+)/`) supplies `rankbreeze_id` → `https://app.rankbreeze.com/rankings/<id>`. Deriving from the SEO upload was chosen over adding a `listings.rankbreeze_id` column so the link self-heals with every CSV upload and needs no manual data entry. When no match exists, the button still renders in amber (AlertTriangle) linking to the Rankbreeze rankings home, with a tooltip pointing to the Settings → Listings SEO upload. Matching on `airbnb_link` matters: many `listings.listing_id` values are PriceLabs IDs/UUIDs, so `listing_id` alone matched only 19/251 listings vs 210/251 with both keys. `040_seo_metrics_read_policy.sql` (applied 2026-07-08) adds the user-client SELECT policy on `seo_metrics_raw` gated on `listings:view`, as the 038 note anticipated.
+
 ## 2026-07-06 — Adjustments Types & Origin (spec v0.1, migration 039)
 
 Implements the "Adjustments — Types & Fields Spec v0.1" (derived from the Hostpricing WhatsApp audit). Decisions confirmed with Gastón:
