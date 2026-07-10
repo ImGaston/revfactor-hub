@@ -526,13 +526,14 @@ export type OnboardingRunStatus =
 export type OnboardingRun = {
   id: string
   client_id: string
+  external_key: string
   run_type: "initial" | "additional_property"
   status: OnboardingRunStatus
   current_step: "property" | "software" | "preferences" | "knowledge" | "review"
   assembly_workspace_id: string | null
   assembly_company_id: string | null
   assembly_client_id: string | null
-  stripe_subscription_id: string | null
+  stripe_subscription_ids: string[]
   primary_listing_entitlement: number
   child_listing_entitlement: number
   entitlement_synced_at: string | null
@@ -540,6 +541,8 @@ export type OnboardingRun = {
   pms_name: string | null
   has_pricelabs: boolean | null
   client_note: string | null
+  draft_payload: Record<string, unknown>
+  submitted_payload: Record<string, unknown> | null
   revision: number
   started_at: string
   last_saved_at: string
@@ -553,6 +556,7 @@ export type OnboardingRun = {
 export type OnboardingRunListing = {
   id: string
   run_id: string
+  external_key: string
   hub_listing_id: string | null
   parent_run_listing_id: string | null
   listing_kind: "primary" | "child"

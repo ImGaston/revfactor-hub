@@ -7,6 +7,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Audited the deployed RevFactor onboarding app against Hub's existing client, listing, Assembly, Stripe, and legacy onboarding models.
 - Added additive migration `037_client_onboarding_runs.sql` for multi-run onboarding, child listing parentage, normalized per-listing pricing, run-scoped shared events/comps, questionnaire/readiness answers, client/team tasks, and Assembly file metadata.
 - Added Hub TypeScript contracts for the new run records and documented the Assembly identity, Stripe entitlement, optimistic concurrency, and preview-to-production boundaries.
+- Tightened migration 037 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
 
 ## 2026-06-24 — Monthly Pacing Chart

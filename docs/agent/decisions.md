@@ -8,7 +8,7 @@ The Assembly onboarding app must support one initial run plus later additional-p
 
 Decision: migration `037_client_onboarding_runs.sql` adds a normalized run model beside the legacy checklist instead of mutating it in place. Core listing/pricing values are typed columns; events and comps use run-scoped many-to-many listing junctions; flexible questionnaire/readiness responses use keyed answer rows; attachments store Assembly file IDs, not file bytes. Cross-run junctions are prevented with composite foreign keys. The legacy Hub onboarding UI continues unchanged until a dedicated adapter and queue migration are ready.
 
-Assembly identity is validated server-side. Stripe is authoritative for listing entitlements. Saves will use the run `revision` for optimistic concurrency so separate portal/internal sessions cannot silently overwrite each other.
+Assembly identity is validated server-side. Stripe is authoritative for listing entitlements. Saves use the run `revision` for optimistic concurrency so separate portal/internal sessions cannot silently overwrite each other. Incomplete autosaves remain in `draft_payload`; submission captures a stable `submitted_payload`, while normalized listing/event/comp rows remain the downstream analytical model. The Assembly app calls a service-role-only RPC after token validation; Hub users continue through permission-based RLS and no Supabase credential is exposed to the iframe.
 
 ## 2026-06-24 — Paginate Large `report_metrics` Reads (db-max-rows = 1000)
 
