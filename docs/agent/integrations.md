@@ -154,21 +154,28 @@ The public share page `/a/[token]` uses the Airbnb listing photo as its `og:imag
 - The `a0.muscache.com` image URLs are hotlinkable — WhatsApp fetches them directly, no proxying needed.
 - Residual risk: Airbnb may block Vercel datacenter IPs. If that happens, next step is caching the URL in a `listings` column.
 
-## Landing Page to Pipeline Webhook
+## Scheduler to Pipeline Webhook (implemented)
 
-See `docs/webhook-pipeline-integration.md` for the detailed implementation reference.
+The revfactor-scheduler app (`schedule.revfactor.io`, separate repo at `../revfactor-scheduler`, Vercel team `federico-zimermans-projects`) forwards each confirmed booking to the Hub as a lead.
 
-Expected Hub endpoint:
+- Hub endpoint: `POST /api/webhooks/scheduler` (`app/api/webhooks/scheduler/route.ts`), reachable without a session (`proxy.ts` skips `/api/`).
+- Auth: `Authorization: Bearer <SCHEDULER_WEBHOOK_SECRET>` (env var on the Hub; verified configured in Vercel production as of 2026-07-09 — endpoint returns 401 without it, 200 with the correct secret).
+- Required payload fields: `visitorName`, `visitorEmail`, `date` (YYYY-MM-DD), `startTime` (HH:mm). Optional extras are concatenated into `description`.
+- Inserts a `leads` row with stage `meeting`, `lead_source: "scheduler"`, `external_ref: "scheduler:<bookingId>"` for idempotent dedupe.
+- Scheduler side: `src/app/api/book/route.ts` fires the forward after saving the booking (fire-and-forget, silently skipped if `HUB_WEBHOOK_URL`/`HUB_WEBHOOK_SECRET` are unset — confirm both exist in the scheduler's Vercel production env; they cannot be verified from this repo).
 
-- `POST /api/webhooks/new-lead`
-- Auth via `x-webhook-secret` matched against server-only `WEBHOOK_SECRET`.
-- Use admin client because the request is server-to-server and has no Supabase user session.
-- Insert a `leads` row with stage `inquiry`, `sort_order` as max inquiry order + 1, `service_type: null`, `created_by: null`, and submitted contact/scheduling fields.
-- Return 201 with `{ success: true, lead_id }`, 400 for validation, 401 for secret mismatch, 500 for unexpected insert errors.
-- Do not use `revalidatePath`; Hub users see new leads after reload/navigation.
+## Landing Page to Pipeline Webhook (implemented 2026-07-09)
 
-Landing page caller:
+Generic lead intake for landing-page forms (e.g. the home email-capture field). Original spec: `docs/webhook-pipeline-integration.md`; the implementation relaxes it so email-only signups work.
+
+- `POST /api/webhooks/new-lead` (`app/api/webhooks/new-lead/route.ts`), reachable without a session.
+- Auth via `x-webhook-secret` header matched against server-only `WEBHOOK_SECRET` (in `.env.local`; must also be set in Vercel).
+- Only `email` is required (validated). `full_name`, `project_name`, `phone`, `lead_source` (default `landing_page`), `scheduled_date` (ISO 8601), `timezone`, `location`, `description`, `external_ref` are optional. `project_name` (NOT NULL in DB) falls back to `full_name`, then `email`.
+- Idempotency: an active (non-archived, non-completed) lead with the same email (case-insensitive) is reused — returns 200 with `deduped: true` instead of inserting.
+- Inserts stage `inquiry`, `sort_order` = max inquiry order + 1, `service_type: null`, `created_by: null`, via admin client.
+- Responses: 201 `{ success: true, lead_id }`, 200 deduped, 400 validation, 401 secret mismatch, 500 insert error. No `revalidatePath`; Hub users see new leads after reload/navigation.
+
+Caller requirements (any external page):
 
 - Make the fetch server-side and never expose `WEBHOOK_SECRET` in the browser.
-- Use a 5-second timeout.
-- Log failures but do not block the user scheduling flow.
+- Use a short timeout (~5s), log failures, and never block the visitor's flow — lead creation is best-effort.

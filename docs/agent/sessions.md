@@ -2,6 +2,11 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-09 — Lead Webhooks: Verified Scheduler, Implemented new-lead
+
+- Audited scheduler → pipeline flow end-to-end: `revfactor-scheduler` already forwards bookings (`src/app/api/book/route.ts`), Hub `/api/webhooks/scheduler` verified live in production (test POST created a Meeting lead, then deleted). Secrets match between both `.env.local`s. Open item: cannot verify `HUB_WEBHOOK_URL`/`HUB_WEBHOOK_SECRET` exist in the scheduler's Vercel production env (team `federico-zimermans-projects`); zero `lead_source='scheduler'` leads in prod DB.
+- Implemented `app/api/webhooks/new-lead/route.ts` for generic landing-page leads (home email capture): email-only required, email dedupe against active leads, stage `inquiry`. `WEBHOOK_SECRET` generated in `.env.local`; **pending: add to Vercel + deploy**. Tested locally (401/400/201/200-deduped). `pnpm typecheck` clean. Docs: `docs/agent/integrations.md` rewritten for both webhooks.
+
 ## 2026-07-08 — SEO Metrics Upload: Partial/Single-Listing Exports
 
 - Settings → Listings SEO upload now replaces rows scoped by download date **and** the Airbnb IDs in the file (`clearSeoMetricsForUploadAction`, ID list chunked ×200 for PostgREST URL limits; null-ID rows cleared only when the file has them). Single-listing Rankbreeze exports refresh just that listing instead of wiping the date's snapshot.
