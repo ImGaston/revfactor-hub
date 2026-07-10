@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import {
+  syncOnboardingEntitlements,
+  type OnboardingEntitlementSyncResult,
+  type StripeEntitlementSubscription,
+} from "@/lib/onboarding-entitlements"
 
 // --- Client (server-only) ---
 
@@ -34,6 +39,7 @@ export type SyncResult = {
   subscriptions: { upserted: number; errors: string[] }
   invoices: { upserted: number; errors: string[] }
   payouts: { upserted: number; reconciled: number; errors: string[] }
+  onboarding: OnboardingEntitlementSyncResult
 }
 
 function objectId(value: unknown): string | null {
@@ -149,6 +155,7 @@ export async function syncStripeData(
   const subRows: Record<string, unknown>[] = []
   const subIds: string[] = []
   const subErrors: string[] = []
+  const entitlementSubscriptions: StripeEntitlementSubscription[] = []
   // customer -> subscription, used as a fallback when a payout charge cannot be
   // matched to an invoice payment. Only customers with a single subscription are
   // safe to attribute unambiguously.
@@ -161,7 +168,7 @@ export async function syncStripeData(
   // mirroring canceled rows does not affect those views.
   for await (const sub of stripe.subscriptions.list({
     status: "all",
-    expand: ["data.customer"],
+    expand: ["data.customer", "data.items.data.price.product"],
     limit: 100,
   })) {
     const customer = sub.customer as Stripe.Customer
@@ -222,6 +229,14 @@ export async function syncStripeData(
       raw_json: sub,
       synced_at: now,
     })
+    if (customerId) {
+      entitlementSubscriptions.push({
+        id: sub.id,
+        customerId,
+        status: sub.status,
+        raw: sub,
+      })
+    }
     subIds.push(sub.id)
   }
 
@@ -240,6 +255,30 @@ export async function syncStripeData(
       .delete()
       .not("id", "in", `(${subIds.map((id) => `"${id}"`).join(",")})`)
     if (pruneErr) subErrors.push(`prune: ${pruneErr.message}`)
+  }
+
+  let onboarding: OnboardingEntitlementSyncResult = {
+    enabled: false,
+    created: 0,
+    warnings: [],
+  }
+  if (process.env.ONBOARDING_ENTITLEMENT_SYNC_ENABLED === "true") {
+    try {
+      onboarding = await syncOnboardingEntitlements(
+        supabase,
+        entitlementSubscriptions
+      )
+    } catch (error) {
+      onboarding = {
+        enabled: true,
+        created: 0,
+        warnings: [
+          error instanceof Error
+            ? `Entitlement sync: ${error.message}`
+            : "Entitlement sync failed.",
+        ],
+      }
+    }
   }
 
   // Upsert in chunks to stay under payload limits
@@ -423,5 +462,6 @@ export async function syncStripeData(
       reconciled: reconciledPayouts,
       errors: payoutErrors,
     },
+    onboarding,
   }
 }

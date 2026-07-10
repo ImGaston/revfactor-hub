@@ -2,6 +2,14 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-10 — Client Onboarding Is Run-Based and Additive to the Legacy Checklist
+
+The Assembly onboarding app must support one initial run plus later additional-property runs, including child listings that attach to a primary listing. The existing `onboarding_progress` table is keyed only by client + template and cannot represent that lifecycle, per-listing pricing, shared events/comps, per-question notes, or separate client/team verification states.
+
+Decision: migration `042_client_onboarding_runs.sql` adds a normalized run model beside the legacy checklist instead of mutating it in place. Core listing/pricing values are typed columns; events and comps use run-scoped many-to-many listing junctions; flexible questionnaire/readiness responses use keyed answer rows; attachments store Assembly file IDs, not file bytes. Cross-run junctions are prevented with composite foreign keys. The legacy Hub onboarding UI continues unchanged until a dedicated adapter and queue migration are ready.
+
+Assembly identity is validated server-side. Stripe is authoritative for listing entitlements. Saves use the run `revision` for optimistic concurrency so separate portal/internal sessions cannot silently overwrite each other. Incomplete autosaves remain in `draft_payload`; submission captures a stable `submitted_payload`, while normalized listing/event/comp rows remain the downstream analytical model. The Assembly app calls service-role-only RPCs after token validation; Hub users continue through permission-based RLS and no Supabase credential is exposed to the iframe. Internal verification records the Assembly reviewer and atomically moves a run through `submitted` → `in_review` → `ready_for_launch`. File bytes live in Assembly Files and Hub stores only file metadata. Submission notifications use a per-run/per-recipient delivery outbox so a notification failure does not roll back or duplicate the client submission.
+
 ## 2026-07-10 — `marketing` Role (external, pipeline-only) and `pipeline:control` (migration 041)
 
 An external marketing collaborator needed hub access. Scope decided with Gastón: **Pipeline / leads only** — no clients, listings, SEO, financials, tasks, roadmap, knowledge, onboarding, or adjustments. Permissions: `pipeline:view/create/edit`, explicitly **not** `delete` (an external doesn't remove leads) and **not** `control`. Since 038 the DB is the real gate, so a pipeline-only role is contained by RLS, and the Pipeline module happens to be well isolated: it never SELECTs `clients` or `listings` (`leads.listing_count` is a plain integer column, not a join), and `/` degrades to zeros rather than throwing.

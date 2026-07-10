@@ -22,7 +22,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `app/(authenticated)/tasks/` — task board, task dialog, task server actions.
 - `app/(authenticated)/roadmap/` — ideas, roadmap kanban, votes, comments, post dialogs.
 - `app/(authenticated)/pipeline/` — sales pipeline board/table/completed views, lead detail, import/export, Assembly contract actions.
-- `app/(authenticated)/onboarding/` — client onboarding cards, resources, step actions.
+- `app/(authenticated)/onboarding/` — legacy client-level onboarding cards, resources, step actions, and comments. Migration `042_client_onboarding_runs.sql` adds the run-based data contract consumed by the separate Assembly onboarding app; the Hub UI has not switched to it yet.
 - `app/(authenticated)/financials/` — super_admin-only payout cash dashboard, Profit First allocations, expenses, subscriptions, saved 12-month planning scenarios, and Relay bank statement import/reconciliation (Bank tab). (The Recurring-expenses tab was removed; costs are managed only through expenses.)
 - `app/(authenticated)/settings/` — account, clients, listings, users, roles, boards/tags, onboarding settings.
 - `app/(authenticated)/calendar/page.tsx` and `notes/page.tsx` — calendar and notes views.
@@ -46,6 +46,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `lib/report-builder/` — PriceLabs Report Builder: `client.ts` (3-call API), `schema.ts` (API→snake_case rename + 20/35 split + period parse), `ingest.ts` (resolve client, chunked upsert, prune), `runner.ts` (`advanceReportBuilder` state machine), `queries.ts` (`getListingReport` for the detail page).
 - `lib/financial-planning.ts` — cent-based Profit First allocation, scenario forecast, runway, and allocation validation.
 - `lib/client-stripe-billing.ts` — derives each client's current monthly Billing from Stripe customers linked through `client_stripe_customers`.
+- `lib/onboarding-entitlements.ts` — guarded Stripe metadata parser and idempotent initial/additional-property onboarding run provisioner; enabled only after migration 042.
 - `lib/bank-import.ts` — pure, client+server-safe Relay CSV parser, transaction classifier, vendor-category/recurring/payout matchers, and dedupe-hash builder for the bank statement import.
 - `lib/adjustments.ts` — client+server-safe Adjustments constants (12 types, origins, statuses, urgencies), `ADJUSTMENT_TYPE_CONFIG` per-type field rules + `validateAdjustmentInput()` shared normalizer (single source of truth for dialog `canSave` and server actions; nulls fields a type doesn't show), status invariants (`NOTE_REQUIRED_STATUSES`, `OPEN_STATUSES`, stale threshold), escalation/proposal helpers (`isEscalated`, `adjustmentStatusLabelFor`, `SETUP_CONTROL_CHECKLIST`), PriceLabs/Airbnb-multicalendar shortcut builders, share-URL and WhatsApp-update message builders. `components/adjustments/client-adjustments-card.tsx` is the per-client changelog block on client detail.
 
@@ -54,7 +55,8 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - Auth/profile: `profiles`, `roles`, `role_permissions`. Roles: `super_admin`, `admin` (system) plus the external `contractor` (adjustments only) and `marketing` (pipeline only) — both seeded in `041_marketing_role.sql`. `pipeline:control` gates the two Assembly actions that bypass RLS; see `integrations.md`.
 - Client/listing ops: `clients`, `listings`, `client_credentials`, `tasks`, `task_listings`. `clients.dashboard_url` stores each client's private Pricing Dashboard link.
 - Product planning: `roadmap_items`, ideas/posts tables, comments, votes, boards/tags.
-- Onboarding: `onboarding_steps`, onboarding templates/progress/resources/comments.
+- Onboarding (legacy checklist): `onboarding_templates`, `onboarding_progress`, `onboarding_resources`, `onboarding_comments`.
+- Onboarding app (migration `042_client_onboarding_runs.sql`): `onboarding_runs`, `onboarding_run_listings`, events/comps and their listing junctions, answers, tasks, Assembly file metadata, and submission notification deliveries. One client can have multiple initial/additional-property runs; normalized pricing fields live on the run listing.
 - Sales pipeline: `leads`, `lead_tags`, `lead_tag_assignments`, `lead_team_assignments`, `lead_notes`.
 - Financials: `expenses`, `expense_categories`, `recurring_expenses`, `expense_listing_allocations`, `stripe_subscriptions`, `stripe_invoices`, `stripe_payouts`, `stripe_payout_transactions`, `client_stripe_customers`, `financial_cash_snapshots`, `financial_scenarios`, `financial_scenario_listings`, `financial_scenario_events`, `financial_scenario_event_allocations`.
 - Bank reconciliation: `bank_accounts` (seeded internal accounts + Profit First role), `bank_statement_imports` (per-file audit), `bank_transactions` (classified rows; links to `stripe_payouts` and `expenses`). `expenses.bank_transaction_id` links bank-created expenses. UI: Financials **Bank** tab → `bank-section.tsx`, `bank-import-dialog.tsx`, shared `bank-flow.ts`.

@@ -2,6 +2,17 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-10 — Assembly onboarding app production contract
+
+- Audited the deployed RevFactor onboarding app against Hub's existing client, listing, Assembly, Stripe, and legacy onboarding models.
+- Added additive migration `042_client_onboarding_runs.sql` for multi-run onboarding, child listing parentage, normalized per-listing pricing, run-scoped shared events/comps, questionnaire/readiness answers, client/team tasks, and Assembly file metadata.
+- Added Hub TypeScript contracts for the new run records and documented the Assembly identity, Stripe entitlement, optimistic concurrency, and preview-to-production boundaries.
+- Tightened migration 042 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
+- Added guarded Stripe entitlement provisioning from explicit subscription or Price/Product metadata. It aggregates all billable subscriptions linked to a Hub client, creates deterministic initial/additional-property runs, and sends ambiguous decreases, active-draft changes, or child-only additions to manual review.
+- Added Assembly attachment metadata and a submission-notification delivery outbox to migration 042. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
+- Added a service-role-only internal verification RPC. It records the Assembly internal reviewer, verifies only client-submitted tasks, and atomically advances run status to `in_review` or `ready_for_launch` when all tasks are complete.
+- The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
+
 ## 2026-07-09 — Lead Webhooks: Verified Scheduler, Implemented new-lead
 
 - Audited scheduler → pipeline flow end-to-end: `revfactor-scheduler` already forwards bookings (`src/app/api/book/route.ts`), Hub `/api/webhooks/scheduler` verified live in production (test POST created a Meeting lead, then deleted). Secrets match between both `.env.local`s. Open item: cannot verify `HUB_WEBHOOK_URL`/`HUB_WEBHOOK_SECRET` exist in the scheduler's Vercel production env (team `federico-zimermans-projects`); zero `lead_source='scheduler'` leads in prod DB.
