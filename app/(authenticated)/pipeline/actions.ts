@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { hasPermission } from "@/lib/permissions.server"
 import { revalidatePath } from "next/cache"
 import {
   isAssemblyConfigured,
@@ -470,6 +471,12 @@ export async function deleteLeadNote(noteId: string, leadId: string) {
 // ─── Assembly: Create Client ────────────────────────────
 
 export async function createAssemblyClientForLead(leadId: string) {
+  // Not covered by RLS: this creates the Assembly client and inserts into
+  // `clients` with the admin client.
+  if (!(await hasPermission("pipeline", "control"))) {
+    return { error: "Unauthorized" }
+  }
+
   if (!isAssemblyConfigured()) {
     return { error: "Assembly is not configured" }
   }
@@ -549,6 +556,11 @@ export async function createAssemblyClientForLead(leadId: string) {
 // ─── Assembly: Send Contract ────────────────────────────
 
 export async function sendContractToAssembly(leadId: string, contractTemplateId: string) {
+  // Not covered by RLS: this sends a contract to the prospect through Assembly.
+  if (!(await hasPermission("pipeline", "control"))) {
+    return { error: "Unauthorized" }
+  }
+
   if (!isAssemblyConfigured()) {
     return { error: "Assembly is not configured" }
   }

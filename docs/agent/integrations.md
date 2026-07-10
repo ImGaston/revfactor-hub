@@ -22,7 +22,8 @@ Pipeline integration:
 
 - `createAssemblyClientForLead(leadId)` finds or creates an Assembly client, sends portal invite, saves `assembly_client_id`, and creates a Hub client with status `onboarding`.
 - `sendContractToAssembly(leadId, contractTemplateId)` creates a contract from a selected template, sends a welcome chat message, and marks `contract_sent`.
-- Contract templates are fetched server-side and passed to lead detail for selection.
+- **Both require `pipeline:control`, checked in code** (migration 041): they act outside RLS — the first inserts into `clients` with the admin client and emails a portal invite, the second sends a legal contract to the prospect. `pipeline:edit` alone must not reach them (the `marketing` role does not have `control`).
+- Contract templates are fetched server-side and passed to lead detail for selection (skipped entirely when the user lacks `pipeline:control`).
 - `full_name` splits into `givenName` and `familyName`; single-word names repeat for both fields.
 
 Deep links:

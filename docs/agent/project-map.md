@@ -51,7 +51,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 
 ## Database Tables
 
-- Auth/profile: `profiles`, `roles`, `role_permissions`.
+- Auth/profile: `profiles`, `roles`, `role_permissions`. Roles: `super_admin`, `admin` (system) plus the external `contractor` (adjustments only) and `marketing` (pipeline only) — both seeded in `041_marketing_role.sql`. `pipeline:control` gates the two Assembly actions that bypass RLS; see `integrations.md`.
 - Client/listing ops: `clients`, `listings`, `client_credentials`, `tasks`, `task_listings`. `clients.dashboard_url` stores each client's private Pricing Dashboard link.
 - Product planning: `roadmap_items`, ideas/posts tables, comments, votes, boards/tags.
 - Onboarding: `onboarding_steps`, onboarding templates/progress/resources/comments.
