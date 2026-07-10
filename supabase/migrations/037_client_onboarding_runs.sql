@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS onboarding_runs (
   assembly_client_id         TEXT,
   stripe_subscription_ids    TEXT[] NOT NULL DEFAULT '{}',
   primary_listing_entitlement INTEGER NOT NULL DEFAULT 0
-    CHECK (primary_listing_entitlement >= 0),
+    CHECK (primary_listing_entitlement BETWEEN 0 AND 5),
   child_listing_entitlement  INTEGER NOT NULL DEFAULT 0
-    CHECK (child_listing_entitlement >= 0),
+    CHECK (child_listing_entitlement BETWEEN 0 AND 5),
   entitlement_synced_at      TIMESTAMPTZ,
   has_pms                    BOOLEAN,
   pms_name                   TEXT,

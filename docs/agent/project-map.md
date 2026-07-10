@@ -44,6 +44,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `lib/report-builder/` — PriceLabs Report Builder: `client.ts` (3-call API), `schema.ts` (API→snake_case rename + 20/35 split + period parse), `ingest.ts` (resolve client, chunked upsert, prune), `runner.ts` (`advanceReportBuilder` state machine), `queries.ts` (`getListingReport` for the detail page).
 - `lib/financial-planning.ts` — cent-based Profit First allocation, scenario forecast, runway, and allocation validation.
 - `lib/client-stripe-billing.ts` — derives each client's current monthly Billing from Stripe customers linked through `client_stripe_customers`.
+- `lib/onboarding-entitlements.ts` — guarded Stripe metadata parser and idempotent initial/additional-property onboarding run provisioner; enabled only after migration 037.
 - `lib/bank-import.ts` — pure, client+server-safe Relay CSV parser, transaction classifier, vendor-category/recurring/payout matchers, and dedupe-hash builder for the bank statement import.
 
 ## Database Tables
