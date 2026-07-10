@@ -640,6 +640,20 @@ export type OnboardingRunAttachment = {
   created_at: string
 }
 
+export type OnboardingRunNotificationDelivery = {
+  id: string
+  run_id: string
+  event_type: "submitted"
+  recipient_internal_user_id: string
+  status: "pending" | "sent" | "failed"
+  attempts: number
+  assembly_notification_id: string | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+  sent_at: string | null
+}
+
 // ─── Report Builder (PriceLabs) ─────────────────────────
 
 export type ReportListing = {

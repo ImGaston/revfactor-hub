@@ -196,6 +196,26 @@ CREATE TABLE IF NOT EXISTS onboarding_run_attachments (
     REFERENCES onboarding_run_listings(id, run_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS onboarding_run_notification_deliveries (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id                     UUID NOT NULL REFERENCES onboarding_runs(id) ON DELETE CASCADE,
+  event_type                 TEXT NOT NULL CHECK (event_type IN ('submitted')),
+  recipient_internal_user_id TEXT NOT NULL,
+  status                     TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'sent', 'failed')),
+  attempts                   INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  assembly_notification_id   TEXT,
+  last_error                 TEXT,
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_at                    TIMESTAMPTZ,
+  UNIQUE(run_id, event_type, recipient_internal_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_onboarding_notification_delivery_queue
+  ON onboarding_run_notification_deliveries(status, updated_at)
+  WHERE status <> 'sent';
+
 ALTER TABLE onboarding_comments
   ADD COLUMN IF NOT EXISTS run_id UUID REFERENCES onboarding_runs(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_onboarding_comments_run
@@ -211,6 +231,7 @@ ALTER TABLE onboarding_run_comp_listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_run_answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_run_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE onboarding_run_attachments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE onboarding_run_notification_deliveries ENABLE ROW LEVEL SECURITY;
 
 -- Hub team members use the existing resource/action permission model. The
 -- Assembly app writes through a server-only service-role client after validating
@@ -228,7 +249,8 @@ BEGIN
     'onboarding_run_comp_listings',
     'onboarding_run_answers',
     'onboarding_run_tasks',
-    'onboarding_run_attachments'
+    'onboarding_run_attachments',
+    'onboarding_run_notification_deliveries'
   ]
   LOOP
     EXECUTE format(

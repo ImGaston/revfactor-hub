@@ -9,6 +9,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Added Hub TypeScript contracts for the new run records and documented the Assembly identity, Stripe entitlement, optimistic concurrency, and preview-to-production boundaries.
 - Tightened migration 037 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
 - Added guarded Stripe entitlement provisioning from explicit subscription or Price/Product metadata. It aggregates all billable subscriptions linked to a Hub client, creates deterministic initial/additional-property runs, and sends ambiguous decreases, active-draft changes, or child-only additions to manual review.
+- Added Assembly attachment metadata and a submission-notification delivery outbox to migration 037. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
 
 ## 2026-06-24 — Monthly Pacing Chart
