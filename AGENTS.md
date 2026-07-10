@@ -7,7 +7,7 @@ This file is intentionally short and synchronized across agent entrypoints. It r
 - Built for 2-3 internal users in Phase 1; not client-facing.
 - Production URL: `hub.revfactor.io`.
 - Stack: Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Supabase, Vercel, pnpm.
-- Important app area: `app/(authenticated)/` holds the authenticated dashboard, clients, listings, tasks, roadmap, pipeline, onboarding, financials, settings, calendar, notes, and knowledge routes.
+- Important app area: `app/(authenticated)/` holds the authenticated dashboard, clients, listings, tasks, adjustments, roadmap, pipeline, onboarding, financials, settings, calendar, notes, and knowledge routes. `app/a/[token]/` is the public Adjustments share card (no login).
 
 ## Memory Map
 Read the smallest relevant docs before changing code:
@@ -27,8 +27,10 @@ Read the smallest relevant docs before changing code:
 - Use Server Actions (`"use server"`) for data mutations; handle Supabase errors and surface user feedback with Sonner where applicable.
 - Use shadcn/ui components and lucide-react icons for UI; destructive actions require `AlertDialog`.
 - Financial data (`billing_amount`, `autopayment_set_up`, `stripe_dashboard`, `/financials`) is `super_admin` only in server checks and UI props.
+- RLS is permission-based (`has_permission(resource, action)`, migration 038): never add `USING (true)` policies to new tables. Adjustments queries join the `clients_basic` view (not `clients`) for client names; `profiles.role` changes are trigger-guarded to super_admin. See `docs/agent/conventions.md`.
 - Settings visibility is permission-based, not hardcoded by role, except explicit `super_admin` financial gating.
 - Listings forms use numeric Airbnb IDs and a unified PriceLabs / Listing ID field that sets both `listing_id` and `pricelabs_link`.
+- The public Adjustments shell (`/a/<token>`, exempted in `proxy.ts`) serves only non-sensitive fields — never notes, `origin_message`, `requested_by`, people, or the WhatsApp invite URL. Actions and sensitive data stay behind a session; the `resolved → controlled` step requires the `adjustments:control` permission.
 - Kanban UX uses `@hello-pangea/dnd`, optimistic UI, tinted columns, colored left card accents, click-to-move menus, and optional archive/complete sections.
 - Do not add page-level ISR (`export const revalidate = N`) to authenticated routes; see `docs/agent/performance.md`.
 - Do not put secrets, tokens, personal profile memory, or private user preferences in repo docs.

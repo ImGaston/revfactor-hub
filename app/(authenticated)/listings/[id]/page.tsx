@@ -35,8 +35,32 @@ export default async function ListingPage({
 
   if (!listing) notFound()
 
-  // Monthly Report Builder series for this listing (latest completed run).
-  const report = await getListingReport(supabase, listing.listing_id)
+  // Monthly Report Builder series for this listing (latest completed run),
+  // plus the Rankbreeze association from the SEO metrics upload: the CSV maps
+  // numeric Airbnb IDs → rankbreeze_id (policy in migration 040). Hub listings
+  // may carry the Airbnb ID in listing_id or only inside airbnb_link (older
+  // rows store a PriceLabs ID in listing_id), so we try both keys. Newest row
+  // wins when an Airbnb ID was re-tracked under a new Rankbreeze listing.
+  const airbnbIdCandidates = [
+    listing.listing_id,
+    (listing.airbnb_link as string | null)?.match(/\/rooms\/(\d+)/)?.[1],
+  ].filter((v): v is string => !!v)
+
+  const [report, rankbreezeResult] = await Promise.all([
+    getListingReport(supabase, listing.listing_id),
+    airbnbIdCandidates.length > 0
+      ? supabase
+          .from("seo_metrics_raw")
+          .select("rankbreeze_id")
+          .in("airbnb_id", airbnbIdCandidates)
+          .not("rankbreeze_id", "is", null)
+          .order("id", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+  const rankbreezeId =
+    (rankbreezeResult.data?.rankbreeze_id as string | undefined) ?? null
 
   const clientRaw = listing.clients as
     | { id: string; name: string; status: string }
@@ -119,6 +143,7 @@ export default async function ListingPage({
       }}
       client={client}
       report={report}
+      rankbreezeId={rankbreezeId}
       canManageSubscription={canManageSubscription}
       currentSubscriptionId={
         (listing.stripe_subscription_id as string | null) ?? null

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 import {
+  AlertTriangle,
   ArrowLeft,
   ExternalLink,
   Building2,
@@ -164,6 +165,7 @@ export function ListingDetail({
   listing,
   client,
   report = null,
+  rankbreezeId = null,
   canManageSubscription = false,
   currentSubscriptionId = null,
   subscriptionOptions = [],
@@ -172,6 +174,7 @@ export function ListingDetail({
   listing: ListingWithMetrics
   client: ClientData
   report?: ListingReport | null
+  rankbreezeId?: string | null
   canManageSubscription?: boolean
   currentSubscriptionId?: string | null
   subscriptionOptions?: ListingSubscriptionOption[]
@@ -244,6 +247,35 @@ export function ListingDetail({
               >
                 <ExternalLink className="size-3.5 mr-1.5" />
                 PriceLabs
+              </a>
+            </Button>
+          )}
+          {rankbreezeId ? (
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`https://app.rankbreeze.com/rankings/${rankbreezeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="size-3.5 mr-1.5" />
+                Rankbreeze
+              </a>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-950/50 dark:hover:text-amber-300"
+            >
+              <a
+                href="https://app.rankbreeze.com/rankings"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Rankbreeze listing not linked yet — upload an SEO metrics CSV that includes this listing (Settings → Listings)"
+              >
+                <AlertTriangle className="size-3.5 mr-1.5" />
+                Rankbreeze
               </a>
             </Button>
           )}

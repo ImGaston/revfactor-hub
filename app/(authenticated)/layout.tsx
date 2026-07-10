@@ -26,7 +26,7 @@ export default async function AuthenticatedLayout({
     <TooltipProvider>
       <BreadcrumbProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
-          <AppSidebar profile={profile} />
+          <AppSidebar profile={profile} permissionMap={permissionMap} />
           <SidebarInset>
             <TopBar profile={profile} permissionMap={permissionMap} />
             <main className="flex-1 p-6">{children}</main>

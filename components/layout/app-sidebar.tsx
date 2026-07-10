@@ -12,6 +12,7 @@ import {
   Building2,
   DollarSign,
   BookOpen,
+  SlidersHorizontal,
   Settings,
   LogOut,
   ChevronsUpDown,
@@ -44,21 +45,36 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/supabase/profile"
 
-const navItems = [
+type NavItem = {
+  title: string
+  href: string
+  icon: React.ComponentType
+  resource?: string
+  superAdminOnly?: boolean
+}
+
+const navItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
-  { title: "Clients", href: "/clients", icon: Users },
-  { title: "Listings", href: "/listings", icon: Building2 },
-  { title: "Tasks", href: "/tasks", icon: CheckSquare },
-  { title: "Onboarding", href: "/onboarding", icon: ClipboardList },
-  { title: "Calendar", href: "/calendar", icon: Calendar },
-  { title: "Notes", href: "/notes", icon: MessageSquare },
-  { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb },
-  { title: "Pipeline", href: "/pipeline", icon: Funnel },
-  { title: "Knowledge", href: "/knowledge", icon: BookOpen },
-  { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true as const },
+  { title: "Clients", href: "/clients", icon: Users, resource: "clients" },
+  { title: "Listings", href: "/listings", icon: Building2, resource: "listings" },
+  { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
+  { title: "Adjustments", href: "/adjustments", icon: SlidersHorizontal, resource: "adjustments" },
+  { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },
+  { title: "Calendar", href: "/calendar", icon: Calendar, resource: "calendar" },
+  { title: "Notes", href: "/notes", icon: MessageSquare, resource: "notes" },
+  { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
+  { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
+  { title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
+  { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true },
 ]
 
-export function AppSidebar({ profile }: { profile: Profile | null }) {
+export function AppSidebar({
+  profile,
+  permissionMap,
+}: {
+  profile: Profile | null
+  permissionMap: Record<string, boolean>
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const { isMobile, setOpenMobile } = useSidebar()
@@ -74,8 +90,17 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
     .join("")
     .toUpperCase()
     .slice(0, 2)
-  const roleBadge =
-    profile?.role === "super_admin" ? "Super Admin" : "Admin"
+  const roleBadge = (profile?.role ?? "admin")
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ")
+
+  const isSuperAdmin = profile?.role === "super_admin"
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.superAdminOnly) return isSuperAdmin
+    if (!item.resource) return true
+    return isSuperAdmin || permissionMap[`${item.resource}:view`] === true
+  })
 
   async function handleLogout() {
     const supabase = createClient()
@@ -122,7 +147,7 @@ export function AppSidebar({ profile }: { profile: Profile | null }) {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.filter((item) => !("superAdminOnly" in item) || profile?.role === "super_admin").map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild

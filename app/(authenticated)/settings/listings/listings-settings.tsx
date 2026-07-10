@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ListingDialog } from "./listing-dialog"
 import { ReportOverrides, type ReportOverrideRow } from "./report-overrides"
+import { SeoMetricsUpload } from "./seo-metrics-upload"
 import {
   deleteListingAction,
   syncPriceLabsAction,
@@ -603,6 +604,8 @@ export function ListingsSettings({
         </div>
 
         <ReportOverrides overrides={overrides} />
+
+        <SeoMetricsUpload />
       </div>
 
       <ListingDialog

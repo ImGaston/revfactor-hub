@@ -22,7 +22,8 @@ Pipeline integration:
 
 - `createAssemblyClientForLead(leadId)` finds or creates an Assembly client, sends portal invite, saves `assembly_client_id`, and creates a Hub client with status `onboarding`.
 - `sendContractToAssembly(leadId, contractTemplateId)` creates a contract from a selected template, sends a welcome chat message, and marks `contract_sent`.
-- Contract templates are fetched server-side and passed to lead detail for selection.
+- **Both require `pipeline:control`, checked in code** (migration 041): they act outside RLS — the first inserts into `clients` with the admin client and emails a portal invite, the second sends a legal contract to the prospect. `pipeline:edit` alone must not reach them (the `marketing` role does not have `control`).
+- Contract templates are fetched server-side and passed to lead detail for selection (skipped entirely when the user lacks `pipeline:control`).
 - `full_name` splits into `givenName` and `familyName`; single-word names repeat for both fields.
 
 Deep links:
@@ -39,8 +40,8 @@ Client onboarding Custom App contract:
 
 - The client-facing app validates Assembly's encrypted session token on its own server with `@assembly-js/node-sdk`; never send `ASSEMBLY_API_KEY` to the browser.
 - Resolve the Hub client by `assembly_company_id` first, then `assembly_client_id`. An internal Assembly identity may open the client surface, but `/internal` requires `internalUserId`.
-- Migration `037_client_onboarding_runs.sql` is additive and run-based. It preserves the existing client-level checklist while supporting initial and additional-property runs, child listings, per-listing pricing, shared events/comps, knowledge notes, client/team task states, and Assembly file IDs.
-- Stripe is authoritative for the run's primary/child listing entitlements. The app must not let clients edit those counts. After migration 037 is applied, enable the guarded daily entitlement provisioner with `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`.
+- Migration `042_client_onboarding_runs.sql` is additive and run-based. It preserves the existing client-level checklist while supporting initial and additional-property runs, child listings, per-listing pricing, shared events/comps, knowledge notes, client/team task states, and Assembly file IDs.
+- Stripe is authoritative for the run's primary/child listing entitlements. The app must not let clients edit those counts. After migration 042 is applied, enable the guarded daily entitlement provisioner with `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`.
 - Entitlement metadata is explicit, never inferred from price names. Either set subscription metadata `revfactor_primary_listings` and `revfactor_child_listings`, or set `revfactor_entitlement=primary_listing|child_listing` on each Stripe Price/Product and use line-item quantity. The sync aggregates every active subscription linked through `client_stripe_customers`.
 - First payment creates one deterministic initial run. Later increases create an additional-property run only after prior runs are submitted. Decreases, child-only additions, and changes while a draft is active are reported for manual review instead of silently resizing client data.
 - Upsert retries are idempotent through `onboarding_runs (client_id, external_key)`. Use optimistic concurrency through `revision`; a save updates only when the submitted revision matches, then increments it.
@@ -100,7 +101,7 @@ Net-new integration (migration `035_report_builder.sql`, `lib/report-builder/`) 
 - Listings can link to subscriptions via `stripe_subscription_id`. The "Link Listings to Subscription" dialog (`link-subscription-dialog.tsx`) also has a quick-add form that creates a new active listing already associated to the subscription's linked client (`createListingForClient` action) and auto-selects it — for new clients with no listings yet. That dialog now labels a listing already attached to a *different* subscription with the real customer name + status (e.g. "linked to Jane Ng · active") instead of a generic note.
 - A listing's subscription can also be viewed/reassigned from the **listing detail page** (`super_admin` only): `listings/[id]/page.tsx` passes the mirrored subscriptions + the client's Stripe customer ids, and `change-listing-subscription-dialog.tsx` lets you pick another subscription or clear it via the `setListingSubscription(listingId, subscriptionId|null)` action. Unlike `linkSubscriptionToListings` (which clears every listing of the target sub first), `setListingSubscription` touches only that one listing — correct when several listings share a subscription. If the listing's current `stripe_subscription_id` is not in the mirror, the card shows the raw id with a "Not found in Stripe / canceled" note.
 - Daily Stripe sync uses API version `2026-05-27.preview` and mirrors subscriptions, invoices, payouts, and reconciled payout balance transactions. The subscription list uses `status: "all"` so **canceled subscriptions are mirrored too** (Stripe's default list omits them), keeping a listing's link to a since-canceled subscription visible in Financials. This does not affect Client Billing (filtered by `BILLABLE_SUBSCRIPTION_STATUSES`) or the "New subscriptions" card (filtered to active/trialing/past_due). The single-subscription payout-attribution fallback (`subCountByCustomer`/`subByCustomer` in `lib/stripe-sync.ts`) deliberately **excludes** `canceled` and `incomplete_expired` so adding canceled rows does not change reconciliation. Automatic payouts are reconciled only after Stripe reports `reconciliation_status = completed`.
-- When `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`, the same daily sync runs `syncOnboardingEntitlements`. It provisions idempotent onboarding runs from explicit Stripe metadata and returns warnings alongside normal sync results; it is disabled by default so Hub can deploy safely before migration 037 is applied.
+- When `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`, the same daily sync runs `syncOnboardingEntitlements`. It provisions idempotent onboarding runs from explicit Stripe metadata and returns warnings alongside normal sync results; it is disabled by default so Hub can deploy safely before migration 042 is applied.
 - Completed payouts are reconciled incrementally: mirrored transactions are reused when their net sum matches the Stripe payout amount, avoiding a full historical transaction download on every sync.
 - Preview API object shapes: an invoice's subscription is at `invoice.parent.subscription_details.subscription` (the legacy top-level `invoice.subscription` is gone), and charges no longer expose `charge.invoice`. To link payout balance transactions to subscriptions, the sync builds a `payment_intent → subscription` map from each invoice's `payments[].payment.payment_intent` (list invoices with `expand: ['data.payments']`), then resolves each transaction's `subscription_id` from its charge `payment_intent`, falling back to a single-subscription `customer`. Without this, every `stripe_payout_transactions.subscription_id` is null and the Overview "Listing unit economics" table cannot attribute payout cash to listings (its empty state is not a linking problem).
 - Financial Overview treats paid payouts grouped by `arrival_date` as cash received. Paid invoices remain available for subscription context but are not labeled as cash revenue.
@@ -156,21 +157,38 @@ older         = adjusted_occupancy_pct − (the three pickups)   (30+ days ago)
 - Filters: Listings, Clients (via `report_listings.hub_client_id` → `clients.name`, fallback `group_name`), Cities (`report_listings.city`). No range dropdown — renders all months in the run.
 - **Row-cap pagination:** one run is listing × month (~2.8k rows) and this project enforces PostgREST `db-max-rows = 1000`, so `getMonthlyPacingSource` pages `report_metrics` with `.range()` (1000/page, stable `period, listing_id` order). A single unbounded select silently drops the latest months — exactly where pickup lives. See `decisions.md` (2026-06-24).
 
-## Landing Page to Pipeline Webhook
+## Airbnb OG Image (Adjustments share card)
 
-See `docs/webhook-pipeline-integration.md` for the detailed implementation reference.
+The public share page `/a/[token]` uses the Airbnb listing photo as its `og:image` for single-listing adjustments (WhatsApp previews). Implementation: `lib/airbnb-og.server.ts` + `airbnbRoomUrl()` in `lib/adjustments.ts`, wired in `generateMetadata` of `app/a/[token]/page.tsx`.
 
-Expected Hub endpoint:
+- Airbnb serves OG tags only to browser user agents — the fetch must send a Chrome-like `User-Agent`; a default server UA gets a bot wall.
+- The room page HTML (~700 KB) is cached via Next data cache (`next: { revalidate: 86400 }`, under Vercel's 2 MB per-entry limit); the extracted URL is not persisted in the DB.
+- The scrape races a 4s timer (no AbortSignal, to keep the fetch cacheable) and returns `null` on any failure; callers fall back to the RevFactor logo (also used for portfolio-scope adjustments).
+- The `a0.muscache.com` image URLs are hotlinkable — WhatsApp fetches them directly, no proxying needed.
+- Residual risk: Airbnb may block Vercel datacenter IPs. If that happens, next step is caching the URL in a `listings` column.
 
-- `POST /api/webhooks/new-lead`
-- Auth via `x-webhook-secret` matched against server-only `WEBHOOK_SECRET`.
-- Use admin client because the request is server-to-server and has no Supabase user session.
-- Insert a `leads` row with stage `inquiry`, `sort_order` as max inquiry order + 1, `service_type: null`, `created_by: null`, and submitted contact/scheduling fields.
-- Return 201 with `{ success: true, lead_id }`, 400 for validation, 401 for secret mismatch, 500 for unexpected insert errors.
-- Do not use `revalidatePath`; Hub users see new leads after reload/navigation.
+## Scheduler to Pipeline Webhook (implemented)
 
-Landing page caller:
+The revfactor-scheduler app (`schedule.revfactor.io`, separate repo at `../revfactor-scheduler`, Vercel team `federico-zimermans-projects`) forwards each confirmed booking to the Hub as a lead.
+
+- Hub endpoint: `POST /api/webhooks/scheduler` (`app/api/webhooks/scheduler/route.ts`), reachable without a session (`proxy.ts` skips `/api/`).
+- Auth: `Authorization: Bearer <SCHEDULER_WEBHOOK_SECRET>` (env var on the Hub; verified configured in Vercel production as of 2026-07-09 — endpoint returns 401 without it, 200 with the correct secret).
+- Required payload fields: `visitorName`, `visitorEmail`, `date` (YYYY-MM-DD), `startTime` (HH:mm). Optional extras are concatenated into `description`.
+- Inserts a `leads` row with stage `meeting`, `lead_source: "scheduler"`, `external_ref: "scheduler:<bookingId>"` for idempotent dedupe.
+- Scheduler side: `src/app/api/book/route.ts` fires the forward after saving the booking (fire-and-forget, silently skipped if `HUB_WEBHOOK_URL`/`HUB_WEBHOOK_SECRET` are unset — confirm both exist in the scheduler's Vercel production env; they cannot be verified from this repo).
+
+## Landing Page to Pipeline Webhook (implemented 2026-07-09)
+
+Generic lead intake for landing-page forms (e.g. the home email-capture field). Original spec: `docs/webhook-pipeline-integration.md`; the implementation relaxes it so email-only signups work.
+
+- `POST /api/webhooks/new-lead` (`app/api/webhooks/new-lead/route.ts`), reachable without a session.
+- Auth via `x-webhook-secret` header matched against server-only `WEBHOOK_SECRET` (in `.env.local`; must also be set in Vercel).
+- Only `email` is required (validated). `full_name`, `project_name`, `phone`, `lead_source` (default `landing_page`), `scheduled_date` (ISO 8601), `timezone`, `location`, `description`, `external_ref` are optional. `project_name` (NOT NULL in DB) falls back to `full_name`, then `email`.
+- Idempotency: an active (non-archived, non-completed) lead with the same email (case-insensitive) is reused — returns 200 with `deduped: true` instead of inserting.
+- Inserts stage `inquiry`, `sort_order` = max inquiry order + 1, `service_type: null`, `created_by: null`, via admin client.
+- Responses: 201 `{ success: true, lead_id }`, 200 deduped, 400 validation, 401 secret mismatch, 500 insert error. No `revalidatePath`; Hub users see new leads after reload/navigation.
+
+Caller requirements (any external page):
 
 - Make the fetch server-side and never expose `WEBHOOK_SECRET` in the browser.
-- Use a 5-second timeout.
-- Log failures but do not block the user scheduling flow.
+- Use a short timeout (~5s), log failures, and never block the visitor's flow — lead creation is best-effort.

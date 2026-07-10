@@ -5,13 +5,69 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 ## 2026-07-10 — Assembly onboarding app production contract
 
 - Audited the deployed RevFactor onboarding app against Hub's existing client, listing, Assembly, Stripe, and legacy onboarding models.
-- Added additive migration `037_client_onboarding_runs.sql` for multi-run onboarding, child listing parentage, normalized per-listing pricing, run-scoped shared events/comps, questionnaire/readiness answers, client/team tasks, and Assembly file metadata.
+- Added additive migration `042_client_onboarding_runs.sql` for multi-run onboarding, child listing parentage, normalized per-listing pricing, run-scoped shared events/comps, questionnaire/readiness answers, client/team tasks, and Assembly file metadata.
 - Added Hub TypeScript contracts for the new run records and documented the Assembly identity, Stripe entitlement, optimistic concurrency, and preview-to-production boundaries.
-- Tightened migration 037 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
+- Tightened migration 042 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
 - Added guarded Stripe entitlement provisioning from explicit subscription or Price/Product metadata. It aggregates all billable subscriptions linked to a Hub client, creates deterministic initial/additional-property runs, and sends ambiguous decreases, active-draft changes, or child-only additions to manual review.
-- Added Assembly attachment metadata and a submission-notification delivery outbox to migration 037. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
+- Added Assembly attachment metadata and a submission-notification delivery outbox to migration 042. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
 - Added a service-role-only internal verification RPC. It records the Assembly internal reviewer, verifies only client-submitted tasks, and atomically advances run status to `in_review` or `ready_for_launch` when all tasks are complete.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
+
+## 2026-07-09 — Lead Webhooks: Verified Scheduler, Implemented new-lead
+
+- Audited scheduler → pipeline flow end-to-end: `revfactor-scheduler` already forwards bookings (`src/app/api/book/route.ts`), Hub `/api/webhooks/scheduler` verified live in production (test POST created a Meeting lead, then deleted). Secrets match between both `.env.local`s. Open item: cannot verify `HUB_WEBHOOK_URL`/`HUB_WEBHOOK_SECRET` exist in the scheduler's Vercel production env (team `federico-zimermans-projects`); zero `lead_source='scheduler'` leads in prod DB.
+- Implemented `app/api/webhooks/new-lead/route.ts` for generic landing-page leads (home email capture): email-only required, email dedupe against active leads, stage `inquiry`. `WEBHOOK_SECRET` generated in `.env.local`; **pending: add to Vercel + deploy**. Tested locally (401/400/201/200-deduped). `pnpm typecheck` clean. Docs: `docs/agent/integrations.md` rewritten for both webhooks.
+
+## 2026-07-08 — SEO Metrics Upload: Partial/Single-Listing Exports
+
+- Settings → Listings SEO upload now replaces rows scoped by download date **and** the Airbnb IDs in the file (`clearSeoMetricsForUploadAction`, ID list chunked ×200 for PostgREST URL limits; null-ID rows cleared only when the file has them). Single-listing Rankbreeze exports refresh just that listing instead of wiping the date's snapshot.
+- Same uploader/UI handles full and partial files (the preview badge already shows listing count); card description updated. `pnpm typecheck` clean.
+
+## 2026-07-08 — Rankbreeze Link on Listing Detail
+
+- Listing detail header (`listings/[id]/listing-detail.tsx`) gains a Rankbreeze button next to Airbnb/PriceLabs: outline button to `app.rankbreeze.com/rankings/<rankbreeze_id>` when the association exists; amber alert variant (AlertTriangle, tooltip → Settings → Listings SEO upload) linking to the rankings home when it doesn't.
+- `listings/[id]/page.tsx` derives `rankbreezeId` from `seo_metrics_raw` in parallel with `getListingReport`, matching `airbnb_id` against `listing_id` and the numeric ID in `airbnb_link` (newest row wins; `idx_seo_raw_airbnb` already existed).
+- Migration `040_seo_metrics_read_policy.sql` applied to prod: SELECT policy on `seo_metrics_raw` via `has_permission('listings','view')`.
+- Verified both states in the browser; `pnpm typecheck` clean.
+
+## 2026-07-06 — Adjustments Types & Origin (spec v0.1)
+
+- Migration `039_adjustments_types_origin.sql` (written, **not yet applied**): renames `adjustments.tag` → `type`, widens the CHECK to 12 values, adds `origin` (`client`/`internal`/`hostpricing`, default `internal`). Must be applied back-to-back with the deploy (old code selects `tag`).
+- `lib/adjustments.ts`: `ADJUSTMENT_TYPES` (12 spec labels), `ADJUSTMENT_ORIGINS`, `ADJUSTMENT_TYPE_CONFIG` per-type field config (shows/requires target, dates, booking window + dynamic placeholder), shared `validateAdjustmentInput()` normalizer used by both the dialog and the server actions, `isEscalated()`, `adjustmentStatusLabelFor()` ("Pending approval" for hostpricing+open), `SETUP_CONTROL_CHECKLIST`.
+- Dialog: Type + Origin selects, conditional fields per type, setup mode (forced single_listing, hidden target/dates/booking window), owner-message hint when `origin=client`, values preserved on type switch (server nulls hidden fields on save).
+- Queue: "client escalation" flag (high urgency + client origin, sorts first within high), origin badge for non-internal, hostpricing approve/deny labels, setup verify hint in Awaiting control. Card: origin line, escalation badge, "Approve proposal"/"Deny" for proposals, static setup checklist before Confirm control. Public shell exposes `type` but **not** `origin`.
+- `pnpm typecheck` clean; decisions recorded in `decisions.md` (2026-07-06).
+
+## 2026-07-03 — Adjustments Queue UX (filter, edit, inline control, collapsed closed)
+
+- `/adjustments` gains: client filter (Select over clients present in the data, filters all three sections), Edit menu item + edit mode in `AdjustmentDialog` (only while status ∈ `OPEN_STATUSES`; `updateAdjustment` server action re-checks status server-side), inline "PriceLabs" link + "Confirm control" button on Awaiting-control rows (control still permission-gated via `canControl`), and Recently closed collapsed to 3 rows with a Show all/Show less toggle (`collapsedLimit` prop on `QueueSection`).
+- `AdjustmentDialog` save is wrapped in try/finally so a thrown server action doesn't leave the button stuck on "Saving…". The listing auto-pick effect now preserves a prefilled listing that belongs to the selected client.
+- Verified E2E in the local app with temp SQL rows (deleted after): edit prefill+save persisted, Confirm control set `reviewer_id`/`controlled_at`, filter and collapse behaved; `pnpm typecheck` clean. Note: newly added server actions 500 under Turbopack HMR (`reading 'apply'`) until the dev server restarts.
+
+## 2026-07-03 — Airbnb OG Image on Adjustments Share Card
+
+- `/a/[token]` `generateMetadata` now scrapes the Airbnb room page's `og:image` for single-listing adjustments so WhatsApp previews show the listing photo; portfolio scope / scrape failure falls back to the RevFactor logo.
+- New `lib/airbnb-og.server.ts` (browser UA required, 24h Next data cache, 4s race timeout, no DB persistence) and `airbnbRoomUrl()` in `lib/adjustments.ts`. Details in `integrations.md`.
+- Verified locally: curl of the share page returns the `a0.muscache.com` image in the meta tag; `pnpm typecheck` clean.
+
+## 2026-07-03 — RLS Hardening (038) Before India Contractor Accounts
+
+- Migration `038_rls_hardening.sql` (written + applied to prod via Supabase MCP): all `USING (true)` SELECT policies → `has_permission(resource,'view')` (019 pattern); leftover `USING (true)` writes on tasks/leads/roadmap/knowledge/onboarding-progress → `create`/`edit`/`delete`; author-own comment INSERTs now also require the module's `view`.
+- Found and fixed two extra holes while auditing `pg_policies`: users could self-promote via `UPDATE profiles SET role=…` (now blocked by `profiles_role_guard` trigger, super_admin/admin-client exempt), and `post_with_counts`/`knowledge_category_article_counts`/`seo_metrics` were definer views bypassing RLS (now `security_invoker = true`).
+- New `clients_basic` definer view (`id, name, status`) + switched the Adjustments queue and `/a/[token]` authed queries from `clients(id, name)` to `clients:clients_basic(id, name)` so contractors resolve client names without reading `clients` (billing, `dashboard_token`, emails stay locked behind `clients:view`). PostgREST embeds the view through the underlying FK without hints.
+- `financial_*` and `expense_listing_allocations` were already super_admin-only (`ALL` policies); `notes`/`calendar_events` tables don't exist (resources only); `pricelabs_reservations_airbnb`/`seo_metrics_raw` are RLS-enabled with no policies (deny; admin-client only).
+- Verified with a temp SQL-created user (deleted after, no orphan rows): as super_admin — dashboard, clients (+detail with billing/credentials), listings, financials, tasks, pipeline, adjustments, roadmap, knowledge, onboarding, `/a/<token>` all render with data; `pnpm typecheck` clean. As contractor — REST with the user's JWT returns `[]` on 28 sensitive tables and errors on role PATCH / tasks / leads inserts; UI sidebar = Dashboard/Adjustments/Settings, queue + card fully operable (posted note, marked resolved, no control button), `/financials` redirects, dashboard degrades to zeros without crashing.
+- Docs updated: decisions.md (closure entry + accepted residuals incl. admin's `financials:view=true`), conventions.md (permission-based RLS rules, `clients_basic`, role-guard trigger, `security_invoker` default), project-map.md (038 + views), CLAUDE.md/AGENTS.md (critical rule, kept identical). **India contractor accounts are now unblocked**; `WHATSAPP_GROUP_INVITE_URL` in Vercel prod still pending.
+
+## 2026-07-03 — Adjustments Module (v1)
+
+- New module converting WhatsApp change requests into atomic, traceable records. Migration `037_adjustments.sql`: `adjustments` + `adjustment_comments` tables, RLS via `has_permission('adjustments', …)`, seeds for super_admin/admin, and a widened `role_permissions.action` CHECK adding `publish` (fixing code/DB drift from the knowledge module) and the new `control` action.
+- Flow: create dialog (lazy-fetched client/listing options; single-listing clients auto-select) → on save copies the `/a/<public_token>` share link and opens the WhatsApp group (`WHATSAPP_GROUP_INVITE_URL` env; a single deep-link can't open a group AND pre-fill text) → team opens the card → resolver marks `resolved` → an internal with `adjustments:control` marks `controlled`. `issue`/`rejected` require a note (enforced in the server action, stored as a comment). "Copy WhatsApp update" builds the ✅ close-the-loop message.
+- `/a/[token]` is "public shell + authed core" on one URL: `generateMetadata` OG tags (first OG use in the repo; client+listing shown by decision) + non-sensitive read-only shell fetched with the admin client (RLS blocks anon), full card with notes/actions behind a session. `proxy.ts` now exempts `/a/` and `/api/` (see decisions.md — the `/api/` interception was also breaking webhook-style auth).
+- Triage queue at `/adjustments`: open items by urgency+age with stale flags (high urgency ≥2 days), "awaiting control" mini-queue, recently closed; `loading.tsx` skeleton. Per-client changelog card appended on `clients/[id]`. Sidebar is now permission-filtered (`resource:view`) with an Adjustments item; backfilled missing `knowledge` rows for admin/super_admin in the live `role_permissions` so nothing disappears.
+- Verified: `pnpm typecheck` clean; public shell, OG meta, PriceLabs/Airbnb-multicalendar shortcuts (both the pricelabs_link and airbnb_link-regex paths), 404 on bad token, and webhook 401-not-redirect all confirmed live with a temporary DB row (deleted after). Authed views (queue, create dialog, card actions, client block) compile but need a logged-in visual pass — no credentials in the preview browser.
+- Contractor role created same day (`adjustments:view` + `edit` only — `control` deliberately withheld so India can't self-control; an initial all-actions toggle was corrected). Portfolio-scope cards ship without a per-listing shortcut and that's final — the plan's "group URL" open item turned out to be the WhatsApp invite (configured via `WHATSAPP_GROUP_INVITE_URL`), not a PriceLabs group view.
+- Pending: RLS hardening BEFORE creating India accounts (decisions.md 2026-07-03); set `WHATSAPP_GROUP_INVITE_URL` in Vercel prod.
 
 ## 2026-06-24 — Monthly Pacing Chart
 

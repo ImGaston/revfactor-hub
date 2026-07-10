@@ -18,8 +18,14 @@
 - Permissions live in `role_permissions` with resource/action pairs.
 - Server permission checks use `lib/permissions.server.ts`; client-safe checks use `lib/permissions.ts`.
 - Settings tabs are permission-gated by resource/action, not role names.
+- Sidebar nav items carry a `resource` key and are filtered by `permissionMap["{resource}:view"]` (super_admin sees all; Financials keeps its explicit super_admin flag). When adding a module, add its resource to `RESOURCES` in `lib/permissions.ts`, seed `role_permissions` in the migration, and confirm existing roles have the `view` row — the live table is UI-managed and can drift from migration seeds (knowledge was missing for admin until 2026-07-03).
 - Financial data and `/financials` are `super_admin` only. Enforce this server-side and pass `isSuperAdmin` to UI components for conditional rendering.
 - RLS is enabled across tables. `get_my_role()` is a SECURITY DEFINER helper to avoid recursive policies.
+- RLS policies are permission-based since `038_rls_hardening.sql` (2026-07-03): SELECT uses `public.has_permission('<resource>', 'view')` and writes use `create`/`edit`/`delete` (child/junction tables use `edit`). **Never ship a `USING (true)` policy on a new table** — map it to a resource and seed `role_permissions`. Tables left open to any session: `profiles` (SELECT, for author names), `roles` + `role_permissions` (SELECT, the layout builds the permission map), and `listings` (SELECT also allows `adjustments:view`).
+- `clients` SELECT requires `clients:view`. Flows that only need client names for roles without it (Adjustments queue/card) must join the `clients_basic` view (`id, name, status`; intentionally SECURITY DEFINER — the Supabase linter flags it, that's accepted) instead of `clients`.
+- `profiles.role` changes are blocked by the `profiles_role_guard` trigger unless the updater is super_admin (admin client / SQL exempt). New app views must set `security_invoker = true` unless they exist precisely to bypass RLS like `clients_basic`.
+- **RLS does not cover everything.** A server action that uses `createAdminClient()` or calls an external API (Assembly, Stripe, PriceLabs) runs outside RLS, so it **must check `hasPermission()` in code** — the DB will not stop it. Prior art: `pipeline:control` gates `createAssemblyClientForLead` (admin-client insert into `clients` + portal invite) and `sendContractToAssembly` (sends a contract to the prospect) in `app/(authenticated)/pipeline/actions.ts`.
+- Roles seeded by migration must use `ON CONFLICT (role_name, resource, action) DO UPDATE SET allowed = EXCLUDED.allowed` when the grant has to be deterministic: `createRole()` in Settings → Roles pre-seeds every `resource × action` row as `FALSE`, so `DO NOTHING` silently no-ops if the role already exists. Use `DO NOTHING` only when the intent is "recreate on a fresh DB, never touch the live one".
 
 ## UI
 - Phase 1 uses the shadcn default theme; brand theming comes later.
@@ -68,7 +74,10 @@ ASSEMBLY_API_KEY=
 STRIPE_SECRET_KEY=
 ONBOARDING_ENTITLEMENT_SYNC_ENABLED=false
 CRON_SECRET=
+WHATSAPP_GROUP_INVITE_URL=
 ```
+
+`WHATSAPP_GROUP_INVITE_URL` is the team WhatsApp group invite (`https://chat.whatsapp.com/<code>`), read server-side in the Adjustments create flow only. Never expose it on the public `/a/` shell or in Open Graph tags — anyone with the invite link can join the group.
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
 

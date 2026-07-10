@@ -70,6 +70,7 @@ type Props = {
   tags: LeadTag[]
   profiles: ProfileOption[]
   contractTemplates?: ContractTemplate[]
+  canControl: boolean
   notes: LeadNote[]
 }
 
@@ -88,7 +89,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   c_not_a_fit: "C – Not a Fit",
 }
 
-export function LeadDetail({ lead, tags, profiles, contractTemplates = [], notes }: Props) {
+export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canControl, notes }: Props) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -572,8 +573,8 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], notes
               Contract
             </p>
 
-            {/* Step 1: Create Assembly Client */}
-            {!lead.assembly_client_id ? (
+            {/* Step 1: Create Assembly Client — requires pipeline:control */}
+            {canControl && (!lead.assembly_client_id ? (
               <>
                 <Button
                   variant="outline"
@@ -639,7 +640,7 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], notes
                   </p>
                 )}
               </>
-            )}
+            ))}
 
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <Checkbox
