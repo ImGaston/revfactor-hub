@@ -179,12 +179,13 @@ The revfactor-scheduler app (`schedule.revfactor.io`, separate repo at `../revfa
 
 ## Landing Page to Pipeline Webhook (implemented 2026-07-09)
 
-Generic lead intake for landing-page forms (e.g. the home email-capture field). Original spec: `docs/webhook-pipeline-integration.md`; the implementation relaxes it so email-only signups work.
+Generic lead intake for landing-page forms (e.g. the home email-capture field). External contract: `docs/webhook-pipeline-integration.md` (rewritten 2026-07-10; the old version documented `project_name`/`full_name` as required, which the code never enforced).
 
 - `POST /api/webhooks/new-lead` (`app/api/webhooks/new-lead/route.ts`), reachable without a session.
 - Auth via `x-webhook-secret` header matched against server-only `WEBHOOK_SECRET` (in `.env.local`; must also be set in Vercel).
 - Only `email` is required (validated). `full_name`, `project_name`, `phone`, `lead_source` (default `landing_page`), `scheduled_date` (ISO 8601), `timezone`, `location`, `description`, `external_ref` are optional. `project_name` (NOT NULL in DB) falls back to `full_name`, then `email`.
-- Idempotency: an active (non-archived, non-completed) lead with the same email (case-insensitive) is reused — returns 200 with `deduped: true` instead of inserting.
+- Attribution (added 2026-07-10, migration 043): an optional `attribution` object, or the same keys flat at the top level (top level wins), carrying `utm_source|utm_medium|utm_campaign|utm_content|utm_term|gclid|fbclid|referrer|landing_page`. Parsed by the pure helper `lib/lead-attribution.ts`; unknown keys land in `leads.attribution_extra` (jsonb) so marketing can add a tracking param without a Hub deploy. All optional — existing callers are unaffected.
+- Idempotency: an active (non-archived, non-completed) lead with the same email (case-insensitive) is reused — returns 200 with `deduped: true` instead of inserting. On dedupe, attribution is backfilled only when the existing lead has no `utm_source`: first touch wins, but only if there *was* a first touch (the first request of a double-submit may have carried no UTMs).
 - Inserts stage `inquiry`, `sort_order` = max inquiry order + 1, `service_type: null`, `created_by: null`, via admin client.
 - Responses: 201 `{ success: true, lead_id }`, 200 deduped, 400 validation, 401 secret mismatch, 500 insert error. No `revalidatePath`; Hub users see new leads after reload/navigation.
 
@@ -192,3 +193,15 @@ Caller requirements (any external page):
 
 - Make the fetch server-side and never expose `WEBHOOK_SECRET` in the browser.
 - Use a short timeout (~5s), log failures, and never block the visitor's flow — lead creation is best-effort.
+
+## Leads Read API (outbound, implemented 2026-07-10)
+
+The Hub's only outbound API. Consumer: the external marketing team's tracking stack, closing the loop from lead source to booked call to closed deal. External contract: `docs/webhook-pipeline-integration.md` §2.
+
+- `GET /api/v1/leads` (`app/api/v1/leads/route.ts`), no session; `proxy.ts` already exempts `/api/`.
+- Auth: `Authorization: Bearer rvf_live_…` against `api_keys`, scope `leads:read`. See `conventions.md` for the scheme and `scripts/create-api-key.ts` / `revoke-api-key.ts` for the lifecycle (plaintext shown once; revocation is immediate and needs no redeploy).
+- Incremental sync: `updated_since` + keyset `cursor` (ordered `updated_at, id`), `limit` default 100 / max 500, `include=events` for the raw stage transitions. Depends on the `updated_at` trigger added in 043 — before it, `updated_at` was set by hand in every server action and a missed write would have silently dropped a lead out of the consumer's sync.
+- Returns full PII (`email`, `full_name`, `phone`) by explicit decision — marketing already sees it under `pipeline:view`. **`description` is excluded**: the scheduler webhook flattens third-party contact details into it. So are `project_name`, `assembly_client_id` (surfaced only as `is_won`), notes, tags, and team assignments.
+- `timeline` per lead: `booked_call_at` (first entry into stage `meeting` — *not* `scheduled_date`, which is when the call is scheduled to happen), `proposal_sent_at`, `proposal_signed_at`, `retainer_paid_at`, `converted_at`. Milestones are the **first** entry into a stage, since leads can move backwards and re-enter. History only exists from the 043 deploy onward; earlier leads carry one synthetic event at their current stage.
+- Won = `assembly_client_id IS NOT NULL`, exposed as `is_won`, timestamped by `converted_at` (written by `createAssemblyClientForLead`).
+- Rate limiting is an in-memory token bucket (60 req/min per key) returning 429 + `Retry-After`. It is per serverless instance and resets on cold start — a courtesy guard, not a hard global limit.

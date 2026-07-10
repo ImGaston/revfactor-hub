@@ -508,11 +508,13 @@ export async function createAssemblyClientForLead(leadId: string) {
     })
     console.log(`[Assembly] Client created: ${assemblyClient.id} (status: ${assemblyClient.status})`)
 
-    // Save assembly_client_id on the lead
+    // Save assembly_client_id on the lead. `converted_at` is the canonical
+    // "closed deal" timestamp consumed by GET /api/v1/leads.
     await supabase
       .from("leads")
       .update({
         assembly_client_id: assemblyClient.id,
+        converted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", leadId)

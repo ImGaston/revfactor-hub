@@ -435,6 +435,17 @@ export type Lead = {
   listing_count: number
   child_listing_count: number
   assembly_client_id: string | null
+  converted_at: string | null
+  utm_source: string | null
+  utm_medium: string | null
+  utm_campaign: string | null
+  utm_content: string | null
+  utm_term: string | null
+  gclid: string | null
+  fbclid: string | null
+  referrer: string | null
+  landing_page: string | null
+  attribution_extra: Record<string, unknown>
   created_by: string | null
   created_at: string
   updated_at: string
@@ -449,6 +460,27 @@ export type Lead = {
       avatar_url: string | null
     }
   }[]
+}
+
+export type LeadStageEvent = {
+  id: string
+  lead_id: string
+  from_stage: LeadStage | null
+  to_stage: LeadStage
+  changed_at: string
+  changed_by: string | null
+}
+
+export type ApiKey = {
+  id: string
+  name: string
+  key_prefix: string
+  scopes: string[]
+  owner_email: string | null
+  created_by: string | null
+  created_at: string
+  last_used_at: string | null
+  revoked_at: string | null
 }
 
 export type LeadNote = {

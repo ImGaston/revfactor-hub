@@ -1,294 +1,205 @@
-# Integración: Landing Page → Pipeline (Webhook)
+# Pipeline Integration — Lead Ingest Webhook + Leads Read API
 
-## Objetivo
+This is the external contract. It is written to be handed to the landing-page and marketing teams as-is.
 
-Cuando un prospecto agenda una llamada desde la landing page (otro repositorio), se crea automáticamente un lead en el pipeline del Hub con stage `inquiry` y toda la información que completó el cliente.
+Two endpoints, opposite directions:
 
----
+| Endpoint | Direction | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST /api/webhooks/new-lead` | landing page → Hub | `x-webhook-secret` header | Create a lead with its attribution |
+| `GET /api/v1/leads` | Hub → marketing's tracking stack | `Authorization: Bearer` API key | Read leads, attribution, and funnel timeline |
 
-## Arquitectura
-
-```
-Landing Page (otro repo)          RevFactor Hub
-┌─────────────────────┐           ┌──────────────────────────────┐
-│                     │           │                              │
-│  Formulario de      │  POST     │  /api/webhooks/new-lead      │
-│  agendar llamada    │ ────────► │  (Route Handler)             │
-│                     │  JSON     │                              │
-│                     │           │  1. Valida API key            │
-└─────────────────────┘           │  2. Valida campos             │
-                                  │  3. Inserta lead en Supabase  │
-                                  │  4. Responde 201              │
-                                  └──────────────────────────────┘
-```
+Base URL in production: `https://hub.revfactor.io`.
 
 ---
 
-## Parte 1: Cambios en RevFactor Hub
+## 1. `POST /api/webhooks/new-lead`
 
-### Instrucciones para Claude Code
+Creates a lead in the pipeline at stage `inquiry`.
 
-Abrir el repo `revfactor-hub` y pedir:
+**Auth:** header `x-webhook-secret`, matched against the Hub's `WEBHOOK_SECRET`. Server-to-server; this secret must never reach a browser.
 
-```
-Necesito crear un webhook endpoint para recibir leads desde la landing page.
+### Body
 
-Crear: app/api/webhooks/new-lead/route.ts
+Only `email` is required. Everything else is optional.
 
-El endpoint debe:
-
-1. Ser un POST route handler (App Router)
-2. Autenticación via header `x-webhook-secret` que se compara contra
-   una env var WEBHOOK_SECRET (NO usa Supabase Auth, es server-to-server)
-3. Usar el admin client (lib/supabase/admin.ts) para insertar el lead
-   ya que no hay sesión de usuario autenticado
-4. Aceptar este JSON body:
-
+```json
 {
-  "project_name": "string (required — nombre del proyecto o propiedad)",
-  "full_name": "string (required — nombre completo del prospecto)",
-  "email": "string (required)",
-  "phone": "string (optional)",
-  "lead_source": "string (optional, default: 'landing_page')",
-  "scheduled_date": "string ISO 8601 (optional — fecha/hora de la call)",
-  "timezone": "string (optional — ej: 'America/New_York')",
-  "location": "string (optional — ciudad o mercado del prospecto)",
-  "description": "string (optional — notas o mensaje del prospecto)"
-}
+  "email": "juan@test.com",
 
-5. Insertar en la tabla `leads` con:
-   - stage: 'inquiry'
-   - sort_order: calcular como MAX(sort_order) + 1 donde stage = 'inquiry'
-   - service_type: null (se clasifica después manualmente)
-   - created_by: null (no hay usuario Hub asociado)
-   - Los demás campos del body mapeados directamente
+  "full_name": "Juan Pérez",
+  "project_name": "Test Property Miami",
+  "phone": "+1234567890",
+  "lead_source": "landing_page",
+  "scheduled_date": "2026-08-10T15:00:00Z",
+  "timezone": "America/New_York",
+  "location": "Miami, FL",
+  "description": "I have 3 properties in Miami Beach",
+  "external_ref": "your-own-id",
 
-6. Respuestas HTTP:
-   - 201: { success: true, lead_id: "uuid" }
-   - 400: { error: "mensaje de validación" }
-   - 401: { error: "Unauthorized" } si falta o no coincide el secret
-   - 500: { error: "Internal server error" }
-
-7. Validaciones:
-   - project_name, full_name y email son required
-   - email debe tener formato válido (regex básico)
-   - scheduled_date si viene debe ser ISO 8601 válido
-
-8. NO usar revalidatePath (es una API route, no server action).
-   Los usuarios del Hub verán el nuevo lead al recargar o navegar al pipeline.
-
-9. Agregar WEBHOOK_SECRET a .env.local (generar un valor random seguro).
-
-10. Opcional: loggear en console.log el lead creado para debugging.
-```
-
-### Env var nueva
-
-Agregar en `.env.local` y en Vercel:
-
-```
-WEBHOOK_SECRET=generar-un-string-random-seguro-de-64-chars
-```
-
-Generar con: `openssl rand -hex 32`
-
----
-
-## Parte 2: Cambios en el Repo de la Landing Page
-
-### Instrucciones para Claude Code
-
-Abrir el repo de la landing page y pedir:
-
-```
-Después de que el usuario completa el formulario de agendar llamada
-y se confirma la reserva (o se envía el form, según el flujo actual),
-necesito hacer un POST al webhook del Hub para crear el lead automáticamente.
-
-Crear una función utilitaria (por ejemplo lib/hub-webhook.ts o utils/create-lead.ts)
-que haga lo siguiente:
-
-1. POST a la URL del Hub:
-   - Producción: https://hub.revfactor.io/api/webhooks/new-lead
-   - La URL debe venir de una env var: NEXT_PUBLIC_HUB_WEBHOOK_URL
-     o HUB_WEBHOOK_URL (sin NEXT_PUBLIC_ si se llama desde server-side)
-
-2. Headers:
-   - Content-Type: application/json
-   - x-webhook-secret: valor de env var WEBHOOK_SECRET
-     (debe ser el MISMO valor que tiene el Hub)
-
-3. Body JSON con los campos del formulario mapeados:
-   {
-     "project_name": nombre de la propiedad o del prospecto,
-     "full_name": nombre completo,
-     "email": email,
-     "phone": teléfono (si lo tiene el form),
-     "lead_source": "landing_page",
-     "scheduled_date": fecha y hora de la call en ISO 8601,
-     "timezone": timezone del prospecto,
-     "location": mercado o ciudad,
-     "description": cualquier nota o mensaje que haya dejado
-   }
-
-4. El fetch debe ser server-side (desde un server action, API route,
-   o server component). NUNCA exponer el WEBHOOK_SECRET en el browser.
-
-5. Si el fetch falla, loggear el error pero NO bloquear el flujo
-   del usuario. La agenda de la llamada es lo prioritario;
-   la creación del lead en el Hub es best-effort.
-
-6. Usar try/catch y un timeout de 5 segundos en el fetch
-   para no bloquear si el Hub está caído.
-
-Integrar esta función en el flujo existente de confirmación
-de llamada agendada (después de que la reserva se confirma
-exitosamente).
-```
-
-### Env vars nuevas en la landing page
-
-```
-HUB_WEBHOOK_URL=https://hub.revfactor.io/api/webhooks/new-lead
-WEBHOOK_SECRET=el-mismo-valor-que-en-el-hub
-```
-
----
-
-## Parte 3: Ejemplo del Route Handler (referencia)
-
-Este es el patrón esperado del endpoint en el Hub — para que Claude Code tenga contexto:
-
-```typescript
-// app/api/webhooks/new-lead/route.ts
-import { NextRequest, NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-
-export async function POST(request: NextRequest) {
-  // 1. Auth
-  const secret = request.headers.get("x-webhook-secret")
-  if (secret !== process.env.WEBHOOK_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  "attribution": {
+    "utm_source": "google",
+    "utm_medium": "cpc",
+    "utm_campaign": "brand-q3",
+    "utm_content": "hero-cta",
+    "utm_term": "revenue management airbnb",
+    "gclid": "Cj0KCQ...",
+    "fbclid": null,
+    "referrer": "https://www.google.com/",
+    "landing_page": "https://revfactor.io/lp/audit?utm_source=google"
   }
-
-  // 2. Parse + validate body
-  const body = await request.json()
-  const { project_name, full_name, email } = body
-
-  if (!project_name || !full_name || !email) {
-    return NextResponse.json(
-      { error: "project_name, full_name, and email are required" },
-      { status: 400 }
-    )
-  }
-
-  // 3. Insert lead via admin client (bypasses RLS)
-  const supabase = createAdminClient()
-
-  const { data: maxOrder } = await supabase
-    .from("leads")
-    .select("sort_order")
-    .eq("stage", "inquiry")
-    .order("sort_order", { ascending: false })
-    .limit(1)
-    .single()
-
-  const sort_order = (maxOrder?.sort_order ?? -1) + 1
-
-  const { data: lead, error } = await supabase
-    .from("leads")
-    .insert({
-      project_name,
-      full_name,
-      email,
-      phone: body.phone || null,
-      lead_source: body.lead_source || "landing_page",
-      scheduled_date: body.scheduled_date || null,
-      timezone: body.timezone || null,
-      location: body.location || null,
-      description: body.description || null,
-      stage: "inquiry",
-      sort_order,
-      created_by: null,
-    })
-    .select("id")
-    .single()
-
-  if (error) {
-    console.error("Webhook new-lead error:", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  console.log("New lead created via webhook:", lead.id)
-  return NextResponse.json({ success: true, lead_id: lead.id }, { status: 201 })
 }
 ```
 
----
+Notes on the fields:
 
-## Parte 4: Testing
+- `project_name` defaults to `full_name`, or to `email` when there is no name.
+- `lead_source` defaults to `"landing_page"`.
+- `scheduled_date` must be valid ISO 8601 if present. It is the datetime **of the call**, not the moment it was booked.
+- **Attribution** may be sent nested under `attribution` (preferred) or flat at the top level. If a key appears in both, the top-level value wins. Any key inside `attribution` that is not one of the nine canonical ones is preserved in a `attribution_extra` JSON blob — so you can add a tracking param without waiting on a Hub deploy.
+- `external_ref` is yours: use it to correlate the Hub lead with a record in your own system.
 
-### Probar el webhook localmente
+### Responses
 
-Antes de deployar, probar con curl:
+| Status | Body | When |
+| --- | --- | --- |
+| `201` | `{"success": true, "lead_id": "<uuid>"}` | Lead created |
+| `200` | `{"success": true, "lead_id": "<uuid>", "deduped": true}` | An active lead with that email already existed |
+| `400` | `{"error": "..."}` | Missing/invalid `email`, or malformed `scheduled_date` |
+| `401` | `{"error": "Unauthorized"}` | Missing or wrong secret |
+| `500` | `{"error": "Internal server error"}` | |
+
+### Deduplication
+
+Email-capture forms double-submit easily, so a request whose email matches an **active** lead (not archived, not completed) returns that lead's id with `deduped: true` instead of creating a second one.
+
+Attribution follows **first touch wins, but only if there was a first touch**: if the existing lead has no `utm_source` and the incoming request carries attribution, the Hub fills it in. This covers the case where the first submit arrived without UTMs.
+
+### Test
 
 ```bash
-# Desde la terminal, con el Hub corriendo en localhost:3000
-curl -X POST http://localhost:3000/api/webhooks/new-lead \
+curl -X POST https://hub.revfactor.io/api/webhooks/new-lead \
   -H "Content-Type: application/json" \
-  -H "x-webhook-secret: TU_WEBHOOK_SECRET" \
+  -H "x-webhook-secret: $WEBHOOK_SECRET" \
   -d '{
-    "project_name": "Test Property Miami",
-    "full_name": "Juan Pérez",
     "email": "juan@test.com",
-    "phone": "+1234567890",
-    "lead_source": "landing_page",
-    "scheduled_date": "2026-04-10T15:00:00Z",
-    "timezone": "America/New_York",
-    "location": "Miami, FL",
-    "description": "Tengo 3 propiedades en Miami Beach"
+    "full_name": "Juan Pérez",
+    "attribution": { "utm_source": "google", "utm_medium": "cpc", "utm_campaign": "brand-q3" }
   }'
 ```
 
-Respuesta esperada:
+The lead should appear in the Inquiry column of `/pipeline`.
+
+---
+
+## 2. `GET /api/v1/leads`
+
+Reads leads with their attribution and their funnel timeline, so lead source can be tied to booked calls and closed deals.
+
+**Auth:** `Authorization: Bearer rvf_live_...`. The key is issued by RevFactor and carries the `leads:read` scope. **It must live server-side** in your stack — it returns personal data (name, email, phone) for every lead, and it can be revoked by us at any time. Rotation is: we issue a new key, you deploy it, we revoke the old one.
+
+### Query parameters
+
+| Param | Default | Meaning |
+| --- | --- | --- |
+| `updated_since` | — | ISO 8601. Only leads modified after this instant. This is how you sync incrementally. |
+| `limit` | `100` | Page size, capped at `500`. |
+| `cursor` | — | Opaque; pass back the `next_cursor` from the previous page. |
+| `include` | — | `events` adds the raw stage-transition list to each lead. |
+
+Pagination is keyset-based and ordered by `updated_at`, so it stays stable even while leads are being edited mid-walk. Keep calling with `next_cursor` until `has_more` is `false`; store the last `updated_at` you saw and pass it as `updated_since` on the next sync.
+
+### Response
+
 ```json
-{ "success": true, "lead_id": "uuid-del-lead" }
+{
+  "data": [
+    {
+      "id": "3f2a...",
+      "created_at": "2026-07-01T10:00:00Z",
+      "updated_at": "2026-07-09T14:00:00Z",
+      "stage": "retainer_paid",
+      "is_won": true,
+      "is_archived": false,
+      "is_completed": false,
+      "full_name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+15550100",
+      "lead_source": "landing_page",
+      "service_type": null,
+      "location": "Miami, FL",
+      "scheduled_date": "2026-07-05T15:00:00Z",
+      "external_ref": null,
+      "attribution": {
+        "utm_source": "google",
+        "utm_medium": "cpc",
+        "utm_campaign": "brand-q3",
+        "utm_content": null,
+        "utm_term": null,
+        "gclid": "Cj0KCQ...",
+        "fbclid": null,
+        "referrer": "https://www.google.com/",
+        "landing_page": "https://revfactor.io/lp/audit",
+        "extra": {}
+      },
+      "timeline": {
+        "created_at": "2026-07-01T10:00:00Z",
+        "booked_call_at": "2026-07-02T09:12:00Z",
+        "proposal_sent_at": "2026-07-04T11:30:00Z",
+        "proposal_signed_at": "2026-07-06T16:05:00Z",
+        "retainer_paid_at": "2026-07-08T08:00:00Z",
+        "converted_at": "2026-07-08T12:00:00Z"
+      }
+    }
+  ],
+  "next_cursor": "2026-07-09T14:00:00Z|3f2a...",
+  "has_more": false
+}
 ```
 
-Después abrir `/pipeline` en el Hub y verificar que el lead aparece en la columna Inquiry.
+### Reading the timeline
 
-### Probar casos de error
+Four things matter here and they are easy to conflate.
+
+- **`booked_call_at` is not `scheduled_date`.** The first is when the lead entered the `meeting` stage — when the call got booked. The second is when the call is scheduled to happen. For attribution you almost always want `booked_call_at`.
+- **`is_won` is the closed-deal flag.** It means the lead became a real client in Assembly. `converted_at` is when that happened. Do not infer "won" from `stage`: the stage keeps advancing past `retainer_paid` into `planning`, so a won deal usually isn't sitting on the stage you'd expect.
+- **Each milestone is the *first* time the lead entered that stage.** A lead can move backwards and re-enter, and that will not overwrite the milestone. Don't double-count.
+- **The timeline starts on 2026-07-10.** Stage history is recorded from that deploy onward. Leads created before it carry a single synthetic event at whatever stage they were in, so their `booked_call_at` and `retainer_paid_at` are `null` or approximate. Cohort your funnel reports from the deploy date.
+
+`stage` is one of: `inquiry`, `follow_up`, `audit`, `meeting`, `proposal_sent`, `proposal_signed`, `retainer_paid`, `planning`.
+
+Deliberately not returned: the lead's internal notes and `description` (it can contain third-party contact details), the internal project label, tags, and team assignments.
+
+### Errors
+
+| Status | When |
+| --- | --- |
+| `400` | Bad `updated_since`, `limit`, or `cursor` |
+| `401` | Missing, malformed, invalid, or revoked key |
+| `403` | Valid key without the `leads:read` scope |
+| `429` | Rate limited; honor the `Retry-After` header |
+| `500` | |
+
+### Test
 
 ```bash
-# Sin secret → 401
-curl -X POST http://localhost:3000/api/webhooks/new-lead \
-  -H "Content-Type: application/json" \
-  -d '{"project_name": "Test"}'
-
-# Sin campos requeridos → 400
-curl -X POST http://localhost:3000/api/webhooks/new-lead \
-  -H "Content-Type: application/json" \
-  -H "x-webhook-secret: TU_WEBHOOK_SECRET" \
-  -d '{"phone": "123"}'
+curl -s "https://hub.revfactor.io/api/v1/leads?updated_since=2026-01-01T00:00:00Z&limit=10" \
+  -H "Authorization: Bearer $LEADS_API_KEY"
 ```
 
 ---
 
-## Parte 5: Deploy
+## 3. Operating the API key (internal)
 
-1. **Hub (Vercel):** agregar `WEBHOOK_SECRET` en Settings → Environment Variables
-2. **Landing page:** agregar `HUB_WEBHOOK_URL` y `WEBHOOK_SECRET` en las env vars del hosting
-3. Deployar el Hub primero, verificar que el endpoint responde
-4. Deployar la landing page con la integración
+Keys live in the `api_keys` table, stored as a SHA-256 digest — the plaintext is shown once at creation and is not recoverable.
 
----
+```bash
+# Issue
+npx tsx --env-file=.env.local scripts/create-api-key.ts \
+  "Marketing tracking stack" marketing@example.com leads:read
 
-## Checklist
+# Revoke — effective immediately, no redeploy
+npx tsx --env-file=.env.local scripts/revoke-api-key.ts rvf_live_a1b2c3d4
+```
 
-- [ ] Route handler creado en `app/api/webhooks/new-lead/route.ts`
-- [ ] `WEBHOOK_SECRET` configurado en `.env.local` del Hub
-- [ ] Función de webhook creada en el repo de la landing page
-- [ ] `HUB_WEBHOOK_URL` y `WEBHOOK_SECRET` configurados en la landing page
-- [ ] Testeado con curl localmente
-- [ ] Env vars agregadas en Vercel (Hub) y hosting de la landing page
-- [ ] Probado end-to-end: agendar call → lead aparece en pipeline
+Env vars, set in Vercel and `.env.local`: `WEBHOOK_SECRET` (generate with `openssl rand -hex 32`) for the ingest webhook. The read API needs no env var — its keys are rows.

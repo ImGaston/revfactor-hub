@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { hasAttribution, parseAttribution } from "@/lib/lead-attribution"
 
 export const dynamic = "force-dynamic"
 
+// Attribution fields are all optional and may arrive top-level or nested under
+// `attribution` — existing landing-page callers are unaffected. `email` remains
+// the only required field. See docs/webhook-pipeline-integration.md.
 type NewLeadPayload = {
   email: string
   full_name?: string | null
@@ -14,6 +18,8 @@ type NewLeadPayload = {
   location?: string | null
   description?: string | null
   external_ref?: string | null
+  attribution?: Record<string, unknown> | null
+  [key: string]: unknown
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -55,13 +61,15 @@ export async function POST(request: NextRequest) {
   const fullName = body.full_name?.trim() || null
   const projectName = body.project_name?.trim() || fullName || email
 
+  const attribution = parseAttribution(body)
+
   const supabase = createAdminClient()
 
   // Idempotency: email-capture forms double-submit easily, so an active
   // (non-archived, non-completed) lead with the same email is reused.
   const { data: existing } = await supabase
     .from("leads")
-    .select("id")
+    .select("id, utm_source")
     .ilike("email", email)
     .eq("is_archived", false)
     .eq("is_completed", false)
@@ -69,6 +77,11 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   if (existing) {
+    // First touch wins, but only if there was a first touch: a double-submit
+    // whose first request carried no UTMs would otherwise lose attribution.
+    if (!existing.utm_source && hasAttribution(attribution)) {
+      await supabase.from("leads").update(attribution).eq("id", existing.id)
+    }
     return NextResponse.json(
       { success: true, lead_id: existing.id, deduped: true },
       { status: 200 },
@@ -104,6 +117,7 @@ export async function POST(request: NextRequest) {
       service_type: null,
       created_by: null,
       external_ref: body.external_ref?.trim() || null,
+      ...attribution,
     })
     .select("id")
     .single()
