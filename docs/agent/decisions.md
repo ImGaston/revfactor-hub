@@ -2,6 +2,14 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-10 — Client Onboarding Is Run-Based and Additive to the Legacy Checklist
+
+The Assembly onboarding app must support one initial run plus later additional-property runs, including child listings that attach to a primary listing. The existing `onboarding_progress` table is keyed only by client + template and cannot represent that lifecycle, per-listing pricing, shared events/comps, per-question notes, or separate client/team verification states.
+
+Decision: migration `037_client_onboarding_runs.sql` adds a normalized run model beside the legacy checklist instead of mutating it in place. Core listing/pricing values are typed columns; events and comps use run-scoped many-to-many listing junctions; flexible questionnaire/readiness responses use keyed answer rows; attachments store Assembly file IDs, not file bytes. Cross-run junctions are prevented with composite foreign keys. The legacy Hub onboarding UI continues unchanged until a dedicated adapter and queue migration are ready.
+
+Assembly identity is validated server-side. Stripe is authoritative for listing entitlements. Saves will use the run `revision` for optimistic concurrency so separate portal/internal sessions cannot silently overwrite each other.
+
 ## 2026-06-24 — Paginate Large `report_metrics` Reads (db-max-rows = 1000)
 
 This Supabase project enforces PostgREST `db-max-rows = 1000`: a single select is capped at 1000 rows even with an explicit `.limit()` higher than that. A full Report Builder run is listing × month (~234 × 12 = 2.8k rows), so any unbounded or single-request read of `report_metrics` silently returns only the earliest ~4–5 months (ordered by `period`). For the Monthly Pacing chart that dropped exactly the near-future months where pickup lives, so the chart looked empty/flat with no error.

@@ -381,6 +381,7 @@ export type BankTransaction = {
 export type ClientCredential = {
   id: string
   client_id: string
+  external_key: string
   name: string
   software: string
   email: string | null
@@ -491,6 +492,7 @@ export type OnboardingProgress = {
 export type OnboardingComment = {
   id: string
   client_id: string
+  run_id: string | null
   author_id: string
   content: string
   created_at: string
@@ -511,6 +513,127 @@ export type OnboardingResource = {
   sort_order: number
   created_at: string
   updated_at: string
+}
+
+export type OnboardingRunStatus =
+  | "draft"
+  | "submitted"
+  | "in_review"
+  | "ready_for_launch"
+  | "live"
+  | "archived"
+
+export type OnboardingRun = {
+  id: string
+  client_id: string
+  run_type: "initial" | "additional_property"
+  status: OnboardingRunStatus
+  current_step: "property" | "software" | "preferences" | "knowledge" | "review"
+  assembly_workspace_id: string | null
+  assembly_company_id: string | null
+  assembly_client_id: string | null
+  stripe_subscription_id: string | null
+  primary_listing_entitlement: number
+  child_listing_entitlement: number
+  entitlement_synced_at: string | null
+  has_pms: boolean | null
+  pms_name: string | null
+  has_pricelabs: boolean | null
+  client_note: string | null
+  revision: number
+  started_at: string
+  last_saved_at: string
+  submitted_at: string | null
+  reviewed_at: string | null
+  live_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunListing = {
+  id: string
+  run_id: string
+  hub_listing_id: string | null
+  parent_run_listing_id: string | null
+  listing_kind: "primary" | "child"
+  sequence: number
+  name: string
+  listing_url: string | null
+  is_live: boolean
+  launch_month: number | null
+  launch_year: number | null
+  target_launch_month: number | null
+  target_launch_year: number | null
+  child_unit_type: "separate_unit" | "smaller_unit" | "not_sure" | null
+  annual_revenue_target: number | null
+  minimum_nightly_price: number | null
+  cleaning_cost: number | null
+  min_stay_midweek: number | null
+  min_stay_weekend: number | null
+  currency: string
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunTask = {
+  id: string
+  run_id: string
+  task_key: string
+  client_status: "not_started" | "in_progress" | "submitted"
+  team_status: "pending" | "reviewing" | "verified" | "blocked"
+  owner_profile_id: string | null
+  client_note: string | null
+  team_note: string | null
+  client_submitted_at: string | null
+  team_verified_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunEvent = {
+  id: string
+  run_id: string
+  name: string
+  month: number
+  year: number | null
+  recurrence: "one_off" | "recurrent"
+  demand: "meaningful" | "significant" | "huge" | "blackout"
+  sequence: number
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunComp = {
+  id: string
+  run_id: string
+  listing_url: string
+  sequence: number
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunAnswer = {
+  id: string
+  run_id: string
+  section: "readiness" | "knowledge"
+  question_key: string
+  answer_key: string
+  note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type OnboardingRunAttachment = {
+  id: string
+  run_id: string
+  run_listing_id: string | null
+  assembly_file_id: string
+  file_name: string
+  content_type: string | null
+  byte_size: number | null
+  uploaded_by_type: "client" | "internal"
+  uploaded_by_id: string
+  created_at: string
 }
 
 // ─── Report Builder (PriceLabs) ─────────────────────────

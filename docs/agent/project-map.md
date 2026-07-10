@@ -22,7 +22,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `app/(authenticated)/tasks/` — task board, task dialog, task server actions.
 - `app/(authenticated)/roadmap/` — ideas, roadmap kanban, votes, comments, post dialogs.
 - `app/(authenticated)/pipeline/` — sales pipeline board/table/completed views, lead detail, import/export, Assembly contract actions.
-- `app/(authenticated)/onboarding/` — client onboarding cards, resources, step actions.
+- `app/(authenticated)/onboarding/` — legacy client-level onboarding cards, resources, step actions, and comments. Migration `037_client_onboarding_runs.sql` adds the run-based data contract consumed by the separate Assembly onboarding app; the Hub UI has not switched to it yet.
 - `app/(authenticated)/financials/` — super_admin-only payout cash dashboard, Profit First allocations, expenses, subscriptions, saved 12-month planning scenarios, and Relay bank statement import/reconciliation (Bank tab). (The Recurring-expenses tab was removed; costs are managed only through expenses.)
 - `app/(authenticated)/settings/` — account, clients, listings, users, roles, boards/tags, onboarding settings.
 - `app/(authenticated)/calendar/page.tsx` and `notes/page.tsx` — calendar and notes views.
@@ -51,7 +51,8 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - Auth/profile: `profiles`, `roles`, `role_permissions`.
 - Client/listing ops: `clients`, `listings`, `client_credentials`, `tasks`, `task_listings`. `clients.dashboard_url` stores each client's private Pricing Dashboard link.
 - Product planning: `roadmap_items`, ideas/posts tables, comments, votes, boards/tags.
-- Onboarding: `onboarding_steps`, onboarding templates/progress/resources/comments.
+- Onboarding (legacy checklist): `onboarding_templates`, `onboarding_progress`, `onboarding_resources`, `onboarding_comments`.
+- Onboarding app (migration `037_client_onboarding_runs.sql`): `onboarding_runs`, `onboarding_run_listings`, events/comps and their listing junctions, answers, tasks, and Assembly file metadata. One client can have multiple initial/additional-property runs; normalized pricing fields live on the run listing.
 - Sales pipeline: `leads`, `lead_tags`, `lead_tag_assignments`, `lead_team_assignments`, `lead_notes`.
 - Financials: `expenses`, `expense_categories`, `recurring_expenses`, `expense_listing_allocations`, `stripe_subscriptions`, `stripe_invoices`, `stripe_payouts`, `stripe_payout_transactions`, `client_stripe_customers`, `financial_cash_snapshots`, `financial_scenarios`, `financial_scenario_listings`, `financial_scenario_events`, `financial_scenario_event_allocations`.
 - Bank reconciliation: `bank_accounts` (seeded internal accounts + Profit First role), `bank_statement_imports` (per-file audit), `bank_transactions` (classified rows; links to `stripe_payouts` and `expenses`). `expenses.bank_transaction_id` links bank-created expenses. UI: Financials **Bank** tab → `bank-section.tsx`, `bank-import-dialog.tsx`, shared `bank-flow.ts`.

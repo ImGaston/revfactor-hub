@@ -35,6 +35,15 @@ Pending Assembly work:
 
 - Inline message reads, reusable message/contact components, Integrations settings tab, send-message dialog, bulk link, contract status polling, optional sent-message audit log.
 
+Client onboarding Custom App contract:
+
+- The client-facing app validates Assembly's encrypted session token on its own server with `@assembly-js/node-sdk`; never send `ASSEMBLY_API_KEY` to the browser.
+- Resolve the Hub client by `assembly_company_id` first, then `assembly_client_id`. An internal Assembly identity may open the client surface, but `/internal` requires `internalUserId`.
+- Migration `037_client_onboarding_runs.sql` is additive and run-based. It preserves the existing client-level checklist while supporting initial and additional-property runs, child listings, per-listing pricing, shared events/comps, knowledge notes, client/team task states, and Assembly file IDs.
+- Stripe webhooks are authoritative for the run's primary/child listing entitlements. The app must not let clients edit those counts.
+- Upsert retries are idempotent through `onboarding_runs (client_id, external_key)`. Use optimistic concurrency through `revision`; a save updates only when the submitted revision matches, then increments it.
+- The migration is a contract only until it is applied and the app's Supabase adapter is enabled. Keep the hosted app in explicit preview mode until then.
+
 ## PriceLabs
 
 PriceLabs is the dynamic pricing tool.
