@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS onboarding_run_tasks (
   team_status      TEXT NOT NULL DEFAULT 'pending'
     CHECK (team_status IN ('pending', 'reviewing', 'verified', 'blocked')),
   owner_profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  verified_by_assembly_internal_user_id TEXT,
   client_note      TEXT,
   team_note        TEXT,
   client_submitted_at TIMESTAMPTZ,
@@ -665,3 +666,82 @@ REVOKE ALL ON FUNCTION public.save_client_onboarding_draft(
 GRANT EXECUTE ON FUNCTION public.save_client_onboarding_draft(
   TEXT, TEXT, TEXT, INTEGER, TEXT, JSONB, BOOLEAN
 ) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.verify_client_onboarding_task(
+  p_run_id UUID,
+  p_task_key TEXT,
+  p_assembly_internal_user_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  current_run onboarding_runs%ROWTYPE;
+  saved_run onboarding_runs%ROWTYPE;
+  all_tasks_verified BOOLEAN;
+BEGIN
+  IF NULLIF(BTRIM(p_assembly_internal_user_id), '') IS NULL THEN
+    RAISE EXCEPTION 'An Assembly internal user is required'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO current_run
+  FROM onboarding_runs
+  WHERE id = p_run_id
+  FOR UPDATE;
+
+  IF current_run.id IS NULL THEN
+    RAISE EXCEPTION 'Onboarding run not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+  IF current_run.status NOT IN ('submitted', 'in_review', 'ready_for_launch') THEN
+    RAISE EXCEPTION 'Only submitted onboarding tasks can be verified'
+      USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE onboarding_run_tasks
+  SET team_status = 'verified',
+      team_verified_at = now(),
+      verified_by_assembly_internal_user_id = p_assembly_internal_user_id,
+      updated_at = now()
+  WHERE run_id = p_run_id
+    AND task_key = p_task_key
+    AND client_status = 'submitted';
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Submitted onboarding task not found'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT NOT EXISTS (
+    SELECT 1
+    FROM onboarding_run_tasks
+    WHERE run_id = p_run_id
+      AND team_status <> 'verified'
+  ) INTO all_tasks_verified;
+
+  UPDATE onboarding_runs
+  SET status = CASE WHEN all_tasks_verified THEN 'ready_for_launch' ELSE 'in_review' END,
+      reviewed_at = COALESCE(reviewed_at, now()),
+      revision = revision + 1,
+      updated_at = now()
+  WHERE id = p_run_id
+  RETURNING * INTO saved_run;
+
+  RETURN jsonb_build_object(
+    'run_id', saved_run.id,
+    'task_key', p_task_key,
+    'team_status', 'verified',
+    'run_status', saved_run.status,
+    'revision', saved_run.revision,
+    'verified_at', now()
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.verify_client_onboarding_task(UUID, TEXT, TEXT)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_client_onboarding_task(UUID, TEXT, TEXT)
+  TO service_role;

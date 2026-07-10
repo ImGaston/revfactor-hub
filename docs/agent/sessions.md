@@ -10,6 +10,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Tightened migration 037 from blanket authenticated access to the existing onboarding permission model. Added separate exact draft/submitted JSON snapshots and a service-role-only, revision-checked autosave RPC so incomplete client drafts remain resumable without forcing partial data into analytical tables.
 - Added guarded Stripe entitlement provisioning from explicit subscription or Price/Product metadata. It aggregates all billable subscriptions linked to a Hub client, creates deterministic initial/additional-property runs, and sends ambiguous decreases, active-draft changes, or child-only additions to manual review.
 - Added Assembly attachment metadata and a submission-notification delivery outbox to migration 037. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
+- Added a service-role-only internal verification RPC. It records the Assembly internal reviewer, verifies only client-submitted tasks, and atomically advances run status to `in_review` or `ready_for_launch` when all tasks are complete.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
 
 ## 2026-06-24 — Monthly Pacing Chart

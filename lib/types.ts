@@ -586,6 +586,7 @@ export type OnboardingRunTask = {
   client_status: "not_started" | "in_progress" | "submitted"
   team_status: "pending" | "reviewing" | "verified" | "blocked"
   owner_profile_id: string | null
+  verified_by_assembly_internal_user_id: string | null
   client_note: string | null
   team_note: string | null
   client_submitted_at: string | null
