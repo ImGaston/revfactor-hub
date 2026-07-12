@@ -328,11 +328,38 @@ export async function archiveLead(leadId: string) {
 
 export async function unarchiveLead(leadId: string) {
   const supabase = await createClient()
+  // Reactivating also clears the lost outcome: a reactivated lead is back in play.
   const { error } = await supabase
     .from("leads")
     .update({
       is_archived: false,
       archived_at: null,
+      lost_at: null,
+      lost_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadId)
+
+  if (error) return { error: error.message }
+  revalidatePath("/pipeline")
+  revalidatePath(`/pipeline/${leadId}`)
+  return { success: true }
+}
+
+export async function markLeadLost(leadId: string, reason: string) {
+  const supabase = await createClient()
+  // A lost lead leaves the active board (is_archived), keeping the archived-vs-
+  // completed exclusivity from migration 009. `lost_at` is the outcome signal;
+  // reactivating via unarchiveLead clears it.
+  const { error } = await supabase
+    .from("leads")
+    .update({
+      lost_at: new Date().toISOString(),
+      lost_reason: reason || null,
+      is_archived: true,
+      archived_at: new Date().toISOString(),
+      is_completed: false,
+      completed_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", leadId)

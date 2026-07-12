@@ -9,6 +9,7 @@ import { PipelineTable } from "./pipeline-table"
 import { PipelineCompleted } from "./pipeline-completed"
 import { ImportLeadsDialog } from "./import-leads-dialog"
 import { escapeCSV, downloadCSV } from "@/lib/csv"
+import { leadOutcome } from "@/lib/leads"
 import type { Lead, LeadTag } from "@/lib/types"
 
 type ProfileOption = {
@@ -44,6 +45,18 @@ function exportLeadsCSV(leads: Lead[]) {
     "client_portal_url",
     "is_archived",
     "is_completed",
+    "outcome",
+    "lost_reason",
+    "converted_at",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_content",
+    "utm_term",
+    "gclid",
+    "msclkid",
+    "referrer",
+    "landing_page",
     "tags",
     "team",
     "created_at",
@@ -68,6 +81,18 @@ function exportLeadsCSV(leads: Lead[]) {
     escapeCSV(l.client_portal_url),
     escapeCSV(l.is_archived),
     escapeCSV(l.is_completed),
+    escapeCSV(leadOutcome(l)),
+    escapeCSV(l.lost_reason),
+    escapeCSV(l.converted_at),
+    escapeCSV(l.utm_source),
+    escapeCSV(l.utm_medium),
+    escapeCSV(l.utm_campaign),
+    escapeCSV(l.utm_content),
+    escapeCSV(l.utm_term),
+    escapeCSV(l.gclid),
+    escapeCSV(l.msclkid),
+    escapeCSV(l.referrer),
+    escapeCSV(l.landing_page),
     escapeCSV(
       l.lead_tag_assignments?.map((a) => a.lead_tags.name).join("; ") ?? ""
     ),

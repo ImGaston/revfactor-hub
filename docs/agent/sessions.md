@@ -2,6 +2,14 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-12 — Lead outcome + attribution UI (migration 044)
+
+- Aaron confirmed the landing's real payload and offered to send JSON matching our schema, so attribution needed almost no code — just the field contract (his `landing` → our `landing_page`) and a new `msclkid` column. His two API asks (stage timestamps, queryable gclid) were already live from 043.
+- Migration 044 (**applied to prod**): `lost_at`, `lost_reason`, `msclkid` (+ index) on `leads`. New `markLeadLost` action (archives + records reason) and `unarchiveLead` clears the lost fields on reactivate; `LEAD_LOST_REASONS`/`leadOutcome` in `lib/leads.ts`. `msclkid` added to `ATTRIBUTION_FIELDS`.
+- API `/api/v1/leads`: new `outcome` = won→lost→open (won precedence), `is_won` kept as alias, `lost_reason` top-level, `msclkid` in `attribution`, `lost_at` in `timeline`.
+- Lead detail (`lead-detail.tsx`): "Mark as Lost" action w/ reason select (hidden once won/lost), Lost banner, conditional Attribution block, Qualification block from `attribution_extra` ("PM · 12 properties"), and the stage-history timeline from `lead_stage_events` (fetched in `[id]/page.tsx`). CSV export gains outcome + attribution columns.
+- **Verified**: typecheck clean; webhook with Aaron's real shape populates utm/gclid/msclkid columns and drops qualifier + `page`/`gbraid` into `attribution_extra`; API returns `outcome` lost/won/open with correct precedence and no `assembly_client_id` leak; security advisor shows no new findings. Browser UI check pending a logged-in session (dev server requires auth; didn't log in). Test data cleaned. **Pending: deploy.**
+
 ## 2026-07-10 — Assembly onboarding app production contract
 
 - Audited the deployed RevFactor onboarding app against Hub's existing client, listing, Assembly, Stripe, and legacy onboarding models.

@@ -2,6 +2,18 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-12 — Lead Outcome (Lost/Disqualified) + `msclkid` (migration 044)
+
+Marketing (Aaron) confirmed the landing's real payload and asked for a clean outcome so their close-rate math and offline-conversion uploads to Google/Microsoft Ads stay honest. Two of his three asks were **already shipped in 043** — stage timestamps (`timeline` + `?include=events`) and a queryable `gclid` — so this migration only closes the gap.
+
+**"Lost" is an explicit column, not derived from `is_archived`.** Auditing showed archive means "hide it from the board" (its reverse action is literally "Reactivate") and can coexist with a won lead, and there's no historical signal to backfill from — deriving loss from archive would relabel every housekeeping archive as lost and carry no reason. So 044 adds `lost_at` + `lost_reason`. The API derives **`outcome: won|lost|open`** with **won taking precedence** (so the impossible "won and lost" reads won; no hard CHECK needed, which keeps the existing setters valid). `is_won` stays as a back-compat alias. `markLeadLost` sets `lost_at`/`lost_reason` and archives the lead (leaves the active board, respecting 009's archive/complete exclusivity); `unarchiveLead` now also clears the lost fields so "Reactivate" puts a lead back in play.
+
+**Qualifier answers stay in `attribution_extra`, surfaced in the UI.** The landing sends `has_property`/`is_pm`/`properties`/`portfolio` nested under `attribution`; since they aren't UTMs they land in the existing jsonb catch-all (no new columns) but are now rendered on the lead detail as a "Qualification" block — genuinely useful sales signal ("PM · 12 properties" before the call). `attribution_extra` is thereby a general "extra webhook payload" bag, not strictly attribution.
+
+**`msclkid` is a flat column** (migration 044), symmetric with `gclid`, added to `ATTRIBUTION_FIELDS` in `lib/lead-attribution.ts` so it maps to a column instead of the extra bag — ready for Microsoft Ads offline conversions. `gbraid`/`wbraid` (iOS click ids) are left in `attribution_extra` for now; promote to columns if offline-conversion coverage needs them.
+
+**No `description` parser.** Aaron sends structured JSON matching our schema (only rename: his `landing` → our `landing_page`), so we never parse the semicolon-blob. Contract lives in `docs/webhook-pipeline-integration.md`.
+
 ## 2026-07-10 — Client Onboarding Is Run-Based and Additive to the Legacy Checklist
 
 The Assembly onboarding app must support one initial run plus later additional-property runs, including child listings that attach to a primary listing. The existing `onboarding_progress` table is keyed only by client + template and cannot represent that lifecycle, per-listing pricing, shared events/comps, per-question notes, or separate client/team verification states.

@@ -6,15 +6,18 @@ import { toast } from "sonner"
 import {
   Archive,
   ArrowLeft,
+  Building2,
   Calendar,
   CheckCircle2,
   Clock,
   Copy,
   ExternalLink,
   Globe,
+  History,
   Loader2,
   Mail,
   MapPin,
+  Megaphone,
   Pencil,
   Phone,
   RotateCcw,
@@ -22,6 +25,7 @@ import {
   Trash2,
   User,
   UserPlus,
+  XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,14 +54,39 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { LeadFormDialog } from "../lead-form-dialog"
 import { STAGE_COLUMNS } from "../pipeline-kanban"
-import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, createAssemblyClientForLead, sendContractToAssembly, createLeadNote, deleteLeadNote } from "../actions"
-import type { Lead, LeadTag, LeadNote } from "@/lib/types"
+import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, markLeadLost, createAssemblyClientForLead, sendContractToAssembly, createLeadNote, deleteLeadNote } from "../actions"
+import { LEAD_LOST_REASONS, leadLostReasonLabel } from "@/lib/leads"
+import type { Lead, LeadTag, LeadNote, LeadStageEvent } from "@/lib/types"
 
 type ProfileOption = {
   id: string
   full_name: string | null
   email: string
   avatar_url: string | null
+}
+
+export type StageEventWithProfile = LeadStageEvent & {
+  changed_by_profile: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  } | null
+}
+
+// Qualifier answers the landing sends nested under `attribution`; they land in
+// leads.attribution_extra (see lib/lead-attribution.ts). Surfaced for sales.
+const QUALIFIER_KEYS = ["is_pm", "has_property", "properties", "portfolio"] as const
+
+const QUALIFIER_LABELS: Record<string, string> = {
+  is_pm: "Property manager",
+  has_property: "Owns property",
+  properties: "Properties",
+  portfolio: "Portfolio",
+}
+
+const QUALIFIER_VALUE_LABELS: Record<string, string> = {
+  yes: "Yes",
+  no: "No",
 }
 
 type ContractTemplate = {
@@ -72,6 +101,7 @@ type Props = {
   contractTemplates?: ContractTemplate[]
   canControl: boolean
   notes: LeadNote[]
+  stageEvents: StageEventWithProfile[]
 }
 
 const LEAD_SOURCE_LABELS: Record<string, string> = {
@@ -89,7 +119,7 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   c_not_a_fit: "C – Not a Fit",
 }
 
-export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canControl, notes }: Props) {
+export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canControl, notes, stageEvents }: Props) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -100,9 +130,33 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
   )
   const [noteContent, setNoteContent] = useState("")
   const [submittingNote, setSubmittingNote] = useState(false)
+  const [lostOpen, setLostOpen] = useState(false)
+  const [lostReason, setLostReason] = useState<string>(LEAD_LOST_REASONS[0].value)
+  const [markingLost, setMarkingLost] = useState(false)
 
   const leadTags = lead.lead_tag_assignments?.map((a) => a.lead_tags) ?? []
   const team = lead.lead_team_assignments ?? []
+  const isWon = lead.assembly_client_id !== null
+  const isLost = lead.lost_at !== null
+
+  // Attribution / qualifier data captured from the landing (migrations 043/044).
+  const attribution: { label: string; value: string }[] = [
+    ["Campaign", lead.utm_campaign],
+    ["Source", lead.utm_source],
+    ["Medium", lead.utm_medium],
+    ["Term", lead.utm_term],
+    ["Content", lead.utm_content],
+    ["Google click ID", lead.gclid],
+    ["Microsoft click ID", lead.msclkid],
+    ["Referrer", lead.referrer],
+  ].flatMap(([label, value]) => (value ? [{ label: label!, value }] : []))
+
+  const extra = (lead.attribution_extra ?? {}) as Record<string, unknown>
+  const qualifier = QUALIFIER_KEYS.flatMap((key) => {
+    const raw = extra[key]
+    if (raw === undefined || raw === null || raw === "") return []
+    return [{ key, value: String(raw) }]
+  })
 
   function getStageColor(stage: string) {
     return STAGE_COLUMNS.find((c) => c.id === stage)?.color ?? "#6b7280"
@@ -168,6 +222,19 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
     const result = await unarchiveLead(lead.id)
     if (result.error) toast.error(result.error)
     else { toast.success("Lead reactivated"); router.refresh() }
+  }
+
+  async function handleMarkLost() {
+    setMarkingLost(true)
+    const result = await markLeadLost(lead.id, lostReason)
+    setMarkingLost(false)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      setLostOpen(false)
+      toast.success("Lead marked as lost")
+      router.refresh()
+    }
   }
 
   async function handleComplete() {
@@ -305,6 +372,22 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
           </Button>
         </div>
       )}
+      {isLost && (
+        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+            <XCircle className="size-4" />
+            <span>
+              Lost
+              {lead.lost_reason && ` — ${leadLostReasonLabel(lead.lost_reason)}`}
+              {lead.lost_at && ` on ${formatDate(lead.lost_at)}`}
+            </span>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleUnarchive}>
+            <RotateCcw className="size-3.5 mr-1.5" />
+            Reactivate
+          </Button>
+        </div>
+      )}
 
       {/* Main layout: Content + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
@@ -430,6 +513,111 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
             </div>
           </div>
 
+          {/* Qualification (from landing form answers) */}
+          {qualifier.length > 0 && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <Building2 className="size-4 text-muted-foreground" />
+                Qualification
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {qualifier.map(({ key, value }) => (
+                  <div key={key}>
+                    <p className="text-muted-foreground text-xs mb-0.5">
+                      {QUALIFIER_LABELS[key] ?? key}
+                    </p>
+                    {key === "portfolio" ? (
+                      <a
+                        href={value}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline break-all"
+                      >
+                        {value}
+                      </a>
+                    ) : (
+                      <p>{QUALIFIER_VALUE_LABELS[value] ?? value}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Attribution (UTM / click IDs from the landing) */}
+          {attribution.length > 0 && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <Megaphone className="size-4 text-muted-foreground" />
+                Attribution
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {attribution.map(({ label, value }) => (
+                  <div key={label}>
+                    <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
+                    <p className="break-all">{value}</p>
+                  </div>
+                ))}
+                {lead.landing_page && (
+                  <div className="sm:col-span-2">
+                    <p className="text-muted-foreground text-xs mb-0.5">Landing page</p>
+                    <a
+                      href={lead.landing_page}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline break-all"
+                    >
+                      {lead.landing_page}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Stage timeline */}
+          {stageEvents.length > 0 && (
+            <div className="rounded-lg border p-4 space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <History className="size-4 text-muted-foreground" />
+                Stage History
+              </h3>
+              <div className="space-y-2.5">
+                {stageEvents.map((event) => (
+                  <div key={event.id} className="flex items-center gap-2 text-sm">
+                    {event.from_stage ? (
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: getStageColor(event.from_stage) }}
+                        />
+                        <span className="text-muted-foreground">
+                          {getStageLabel(event.from_stage)}
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Created at</span>
+                    )}
+                    <span className="flex items-center gap-1.5">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: getStageColor(event.to_stage) }}
+                      />
+                      <span className="font-medium">{getStageLabel(event.to_stage)}</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
+                      {formatDateTime(event.changed_at)}
+                      {event.changed_by_profile
+                        ? ` · ${event.changed_by_profile.full_name ?? event.changed_by_profile.email}`
+                        : " · System"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Notes */}
           <div className="rounded-lg border p-4 space-y-4">
             <h3 className="text-sm font-semibold">Notes</h3>
@@ -539,29 +727,83 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
             </Select>
           </div>
 
-          {/* Archive / Complete */}
-          <div className="flex gap-2">
-            {lead.is_archived ? (
-              <Button variant="outline" size="sm" className="flex-1" onClick={handleUnarchive}>
-                <RotateCcw className="size-3.5 mr-1.5" />
-                Unarchive
-              </Button>
-            ) : lead.is_completed ? (
-              <Button variant="outline" size="sm" className="flex-1" onClick={handleUncomplete}>
-                <RotateCcw className="size-3.5 mr-1.5" />
-                Reopen
-              </Button>
-            ) : (
-              <>
-                <Button variant="outline" size="sm" className="flex-1" onClick={handleComplete}>
-                  <CheckCircle2 className="size-3.5 mr-1.5" />
-                  Complete
+          {/* Archive / Complete / Lost */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              {lead.is_archived ? (
+                <Button variant="outline" size="sm" className="flex-1" onClick={handleUnarchive}>
+                  <RotateCcw className="size-3.5 mr-1.5" />
+                  {isLost ? "Reactivate" : "Unarchive"}
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1" onClick={handleArchive}>
-                  <Archive className="size-3.5 mr-1.5" />
-                  Archive
+              ) : lead.is_completed ? (
+                <Button variant="outline" size="sm" className="flex-1" onClick={handleUncomplete}>
+                  <RotateCcw className="size-3.5 mr-1.5" />
+                  Reopen
                 </Button>
-              </>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handleComplete}>
+                    <CheckCircle2 className="size-3.5 mr-1.5" />
+                    Complete
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={handleArchive}>
+                    <Archive className="size-3.5 mr-1.5" />
+                    Archive
+                  </Button>
+                </>
+              )}
+            </div>
+            {/* Mark as Lost — hidden once won or already lost */}
+            {!isWon && !isLost && (
+              <AlertDialog open={lostOpen} onOpenChange={setLostOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-red-600 hover:text-red-600"
+                  >
+                    <XCircle className="size-3.5 mr-1.5" />
+                    Mark as Lost
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Mark this lead as lost?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This records the outcome for reporting and removes the lead
+                      from the active board. You can reactivate it later.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Reason</p>
+                    <Select value={lostReason} onValueChange={setLostReason}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LEAD_LOST_REASONS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleMarkLost()
+                      }}
+                      disabled={markingLost}
+                      className="bg-red-600 text-white hover:bg-red-600/90"
+                    >
+                      {markingLost ? "Saving..." : "Mark as Lost"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
 

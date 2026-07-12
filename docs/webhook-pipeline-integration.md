@@ -44,17 +44,25 @@ Only `email` is required. Everything else is optional.
     "utm_content": "hero-cta",
     "utm_term": "revenue management airbnb",
     "gclid": "Cj0KCQ...",
+    "msclkid": null,
     "fbclid": null,
     "referrer": "https://www.google.com/",
-    "landing_page": "https://revfactor.io/lp/audit?utm_source=google"
+    "landing_page": "https://revfactor.io/lp/audit?utm_source=google",
+
+    "has_property": "yes",
+    "is_pm": "yes",
+    "properties": "12",
+    "portfolio": "https://portfolio.example.com"
   }
 }
 ```
 
 Notes on the fields:
 
-- `project_name` defaults to `full_name`, or to `email` when there is no name.
-- `lead_source` defaults to `"landing_page"`.
+- `project_name` defaults to `full_name`, or to `email` when there is no name. **Send `full_name`** whenever the form captures it — otherwise the lead shows the email as its name on the board.
+- `lead_source` defaults to `"landing_page"`. Send your own values freely (e.g. `landing_modal`, `newsletter_journal`).
+- The canonical attribution keys are `utm_source, utm_medium, utm_campaign, utm_content, utm_term, gclid, msclkid, fbclid, referrer, landing_page`. Use **`landing_page`** (not `landing`) for the URL — the others match verbatim.
+- **Qualifier answers** (`has_property`, `is_pm`, `properties`, `portfolio`) and **any other key** you nest under `attribution` are preserved in `attribution_extra` and shown on the lead in the Hub. So send the full converted URL as `page`, iOS click ids as `gbraid`/`wbraid`, etc. — nothing is dropped. Only the ten canonical keys above become their own columns.
 - `scheduled_date` must be valid ISO 8601 if present. It is the datetime **of the call**, not the moment it was booked.
 - **Attribution** may be sent nested under `attribution` (preferred) or flat at the top level. If a key appears in both, the top-level value wins. Any key inside `attribution` that is not one of the nine canonical ones is preserved in a `attribution_extra` JSON blob — so you can add a tracking param without waiting on a Hub deploy.
 - `external_ref` is yours: use it to correlate the Hub lead with a record in your own system.
@@ -119,7 +127,9 @@ Pagination is keyset-based and ordered by `updated_at`, so it stays stable even 
       "created_at": "2026-07-01T10:00:00Z",
       "updated_at": "2026-07-09T14:00:00Z",
       "stage": "retainer_paid",
+      "outcome": "won",
       "is_won": true,
+      "lost_reason": null,
       "is_archived": false,
       "is_completed": false,
       "full_name": "Jane Doe",
@@ -137,10 +147,11 @@ Pagination is keyset-based and ordered by `updated_at`, so it stays stable even 
         "utm_content": null,
         "utm_term": null,
         "gclid": "Cj0KCQ...",
+        "msclkid": null,
         "fbclid": null,
         "referrer": "https://www.google.com/",
         "landing_page": "https://revfactor.io/lp/audit",
-        "extra": {}
+        "extra": { "has_property": "yes", "is_pm": "yes", "properties": "12" }
       },
       "timeline": {
         "created_at": "2026-07-01T10:00:00Z",
@@ -148,7 +159,8 @@ Pagination is keyset-based and ordered by `updated_at`, so it stays stable even 
         "proposal_sent_at": "2026-07-04T11:30:00Z",
         "proposal_signed_at": "2026-07-06T16:05:00Z",
         "retainer_paid_at": "2026-07-08T08:00:00Z",
-        "converted_at": "2026-07-08T12:00:00Z"
+        "converted_at": "2026-07-08T12:00:00Z",
+        "lost_at": null
       }
     }
   ],
@@ -157,12 +169,18 @@ Pagination is keyset-based and ordered by `updated_at`, so it stays stable even 
 }
 ```
 
+### Outcome — for close-rate math and offline conversions
+
+- **`outcome` is the clean tri-state: `"won" | "lost" | "open"`.** Use this, not the raw board flags, for close-rate per campaign. `won` = became a client (precedence over lost). `lost` = explicitly marked lost/disqualified; `lost_reason` tells you why (`price`, `timing`, `no_response`, `not_qualified`, `competitor`, `other`). `open` = still in play.
+- **`timeline.converted_at` / `timeline.lost_at`** are the timestamps for won / lost. Combined with `attribution.gclid` and `attribution.msclkid`, that's everything you need to push offline conversions back to Google Ads / Microsoft Ads when a lead hits `booked_call_at`, `proposal_sent_at`, or `won`.
+- `is_won` stays as a boolean alias of `outcome === "won"` (back-compat). Prefer `outcome`.
+
 ### Reading the timeline
 
 Four things matter here and they are easy to conflate.
 
 - **`booked_call_at` is not `scheduled_date`.** The first is when the lead entered the `meeting` stage — when the call got booked. The second is when the call is scheduled to happen. For attribution you almost always want `booked_call_at`.
-- **`is_won` is the closed-deal flag.** It means the lead became a real client in Assembly. `converted_at` is when that happened. Do not infer "won" from `stage`: the stage keeps advancing past `retainer_paid` into `planning`, so a won deal usually isn't sitting on the stage you'd expect.
+- **`outcome`/`is_won` is the closed-deal signal, not `stage`.** Won means the lead became a real client in Assembly. Do not infer "won" from `stage`: the stage keeps advancing past `retainer_paid` into `planning`, so a won deal usually isn't sitting on the stage you'd expect.
 - **Each milestone is the *first* time the lead entered that stage.** A lead can move backwards and re-enter, and that will not overwrite the milestone. Don't double-count.
 - **The timeline starts on 2026-07-10.** Stage history is recorded from that deploy onward. Leads created before it carry a single synthetic event at whatever stage they were in, so their `booked_call_at` and `retainer_paid_at` are `null` or approximate. Cohort your funnel reports from the deploy date.
 

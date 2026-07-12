@@ -7,6 +7,7 @@ export const ATTRIBUTION_FIELDS = [
   "utm_content",
   "utm_term",
   "gclid",
+  "msclkid",
   "fbclid",
   "referrer",
   "landing_page",

@@ -4,6 +4,7 @@ import { hasPermission } from "@/lib/permissions.server"
 import { LeadDetail } from "./lead-detail"
 import { isAssemblyConfigured, listContractTemplates } from "@/lib/assembly"
 import type { Lead, LeadTag, LeadNote } from "@/lib/types"
+import type { StageEventWithProfile } from "./lead-detail"
 
 export default async function LeadDetailPage({
   params,
@@ -28,18 +29,26 @@ export default async function LeadDetailPage({
     .select("*")
     .order("name")
 
-  const [{ data: profiles }, { data: notes }, canControl] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, full_name, email, avatar_url")
-      .order("full_name"),
-    supabase
-      .from("lead_notes")
-      .select("*, profiles(full_name, email, avatar_url)")
-      .eq("lead_id", id)
-      .order("created_at", { ascending: false }),
-    hasPermission("pipeline", "control"),
-  ])
+  const [{ data: profiles }, { data: notes }, { data: stageEvents }, canControl] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .order("full_name"),
+      supabase
+        .from("lead_notes")
+        .select("*, profiles(full_name, email, avatar_url)")
+        .eq("lead_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("lead_stage_events")
+        .select(
+          "*, changed_by_profile:profiles(full_name, email, avatar_url)"
+        )
+        .eq("lead_id", id)
+        .order("changed_at", { ascending: true }),
+      hasPermission("pipeline", "control"),
+    ])
 
   // Fetch Assembly contract templates (server-side only)
   let contractTemplates: { id: string; name: string }[] = []
@@ -67,6 +76,7 @@ export default async function LeadDetailPage({
       contractTemplates={contractTemplates}
       canControl={canControl}
       notes={(notes ?? []) as LeadNote[]}
+      stageEvents={(stageEvents ?? []) as StageEventWithProfile[]}
     />
   )
 }

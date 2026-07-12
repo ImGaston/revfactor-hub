@@ -436,12 +436,15 @@ export type Lead = {
   child_listing_count: number
   assembly_client_id: string | null
   converted_at: string | null
+  lost_at: string | null
+  lost_reason: string | null
   utm_source: string | null
   utm_medium: string | null
   utm_campaign: string | null
   utm_content: string | null
   utm_term: string | null
   gclid: string | null
+  msclkid: string | null
   fbclid: string | null
   referrer: string | null
   landing_page: string | null

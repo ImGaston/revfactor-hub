@@ -28,6 +28,8 @@ const LEAD_COLUMNS = [
   "scheduled_date",
   "external_ref",
   "converted_at",
+  "lost_at",
+  "lost_reason",
   "assembly_client_id", // exposed only as the `is_won` boolean, never verbatim
   "utm_source",
   "utm_medium",
@@ -35,6 +37,7 @@ const LEAD_COLUMNS = [
   "utm_content",
   "utm_term",
   "gclid",
+  "msclkid",
   "fbclid",
   "referrer",
   "landing_page",
@@ -59,6 +62,8 @@ type LeadRow = Pick<
   | "location"
   | "scheduled_date"
   | "converted_at"
+  | "lost_at"
+  | "lost_reason"
   | "assembly_client_id"
   | "utm_source"
   | "utm_medium"
@@ -66,6 +71,7 @@ type LeadRow = Pick<
   | "utm_content"
   | "utm_term"
   | "gclid"
+  | "msclkid"
   | "fbclid"
   | "referrer"
   | "landing_page"
@@ -218,18 +224,25 @@ export async function GET(request: NextRequest) {
       proposal_signed_at: null,
       retainer_paid_at: null,
       converted_at: lead.converted_at,
+      lost_at: lead.lost_at,
     }
     for (const event of leadEvents) {
       const milestone = MILESTONES[event.to_stage as keyof typeof MILESTONES]
       if (milestone && timeline[milestone] === null) timeline[milestone] = event.changed_at
     }
 
+    // won takes precedence over lost, so the impossible "won and lost" reads won.
+    const isWon = lead.assembly_client_id !== null
+    const outcome = isWon ? "won" : lead.lost_at !== null ? "lost" : "open"
+
     return {
       id: lead.id,
       created_at: lead.created_at,
       updated_at: lead.updated_at,
       stage: lead.stage,
-      is_won: lead.assembly_client_id !== null,
+      outcome,
+      is_won: isWon,
+      lost_reason: lead.lost_reason,
       is_archived: lead.is_archived,
       is_completed: lead.is_completed,
       full_name: lead.full_name,
@@ -247,6 +260,7 @@ export async function GET(request: NextRequest) {
         utm_content: lead.utm_content,
         utm_term: lead.utm_term,
         gclid: lead.gclid,
+        msclkid: lead.msclkid,
         fbclid: lead.fbclid,
         referrer: lead.referrer,
         landing_page: lead.landing_page,
