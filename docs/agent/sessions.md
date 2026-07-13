@@ -2,6 +2,12 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-13 — Pipeline lead detail as intercepted-route modal
+
+- Lead clicks from kanban/table/completed now open the detail in a Dialog while `/pipeline/<id>` keeps working as a direct URL (paste/refresh/share → full page). First parallel/intercepting routes in the app: `@modal` slot in the authenticated layout + `@modal/(.)pipeline/[id]`; call sites unchanged (`router.push` gets intercepted).
+- Refactor: `pipeline/[id]/page.tsx` fetching moved to shared `lead-detail-content.tsx`; `LeadDetail` gained `variant` ("modal" → header X + delete close via `router.back()`); new `lead-detail-modal.tsx` (Dialog shell with Suspense) and `lead-detail-skeleton.tsx` (also used by a new `[id]/loading.tsx`).
+- Verified in the browser: modal opens from all three views, ESC / click-outside / browser back close to the board, direct URL renders the full page, console clean. Gotchas recorded in `decisions.md` 2026-07-13 (optional catch-all crashes dev server; `next typegen` needed after adding the slot).
+
 ## 2026-07-12 — Lead outcome + attribution UI (migration 044)
 
 - Aaron confirmed the landing's real payload and offered to send JSON matching our schema, so attribution needed almost no code — just the field contract (his `landing` → our `landing_page`) and a new `msclkid` column. His two API asks (stage timestamps, queryable gclid) were already live from 043.

@@ -40,6 +40,8 @@
 - Inline editing follows the `+Add` -> input with save/cancel pattern.
 - Collapsible sections default hidden with `useState(false)` and ChevronRight/ChevronDown toggles.
 - Password fields use show/hide and clipboard-copy controls.
+- Long unbroken user text (URLs, UTM blobs, tokens) inside flex/grid layouts needs `wrap-anywhere` (`overflow-wrap: anywhere`) plus `min-w-0` on the flex column — `break-words` is not enough because `overflow-wrap: break-word` does not shrink the intrinsic min-content width, so the long word widens the whole container before wrapping ever applies (bit the lead-detail Description inside the Dialog, 2026-07-13). The same applies to the base `Textarea`: its `field-sizing-content` sizes the control from its content, so it carries `wrap-anywhere` in `components/ui/textarea.tsx` (bit the Edit Lead dialog, same day). Clamp long blocks with `line-clamp-N` + a Show more/less toggle.
+- Detail-as-modal with a real URL uses the intercepting-route pattern (slot `app/(authenticated)/@modal/` + `(.)route/[id]`), not a client Dialog that refetches: one shared server component renders both the full page and the modal, close = `router.back()`, and the slot keeps `default.tsx` + a required (never optional) catch-all returning null. Prior art: Pipeline lead detail; rationale and gotchas in `decisions.md` 2026-07-13.
 
 ## Kanban
 - Columns use subtle tinted backgrounds matching semantic status.

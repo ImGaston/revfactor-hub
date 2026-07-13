@@ -2,6 +2,15 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-13 — Lead Detail Opens as an Intercepted-Route Modal (first parallel/intercepting routes in the app)
+
+Clicking a lead anywhere in Pipeline (kanban, table, completed) now opens the detail in a modal while keeping `/pipeline/<id>` as the URL — deep links, refresh, and sharing still land on the full page. Chose Next's **intercepting route** (`app/(authenticated)/@modal/(.)pipeline/[id]`) over a client-side Dialog + fetch because the detail page already does 6 queries + a permission check + an Assembly call; a client dialog would have duplicated all of that in a new server action and required hand-rolled URL sync. With interception, the same server component (`pipeline/[id]/lead-detail-content.tsx`) serves both surfaces and the router gives URL/back/ESC semantics for free. The three call sites kept `router.push` untouched — interception applies to any client-side navigation.
+
+Mechanics worth remembering:
+- The `@modal` slot needs `default.tsx` (null, hard navs) **and** a catch-all `[...catchAll]/page.tsx` (null) so soft navigations away from an open modal (e.g. delete → `router.push("/pipeline")`) clear the slot instead of leaving the modal rendered. An **optional** catch-all (`[[...catchAll]]`) is rejected by Next at startup — it collides with the root `/` page ("same specificity"). The required catch-all can't match `/`, but that's fine: the Dialog overlay blocks outside navigation while open, so every outbound soft nav originates inside the modal and has a segment.
+- `LeadDetail` takes `variant: "page" | "modal"` — in modal the header button is an X that `router.back()`s (and delete backs out instead of pushing), everything else identical. Modal shell is `lead-detail-modal.tsx`: controlled-open Dialog, `onOpenChange(false) → router.back()`, sr-only `DialogTitle` + `aria-describedby={undefined}` to keep Radix quiet, content in a `Suspense` so the dialog opens instantly with a skeleton while the server fetch streams.
+- After adding a slot, stale `.next` route types fail `pnpm typecheck` ("Property 'modal' is missing in LayoutProps") — run `pnpm exec next typegen` first.
+
 ## 2026-07-12 — Lead Outcome (Lost/Disqualified) + `msclkid` (migration 044)
 
 Marketing (Aaron) confirmed the landing's real payload and asked for a clean outcome so their close-rate math and offline-conversion uploads to Google/Microsoft Ads stay honest. Two of his three asks were **already shipped in 043** — stage timestamps (`timeline` + `?include=events`) and a queryable `gclid` — so this migration only closes the gap.

@@ -9,6 +9,8 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Copy,
   ExternalLink,
@@ -25,6 +27,7 @@ import {
   Trash2,
   User,
   UserPlus,
+  X,
   XCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -56,7 +59,11 @@ import { LeadFormDialog } from "../lead-form-dialog"
 import { STAGE_COLUMNS } from "../pipeline-kanban"
 import { updateLead, deleteLead, archiveLead, unarchiveLead, completeLead, uncompleteLead, markLeadLost, createAssemblyClientForLead, sendContractToAssembly, createLeadNote, deleteLeadNote } from "../actions"
 import { LEAD_LOST_REASONS, leadLostReasonLabel } from "@/lib/leads"
+import { cn } from "@/lib/utils"
 import type { Lead, LeadTag, LeadNote, LeadStageEvent } from "@/lib/types"
+
+// Roughly what fits in the clamped description; longer text gets a toggle.
+const DESCRIPTION_CLAMP_THRESHOLD = 280
 
 type ProfileOption = {
   id: string
@@ -102,6 +109,9 @@ type Props = {
   canControl: boolean
   notes: LeadNote[]
   stageEvents: StageEventWithProfile[]
+  // "modal" renders inside the intercepted-route Dialog: the header button
+  // closes (router.back) instead of navigating to /pipeline.
+  variant?: "page" | "modal"
 }
 
 const LEAD_SOURCE_LABELS: Record<string, string> = {
@@ -119,7 +129,8 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   c_not_a_fit: "C – Not a Fit",
 }
 
-export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canControl, notes, stageEvents }: Props) {
+export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canControl, notes, stageEvents, variant = "page" }: Props) {
+  const inModal = variant === "modal"
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -133,6 +144,11 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
   const [lostOpen, setLostOpen] = useState(false)
   const [lostReason, setLostReason] = useState<string>(LEAD_LOST_REASONS[0].value)
   const [markingLost, setMarkingLost] = useState(false)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+
+  const descriptionIsLong =
+    (lead.description?.length ?? 0) > DESCRIPTION_CLAMP_THRESHOLD ||
+    (lead.description?.split("\n").length ?? 0) > 4
 
   const leadTags = lead.lead_tag_assignments?.map((a) => a.lead_tags) ?? []
   const team = lead.lead_team_assignments ?? []
@@ -207,6 +223,8 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
     if (result.error) {
       toast.error(result.error)
       setDeleting(false)
+    } else if (inModal) {
+      router.back()
     } else {
       router.push("/pipeline")
     }
@@ -323,9 +341,15 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.push("/pipeline")}
+          onClick={() =>
+            inModal ? router.back() : router.push("/pipeline")
+          }
         >
-          <ArrowLeft className="size-4" />
+          {inModal ? (
+            <X className="size-4" />
+          ) : (
+            <ArrowLeft className="size-4" />
+          )}
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -392,14 +416,39 @@ export function LeadDetail({ lead, tags, profiles, contractTemplates = [], canCo
       {/* Main layout: Content + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Content area */}
-        <div className="flex-1 space-y-6">
+        <div className="min-w-0 flex-1 space-y-6">
           {/* Description */}
           {lead.description && (
             <div className="rounded-lg border p-4">
               <h3 className="text-sm font-semibold mb-2">Description</h3>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <p
+                className={cn(
+                  "text-sm text-muted-foreground whitespace-pre-wrap wrap-anywhere",
+                  descriptionIsLong && !descriptionExpanded && "line-clamp-4"
+                )}
+              >
                 {lead.description}
               </p>
+              {descriptionIsLong && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => setDescriptionExpanded((v) => !v)}
+                >
+                  {descriptionExpanded ? (
+                    <>
+                      <ChevronUp className="size-3.5 mr-1" />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="size-3.5 mr-1" />
+                      Show more
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
 

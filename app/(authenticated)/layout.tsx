@@ -10,8 +10,10 @@ import { buildPermissionMap } from "@/lib/permissions"
 
 export default async function AuthenticatedLayout({
   children,
+  modal,
 }: {
   children: React.ReactNode
+  modal: React.ReactNode
 }) {
   const [profile, cookieStore] = await Promise.all([getProfile(), cookies()])
 
@@ -30,6 +32,7 @@ export default async function AuthenticatedLayout({
           <SidebarInset>
             <TopBar profile={profile} permissionMap={permissionMap} />
             <main className="flex-1 p-6">{children}</main>
+            {modal}
           </SidebarInset>
         </SidebarProvider>
       </BreadcrumbProvider>
