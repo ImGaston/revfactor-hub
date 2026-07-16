@@ -53,9 +53,20 @@ import {
 import {
   addAdjustmentComment,
   createTaskFromAdjustmentComment,
+  deleteAdjustmentComment,
   toggleAdjustmentCommentReaction,
   updateAdjustmentStatus,
 } from "../actions"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { CommentActionBar } from "@/components/comments/comment-action-bar"
 import { ReactionChips } from "@/components/comments/reaction-chips"
 
@@ -92,6 +103,7 @@ export function AdjustmentDetail({
   canEdit,
   canControl,
   canCreateTask,
+  canDeleteAnyComment,
   currentUserId,
   variant = "page",
 }: {
@@ -101,6 +113,7 @@ export function AdjustmentDetail({
   canEdit: boolean
   canControl: boolean
   canCreateTask: boolean
+  canDeleteAnyComment: boolean
   currentUserId: string
   variant?: "page" | "modal"
 }) {
@@ -111,6 +124,7 @@ export function AdjustmentDetail({
   const [replyTarget, setReplyTarget] = useState<string | null>(null)
   const [replyText, setReplyText] = useState("")
   const [postingReply, setPostingReply] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<AdjustmentComment | null>(null)
 
   // Internal thread replies (parent_id set) are RLS-filtered for roles
   // without adjustments:control — this grouping only sees what the user may
@@ -188,6 +202,15 @@ export function AdjustmentDetail({
   async function copyCommentText(content: string) {
     await navigator.clipboard.writeText(content)
     toast.success("Copied")
+  }
+
+  async function confirmDeleteComment() {
+    if (!deleteTarget) return
+    const result = await deleteAdjustmentComment(deleteTarget.id)
+    if (result?.error) toast.error(result.error)
+    else toast.success("Note deleted")
+    setDeleteTarget(null)
+    router.refresh()
   }
 
   async function copyLink() {
@@ -429,6 +452,11 @@ export function AdjustmentDetail({
                       : undefined
                   }
                   onCopy={() => copyCommentText(c.content)}
+                  onDelete={
+                    canDeleteAnyComment || c.author_id === currentUserId
+                      ? () => setDeleteTarget(c)
+                      : undefined
+                  }
                 />
                 {(replies.length > 0 || replyTarget === c.id) && (
                   <div className="ml-10 space-y-2 border-l-2 border-violet-200 pl-3 dark:border-violet-900">
@@ -443,6 +471,11 @@ export function AdjustmentDetail({
                         currentUserId={currentUserId}
                         onReact={(emoji) => reactToComment(r.id, emoji)}
                         onCopy={() => copyCommentText(r.content)}
+                        onDelete={
+                          canDeleteAnyComment || r.author_id === currentUserId
+                            ? () => setDeleteTarget(r)
+                            : undefined
+                        }
                       />
                     ))}
                     {replyTarget === c.id && (
@@ -546,6 +579,26 @@ export function AdjustmentDetail({
           if (ok) setNoteStatus(null)
         }}
       />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && !deleteTarget.parent_id
+                ? "The note, its reactions, and any internal thread replies under it are deleted."
+                : "The reply and its reactions are deleted."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteComment}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -560,6 +613,7 @@ function CommentRow({
   onReply,
   onCreateTask,
   onCopy,
+  onDelete,
 }: {
   comment: AdjustmentComment
   currentUserId: string
@@ -568,6 +622,7 @@ function CommentRow({
   onReply?: () => void
   onCreateTask?: () => void
   onCopy: () => void
+  onDelete?: () => void
 }) {
   const author = comment.profiles
   const name = author?.full_name || author?.email || "Unknown"
@@ -582,6 +637,7 @@ function CommentRow({
         onReply={onReply}
         onCreateTask={onCreateTask}
         onCopy={onCopy}
+        onDelete={onDelete}
       />
       <Avatar className={compact ? "size-6" : "size-7"}>
         {author?.avatar_url && <AvatarImage src={author.avatar_url} />}

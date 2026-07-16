@@ -6,6 +6,7 @@ import {
   MessageSquareText,
   SmilePlus,
   SquareCheckBig,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,13 +26,16 @@ export function CommentActionBar({
   onReply,
   onCreateTask,
   onCopy,
+  onDelete,
 }: {
   onReact: (emoji: string) => void
   // Omit to hide the action (e.g. reply on thread replies, create-task
-  // without tasks:create, internal thread without adjustments:control)
+  // without tasks:create, internal thread without adjustments:control,
+  // delete when neither author nor resource delete-holder)
   onReply?: () => void
   onCreateTask?: () => void
   onCopy: () => void
+  onDelete?: () => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -114,6 +118,17 @@ export function CommentActionBar({
       >
         <Copy className="size-3.5" />
       </Button>
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 rounded-full text-muted-foreground hover:text-destructive"
+          onClick={onDelete}
+          title="Delete"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      )}
     </div>
   )
 }

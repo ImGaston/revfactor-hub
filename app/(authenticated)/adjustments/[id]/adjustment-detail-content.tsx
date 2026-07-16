@@ -49,6 +49,7 @@ export async function AdjustmentDetailContent({
     canEdit,
     canControl,
     canCreateTask,
+    canDeleteAnyComment,
   ] = await Promise.all([
     supabase.from("adjustments").select(DETAIL_SELECT).eq("id", id).single(),
     // RLS hides internal thread replies (parent_id set) from non-control roles.
@@ -69,6 +70,7 @@ export async function AdjustmentDetailContent({
     hasPermission("adjustments", "edit"),
     hasPermission("adjustments", "control"),
     hasPermission("tasks", "create"),
+    hasPermission("adjustments", "delete"),
   ])
 
   if (!adjustment) notFound()
@@ -81,6 +83,7 @@ export async function AdjustmentDetailContent({
       canEdit={canEdit}
       canControl={canControl}
       canCreateTask={canCreateTask}
+      canDeleteAnyComment={canDeleteAnyComment}
       currentUserId={user.id}
       variant={variant}
     />
