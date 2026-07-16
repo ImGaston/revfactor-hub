@@ -124,10 +124,14 @@ export default async function AdjustmentPage({
         )
         .eq("public_token", token)
         .single(),
+      // Top-level notes only: internal thread replies (parent_id set) belong
+      // to the internal detail view, not the shared card. profiles needs the
+      // FK hint — the reactions junction adds a second comment→profiles path.
       supabase
         .from("adjustment_comments")
-        .select("*, profiles(full_name, email, avatar_url)")
+        .select("*, profiles!adjustment_comments_author_id_fkey(full_name, email, avatar_url)")
         .eq("adjustment_id", publicAdjustment.id)
+        .is("parent_id", null)
         .order("created_at", { ascending: true }),
       hasPermission("adjustments", "edit"),
       hasPermission("adjustments", "control"),

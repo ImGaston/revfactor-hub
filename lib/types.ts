@@ -115,6 +115,8 @@ export type TaskComment = {
   task_id: string
   author_id: string
   content: string
+  parent_id: string | null
+  linked_task_id: string | null
   created_at: string
   updated_at: string
   profiles?: {
@@ -122,6 +124,7 @@ export type TaskComment = {
     email: string
     avatar_url: string | null
   } | null
+  task_comment_reactions?: { emoji: string; user_id: string }[]
 }
 
 type ProfileRef = { full_name: string | null; email: string }
@@ -706,6 +709,7 @@ export type AdjustmentType =
   | "markup_fees"
   | "availability"
   | "review"
+  | "recommendation"
   | "other"
 
 export type AdjustmentOrigin = "client" | "internal" | "hostpricing"
@@ -713,6 +717,7 @@ export type AdjustmentOrigin = "client" | "internal" | "hostpricing"
 export type AdjustmentStatus =
   | "open"
   | "in_progress"
+  | "needs_info"
   | "resolved"
   | "controlled"
   | "issue"
@@ -756,6 +761,20 @@ export type Adjustment = {
   } | null
   resolver?: { full_name: string | null; email: string } | null
   reviewer?: { full_name: string | null; email: string } | null
+  creator?: { full_name: string | null; email: string } | null
+  // Merged from the adjustment_comment_stats view on the list page
+  comment_stats?: Pick<
+    AdjustmentCommentStats,
+    "comment_count" | "last_comment_origin"
+  > | null
+}
+
+export type AdjustmentCommentOrigin = "internal" | "hostpricing" | "client"
+
+// Embedded reaction row shape (adjustment_comment_reactions / task_comment_reactions)
+export type CommentReaction = {
+  emoji: string
+  user_id: string
 }
 
 export type AdjustmentComment = {
@@ -763,9 +782,38 @@ export type AdjustmentComment = {
   adjustment_id: string
   author_id: string
   content: string
+  origin: AdjustmentCommentOrigin
+  // Non-null = internal thread reply (visible only with adjustments:control)
+  parent_id: string | null
+  linked_task_id: string | null
   created_at: string
   updated_at: string
   profiles?: {
+    full_name: string | null
+    email: string
+    avatar_url: string | null
+  } | null
+  adjustment_comment_reactions?: CommentReaction[]
+}
+
+// Row of the `adjustment_comment_stats` view — the needs-reply flag is
+// derived (last_comment_origin !== "internal"), never stored.
+export type AdjustmentCommentStats = {
+  adjustment_id: string
+  comment_count: number
+  last_comment_origin: AdjustmentCommentOrigin
+  last_comment_at: string
+}
+
+export type AdjustmentStatusHistoryEntry = {
+  id: string
+  adjustment_id: string
+  from_status: AdjustmentStatus
+  to_status: AdjustmentStatus
+  changed_by: string | null
+  note: string | null
+  created_at: string
+  changed_by_profile?: {
     full_name: string | null
     email: string
     avatar_url: string | null

@@ -1,6 +1,8 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { hasPermission } from "@/lib/permissions.server"
 import { revalidatePath } from "next/cache"
 
 export async function createTask(formData: FormData) {
@@ -144,9 +146,13 @@ export async function unarchiveTask(taskId: string) {
 
 export async function listTaskComments(taskId: string) {
   const supabase = await createClient()
+  // profiles needs the FK hint: the reactions junction adds a second
+  // comment→profiles path and PostgREST would 300 on the bare embed
   const { data, error } = await supabase
     .from("task_comments")
-    .select("*, profiles(full_name, email, avatar_url)")
+    .select(
+      "*, profiles!task_comments_author_id_fkey(full_name, email, avatar_url), task_comment_reactions(emoji, user_id)"
+    )
     .eq("task_id", taskId)
     .order("created_at", { ascending: true })
 
@@ -154,7 +160,11 @@ export async function listTaskComments(taskId: string) {
   return { comments: data ?? [] }
 }
 
-export async function createTaskComment(taskId: string, content: string) {
+export async function createTaskComment(
+  taskId: string,
+  content: string,
+  parentId?: string | null
+) {
   const trimmed = content.trim()
   if (!trimmed) return { error: "Comment is empty" }
 
@@ -168,11 +178,96 @@ export async function createTaskComment(taskId: string, content: string) {
     task_id: taskId,
     author_id: user.id,
     content: trimmed,
+    parent_id: parentId ?? null,
   })
 
   if (error) return { error: error.message }
   revalidatePath("/tasks")
   return { success: true }
+}
+
+export async function toggleTaskCommentReaction(commentId: string, emoji: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: removed, error: deleteError } = await supabase
+    .from("task_comment_reactions")
+    .delete()
+    .eq("comment_id", commentId)
+    .eq("user_id", user.id)
+    .eq("emoji", emoji)
+    .select("emoji")
+
+  if (deleteError) return { error: deleteError.message }
+
+  if (!removed || removed.length === 0) {
+    const { error } = await supabase.from("task_comment_reactions").insert({
+      comment_id: commentId,
+      user_id: user.id,
+      emoji,
+    })
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath("/tasks")
+  return { success: true }
+}
+
+// "Create task" on a task comment: spins the comment off into its own task
+// and links it back via linked_task_id.
+export async function createTaskFromTaskComment(commentId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+  if (!(await hasPermission("tasks", "create")))
+    return { error: "You don't have permission to create tasks" }
+
+  // tasks needs the FK hint: task_comments now has two FKs to tasks
+  // (task_id and linked_task_id)
+  const { data: comment, error: fetchError } = await supabase
+    .from("task_comments")
+    .select("id, content, linked_task_id, tasks!task_comments_task_id_fkey(id, title, client_id)")
+    .eq("id", commentId)
+    .single()
+
+  if (fetchError || !comment) return { error: fetchError?.message ?? "Comment not found" }
+  if (comment.linked_task_id) return { error: "This comment already has a task" }
+
+  const sourceTask = Array.isArray(comment.tasks) ? comment.tasks[0] : comment.tasks
+  const title =
+    comment.content.length > 80 ? `${comment.content.slice(0, 80)}…` : comment.content
+
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .insert({
+      title,
+      description: `${comment.content}\n\nFrom a comment on task: ${sourceTask?.title ?? "unknown"}`,
+      client_id: sourceTask?.client_id ?? null,
+      status: "todo",
+      sort_order: 0,
+      tags: [],
+    })
+    .select("id")
+    .single()
+
+  if (error) return { error: error.message }
+
+  // linked_task_id is set with the admin client: the comment UPDATE policy is
+  // author-only, but any task creator may link a task to someone else's comment.
+  // Guarded by the tasks:create check above.
+  const { error: linkError } = await createAdminClient()
+    .from("task_comments")
+    .update({ linked_task_id: task.id })
+    .eq("id", commentId)
+  if (linkError) return { error: linkError.message }
+
+  revalidatePath("/tasks")
+  return { success: true, taskId: task.id }
 }
 
 export async function deleteTaskComment(commentId: string) {

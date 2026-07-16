@@ -2,6 +2,21 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-16 — Comment hover action bar: reactions, internal threads, create-task, copy
+
+- Migration 046 (applied): `parent_id` + `linked_task_id` on `adjustment_comments`/`task_comments`, reaction tables (`adjustment_comment_reactions`, `task_comment_reactions`), internal-thread RLS gate (`adjustments:control`) on adjustment comment replies, stats view now top-level-only.
+- Shared UI: `components/comments/comment-action-bar.tsx` (hover bar: 5 quick emojis 👍😀❤️😮🎉, curated picker popover, reply/create-task/copy) + `reaction-chips.tsx` + `emoji.ts`. Integrated into the adjustment detail Notes and `tasks/task-comments.tsx`; `/a/<token>` card stays flat (top-level only).
+- New actions: `toggleAdjustmentCommentReaction`, `createTaskFromAdjustmentComment` (inherits client/listing, links back via admin client after `tasks:create` check), `toggleTaskCommentReaction`, `createTaskFromTaskComment`; `addAdjustmentComment`/`createTaskComment` accept `parentId`. needs_info auto-reopen skips thread replies.
+- Verified: typecheck + build green; rollback SQL smoke tests (reactions insert, stats view excludes replies, contractor session sees 0 internal replies via RLS).
+
+## 2026-07-16 — Adjustments: internal detail modal, comment indicators, hostpricing role, needs_info, "Waiting on us"
+
+- Migration 045 (applied): `adjustment_comments.origin`, `needs_info` status + `recommendation` type in the CHECKs, append-only `adjustment_status_history` (permission-based RLS), `adjustment_comment_stats` view (security_invoker), `hostpricing` role (adjustments view/create/edit only).
+- Rows on `/adjustments` now open an internal detail modal (`/adjustments/[id]` + `@modal/(.)adjustments/[id]`, pipeline pattern): all fields, origin-styled comments, status-history timeline, transition buttons incl. "Needs info". Public `/a/<token>` untouched as the sharing surface (its authed core gained minimal needs_info buttons).
+- Row indicators: comment count (muted) or amber "needs reply" when the last comment is external; new "Waiting on us" queue section rendered first (needs_info ∪ unanswered external comment). Triage now excludes `needs_info`.
+- Badge class maps (`STATUS_BADGE`/`URGENCY_BADGE`/`ORIGIN_BADGE`) centralized in `lib/adjustments.ts` (were duplicated in 3 files).
+- Verified: typecheck + production build green, public shell renders logged-out, schema smoke-tested via rollback transaction, security advisors show nothing new.
+
 ## 2026-07-13 — Pipeline lead detail as intercepted-route modal
 
 - Lead clicks from kanban/table/completed now open the detail in a Dialog while `/pipeline/<id>` keeps working as a direct URL (paste/refresh/share → full page). First parallel/intercepting routes in the app: `@modal` slot in the authenticated layout + `@modal/(.)pipeline/[id]`; call sites unchanged (`router.push` gets intercepted).

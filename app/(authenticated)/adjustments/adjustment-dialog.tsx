@@ -44,21 +44,26 @@ export function AdjustmentDialog({
   whatsappInviteUrl,
   defaultClientId,
   adjustment,
+  lockOriginToHostpricing = false,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   whatsappInviteUrl: string | null
   defaultClientId?: string
   adjustment?: Adjustment | null
+  // HostPricing users always file as hostpricing — the server enforces this
+  // too; hiding the select just keeps the form honest
+  lockOriginToHostpricing?: boolean
 }) {
   const [clients, setClients] = useState<ClientOption[] | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const defaultOrigin = lockOriginToHostpricing ? "hostpricing" : "internal"
   const [clientId, setClientId] = useState(defaultClientId ?? "")
   const [scope, setScope] = useState("single_listing")
   const [listingId, setListingId] = useState("")
   const [adjustmentType, setAdjustmentType] = useState("")
-  const [origin, setOrigin] = useState("internal")
+  const [origin, setOrigin] = useState(defaultOrigin)
   const [targetValue, setTargetValue] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
@@ -122,7 +127,7 @@ export function AdjustmentDialog({
     setScope("single_listing")
     setListingId("")
     setAdjustmentType("")
-    setOrigin("internal")
+    setOrigin(defaultOrigin)
     setTargetValue("")
     setDateFrom("")
     setDateTo("")
@@ -284,18 +289,24 @@ export function AdjustmentDialog({
             </div>
             <div className="grid gap-1.5">
               <Label>Origin</Label>
-              <Select value={origin} onValueChange={setOrigin}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ADJUSTMENT_ORIGINS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {lockOriginToHostpricing ? (
+                <p className="flex h-9 items-center text-sm text-muted-foreground">
+                  HostPricing
+                </p>
+              ) : (
+                <Select value={origin} onValueChange={setOrigin}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ADJUSTMENT_ORIGINS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

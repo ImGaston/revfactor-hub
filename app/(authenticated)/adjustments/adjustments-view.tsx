@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   AlertTriangle,
@@ -11,6 +11,8 @@ import {
   ClipboardCopy,
   Copy,
   ExternalLink,
+  MessageCircleWarning,
+  MessageSquare,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -67,8 +69,11 @@ import {
   ADJUSTMENT_STATUSES,
   NOTE_REQUIRED_STATUSES,
   OPEN_STATUSES,
+  ORIGIN_BADGE,
   SETUP_CONTROL_CHECKLIST,
   STALE_HIGH_URGENCY_DAYS,
+  STATUS_BADGE,
+  URGENCY_BADGE,
   adjustmentOriginLabel,
   adjustmentShareUrl,
   adjustmentStatusLabel,
@@ -76,6 +81,7 @@ import {
   adjustmentSummary,
   adjustmentTypeLabel,
   buildWhatsappUpdate,
+  hasUnansweredExternalComment,
   isEscalated,
   pricelabsUrl,
 } from "@/lib/adjustments"
@@ -87,27 +93,6 @@ import {
 import { AdjustmentDialog } from "./adjustment-dialog"
 
 const URGENCY_WEIGHT: Record<string, number> = { high: 0, medium: 1, low: 2 }
-
-const URGENCY_BADGE: Record<string, string> = {
-  high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-  medium: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  low: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-}
-
-// Only non-internal origins get a badge — internal is the default and would be noise
-const ORIGIN_BADGE: Record<string, string> = {
-  client: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  hostpricing: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-}
-
-const STATUS_BADGE: Record<string, string> = {
-  open: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  in_progress: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
-  resolved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-  controlled: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  issue: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-  rejected: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
-}
 
 function ageInDays(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000)
@@ -125,12 +110,14 @@ export function AdjustmentsView({
   canControl,
   canCreate,
   canEdit,
+  isHostpricing,
   whatsappInviteUrl,
 }: {
   adjustments: Adjustment[]
   canControl: boolean
   canCreate: boolean
   canEdit: boolean
+  isHostpricing: boolean
   whatsappInviteUrl: string | null
 }) {
   const [createOpen, setCreateOpen] = useState(false)
@@ -152,26 +139,38 @@ export function AdjustmentsView({
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [adjustments])
 
-  const { triage, awaitingControl, closed } = useMemo(() => {
+  const { waitingOnUs, triage, awaitingControl, closed } = useMemo(() => {
     const visible =
       clientFilter === "all"
         ? adjustments
         : adjustments.filter((a) => a.client_id === clientFilter)
-    const triage = visible
-      .filter((a) => OPEN_STATUSES.includes(a.status))
-      .sort(
-        (a, b) =>
-          URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
-          Number(isEscalated(b)) - Number(isEscalated(a)) ||
-          a.created_at.localeCompare(b.created_at)
+    const byUrgencyThenAge = (a: Adjustment, b: Adjustment) =>
+      URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
+      Number(isEscalated(b)) - Number(isEscalated(a)) ||
+      a.created_at.localeCompare(b.created_at)
+    // The internal bottleneck: blocked on info from us, or the last word on
+    // the ticket came from outside. Rendered first so it can't be missed.
+    const waitingOnUs = visible
+      .filter(
+        (a) =>
+          a.status === "needs_info" ||
+          (a.status !== "controlled" &&
+            a.status !== "rejected" &&
+            hasUnansweredExternalComment(a.comment_stats))
       )
+      .sort(byUrgencyThenAge)
+    // needs_info rows live only in "Waiting on us"; unanswered-comment rows
+    // stay in their status queue too — the flag is an overlay, not a status
+    const triage = visible
+      .filter((a) => OPEN_STATUSES.includes(a.status) && a.status !== "needs_info")
+      .sort(byUrgencyThenAge)
     const awaitingControl = visible
       .filter((a) => a.status === "resolved")
       .sort((a, b) => (a.resolved_at ?? "").localeCompare(b.resolved_at ?? ""))
     const closed = visible
       .filter((a) => a.status === "controlled" || a.status === "rejected")
       .slice(0, 20)
-    return { triage, awaitingControl, closed }
+    return { waitingOnUs, triage, awaitingControl, closed }
   }, [adjustments, clientFilter])
 
   async function copyLink(adjustment: Adjustment) {
@@ -242,6 +241,23 @@ export function AdjustmentsView({
         </div>
       </div>
 
+      {waitingOnUs.length > 0 && (
+        <QueueSection
+          title="Waiting on us"
+          description="Blocked on the internal team — needs info or an unanswered external comment."
+          adjustments={waitingOnUs}
+          emptyLabel="Nothing waiting on us"
+          canControl={canControl}
+          canEdit={canEdit}
+          onCopyLink={copyLink}
+          onStatusChange={handleStatusChange}
+          onEdit={setEditTarget}
+          onDuplicate={handleDuplicate}
+          onDelete={setDeleteTarget}
+          onCopyUpdate={copyUpdate}
+        />
+      )}
+
       <QueueSection
         title="Triage"
         description="Open requests, highest urgency and oldest first."
@@ -294,6 +310,7 @@ export function AdjustmentsView({
         open={createOpen}
         onOpenChange={setCreateOpen}
         whatsappInviteUrl={whatsappInviteUrl}
+        lockOriginToHostpricing={isHostpricing}
       />
 
       <AdjustmentDialog
@@ -301,6 +318,7 @@ export function AdjustmentsView({
         onOpenChange={(open) => !open && setEditTarget(null)}
         whatsappInviteUrl={whatsappInviteUrl}
         adjustment={editTarget}
+        lockOriginToHostpricing={isHostpricing}
       />
 
       <StatusNoteDialog
@@ -363,6 +381,7 @@ function QueueSection({
   showControlActions?: boolean
   collapsedLimit?: number
 }) {
+  const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const collapsed = collapsedLimit !== undefined && !expanded
   const visible = collapsed ? adjustments.slice(0, collapsedLimit) : adjustments
@@ -399,16 +418,34 @@ function QueueSection({
                   flagStale &&
                   adjustment.urgency === "high" &&
                   ageInDays(adjustment.created_at) >= STALE_HIGH_URGENCY_DAYS
+                const needsReply = hasUnansweredExternalComment(adjustment.comment_stats)
                 return (
-                  <TableRow key={adjustment.id} className={stale ? "bg-red-50 dark:bg-red-950/30" : undefined}>
+                  <TableRow
+                    key={adjustment.id}
+                    onClick={() => router.push(`/adjustments/${adjustment.id}`)}
+                    className={`cursor-pointer ${stale ? "bg-red-50 dark:bg-red-950/30" : ""}`}
+                  >
                     <TableCell>
-                      <Link
-                        href={`/a/${adjustment.public_token}`}
-                        className="font-medium hover:underline"
-                      >
+                      <span className="font-medium">
                         {adjustmentTypeLabel(adjustment.type)}
                         {adjustment.target_value ? ` ${adjustment.target_value}` : ""}
-                      </Link>
+                      </span>
+                      {(adjustment.comment_stats?.comment_count ?? 0) > 0 &&
+                        (needsReply ? (
+                          <span
+                            title="Awaiting internal reply"
+                            className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400"
+                          >
+                            <MessageCircleWarning className="size-3" />
+                            {adjustment.comment_stats!.comment_count}
+                            <span>needs reply</span>
+                          </span>
+                        ) : (
+                          <span className="ml-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <MessageSquare className="size-3" />
+                            {adjustment.comment_stats!.comment_count}
+                          </span>
+                        ))}
                       {stale && (
                         <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
                           <AlertTriangle className="size-3" />
@@ -455,7 +492,7 @@ function QueueSection({
                       {ageLabel(adjustment.created_at)}
                     </TableCell>
                     {showControlActions && (
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
                           {adjustment.listings &&
                             pricelabsUrl(adjustment.listings) && (
@@ -482,7 +519,7 @@ function QueueSection({
                         </div>
                       </TableCell>
                     )}
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="size-8">
@@ -607,28 +644,33 @@ function StatusNoteDialog({
     onClose()
   }
 
+  const title =
+    target?.status === "needs_info"
+      ? "Needs info from the internal team"
+      : target?.status === "rejected"
+        ? target.adjustment.origin === "hostpricing" &&
+          target.adjustment.status === "open"
+          ? "Deny proposal"
+          : "Reject adjustment"
+        : "Mark as issue"
+  const description =
+    target?.status === "needs_info"
+      ? "What information do you need? The question is posted as a note and the ticket reopens when an internal user replies."
+      : target?.status === "rejected"
+        ? "Why is this request not being done? The reason is kept as a note for the client-facing trail."
+        : "What is blocking this adjustment? A note is required so it doesn't become a dead end."
+
   return (
     <Dialog open={!!target} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {target?.status !== "rejected"
-              ? "Mark as issue"
-              : target.adjustment.origin === "hostpricing" &&
-                  target.adjustment.status === "open"
-                ? "Deny proposal"
-                : "Reject adjustment"}
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          {target?.status === "rejected"
-            ? "Why is this request not being done? The reason is kept as a note for the client-facing trail."
-            : "What is blocking this adjustment? A note is required so it doesn't become a dead end."}
-        </p>
+        <p className="text-sm text-muted-foreground">{description}</p>
         <Textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Reason…"
+          placeholder={target?.status === "needs_info" ? "What's missing…" : "Reason…"}
           rows={3}
         />
         <DialogFooter>

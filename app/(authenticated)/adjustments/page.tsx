@@ -20,25 +20,42 @@ export default async function AdjustmentsPage() {
   if (!canView) redirect("/")
 
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const [{ data: adjustments }, canControl, canCreate, canEdit] =
+  const [{ data: adjustments }, { data: commentStats }, { data: profile }, canControl, canCreate, canEdit] =
     await Promise.all([
       supabase
         .from("adjustments")
         .select(ADJUSTMENT_SELECT)
         .order("created_at", { ascending: false })
         .limit(500),
+      // Flat query merged in code — PostgREST embedding of GROUP BY views is fragile
+      supabase
+        .from("adjustment_comment_stats")
+        .select("adjustment_id, comment_count, last_comment_origin"),
+      supabase.from("profiles").select("role").eq("id", user?.id ?? "").single(),
       hasPermission("adjustments", "control"),
       hasPermission("adjustments", "create"),
       hasPermission("adjustments", "edit"),
     ])
 
+  const statsById = new Map(
+    (commentStats ?? []).map((s) => [s.adjustment_id as string, s])
+  )
+  const withStats = (adjustments ?? []).map((a) => ({
+    ...a,
+    comment_stats: statsById.get(a.id) ?? null,
+  }))
+
   return (
     <AdjustmentsView
-      adjustments={(adjustments ?? []) as unknown as Adjustment[]}
+      adjustments={withStats as unknown as Adjustment[]}
       canControl={canControl}
       canCreate={canCreate}
       canEdit={canEdit}
+      isHostpricing={profile?.role === "hostpricing"}
       whatsappInviteUrl={process.env.WHATSAPP_GROUP_INVITE_URL ?? null}
     />
   )

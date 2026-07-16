@@ -20,6 +20,7 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
   { value: "markup_fees", label: "Markup / Fees" },
   { value: "availability", label: "Availability" },
   { value: "review", label: "Review / Underperformance" },
+  { value: "recommendation", label: "Recommendation" },
   { value: "other", label: "Other" },
 ]
 
@@ -32,6 +33,7 @@ export const ADJUSTMENT_ORIGINS: { value: AdjustmentOrigin; label: string }[] = 
 export const ADJUSTMENT_STATUSES: { value: AdjustmentStatus; label: string }[] = [
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
+  { value: "needs_info", label: "Needs Info" },
   { value: "resolved", label: "Resolved" },
   { value: "controlled", label: "Done" },
   { value: "issue", label: "Issue" },
@@ -75,6 +77,29 @@ export function isEscalated(
   adjustment: Pick<Adjustment, "urgency" | "origin">
 ): boolean {
   return adjustment.urgency === "high" && adjustment.origin === "client"
+}
+
+// Badge classes shared by every adjustments surface (list, detail, public card)
+export const URGENCY_BADGE: Record<string, string> = {
+  high: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  low: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+}
+
+// Only non-internal origins get a badge — internal is the default and would be noise
+export const ORIGIN_BADGE: Record<string, string> = {
+  client: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  hostpricing: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+}
+
+export const STATUS_BADGE: Record<string, string> = {
+  open: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  in_progress: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  needs_info: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+  resolved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  controlled: "bg-emerald-200 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  issue: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+  rejected: "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 }
 
 // Static reviewer hint for the setup resolved -> controlled step (not persisted)
@@ -186,6 +211,16 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsBookingWindow: true,
     targetPlaceholder: "expected outcome (optional)",
   },
+  // Strategic pricing suggestion (e.g. composite listing setup, splitting a
+  // large listing) — discussed internally before execution, so nothing is required
+  recommendation: {
+    showsTarget: true,
+    requiresTarget: false,
+    showsDates: true,
+    requiresDateFrom: false,
+    showsBookingWindow: false,
+    targetPlaceholder: "suggested change (optional)",
+  },
   other: {
     showsTarget: true,
     requiresTarget: false,
@@ -266,10 +301,28 @@ export function validateAdjustmentInput(
 }
 
 // Statuses that require a note explaining the transition
-export const NOTE_REQUIRED_STATUSES: AdjustmentStatus[] = ["issue", "rejected"]
+export const NOTE_REQUIRED_STATUSES: AdjustmentStatus[] = [
+  "issue",
+  "rejected",
+  "needs_info",
+]
 
-// Open (not yet closed) statuses for the triage queue
-export const OPEN_STATUSES: AdjustmentStatus[] = ["open", "in_progress", "issue"]
+// Open (not yet closed) statuses — gates editability; the Triage queue
+// additionally excludes needs_info so those rows live in "Waiting on us"
+export const OPEN_STATUSES: AdjustmentStatus[] = [
+  "open",
+  "in_progress",
+  "issue",
+  "needs_info",
+]
+
+// Needs an internal reply: the conversation's last word came from outside.
+// Derived from the adjustment_comment_stats view — never stored.
+export function hasUnansweredExternalComment(
+  stats?: { last_comment_origin: string } | null
+): boolean {
+  return !!stats && stats.last_comment_origin !== "internal"
+}
 
 // An open high-urgency adjustment older than this gets flagged in the queue
 export const STALE_HIGH_URGENCY_DAYS = 2
