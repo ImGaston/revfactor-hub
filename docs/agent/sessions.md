@@ -2,6 +2,20 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-21 — Client churn tracking: reason tags/note, auto ending_date, LTV (super_admin only)
+
+- Migration 048 (applied): `clients.ending_reason_tags TEXT[] NOT NULL DEFAULT '{}'` + `clients.ending_note TEXT`; no RLS change (app-layer super_admin gating like `billing_amount`); `clients_basic` verified untouched.
+- `ClientDialog`: selecting status Inactive prefills `ending_date` with today (editable) and reveals a super_admin-only churn section (clickable reason badges from `CLIENT_CHURN_REASONS` in new `lib/clients.ts` + note textarea); non-super_admin submits omit the keys so saves never wipe values. `updateClientAction`: strips churn fields for non-super_admin, auto-sets `ending_date` when inactive, and clears `ending_date`/tags/note **only on the inactive→active transition** (ending_date doubles as planned contract end for active clients — must survive normal edits).
+- New `lib/client-lifetime-value.ts` `getClientLifetimeValue()`: paid `stripe_invoices.amount_paid` summed per client via `client_stripe_customers` (mirrors `getClientStripeBilling` shape).
+- Financials gained a **Churned** tab (`churned-clients-section.tsx`): per churned client onboarded/ended dates, tenure, LTV, reason badges + note tooltip, with count/total-LTV/avg-tenure header. Client detail shows a Churn InfoRow (super_admin, inactive only). Leak prevention: `[id]/page.tsx` + `settings/clients/page.tsx` null the fields for non-super_admin; CSV export includes churn columns super_admin-only; `/clients` list never selects them.
+- Verified: typecheck green; browser flow (mark inactive → tags/note/date persist, Churned tab, reactivation clears churn data).
+
+## 2026-07-17 — Fix production Stripe sync: 5-level expand aborted all mirroring
+
+- Commit 1217706 (entitlements) added `expand: ["data.items.data.price.product"]` to `subscriptions.list` in `lib/stripe-sync.ts`; Stripe caps expand at 4 levels (the list `data.` prefix counts), so every sync failed with "You cannot expand more than 4 levels of a property" and nothing (subs/invoices/payouts) mirrored — pending payments (e.g. realtor@leannesutton.com, oliviatati.re@gmail.com) missing from the hub.
+- Fix: expand only `data.customer`; collect unique product ids from item prices, fetch via `products.list({ ids })` (chunks of 100), stitch `Stripe.Product` objects into `sub.items.data[].price.product` before the subs upsert + entitlement detection. `plan_name` keeps its pre-entitlements behavior (nickname ?? product id).
+- Verified: typecheck green; ran the sync once locally against production (134 subs, 725 invoices, 185 payouts, 0 errors); both clients' open invoices and past_due subs now mirrored with fresh `synced_at`.
+
 ## 2026-07-16 — Comment hover action bar: reactions, internal threads, create-task, copy
 
 - Migration 046 (applied): `parent_id` + `linked_task_id` on `adjustment_comments`/`task_comments`, reaction tables (`adjustment_comment_reactions`, `task_comment_reactions`), internal-thread RLS gate (`adjustments:control`) on adjustment comment replies, stats view now top-level-only.

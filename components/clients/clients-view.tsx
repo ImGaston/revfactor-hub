@@ -43,7 +43,9 @@ export function ClientsView({
         "assembly_link",
         "listing_count",
         "open_task_count",
-        ...(isSuperAdmin ? ["billing_amount"] : []),
+        ...(isSuperAdmin
+          ? ["billing_amount", "churn_reasons", "churn_note"]
+          : []),
       ]
       const rows = data.map((c) => [
         escapeCSV(c.name),
@@ -56,7 +58,13 @@ export function ClientsView({
         escapeCSV(c.assembly_link),
         escapeCSV(c.listing_count),
         escapeCSV(c.open_task_count),
-        ...(isSuperAdmin ? [escapeCSV(c.billing_amount)] : []),
+        ...(isSuperAdmin
+          ? [
+              escapeCSV(c.billing_amount),
+              escapeCSV(c.ending_reason_tags),
+              escapeCSV(c.ending_note),
+            ]
+          : []),
       ])
       downloadCSV(rows, headers, `clients-${new Date().toISOString().slice(0, 10)}.csv`)
     } catch {

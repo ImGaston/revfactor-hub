@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/supabase/profile"
 import {
   isAssemblyConfigured,
   searchAssemblyClientByEmail,
@@ -19,6 +20,8 @@ type ClientInput = {
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
+  ending_reason_tags?: string[]
+  ending_note?: string | null
 }
 
 export async function createClientAction(input: ClientInput) {
@@ -32,6 +35,34 @@ export async function createClientAction(input: ClientInput) {
 
 export async function updateClientAction(id: string, input: ClientInput) {
   const supabase = await createClient()
+
+  // Churn fields are super_admin-only: never trust them from other roles.
+  const profile = await getProfile()
+  if (profile?.role !== "super_admin") {
+    delete input.ending_reason_tags
+    delete input.ending_note
+  }
+
+  if (input.status === "inactive") {
+    if (!input.ending_date) {
+      input.ending_date = new Date().toISOString().split("T")[0]
+    }
+  } else {
+    const { data: current } = await supabase
+      .from("clients")
+      .select("status")
+      .eq("id", id)
+      .single()
+    // Reactivated clients are no longer churned — clear churn data for any role.
+    // Only on the inactive → active/onboarding transition: ending_date doubles as
+    // the planned contract end for active clients and must survive normal edits.
+    if (current?.status === "inactive") {
+      input.ending_date = null
+      input.ending_reason_tags = []
+      input.ending_note = null
+    }
+  }
+
   const { error } = await supabase.from("clients").update(input).eq("id", id)
   if (error) return { error: error.message }
 

@@ -49,6 +49,8 @@ type SettingsClient = {
   assembly_company_id: string | null
   onboarding_date: string | null
   ending_date: string | null
+  ending_reason_tags: string[] | null
+  ending_note: string | null
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null

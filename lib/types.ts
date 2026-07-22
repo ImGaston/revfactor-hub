@@ -61,6 +61,8 @@ export type Client = {
   billing_amount: number | null
   onboarding_date: string | null
   ending_date: string | null
+  ending_reason_tags: string[]
+  ending_note: string | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
   email: string | null

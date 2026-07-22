@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
 import { isStripeConfigured } from "@/lib/stripe"
 import { isAssemblyConfigured } from "@/lib/assembly"
+import { getClientLifetimeValue } from "@/lib/client-lifetime-value"
 import { FinancialsView } from "./financials-view"
 import type { StripeSubscriptionSummary } from "@/lib/stripe"
 
@@ -74,6 +75,8 @@ export default async function FinancialsPage() {
     bankTransactionsResult,
     unpaidInvoicesResult,
     dismissedIssuesResult,
+    churnedClientsResult,
+    lifetimeValueByClient,
   ] = await Promise.all([
     supabase
       .from("expenses")
@@ -144,11 +147,28 @@ export default async function FinancialsPage() {
       .in("status", ["open", "uncollectible"])
       .order("created", { ascending: false }),
     supabase.from("dismissed_payment_issues").select("invoice_id"),
+    supabase
+      .from("clients")
+      .select(
+        "id, name, onboarding_date, ending_date, ending_reason_tags, ending_note"
+      )
+      .eq("status", "inactive")
+      .order("ending_date", { ascending: false, nullsFirst: false }),
+    getClientLifetimeValue(supabase),
   ])
 
   const subscriptions = (mirrorSubsResult.data ?? []).map((r) =>
     rowToSubscription(r as StripeSubscriptionRow)
   )
+  const churnedClients = (churnedClientsResult.data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    onboarding_date: c.onboarding_date as string | null,
+    ending_date: c.ending_date as string | null,
+    ending_reason_tags: (c.ending_reason_tags ?? []) as string[],
+    ending_note: c.ending_note as string | null,
+    ltv: lifetimeValueByClient.get(c.id as string) ?? null,
+  }))
   return (
     <FinancialsView
       stripeConfigured={stripeConfigured}
@@ -182,6 +202,7 @@ export default async function FinancialsPage() {
       dismissedInvoiceIds={
         (dismissedIssuesResult.data ?? []).map((r) => r.invoice_id as string)
       }
+      churnedClients={churnedClients}
     />
   )
 }

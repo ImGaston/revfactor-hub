@@ -20,6 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { CLIENT_CHURN_REASONS } from "@/lib/clients"
 import { createClientAction, updateClientAction } from "./actions"
 
 type ClientFormData = {
@@ -33,6 +36,8 @@ type ClientFormData = {
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
+  ending_reason_tags?: string[] | null
+  ending_note?: string | null
 }
 
 const EMPTY: ClientFormData = {
@@ -45,6 +50,8 @@ const EMPTY: ClientFormData = {
   billing_amount: null,
   autopayment_set_up: false,
   stripe_dashboard: null,
+  ending_reason_tags: [],
+  ending_note: null,
 }
 
 export function ClientDialog({
@@ -84,6 +91,14 @@ export function ClientDialog({
       billing_amount: form.billing_amount,
       autopayment_set_up: form.autopayment_set_up,
       stripe_dashboard: form.stripe_dashboard?.trim() || null,
+      // Only super_admin sees/edits churn fields; omit the keys otherwise so
+      // a non-super_admin save never wipes existing values.
+      ...(isSuperAdmin
+        ? {
+            ending_reason_tags: form.ending_reason_tags ?? [],
+            ending_note: form.ending_note?.trim() || null,
+          }
+        : {}),
     }
 
     const result = isEdit
@@ -131,7 +146,20 @@ export function ClientDialog({
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={form.status} onValueChange={(v) => set("status", v)}>
+              <Select
+                value={form.status}
+                onValueChange={(v) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    status: v,
+                    // Marking inactive: default the ending date to today (editable).
+                    ending_date:
+                      v === "inactive" && !prev.ending_date
+                        ? new Date().toISOString().split("T")[0]
+                        : prev.ending_date,
+                  }))
+                }}
+              >
                 <SelectTrigger id="status">
                   <SelectValue />
                 </SelectTrigger>
@@ -162,6 +190,50 @@ export function ClientDialog({
                 onChange={(e) => set("ending_date", e.target.value || null)}
               />
             </div>
+
+            {isSuperAdmin && form.status === "inactive" && (
+              <>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Churn Reason</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {CLIENT_CHURN_REASONS.map((reason) => {
+                      const selected =
+                        form.ending_reason_tags?.includes(reason.value) ?? false
+                      return (
+                        <Badge
+                          key={reason.value}
+                          variant={selected ? "default" : "outline"}
+                          className="cursor-pointer select-none"
+                          onClick={() =>
+                            set(
+                              "ending_reason_tags",
+                              selected
+                                ? (form.ending_reason_tags ?? []).filter(
+                                    (t) => t !== reason.value
+                                  )
+                                : [...(form.ending_reason_tags ?? []), reason.value]
+                            )
+                          }
+                        >
+                          {reason.label}
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="ending_note">Churn Note</Label>
+                  <Textarea
+                    id="ending_note"
+                    value={form.ending_note ?? ""}
+                    onChange={(e) => set("ending_note", e.target.value || null)}
+                    placeholder="Optional context about why the client left..."
+                    rows={3}
+                  />
+                </div>
+              </>
+            )}
 
             {isSuperAdmin && (
               <>

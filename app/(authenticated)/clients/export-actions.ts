@@ -14,6 +14,8 @@ export type ClientExportRow = {
   assembly_client_id: string | null
   assembly_link: string | null
   billing_amount: number | null
+  ending_reason_tags: string | null
+  ending_note: string | null
   listing_count: number
   open_task_count: number
 }
@@ -29,7 +31,7 @@ export async function getClientsExportData(
     supabase
       .from("clients")
       .select(
-        "id, name, email, status, onboarding_date, ending_date, contract_term, assembly_client_id, assembly_link, listings(id, status), tasks(id, status)"
+        "id, name, email, status, onboarding_date, ending_date, ending_reason_tags, ending_note, contract_term, assembly_client_id, assembly_link, listings(id, status), tasks(id, status)"
       )
       .in("id", clientIds)
       .order("name"),
@@ -50,6 +52,11 @@ export async function getClientsExportData(
     assembly_client_id: c.assembly_client_id,
     assembly_link: c.assembly_link,
     billing_amount: isSuperAdmin ? (billingByClient.get(c.id) ?? null) : null,
+    ending_reason_tags:
+      isSuperAdmin && (c.ending_reason_tags ?? []).length > 0
+        ? (c.ending_reason_tags as string[]).join("; ")
+        : null,
+    ending_note: isSuperAdmin ? c.ending_note : null,
     listing_count: (c.listings ?? []).filter(
       (l: { status: string }) => l.status !== "inactive"
     ).length,

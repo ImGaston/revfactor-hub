@@ -15,6 +15,7 @@ import type {
   StripePayout,
 } from "@/lib/types"
 import { BankSection } from "./bank-section"
+import { ChurnedClientsSection, type ChurnedClient } from "./churned-clients-section"
 import { ExpensesTable } from "./expenses-table"
 import { FinancialOverview } from "./financial-overview"
 import { NewSubscriptionsSection } from "./new-subscriptions-section"
@@ -48,6 +49,7 @@ export function FinancialsView({
   bankTransactions,
   unpaidInvoices,
   dismissedInvoiceIds,
+  churnedClients,
 }: {
   stripeConfigured: boolean
   subscriptions: StripeSubscriptionSummary[]
@@ -69,6 +71,7 @@ export function FinancialsView({
   bankTransactions: BankTransaction[]
   unpaidInvoices: StripeInvoice[]
   dismissedInvoiceIds: string[]
+  churnedClients: ChurnedClient[]
 }) {
   const currentMonth = new Date().toISOString().slice(0, 7)
   const unpaidExpenses = expenses.filter(
@@ -108,6 +111,14 @@ export function FinancialsView({
             {activeSubscriptions.length > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-xs">
                 {activeSubscriptions.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="churned">
+            Churned
+            {churnedClients.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5 text-xs">
+                {churnedClients.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -160,6 +171,10 @@ export function FinancialsView({
             listings={listings}
             stripeConfigured={stripeConfigured}
           />
+        </TabsContent>
+
+        <TabsContent value="churned">
+          <ChurnedClientsSection churnedClients={churnedClients} />
         </TabsContent>
 
         <TabsContent value="expenses">

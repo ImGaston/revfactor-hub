@@ -21,6 +21,7 @@ import {
   Plus,
   Pencil,
   Copy,
+  UserMinus,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -45,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { StripeSubscriptionPriceOption } from "@/lib/stripe"
+import { churnReasonLabel } from "@/lib/clients"
 import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
@@ -392,6 +394,25 @@ export function ClientDetailPage({
           </span>
         </InfoRow>
 
+        {isSuperAdmin &&
+          client.status === "inactive" &&
+          (client.ending_reason_tags.length > 0 || client.ending_note) && (
+            <InfoRow icon={UserMinus} label="Churn">
+              <span className="flex flex-wrap items-center gap-1.5">
+                {client.ending_reason_tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">
+                    {churnReasonLabel(tag)}
+                  </Badge>
+                ))}
+                {client.ending_note && (
+                  <span className="text-sm text-muted-foreground">
+                    {client.ending_note}
+                  </span>
+                )}
+              </span>
+            </InfoRow>
+          )}
+
         <div className="flex flex-wrap gap-2">
           {isSuperAdmin && stripeDashboardUrl && (
             <Button variant="outline" size="sm" asChild>
@@ -692,6 +713,8 @@ export function ClientDetailPage({
           billing_amount: client.billing_amount,
           autopayment_set_up: client.autopayment_set_up,
           stripe_dashboard: client.stripe_dashboard,
+          ending_reason_tags: client.ending_reason_tags,
+          ending_note: client.ending_note,
         }}
         isSuperAdmin={isSuperAdmin}
       />

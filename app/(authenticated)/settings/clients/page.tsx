@@ -15,19 +15,24 @@ export default async function SettingsClientsPage() {
   const supabase = await createClient()
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, name, email, status, assembly_link, assembly_client_id, assembly_company_id, onboarding_date, ending_date, billing_amount, autopayment_set_up, stripe_dashboard, listings(id)")
+    .select("id, name, email, status, assembly_link, assembly_client_id, assembly_company_id, onboarding_date, ending_date, ending_reason_tags, ending_note, billing_amount, autopayment_set_up, stripe_dashboard, listings(id)")
     .order("name")
+
+  const isSuperAdmin = profile.role === "super_admin"
 
   return (
     <ClientsSettings
       clients={
         clients?.map((c) => ({
           ...c,
+          // Churn reason data is super_admin-only, like billing_amount.
+          ending_reason_tags: isSuperAdmin ? (c.ending_reason_tags ?? []) : [],
+          ending_note: isSuperAdmin ? c.ending_note : null,
           listingCount: c.listings?.length ?? 0,
         })) ?? []
       }
       assemblyConfigured={isAssemblyConfigured()}
-      isSuperAdmin={profile.role === "super_admin"}
+      isSuperAdmin={isSuperAdmin}
     />
   )
 }
