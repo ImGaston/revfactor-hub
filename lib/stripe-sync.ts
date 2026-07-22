@@ -161,14 +161,20 @@ export async function syncStripeData(
   // safe to attribute unambiguously.
   const subCountByCustomer = new Map<string, number>()
   const subByCustomer = new Map<string, string>()
+  const mirroredSubs: Stripe.Subscription[] = []
+  const productIds = new Set<string>()
 
   // `status: "all"` also mirrors canceled subscriptions so a listing linked to a
   // since-canceled subscription stays visible in Financials (the default list omits
   // canceled subs). Billing and "new subscriptions" already filter by status, so
   // mirroring canceled rows does not affect those views.
+  // Note: `data.items.data.price.product` cannot be expanded here — Stripe caps
+  // expansion at 4 levels and the `data.` list prefix makes that path 5. The
+  // products (needed by entitlements for metadata fallback) are fetched
+  // separately below and stitched into the mirrored subs.
   for await (const sub of stripe.subscriptions.list({
     status: "all",
-    expand: ["data.customer", "data.items.data.price.product"],
+    expand: ["data.customer"],
     limit: 100,
   })) {
     const customer = sub.customer as Stripe.Customer
@@ -238,6 +244,41 @@ export async function syncStripeData(
       })
     }
     subIds.push(sub.id)
+    mirroredSubs.push(sub)
+    for (const item of items) {
+      if (typeof item.price?.product === "string") {
+        productIds.add(item.price.product)
+      }
+    }
+  }
+
+  // Stitch full product objects into each sub's price (replacing the string id)
+  // so entitlement detection can read product.metadata and raw_json mirrors it.
+  if (productIds.size > 0) {
+    const productsById = new Map<string, Stripe.Product>()
+    const ids = [...productIds]
+    for (let i = 0; i < ids.length; i += 100) {
+      try {
+        for await (const product of stripe.products.list({
+          ids: ids.slice(i, i + 100),
+          limit: 100,
+        })) {
+          productsById.set(product.id, product)
+        }
+      } catch (error) {
+        subErrors.push(
+          `products: ${error instanceof Error ? error.message : "fetch failed"}`
+        )
+      }
+    }
+    for (const sub of mirroredSubs) {
+      for (const item of sub.items.data) {
+        if (typeof item.price?.product === "string") {
+          const product = productsById.get(item.price.product)
+          if (product) item.price.product = product
+        }
+      }
+    }
   }
 
   // Upsert subs in one shot (idempotent on PK)
