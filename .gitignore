@@ -40,3 +40,6 @@ next-env.d.ts
 
 # Local context docs with client/financial data (do not commit)
 /context/
+
+# Supabase CLI linked-project state
+supabase/.temp/

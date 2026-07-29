@@ -14,6 +14,7 @@ export const RESOURCES = [
   { key: "financials", label: "Financials", description: "Billing, revenue, ADR, RevPAR data" },
   { key: "knowledge", label: "Knowledge", description: "Policies, SOPs, and internal knowledge base" },
   { key: "adjustments", label: "Adjustments", description: "Change requests, triage queue, and control" },
+  { key: "agent_studio", label: "Agent Studio", description: "Test and configure the client service AI sandbox" },
 ] as const
 
 export const ACTIONS = ["view", "create", "edit", "delete", "publish", "control"] as const

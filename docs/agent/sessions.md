@@ -2,6 +2,13 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-28 — Internal Agent Studio MVP
+
+- Added `/agent-studio`: synthetic or RLS-scoped real-client context, three selectable Gateway models, session-only instructions, multi-turn test chat, and an inspector for disposition/confidence, reviewer notes, Knowledge sources, tool calls, tokens, duration, and estimated cost.
+- Added the server-only AI SDK `ToolLoopAgent` with immutable safety policy, structured output, a read-only published-Knowledge search tool, bounded steps/output, explicit safe client-data projection, and no persistence, data mutation, Assembly call, or send UI.
+- Added `agent_studio:view` (migration 049, granted to admin and applied to the production `revfactorHub` Supabase project on 2026-07-28), sidebar/command/breadcrumb entries, Gateway env documentation, and new shadcn Field/Empty/Spinner primitives.
+- Verified `pnpm typecheck`, targeted ESLint, and the synthetic UI at wide and narrow layouts. A live authenticated/model run remains environment-dependent: this Codex session did not have Supabase or AI Gateway credentials.
+
 ## 2026-07-21 — Client churn tracking: reason tags/note, auto ending_date, LTV (super_admin only)
 
 - Migration 048 (applied): `clients.ending_reason_tags TEXT[] NOT NULL DEFAULT '{}'` + `clients.ending_note TEXT`; no RLS change (app-layer super_admin gating like `billing_amount`); `clients_basic` verified untouched.
@@ -226,6 +233,14 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Converted root `AGENTS.md` and `CLAUDE.md` into short routing files.
 - Added shared durable memory under `docs/agent/` for project map, conventions, integrations, performance, decisions, and sessions.
 - Replaced scoped authenticated agent files with pointers to shared performance/convention docs.
+
+## 2026-07-29 — Governed Agent Studio
+
+- Added and applied migration 050 with durable runs, traces, model estimates, feedback, evaluations, health, settings, approvals, and audit history.
+- Added immutable playbook promotion, prompt-injection regressions, and Assembly shadow capture with redaction and no send path.
+- Verified an authenticated Gemini Flash Lite run, durable cost/latency, rating, audit trail, and health checks. Local AI Gateway is connected; local Assembly and PriceLabs keys remain unconfigured.
+- Added Knowledge agent-readiness governance and applied migration 051. Added FAQ intake, approved-answer/escalation/source/review fields, publisher approval, readiness counts/badges, and agent-safe retrieval filters.
+- Connected Studio “Knowledge change” feedback to disabled FAQ drafts. Classified the existing OTA Markup Policy under Pricing Strategy with FAQ/Policy tags and left its factual answer unapproved.
 
 ## 2026-04-18 — Authenticated Routes Performance Pass
 

@@ -4,12 +4,26 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -18,13 +32,20 @@ import { TiptapEditor } from "./editor/tiptap-editor"
 import { TagChip } from "./tag-chip"
 import { createArticle, updateArticle, publishArticle } from "../actions"
 import { htmlToExcerpt } from "../_lib/utils"
-import type { KnowledgeArticle, KnowledgeCategory, KnowledgeTag } from "../_lib/types"
+import type {
+  KnowledgeArticle,
+  KnowledgeArticleType,
+  KnowledgeAudience,
+  KnowledgeCategory,
+  KnowledgeTag,
+} from "../_lib/types"
 
 type Props = {
   article?: KnowledgeArticle
   categories: KnowledgeCategory[]
   tags: KnowledgeTag[]
   canPublish?: boolean
+  initialType?: KnowledgeArticleType
 }
 
 export function ArticleForm({
@@ -32,6 +53,7 @@ export function ArticleForm({
   categories,
   tags,
   canPublish = true,
+  initialType = "guide",
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -43,6 +65,21 @@ export function ArticleForm({
     new Set(article?.tag_ids ?? [])
   )
   const [contentHtml, setContentHtml] = useState(article?.content_html ?? "")
+  const [articleType, setArticleType] = useState(
+    article?.article_type ?? initialType
+  )
+  const [audience, setAudience] = useState(article?.audience ?? "internal")
+  const [canonicalQuestion, setCanonicalQuestion] = useState(
+    article?.canonical_question ?? ""
+  )
+  const [approvedAnswer, setApprovedAnswer] = useState(
+    article?.approved_answer ?? ""
+  )
+  const [escalationGuidance, setEscalationGuidance] = useState(
+    article?.escalation_guidance ?? ""
+  )
+  const [sourceNotes, setSourceNotes] = useState(article?.source_notes ?? "")
+  const [reviewDueAt, setReviewDueAt] = useState(article?.review_due_at ?? "")
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((prev) => {
@@ -63,6 +100,13 @@ export function ArticleForm({
       )
       formData.set("category_id", categoryId)
       formData.set("content_html", contentHtml)
+      formData.set("article_type", articleType)
+      formData.set("audience", audience)
+      formData.set("canonical_question", canonicalQuestion)
+      formData.set("approved_answer", approvedAnswer)
+      formData.set("escalation_guidance", escalationGuidance)
+      formData.set("source_notes", sourceNotes)
+      formData.set("review_due_at", reviewDueAt)
       for (const tagId of selectedTagIds) {
         formData.append("tag_ids", tagId)
       }
@@ -138,11 +182,13 @@ export function ArticleForm({
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
@@ -162,6 +208,149 @@ export function ArticleForm({
           </div>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Agent answer card</CardTitle>
+          <CardDescription>
+            Store the exact short answer the agent may use, plus when it must
+            escalate. Internal publication alone does not enable agent use.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>Format</FieldLabel>
+                <Select
+                  value={articleType}
+                  onValueChange={(value) =>
+                    setArticleType(value as KnowledgeArticleType)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="faq">Common question / FAQ</SelectItem>
+                      <SelectItem value="policy">Policy</SelectItem>
+                      <SelectItem value="sop">SOP</SelectItem>
+                      <SelectItem value="guide">Guide</SelectItem>
+                      <SelectItem value="template">Template</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Audience</FieldLabel>
+                <Select
+                  value={audience}
+                  onValueChange={(value) =>
+                    setAudience(value as KnowledgeAudience)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="internal">Internal only</SelectItem>
+                      <SelectItem value="client_safe">
+                        Client-safe candidate
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Client-safe candidates still require a publisher’s approval.
+                </FieldDescription>
+              </Field>
+            </div>
+
+            <Field>
+              <FieldLabel htmlFor="canonical-question">
+                Common client question
+              </FieldLabel>
+              <Input
+                id="canonical-question"
+                value={canonicalQuestion}
+                onChange={(event) => setCanonicalQuestion(event.target.value)}
+                placeholder="How do OTA markups work?"
+              />
+              <FieldDescription>
+                Use the wording clients naturally use. Search matches this
+                question as well as the article.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="approved-answer">
+                Approved short answer
+              </FieldLabel>
+              <Textarea
+                id="approved-answer"
+                value={approvedAnswer}
+                onChange={(event) => setApprovedAnswer(event.target.value)}
+                placeholder="Write the concise client-ready answer. Keep assumptions and exceptions explicit."
+                rows={5}
+              />
+              <FieldDescription>
+                Required before the article can be enabled for Agent Studio.
+              </FieldDescription>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="escalation-guidance">
+                Escalate when
+              </FieldLabel>
+              <Textarea
+                id="escalation-guidance"
+                value={escalationGuidance}
+                onChange={(event) =>
+                  setEscalationGuidance(event.target.value)
+                }
+                placeholder="Example: the client disputes a contract term, requests a fee change, or the OTA/PMS configuration is unclear."
+                rows={3}
+              />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="source-notes">
+                  Source or verification notes
+                </FieldLabel>
+                <Textarea
+                  id="source-notes"
+                  value={sourceNotes}
+                  onChange={(event) => setSourceNotes(event.target.value)}
+                  placeholder="Where did this policy come from?"
+                  rows={3}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="review-due-at">Review due</FieldLabel>
+                <Input
+                  id="review-due-at"
+                  type="date"
+                  value={reviewDueAt}
+                  onChange={(event) => setReviewDueAt(event.target.value)}
+                />
+                <FieldDescription>
+                  Use for pricing rules or policies that may change.
+                </FieldDescription>
+              </Field>
+            </div>
+
+            {article?.agent_enabled && (
+              <FieldDescription>
+                Saving changes disables this answer in Agent Studio until a
+                publisher reviews and approves it again.
+              </FieldDescription>
+            )}
+          </FieldGroup>
+        </CardContent>
+      </Card>
 
       {/* Editor */}
       <div className="space-y-2">

@@ -47,6 +47,22 @@ Client onboarding Custom App contract:
 - Upsert retries are idempotent through `onboarding_runs (client_id, external_key)`. Use optimistic concurrency through `revision`; a save updates only when the submitted revision matches, then increments it.
 - The migration is a contract only until it is applied and the app's Supabase adapter is enabled. Keep the hosted app in explicit preview mode until then.
 
+## Agent Studio and Vercel AI Gateway
+
+The authenticated `/agent-studio` route is the internal pre-production environment for the RevFactor client-service agent.
+
+- Runtime: Vercel AI SDK `ToolLoopAgent`, server-side only, using AI Gateway model IDs.
+- Default model: `openai/gpt-5.4-mini`; selectable comparison models are `openai/gpt-5.6-luna` and `anthropic/claude-sonnet-5`.
+- Local auth: server-only `AI_GATEWAY_API_KEY`. Vercel deployments can authenticate Gateway via OIDC.
+- Access: `agent_studio:view` (migration `049_agent_studio_permission.sql`); client options additionally respect `clients:view`.
+- Client context: a synthetic fixture by default, or a deliberately limited real-client projection read through the current user's RLS. It includes operational identity/status, listing metrics, and open tasks; it excludes contact, financial, credential, note, and private-link fields.
+- Knowledge: only published Knowledge articles are searchable. The tool is read-only and returns the article title, slug, and excerpt used by the run.
+- Safety: immutable runtime instructions sit outside the session-editable draft instructions. The agent cannot write Supabase data or call Assembly, and the UI never presents a send action.
+- Persistence: none in the MVP. Conversations, instruction edits, and run details disappear when the browser session is reset/reloaded.
+- Observability: each run exposes structured disposition/confidence, reviewer notes, retrieved sources, tool calls, duration, token usage, and a cost estimate using the model catalog's pricing snapshot.
+
+Treat the pricing metadata as a display estimate, not billing truth; update `AGENT_STUDIO_MODELS` when Gateway pricing changes. Before production sending, add a versioned configuration/evaluation store, approval and audit records, a constrained Assembly send service, and a separate permission from Studio access.
+
 ## PriceLabs
 
 PriceLabs is the dynamic pricing tool.
@@ -194,6 +210,13 @@ Caller requirements (any external page):
 
 - Make the fetch server-side and never expose `WEBHOOK_SECRET` in the browser.
 - Use a short timeout (~5s), log failures, and never block the visitor's flow — lead creation is best-effort.
+
+## Agent Studio Integrations (2026-07-29)
+
+- AI runs use Vercel AI Gateway through AI SDK 7. Pricing refreshes hourly and is snapshotted per run for same-token model comparisons.
+- Assembly history is fetched read-only from the linked active client's latest channel. Contact details and URLs are redacted before model use or storage. Shadow cases never send drafts.
+- PriceLabs context comes from existing synced listing fields and timestamps; Studio has no write path.
+- Local health requires `ASSEMBLY_API_KEY` and `PRICELABS_API_KEY` in `.env.local`; production uses the same server-only Vercel variables.
 
 ## Leads Read API (outbound, implemented 2026-07-10)
 

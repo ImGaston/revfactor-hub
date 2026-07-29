@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
+import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { ArticleForm } from "../../_components/article-form"
 import type { KnowledgeArticle, KnowledgeCategory, KnowledgeTag } from "../../_lib/types"
@@ -8,6 +9,7 @@ type Props = {
 }
 
 export default async function EditArticlePage({ params }: Props) {
+  if (!(await hasPermission("knowledge", "edit"))) redirect("/knowledge")
   const { slug } = await params
   const supabase = await createClient()
 
@@ -66,10 +68,21 @@ export default async function EditArticlePage({ params }: Props) {
     updated_at: raw.updated_at,
     created_at: raw.created_at,
     reading_time_min: raw.reading_time_min ?? 1,
+    article_type: raw.article_type ?? "guide",
+    audience: raw.audience ?? "internal",
+    canonical_question: raw.canonical_question ?? "",
+    approved_answer: raw.approved_answer ?? "",
+    escalation_guidance: raw.escalation_guidance ?? "",
+    source_notes: raw.source_notes ?? "",
+    review_status: raw.review_status ?? "draft",
+    agent_enabled: raw.agent_enabled ?? false,
+    approved_by: raw.approved_by ?? null,
+    approved_at: raw.approved_at ?? null,
+    last_reviewed_at: raw.last_reviewed_at ?? null,
+    review_due_at: raw.review_due_at ?? null,
   }
 
-  // TODO: Permission-gate: redirect if user lacks knowledge:edit
-  const canPublish = true
+  const canPublish = await hasPermission("knowledge", "publish")
 
   return (
     <div className="max-w-4xl space-y-6">

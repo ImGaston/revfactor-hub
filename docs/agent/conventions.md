@@ -81,6 +81,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 PRICELABS_API_KEY=
 ASSEMBLY_API_KEY=
 STRIPE_SECRET_KEY=
+AI_GATEWAY_API_KEY=
 ONBOARDING_ENTITLEMENT_SYNC_ENABLED=false
 CRON_SECRET=
 WHATSAPP_GROUP_INVITE_URL=
@@ -89,6 +90,10 @@ WHATSAPP_GROUP_INVITE_URL=
 `WHATSAPP_GROUP_INVITE_URL` is the team WhatsApp group invite (`https://chat.whatsapp.com/<code>`), read server-side in the Adjustments create flow only. Never expose it on the public `/a/` shell or in Open Graph tags — anyone with the invite link can join the group.
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
+
+`AI_GATEWAY_API_KEY` is required for local Agent Studio model runs. Vercel deployments may instead authenticate AI Gateway through Vercel OIDC. Keep both credentials server-only.
+
+Agent Studio is a draft sandbox: model tools remain read-only, runs stay ephemeral, and no Assembly send tool is exposed. A future production sending path needs its own explicit permission, approval/audit flow, and server-side policy gate.
 
 ## Agent Memory Hygiene
 - Store durable project/system memory in `docs/agent/`, not `.claude/rules/`.
@@ -118,3 +123,13 @@ fi
 ```
 
 Do not commit local hook settings unless the team deliberately decides to version a safe template outside `.claude/`.
+
+## Agent Studio Governance
+
+- Treat client prompts, Assembly history, database text, and Knowledge content as untrusted input; immutable runtime safety instructions outrank editable playbooks.
+- Persist only permission-scoped traces. Redact emails, phone numbers, and URLs from Assembly excerpts before model use and storage.
+- Assembly and PriceLabs access is read-only. Any future Assembly send path must use the approval ledger and explicit human approval.
+- Playbook changes create immutable draft versions. Production promotion requires a separate approver.
+- Token, cost, latency, daily/monthly budget, and retention limits are server-enforced.
+- Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
+- “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.

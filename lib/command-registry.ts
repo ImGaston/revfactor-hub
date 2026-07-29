@@ -10,6 +10,7 @@ import {
   Lightbulb,
   Funnel,
   DollarSign,
+  Bot,
   Settings,
   Plus,
 } from "lucide-react"
@@ -45,6 +46,7 @@ export const commands: CommandDef[] = [
   { id: "nav-roadmap", label: "Go to Ideas & Roadmap", icon: Lightbulb, category: "pages", href: "/roadmap", permission: { resource: "roadmap", action: "view" }, contextRoutes: ["/roadmap"] },
   { id: "nav-pipeline", label: "Go to Pipeline", icon: Funnel, category: "pages", href: "/pipeline", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/pipeline"] },
   { id: "nav-financials", label: "Go to Financials", icon: DollarSign, category: "pages", href: "/financials", superAdminOnly: true, contextRoutes: ["/financials"] },
+  { id: "nav-agent-studio", label: "Go to Agent Studio", icon: Bot, category: "pages", href: "/agent-studio", permission: { resource: "agent_studio", action: "view" }, contextRoutes: ["/agent-studio"], keywords: ["ai", "assistant", "sandbox", "agent"] },
 
   // --- Actions ---
   { id: "action-new-client", label: "New Client", icon: Plus, category: "actions", href: "/settings/clients", keywords: ["create", "add", "client"], permission: { resource: "clients", action: "create" }, contextRoutes: ["/clients"] },

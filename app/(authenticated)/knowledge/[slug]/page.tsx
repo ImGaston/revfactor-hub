@@ -1,6 +1,14 @@
 import { notFound } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { hasPermission } from "@/lib/permissions.server"
 import { Separator } from "@/components/ui/separator"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { ArticleHeader } from "../_components/article-header"
 import { ArticleRenderer } from "../_components/article-renderer"
 import { ArticleTableOfContents } from "../_components/article-toc"
@@ -56,18 +64,60 @@ export default async function ArticleDetailPage({ params }: Props) {
     updated_at: raw.updated_at,
     created_at: raw.created_at,
     reading_time_min: raw.reading_time_min ?? 1,
+    article_type: raw.article_type ?? "guide",
+    audience: raw.audience ?? "internal",
+    canonical_question: raw.canonical_question ?? "",
+    approved_answer: raw.approved_answer ?? "",
+    escalation_guidance: raw.escalation_guidance ?? "",
+    source_notes: raw.source_notes ?? "",
+    review_status: raw.review_status ?? "draft",
+    agent_enabled: raw.agent_enabled ?? false,
+    approved_by: raw.approved_by ?? null,
+    approved_at: raw.approved_at ?? null,
+    last_reviewed_at: raw.last_reviewed_at ?? null,
+    review_due_at: raw.review_due_at ?? null,
   }
 
-  // TODO: Permission-gate actions using real permissions
-  const canEdit = true
-  const canPublish = true
-  const canDelete = true
+  const [canEdit, canPublish, canDelete] = await Promise.all([
+    hasPermission("knowledge", "edit"),
+    hasPermission("knowledge", "publish"),
+    hasPermission("knowledge", "delete"),
+  ])
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
       {/* Main content */}
       <div className="min-w-0 space-y-6">
         <ArticleHeader article={article} />
+        {(article.canonical_question || article.approved_answer) && (
+          <Card>
+            <CardHeader>
+              <CardDescription>Common client question</CardDescription>
+              <CardTitle>
+                {article.canonical_question || article.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              {article.approved_answer ? (
+                <p className="whitespace-pre-wrap text-sm leading-6">
+                  {article.approved_answer}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No approved short answer has been written yet.
+                </p>
+              )}
+              {article.escalation_guidance && (
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">Escalate when</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    {article.escalation_guidance}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <Separator />
         <ArticleRenderer html={article.content_html} />
       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, User } from "lucide-react"
+import { Clock } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { TagChip } from "./tag-chip"
@@ -28,6 +28,10 @@ export function ArticleHeader({ article }: { article: KnowledgeArticle }) {
           >
             Draft
           </Badge>
+        )}
+        {article.agent_enabled && <Badge>Agent ready</Badge>}
+        {!article.agent_enabled && article.review_status === "needs_review" && (
+          <Badge variant="secondary">Needs agent review</Badge>
         )}
       </div>
 

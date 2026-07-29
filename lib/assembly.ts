@@ -321,6 +321,24 @@ export async function createAssemblyLink(
 
 // --- Message endpoints ---
 
+export async function listAssemblyMessages(
+  channelId: string,
+  options?: {
+    limit?: number
+    nextToken?: string
+  }
+): Promise<AssemblyListResponse<AssemblyMessage>> {
+  const params = new URLSearchParams({
+    channelId,
+    limit: String(Math.min(Math.max(options?.limit ?? 40, 1), 100)),
+  })
+  if (options?.nextToken) params.set("nextToken", options.nextToken)
+
+  return assemblyFetch<AssemblyListResponse<AssemblyMessage>>(
+    `/messages?${params.toString()}`
+  )
+}
+
 export async function sendAssemblyMessage(
   channelId: string,
   text: string,

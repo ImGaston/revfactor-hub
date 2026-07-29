@@ -1,8 +1,16 @@
 import { createClient } from "@/lib/supabase/server"
+import { hasPermission } from "@/lib/permissions.server"
+import { redirect } from "next/navigation"
 import { ArticleForm } from "../_components/article-form"
 import type { KnowledgeCategory, KnowledgeTag } from "../_lib/types"
 
-export default async function NewArticlePage() {
+export default async function NewArticlePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
+  if (!(await hasPermission("knowledge", "create"))) redirect("/knowledge")
+  const { type } = await searchParams
   const supabase = await createClient()
 
   const { data: categoriesRaw } = await supabase
@@ -18,8 +26,7 @@ export default async function NewArticlePage() {
   const categories = (categoriesRaw ?? []) as KnowledgeCategory[]
   const tags = (tagsRaw ?? []) as KnowledgeTag[]
 
-  // TODO: Permission-gate: redirect if user lacks knowledge:create
-  const canPublish = true
+  const canPublish = await hasPermission("knowledge", "publish")
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -34,6 +41,7 @@ export default async function NewArticlePage() {
         categories={categories}
         tags={tags}
         canPublish={canPublish}
+        initialType={type === "faq" ? "faq" : "guide"}
       />
     </div>
   )
