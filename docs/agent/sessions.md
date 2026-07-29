@@ -242,6 +242,13 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Added Knowledge agent-readiness governance and applied migration 051. Added FAQ intake, approved-answer/escalation/source/review fields, publisher approval, readiness counts/badges, and agent-safe retrieval filters.
 - Connected Studio “Knowledge change” feedback to disabled FAQ drafts. Classified the existing OTA Markup Policy under Pricing Strategy with FAQ/Policy tags and left its factual answer unapproved.
 
+## 2026-07-29 — Production Agent Studio and First Assembly FAQ Batch
+
+- Deployed Agent Studio and Knowledge governance to `hub.revfactor.io` through PR #12 and verified the authenticated production route, model picker, governance tabs, audit ledger, and integration-health UI.
+- The production AI Gateway credential is configured, but the live smoke run reported insufficient Gateway credit; Assembly and PriceLabs direct API credentials remain unavailable to Studio while synced Hub data is still readable.
+- Analyzed the supplied Assembly frequent-question report: 116 candidates, 11 repeated patterns, and 105 one-offs. Raw samples include sensitive material, so none were copied into the repository or Knowledge.
+- Added migration 052 with three sanitized FAQ drafts, governed fields for four overlapping team-authored drafts, and a proposed update to the existing OTA markup policy. The final queue has eight review items; every item is unpublished, `needs_review`, agent-disabled, and sourced only to aggregate pattern counts.
+
 ## 2026-04-18 — Authenticated Routes Performance Pass
 
 - Documented query trimming for clients/listings list views.
