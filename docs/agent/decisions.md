@@ -124,6 +124,10 @@ Agent behavior is promoted through immutable playbook versions (`draft → testi
 
 A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.
 
+## 2026-07-29 — Assembly FAQ Mining Seeds a Review Queue, Not Live Knowledge
+
+Assembly-derived reports contain untrusted client text, noisy heuristic categories, and potentially sensitive material. Migration 052 therefore seeds only sanitized, repeated question patterns with aggregate frequency provenance. Raw samples, message IDs, client identity, credentials, and one-off candidates are excluded. Seeded articles are client-safe candidates in `needs_review`, remain unpublished, and are disabled for Agent Studio until a publisher verifies the answer and explicitly enables them.
+
 ## 2026-04-18 — No Page-Level ISR on Authenticated Routes
 
 Authenticated route data should not use `export const revalidate = N`. The app has a tiny internal user base where stale data is noticeable, and auth-cookie cache segmentation limits hit rate. If a query later proves expensive and stable, use targeted cache tags instead.
