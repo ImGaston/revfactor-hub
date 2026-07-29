@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { estimateReadingTime, htmlToExcerpt } from "./_lib/utils"
 
@@ -29,6 +30,19 @@ export async function createArticle(formData: FormData) {
   const categoryId = (formData.get("category_id") as string) || null
   const tagIds = formData.getAll("tag_ids") as string[]
   const publish = formData.get("publish") === "true"
+  if (publish && !(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to publish Knowledge.", slug: null }
+  }
+  const articleType = String(formData.get("article_type") || "guide")
+  const audience = String(formData.get("audience") || "internal")
+  const canonicalQuestion =
+    String(formData.get("canonical_question") || "").trim() || null
+  const approvedAnswer =
+    String(formData.get("approved_answer") || "").trim() || null
+  const escalationGuidance =
+    String(formData.get("escalation_guidance") || "").trim() || null
+  const sourceNotes = String(formData.get("source_notes") || "").trim() || null
+  const reviewDueAt = String(formData.get("review_due_at") || "").trim() || null
   const slug = generateSlug(title)
   const readingTime = estimateReadingTime(contentHtml)
 
@@ -54,6 +68,15 @@ export async function createArticle(formData: FormData) {
       status,
       published_at: publish ? new Date().toISOString() : null,
       reading_time_min: readingTime,
+      article_type: articleType,
+      audience,
+      canonical_question: canonicalQuestion,
+      approved_answer: approvedAnswer,
+      escalation_guidance: escalationGuidance,
+      source_notes: sourceNotes,
+      review_status: audience === "client_safe" ? "needs_review" : "draft",
+      agent_enabled: false,
+      review_due_at: reviewDueAt,
     })
     .select("id, slug")
     .single()
@@ -91,6 +114,16 @@ export async function updateArticle(id: string, formData: FormData) {
   const categoryId = (formData.get("category_id") as string) || null
   const tagIds = formData.getAll("tag_ids") as string[]
   const readingTime = estimateReadingTime(contentHtml)
+  const articleType = String(formData.get("article_type") || "guide")
+  const audience = String(formData.get("audience") || "internal")
+  const canonicalQuestion =
+    String(formData.get("canonical_question") || "").trim() || null
+  const approvedAnswer =
+    String(formData.get("approved_answer") || "").trim() || null
+  const escalationGuidance =
+    String(formData.get("escalation_guidance") || "").trim() || null
+  const sourceNotes = String(formData.get("source_notes") || "").trim() || null
+  const reviewDueAt = String(formData.get("review_due_at") || "").trim() || null
 
   const { error } = await supabase
     .from("knowledge_articles")
@@ -100,6 +133,17 @@ export async function updateArticle(id: string, formData: FormData) {
       content_html: contentHtml,
       category_id: categoryId || null,
       reading_time_min: readingTime,
+      article_type: articleType,
+      audience,
+      canonical_question: canonicalQuestion,
+      approved_answer: approvedAnswer,
+      escalation_guidance: escalationGuidance,
+      source_notes: sourceNotes,
+      review_status: audience === "client_safe" ? "needs_review" : "draft",
+      agent_enabled: false,
+      approved_by: null,
+      approved_at: null,
+      review_due_at: reviewDueAt,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -134,6 +178,9 @@ export async function deleteArticle(id: string) {
 }
 
 export async function publishArticle(id: string) {
+  if (!(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to publish Knowledge." }
+  }
   const supabase = await createClient()
   const { error } = await supabase
     .from("knowledge_articles")
@@ -151,16 +198,85 @@ export async function publishArticle(id: string) {
 }
 
 export async function unpublishArticle(id: string) {
+  if (!(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to unpublish Knowledge." }
+  }
   const supabase = await createClient()
   const { error } = await supabase
     .from("knowledge_articles")
     .update({
       status: "draft",
+      agent_enabled: false,
       published_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
 
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
+export async function approveArticleForAgent(id: string) {
+  if (!(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to approve agent knowledge." }
+  }
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: article } = await supabase
+    .from("knowledge_articles")
+    .select("status, audience, approved_answer")
+    .eq("id", id)
+    .maybeSingle()
+  if (!article) return { error: "Article not found." }
+  if (article.status !== "published") {
+    return { error: "Publish the article internally before approving it for the agent." }
+  }
+  if (article.audience !== "client_safe") {
+    return { error: "Set the audience to Client-safe candidate first." }
+  }
+  if (!article.approved_answer?.trim()) {
+    return { error: "Add an approved client answer before enabling this article." }
+  }
+
+  const now = new Date().toISOString()
+  const { error } = await supabase
+    .from("knowledge_articles")
+    .update({
+      review_status: "approved",
+      agent_enabled: true,
+      approved_by: user.id,
+      approved_at: now,
+      last_reviewed_at: now,
+      updated_at: now,
+    })
+    .eq("id", id)
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
+export async function disableArticleForAgent(id: string) {
+  if (!(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to change agent knowledge." }
+  }
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("knowledge_articles")
+    .update({
+      agent_enabled: false,
+      review_status: "needs_review",
+      approved_by: null,
+      approved_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
   if (error) return { error: error.message }
 
   revalidatePath("/knowledge")

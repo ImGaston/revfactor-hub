@@ -1,6 +1,13 @@
 "use client"
 
-import { BookOpen, CheckCircle, FileEdit, FolderOpen } from "lucide-react"
+import {
+  Bot,
+  CheckCircle,
+  FileEdit,
+  FolderOpen,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import type { KnowledgeStats } from "../_lib/types"
 
@@ -33,7 +40,7 @@ function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
 
 export function KnowledgeStatCards({ stats }: { stats: KnowledgeStats }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       <StatCard
         icon={CheckCircle}
         label="Published"
@@ -53,10 +60,22 @@ export function KnowledgeStatCards({ stats }: { stats: KnowledgeStats }) {
         color="text-violet-600"
       />
       <StatCard
-        icon={BookOpen}
+        icon={UserRound}
         label="My Drafts"
         value={stats.my_drafts}
         color="text-sky-600"
+      />
+      <StatCard
+        icon={Bot}
+        label="Agent Ready"
+        value={stats.agent_ready}
+        color="text-emerald-600"
+      />
+      <StatCard
+        icon={ShieldCheck}
+        label="Needs Review"
+        value={stats.needs_agent_review}
+        color="text-amber-600"
       />
     </div>
   )

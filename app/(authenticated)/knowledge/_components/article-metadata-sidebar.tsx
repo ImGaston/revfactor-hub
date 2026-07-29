@@ -19,7 +19,12 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { TagChip } from "./tag-chip"
 import { DeleteArticleDialog } from "./delete-article-dialog"
-import { publishArticle, unpublishArticle } from "../actions"
+import {
+  approveArticleForAgent,
+  disableArticleForAgent,
+  publishArticle,
+  unpublishArticle,
+} from "../actions"
 import { formatRelativeDate } from "../_lib/utils"
 import type { KnowledgeArticle } from "../_lib/types"
 
@@ -55,6 +60,26 @@ export function ArticleMetadataSidebar({
       toast.error(result.error)
     } else {
       toast.success("Article moved to drafts")
+      router.refresh()
+    }
+  }
+
+  async function handleAgentApproval() {
+    const result = await approveArticleForAgent(article.id)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Approved and enabled for Agent Studio")
+      router.refresh()
+    }
+  }
+
+  async function handleDisableAgent() {
+    const result = await disableArticleForAgent(article.id)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success("Removed from Agent Studio")
       router.refresh()
     }
   }
@@ -111,6 +136,29 @@ export function ArticleMetadataSidebar({
 
       <Separator />
 
+      <div className="flex flex-col gap-2">
+        <h4 className="text-sm font-semibold">Agent readiness</h4>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{article.article_type.toUpperCase()}</Badge>
+          <Badge variant={article.agent_enabled ? "default" : "secondary"}>
+            {article.agent_enabled
+              ? "Agent enabled"
+              : article.review_status === "needs_review"
+                ? "Needs review"
+                : article.review_status === "approved"
+                  ? "Approved · disabled"
+                  : "Not reviewed"}
+          </Badge>
+          <Badge variant="outline">
+            {article.audience === "client_safe"
+              ? "Client-safe candidate"
+              : "Internal only"}
+          </Badge>
+        </div>
+      </div>
+
+      <Separator />
+
       {/* Dates */}
       <div className="space-y-2 text-sm">
         {article.published_at && (
@@ -161,6 +209,29 @@ export function ArticleMetadataSidebar({
           >
             <EyeOff className="size-4" />
             Unpublish
+          </Button>
+        )}
+        {canPublish &&
+          article.status === "published" &&
+          article.audience === "client_safe" &&
+          !article.agent_enabled && (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full"
+              onClick={handleAgentApproval}
+            >
+              Approve for Agent Studio
+            </Button>
+          )}
+        {canPublish && article.agent_enabled && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={handleDisableAgent}
+          >
+            Remove from Agent Studio
           </Button>
         )}
         {canDelete && (

@@ -29,6 +29,22 @@ export function ArticleCard({ article }: { article: KnowledgeArticle }) {
                 Draft
               </Badge>
             )}
+            {article.article_type === "faq" && (
+              <Badge variant="outline" className="text-xs shrink-0">
+                FAQ
+              </Badge>
+            )}
+            {article.agent_enabled && (
+              <Badge variant="default" className="text-xs shrink-0">
+                Agent ready
+              </Badge>
+            )}
+            {!article.agent_enabled &&
+              article.review_status === "needs_review" && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  Needs agent review
+                </Badge>
+              )}
           </div>
           <h3 className="mt-2 font-semibold leading-tight group-hover:text-primary transition-colors">
             {article.title}

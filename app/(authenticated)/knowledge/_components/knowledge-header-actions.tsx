@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Plus, Settings2 } from "lucide-react"
+import { MessageCircleQuestion, Plus, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ManageCategoriesDialog } from "./manage-categories-dialog"
 import type { KnowledgeCategory } from "../_lib/types"
@@ -34,9 +34,17 @@ export function KnowledgeHeaderActions({
           </Button>
         )}
         {canCreate && (
+          <Button variant="outline" asChild>
+            <Link href="/knowledge/new?type=faq">
+              <MessageCircleQuestion data-icon="inline-start" />
+              Add FAQ
+            </Link>
+          </Button>
+        )}
+        {canCreate && (
           <Button asChild>
             <Link href="/knowledge/new">
-              <Plus className="size-4 mr-2" />
+              <Plus data-icon="inline-start" />
               Add Article
             </Link>
           </Button>

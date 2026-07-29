@@ -66,6 +66,20 @@ export default async function CategoryPage({ params }: Props) {
         updated_at: a.updated_at as string,
         created_at: a.created_at as string,
         reading_time_min: (a.reading_time_min as number) ?? 1,
+        article_type:
+          (a.article_type as KnowledgeArticle["article_type"]) ?? "guide",
+        audience: (a.audience as KnowledgeArticle["audience"]) ?? "internal",
+        canonical_question: (a.canonical_question as string) ?? "",
+        approved_answer: (a.approved_answer as string) ?? "",
+        escalation_guidance: (a.escalation_guidance as string) ?? "",
+        source_notes: (a.source_notes as string) ?? "",
+        review_status:
+          (a.review_status as KnowledgeArticle["review_status"]) ?? "draft",
+        agent_enabled: Boolean(a.agent_enabled),
+        approved_by: (a.approved_by as string) ?? null,
+        approved_at: (a.approved_at as string) ?? null,
+        last_reviewed_at: (a.last_reviewed_at as string) ?? null,
+        review_due_at: (a.review_due_at as string) ?? null,
       }
     }
   )

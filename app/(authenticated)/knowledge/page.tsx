@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
+import { hasPermission } from "@/lib/permissions.server"
 import { KnowledgeStatCards } from "./_components/stat-cards"
 import { KnowledgeView } from "./_components/knowledge-view"
 import { KnowledgeHeaderActions } from "./_components/knowledge-header-actions"
@@ -69,6 +70,19 @@ export default async function KnowledgePage() {
       updated_at: a.updated_at as string,
       created_at: a.created_at as string,
       reading_time_min: (a.reading_time_min as number) ?? 1,
+      article_type: (a.article_type as KnowledgeArticle["article_type"]) ?? "guide",
+      audience: (a.audience as KnowledgeArticle["audience"]) ?? "internal",
+      canonical_question: (a.canonical_question as string) ?? "",
+      approved_answer: (a.approved_answer as string) ?? "",
+      escalation_guidance: (a.escalation_guidance as string) ?? "",
+      source_notes: (a.source_notes as string) ?? "",
+      review_status:
+        (a.review_status as KnowledgeArticle["review_status"]) ?? "draft",
+      agent_enabled: Boolean(a.agent_enabled),
+      approved_by: (a.approved_by as string) ?? null,
+      approved_at: (a.approved_at as string) ?? null,
+      last_reviewed_at: (a.last_reviewed_at as string) ?? null,
+      review_due_at: (a.review_due_at as string) ?? null,
     }
   })
 
@@ -82,11 +96,16 @@ export default async function KnowledgePage() {
           (a) => a.status === "draft" && a.author_id === user.id
         ).length
       : 0,
+    agent_ready: articles.filter((article) => article.agent_enabled).length,
+    needs_agent_review: articles.filter(
+      (article) => article.review_status === "needs_review"
+    ).length,
   }
 
-  // TODO: Permission-gate using real permissions
-  const canCreate = true
-  const canManageCategories = true
+  const [canCreate, canManageCategories] = await Promise.all([
+    hasPermission("knowledge", "create"),
+    hasPermission("knowledge", "edit"),
+  ])
 
   return (
     <div className="space-y-6">

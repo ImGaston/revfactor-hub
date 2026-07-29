@@ -2,6 +2,16 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-28 — Agent Studio Starts as an Ephemeral, Read-Only Draft Sandbox
+
+Superseded for persistence and governance by the 2026-07-29 decision below; the no-send boundary remains.
+
+The first internal agent surface is `/agent-studio`, powered by a server-only Vercel AI SDK `ToolLoopAgent` through AI Gateway. It intentionally does not persist conversations/configuration and does not expose an Assembly send tool. The team can compare approved models, adjust session instructions, test multi-turn client messages, and inspect structured outcomes, sources, tool calls, tokens, duration, and estimated cost without creating a second production execution path.
+
+Safety rules are immutable and separate from the editable prompt. Real-client context is loaded through the signed-in user's RLS and uses an explicit operational projection; contact information, financials, credentials, private links, and notes are not supplied. The only model tool searches published Knowledge articles and is read-only. Changing the client or model starts a clean conversation so history cannot cross contexts.
+
+The default low-cost candidate is `openai/gpt-5.4-mini`, with `openai/gpt-5.6-luna` and `anthropic/claude-sonnet-5` available for side-by-side testing. Cost numbers in the UI are estimates from a maintained pricing snapshot. Production sending is a later gated phase requiring versioned configuration/evaluations, approval and audit records, an explicit send permission, and a constrained Assembly service.
+
 ## 2026-07-16 — Comment Hover Bar: Reactions, Internal Threads Gated on adjustments:control, Task Links on the Comment
 
 Migration `046_comment_reactions_threads_task_links.sql`, for both `adjustment_comments` and `task_comments`. Internal thread replies are the same comments table with `parent_id` set (one level deep) — on adjustment_comments, SELECT/INSERT of rows with a parent additionally require `adjustments:control`, reusing the permission that already separates internal staff from contractor/hostpricing instead of widening the ACTIONS matrix. task_comments need no gate: no external role has any `tasks` permission. `adjustment_comment_stats` counts only `parent_id IS NULL` rows so internal replies never flip the needs-reply flag (their audience can't see them). The needs_info auto-reopen also ignores thread replies for the same reason. Reactions are `(comment_id, user_id, emoji)` PK rows — free-text emoji, curated picker in the UI (`components/comments/emoji.ts`), no picker dependency. "Create task" links via `linked_task_id` ON the comment (not a source column on tasks — avoids polymorphism); the link is written with the admin client because the comment UPDATE policy is author-only, guarded by an in-code `tasks:create` check. RLS-verified in prod: contractor session sees 0 thread replies.
@@ -105,6 +115,14 @@ The two-step closure (`resolved → controlled`, internal-only) is gated by a cu
 This Supabase project enforces PostgREST `db-max-rows = 1000`: a single select is capped at 1000 rows even with an explicit `.limit()` higher than that. A full Report Builder run is listing × month (~234 × 12 = 2.8k rows), so any unbounded or single-request read of `report_metrics` silently returns only the earliest ~4–5 months (ordered by `period`). For the Monthly Pacing chart that dropped exactly the near-future months where pickup lives, so the chart looked empty/flat with no error.
 
 Decision: reads that can exceed 1000 rows must page with `.range(from, from+999)` under a stable total order (`period, listing_id`), looping until a short page. Implemented in `lib/monthly-pacing.ts` (`fetchAllMetrics`). If per-listing-month volume grows much larger, move the per-month aggregation into a Postgres RPC that returns ~12 rows instead of shipping the full grid to the client. Applies to any future `report_metrics` consumer (the listing detail report reads a single listing, so it stays under the cap).
+
+## 2026-07-29 — Agent Studio Uses Governed, Versioned Promotion
+
+Agent behavior is promoted through immutable playbook versions (`draft → testing → approved → production`) instead of editing a live prompt. Production requires a second authorized approver, and future Assembly sending is separately human-approved. Playground, regression, and shadow runs share one durable cost/audit ledger. Client and Assembly text is untrusted and sanitized. Server-side per-run limits and daily/monthly budgets put low-cost models first while retaining same-token benchmark comparisons.
+
+## 2026-07-29 — Internal Knowledge Publication Is Not Agent Approval
+
+A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.
 
 ## 2026-04-18 — No Page-Level ISR on Authenticated Routes
 
