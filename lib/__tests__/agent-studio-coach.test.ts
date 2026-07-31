@@ -54,6 +54,7 @@ describe("workflow instructions", () => {
     const rendered = workflowToInstructions(DEFAULT_AGENT_WORKFLOW)
     expect(rendered).toContain("Every response:")
     expect(rendered).toContain("Answer responses:")
+    expect(rendered).toContain("Negative performance responses:")
     expect(rendered).toContain("Clarification responses:")
     expect(rendered).toContain("Escalation responses:")
   })
@@ -73,6 +74,14 @@ describe("workflow instructions", () => {
     expect(second.match(/\[Studio workflow rules\]/g)).toHaveLength(1)
     expect(second).toContain("Keep the direct answer first.")
     expect(second).not.toContain("Prefer explicit date-grain labels.")
+  })
+
+  it("keeps negative-performance framing and routing explicit", () => {
+    const rendered = workflowToInstructions(DEFAULT_AGENT_WORKFLOW)
+
+    expect(rendered).toContain("Do not diagnose underperformance")
+    expect(rendered).toContain("Flag an internal brainstorm")
+    expect(rendered).toContain("Escalate when the gap is material")
   })
 })
 

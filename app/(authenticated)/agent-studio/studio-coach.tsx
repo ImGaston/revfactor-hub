@@ -272,6 +272,7 @@ function WorkflowNodeEditor({
                 <SelectGroup>
                   <SelectItem value="all">Every response</SelectItem>
                   <SelectItem value="answer">Answer only</SelectItem>
+                  <SelectItem value="negative">Negative scenario</SelectItem>
                   <SelectItem value="clarify">Clarify only</SelectItem>
                   <SelectItem value="escalate">Escalate only</SelectItem>
                 </SelectGroup>
@@ -581,8 +582,20 @@ export function StudioCoachWorkspace({
       </TabsContent>
 
       <TabsContent value="workflow" className="flex flex-col gap-3">
+        {responseType === "negative" && (
+          <Alert>
+            <BrainCircuit />
+            <AlertTitle>Frame negative performance honestly</AlertTitle>
+            <AlertDescription>
+              State the verified gap, separate facts from hypotheses, then
+              choose a client-ready next step, an internal brainstorm, or a
+              human escalation. Never soften the result with unsupported
+              optimism or invent a cause.
+            </AlertDescription>
+          </Alert>
+        )}
         <Field>
-          <FieldLabel>Response branch</FieldLabel>
+          <FieldLabel>Response scenario</FieldLabel>
           <ToggleGroup
             type="single"
             value={responseType}
@@ -594,21 +607,30 @@ export function StudioCoachWorkspace({
               }
             }}
             variant="outline"
-            className="w-full"
-            aria-label="Workflow response branch"
+            className="grid w-full grid-cols-2"
+            aria-label="Workflow response scenario"
           >
-            {(["answer", "clarify", "escalate"] as const).map(
-              (value) => (
-                <ToggleGroupItem
-                  key={value}
-                  value={value}
-                  className="flex-1 capitalize"
-                  aria-label={`${value} workflow`}
-                >
-                  {value}
-                </ToggleGroupItem>
-              )
-            )}
+            {(
+              [
+                ["answer", "Answer"],
+                ["negative", "Negative result"],
+                ["clarify", "Clarify"],
+                ["escalate", "Escalate"],
+              ] as const
+            ).map(([value, label]) => (
+              <ToggleGroupItem
+                key={value}
+                value={value}
+                className="w-full"
+                aria-label={
+                  value === "negative"
+                    ? "Negative performance workflow"
+                    : `${value} workflow`
+                }
+              >
+                {label}
+              </ToggleGroupItem>
+            ))}
           </ToggleGroup>
         </Field>
 

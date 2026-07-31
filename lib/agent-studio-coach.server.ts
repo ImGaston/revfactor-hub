@@ -9,7 +9,7 @@ const workflowNodeSchema = z.object({
   id: z.string().min(1).max(80),
   label: z.string().min(1).max(120),
   kind: z.enum(["input", "process", "decision", "output"]),
-  responseType: z.enum(["all", "answer", "clarify", "escalate"]),
+  responseType: z.enum(["all", "answer", "negative", "clarify", "escalate"]),
   instruction: z.string().min(1).max(1_200),
 })
 
@@ -66,7 +66,8 @@ Rules:
 - Return score as an integer from 1 through 5 (5 is best).
 - Distinguish exact rolling-window metrics from full calendar-month metrics, current pace from same-time-last-year pace, and final last-year results.
 - Prefer compact, testable instructions over vague style advice.
-- Preserve the answer / clarify / escalate branches. The workflow must be editable and operational, not a description of hidden model cognition.
+- Preserve the answer / negative-performance / clarify / escalate branches. The negative-performance branch must verify the benchmark, state the gap without sugarcoating, separate facts from possible causes, and explicitly choose a client-ready answer, internal brainstorm, or escalation. The workflow must be editable and operational, not a description of hidden model cognition.
+- Escalate negative performance when the gap is material, repeated, or unexplained; sources are stale or conflicting; the client raises churn, refund, cancellation, or a sensitive dispute; or an action requires approval. Do not invent a diagnosis or promise recovery.
 - A proposed playbook is always a draft. Never claim it was saved, approved, or promoted.`
 
 export function createAgentStudioCoach({

@@ -2,6 +2,10 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-31 — Negative Performance Is an Evidence-Gated Scenario, Not Automatic Escalation
+
+Agent Studio workflows treat negative performance as an editable scenario layered onto the existing answer/clarify/escalate outcomes. A result is negative only when a verified metric materially trails a valid market, same-time-last-year pace, final last-year result, or explicit target for the requested horizon. Client framing must state the gap plainly, separate observed facts from possible causes, avoid blame/false optimism/recovery promises, and present controllable levers only as evidence-backed hypotheses. The workflow then chooses among a client-ready next step, an internal brainstorm when cause is uncertain but low-risk, or human escalation when the gap is material/repeated/unexplained, sources conflict or are stale, a sensitive churn/refund/cancellation/dispute appears, or an action requires approval. Migration 059 backfills this branch into existing workflow JSON without rewriting approved/production prompt text; behavior still moves through the existing session-apply or draft/playbook-promotion controls.
+
 ## 2026-07-31 — Studio Coach Maps Observable Decisions, Not Private Chain-of-Thought
 
 The right-side Studio Coach is a separate low-cost structured review agent, not a second client responder. It analyzes the selected completed run, its frozen sources and reviewer feedback, plus up to four recent completed runs from the same playbook. Its editable graph is deliberately limited to inspectable operating stages—intent, evidence selection, sufficiency/policy gates, answer/clarify/escalate strategy, and a client-ready check—and must never claim to expose private model chain-of-thought. Reviews have their own immutable token/cost ledger. Proposed guidance may update the current browser session or create a new draft playbook version; it never edits an approved/production version or promotes automatically.
