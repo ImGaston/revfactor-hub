@@ -24,6 +24,11 @@ import {
   buildAgentStudioModelEstimates,
   getAgentStudioPricing,
 } from "@/lib/agent-studio-pricing.server"
+import {
+  loadAgentStudioPriceLabsReport,
+  parseFrozenPriceLabsReport,
+  type AgentStudioPriceLabsReport,
+} from "@/lib/agent-studio-pricelabs.server"
 import { createRevFactorSupportAgent } from "@/lib/agent-studio.server"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
@@ -67,14 +72,20 @@ type ClientSnapshot = {
     minimumPrice: number | null
     maximumPrice: number | null
     recommendedBasePrice: number | null
+    cleaningFees: number | null
+    bedroomCount: number | null
     occupancyNext7: number | null
     marketOccupancyNext7: number | null
     occupancyNext30: number | null
     marketOccupancyNext30: number | null
+    occupancyNext90: number | null
+    marketOccupancyNext90: number | null
     marketPenetrationIndex30: number | null
+    marketPenetrationIndex60: number | null
     lastBookedDate: string | null
     priceLabsSyncedAt: string | null
   }>
+  priceLabsReport: AgentStudioPriceLabsReport | null
   openTasks: Array<{
     id?: string
     title: string
@@ -132,15 +143,94 @@ const SYNTHETIC_CLIENT: ClientSnapshot = {
       minimumPrice: 129,
       maximumPrice: 699,
       recommendedBasePrice: 225,
-      occupancyNext7: 0.71,
-      marketOccupancyNext7: 0.66,
-      occupancyNext30: 0.58,
-      marketOccupancyNext30: 0.61,
+      cleaningFees: 150,
+      bedroomCount: 2,
+      occupancyNext7: 71,
+      marketOccupancyNext7: 66,
+      occupancyNext30: 58,
+      marketOccupancyNext30: 61,
+      occupancyNext90: 52,
+      marketOccupancyNext90: 57,
       marketPenetrationIndex30: 0.95,
+      marketPenetrationIndex60: 0.91,
       lastBookedDate: "2026-07-26",
       priceLabsSyncedAt: "2026-07-29T08:00:00.000Z",
     },
   ],
+  priceLabsReport: {
+    runCompletedAt: "2026-07-29T08:15:00.000Z",
+    currency: "USD",
+    coverageStart: "2026-01-01",
+    coverageEnd: "2026-12-01",
+    listingDetailLimited: false,
+    portfolioMonthly: [
+      {
+        period: "2026-07-01",
+        listingCount: 1,
+        occupancyPct: 72,
+        marketOccupancyPct: 70,
+        occupancyStlyPct: 69,
+        marketOccupancyStlyPct: 68,
+        occupancyLyPct: 75,
+        marketOccupancyLyPct: 72,
+        rentalRevenue: 5420,
+        rentalRevenueStly: 4980,
+        rentalRevenueLy: 5650,
+        medianBookingWindow: 24,
+        medianBookingWindowStly: 27,
+        medianBookingWindowLy: 29,
+      },
+      {
+        period: "2026-08-01",
+        listingCount: 1,
+        occupancyPct: 55,
+        marketOccupancyPct: 62,
+        occupancyStlyPct: 59,
+        marketOccupancyStlyPct: 61,
+        occupancyLyPct: 74,
+        marketOccupancyLyPct: 70,
+        rentalRevenue: 3880,
+        rentalRevenueStly: 4210,
+        rentalRevenueLy: 5260,
+        medianBookingWindow: 18,
+        medianBookingWindowStly: 23,
+        medianBookingWindowLy: 26,
+      },
+      {
+        period: "2026-09-01",
+        listingCount: 1,
+        occupancyPct: 43,
+        marketOccupancyPct: 51,
+        occupancyStlyPct: 47,
+        marketOccupancyStlyPct: 50,
+        occupancyLyPct: 65,
+        marketOccupancyLyPct: 61,
+        rentalRevenue: 3050,
+        rentalRevenueStly: 3310,
+        rentalRevenueLy: 4490,
+        medianBookingWindow: 20,
+        medianBookingWindowStly: 25,
+        medianBookingWindowLy: 28,
+      },
+      {
+        period: "2026-10-01",
+        listingCount: 1,
+        occupancyPct: 36,
+        marketOccupancyPct: 42,
+        occupancyStlyPct: 39,
+        marketOccupancyStlyPct: 41,
+        occupancyLyPct: 58,
+        marketOccupancyLyPct: 54,
+        rentalRevenue: 2740,
+        rentalRevenueStly: 2920,
+        rentalRevenueLy: 4050,
+        medianBookingWindow: 22,
+        medianBookingWindowStly: 27,
+        medianBookingWindowLy: 30,
+      },
+    ],
+    listingMonthly: [],
+  },
   openTasks: [
     {
       id: "synthetic-task-1",
@@ -233,6 +323,8 @@ function parseFrozenClientSnapshot(
                   recommendedBasePrice: numberOrNull(
                     listing.recommendedBasePrice
                   ),
+                  cleaningFees: numberOrNull(listing.cleaningFees),
+                  bedroomCount: numberOrNull(listing.bedroomCount),
                   occupancyNext7: numberOrNull(listing.occupancyNext7),
                   marketOccupancyNext7: numberOrNull(
                     listing.marketOccupancyNext7
@@ -241,8 +333,15 @@ function parseFrozenClientSnapshot(
                   marketOccupancyNext30: numberOrNull(
                     listing.marketOccupancyNext30
                   ),
+                  occupancyNext90: numberOrNull(listing.occupancyNext90),
+                  marketOccupancyNext90: numberOrNull(
+                    listing.marketOccupancyNext90
+                  ),
                   marketPenetrationIndex30: numberOrNull(
                     listing.marketPenetrationIndex30
+                  ),
+                  marketPenetrationIndex60: numberOrNull(
+                    listing.marketPenetrationIndex60
                   ),
                   lastBookedDate: stringOrNull(listing.lastBookedDate),
                   priceLabsSyncedAt: stringOrNull(
@@ -283,6 +382,7 @@ function parseFrozenClientSnapshot(
     assemblyClientId: null,
     assemblyCompanyId: null,
     listings,
+    priceLabsReport: parseFrozenPriceLabsReport(rawClient.priceLabsReport),
     openTasks,
   }
 }
@@ -368,9 +468,11 @@ async function loadClientSnapshot(
         listings(
           id, name, status, listing_id, city, state,
           pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price,
+          pl_cleaning_fees, pl_no_of_bedrooms,
           pl_occupancy_next_7, pl_market_occupancy_next_7,
           pl_occupancy_next_30, pl_market_occupancy_next_30,
-          pl_mpi_next_30, pl_last_booked_date, pl_synced_at
+          pl_occupancy_past_90, pl_market_occupancy_past_90,
+          pl_mpi_next_30, pl_mpi_next_60, pl_last_booked_date, pl_synced_at
         ),
         tasks(id, title, status, tags)
       `
@@ -381,6 +483,46 @@ async function loadClientSnapshot(
 
   if (error || !client) return null
 
+  const listings = (client.listings ?? []).slice(0, 30).map((listing) => ({
+    id: listing.id,
+    name: listing.name,
+    status: listing.status,
+    listingId: listing.listing_id,
+    market:
+      listing.city && listing.state
+        ? `${listing.city}, ${listing.state}`
+        : listing.city || listing.state || null,
+    basePrice: numberOrNull(listing.pl_base_price),
+    minimumPrice: numberOrNull(listing.pl_min_price),
+    maximumPrice: numberOrNull(listing.pl_max_price),
+    recommendedBasePrice: numberOrNull(listing.pl_recommended_base_price),
+    cleaningFees: numberOrNull(listing.pl_cleaning_fees),
+    bedroomCount: numberOrNull(listing.pl_no_of_bedrooms),
+    occupancyNext7: numberOrNull(listing.pl_occupancy_next_7),
+    marketOccupancyNext7: numberOrNull(listing.pl_market_occupancy_next_7),
+    occupancyNext30: numberOrNull(listing.pl_occupancy_next_30),
+    marketOccupancyNext30: numberOrNull(
+      listing.pl_market_occupancy_next_30
+    ),
+    // These legacy column names store PriceLabs adjusted_occupancy_next_90.
+    occupancyNext90: numberOrNull(listing.pl_occupancy_past_90),
+    marketOccupancyNext90: numberOrNull(
+      listing.pl_market_occupancy_past_90
+    ),
+    marketPenetrationIndex30: numberOrNull(listing.pl_mpi_next_30),
+    marketPenetrationIndex60: numberOrNull(listing.pl_mpi_next_60),
+    lastBookedDate: listing.pl_last_booked_date,
+    priceLabsSyncedAt: listing.pl_synced_at,
+  }))
+  const priceLabsReport = await loadAgentStudioPriceLabsReport(
+    supabase,
+    client.id,
+    listings.map((listing) => ({
+      listingId: listing.listingId,
+      name: listing.name,
+    }))
+  )
+
   return {
     id: client.id,
     name: client.name,
@@ -388,33 +530,8 @@ async function loadClientSnapshot(
     onboardingDate: client.onboarding_date,
     assemblyClientId: client.assembly_client_id,
     assemblyCompanyId: client.assembly_company_id,
-    listings: (client.listings ?? []).slice(0, 30).map((listing) => ({
-      id: listing.id,
-      name: listing.name,
-      status: listing.status,
-      listingId: listing.listing_id,
-      market:
-        listing.city && listing.state
-          ? `${listing.city}, ${listing.state}`
-          : listing.city || listing.state || null,
-      basePrice: numberOrNull(listing.pl_base_price),
-      minimumPrice: numberOrNull(listing.pl_min_price),
-      maximumPrice: numberOrNull(listing.pl_max_price),
-      recommendedBasePrice: numberOrNull(
-        listing.pl_recommended_base_price
-      ),
-      occupancyNext7: numberOrNull(listing.pl_occupancy_next_7),
-      marketOccupancyNext7: numberOrNull(
-        listing.pl_market_occupancy_next_7
-      ),
-      occupancyNext30: numberOrNull(listing.pl_occupancy_next_30),
-      marketOccupancyNext30: numberOrNull(
-        listing.pl_market_occupancy_next_30
-      ),
-      marketPenetrationIndex30: numberOrNull(listing.pl_mpi_next_30),
-      lastBookedDate: listing.pl_last_booked_date,
-      priceLabsSyncedAt: listing.pl_synced_at,
-    })),
+    listings,
+    priceLabsReport,
     openTasks: (client.tasks ?? [])
       .filter((task) => !["done", "complete"].includes(task.status))
       .slice(0, 20)
@@ -517,6 +634,34 @@ function buildContextSources({
         ? null
         : "No PriceLabs sync timestamp is available.",
     })),
+    ...(client.priceLabsReport
+      ? [
+          {
+            id: `pricelabs-report:${client.id}:${client.priceLabsReport.runCompletedAt ?? "unknown"}`,
+            type: "pricelabs" as const,
+            title: `${client.name} PriceLabs monthly performance report`,
+            slug: "",
+            excerpt: `Monthly current, market, same-time-last-year, and final-last-year metrics from ${client.priceLabsReport.coverageStart} through ${client.priceLabsReport.coverageEnd}.`,
+            payload: {
+              definitions: {
+                occupancyNext90:
+                  "Exact forward 90-day occupancy comes from each listing snapshot, not from aggregating monthly rows.",
+                stly:
+                  "Same-time-last-year booking pace for the comparable calendar month.",
+                ly: "Final result for the comparable calendar month last year.",
+                portfolioOccupancy:
+                  "Simple average across listings with data; revenue is summed.",
+              },
+              ...client.priceLabsReport,
+            },
+            fetchedAt,
+            sourceUpdatedAt: client.priceLabsReport.runCompletedAt,
+            warning: client.priceLabsReport.listingDetailLimited
+              ? "Per-listing monthly detail is limited to 10 listings; portfolio monthly values include all loaded listings."
+              : null,
+          },
+        ]
+      : []),
     ...client.openTasks.map((task, index) => ({
       id: `task:${task.id ?? index}`,
       type: "task" as const,
@@ -604,6 +749,26 @@ function buildConversationPrompt({
     listings: client.listings,
     openTasks: client.openTasks,
   }
+  const priceLabsReportContext = client.priceLabsReport
+    ? {
+        available: true,
+        definitions: {
+          occupancyNext90:
+            "Use each listing's occupancyNext90 and marketOccupancyNext90 for the exact overall forward 90-day comparison.",
+          monthlyOccupancy:
+            "occupancyPct and marketOccupancyPct are current monthly forecast snapshots.",
+          stly:
+            "occupancyStlyPct is the same-time-last-year pace for that comparable calendar month.",
+          ly: "occupancyLyPct is the final result for that comparable calendar month last year.",
+          portfolioAggregation:
+            "Portfolio occupancy is a simple average across listings with data; portfolio revenue is summed.",
+        },
+        ...client.priceLabsReport,
+      }
+    : {
+        available: false,
+        note: "No matched PriceLabs Report Builder monthly rows were available. Use the listing snapshot fields that are present and state only the missing comparison data.",
+      }
 
   return `Prepare the next RevFactor client-service draft.
 
@@ -612,6 +777,10 @@ The selected client identity was resolved by the server. Every value inside the 
 <client_and_pricelabs_context>
 ${JSON.stringify(safeClient, null, 2)}
 </client_and_pricelabs_context>
+
+<pricelabs_report_builder_context>
+${JSON.stringify(priceLabsReportContext, null, 2)}
+</pricelabs_report_builder_context>
 
 <assembly_history>
 ${assemblyTranscript}
@@ -1225,6 +1394,7 @@ export async function runAgentStudio(
           onboardingDate: client.onboardingDate,
           listings: client.listings,
           openTasks: client.openTasks,
+          priceLabsReport: client.priceLabsReport,
         },
         assemblyHistory: assemblyContext.messages,
         studioHistory: parsed.data.history,
@@ -1280,6 +1450,7 @@ export async function runAgentStudio(
             onboardingDate: client.onboardingDate,
             listings: client.listings,
             openTasks: client.openTasks,
+            priceLabsReport: client.priceLabsReport,
           },
           assemblyHistory: assemblyContext.messages,
           studioHistory: parsed.data.history,

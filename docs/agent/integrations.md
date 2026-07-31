@@ -219,7 +219,7 @@ Caller requirements (any external page):
 
 - AI runs use Vercel AI Gateway through AI SDK 7. Pricing refreshes hourly and is snapshotted per run for same-token model comparisons.
 - Assembly history is fetched read-only from the linked active client's latest channel. Contact details and URLs are redacted before model use or storage. Shadow cases never send drafts.
-- PriceLabs context comes from existing synced listing fields and timestamps; Studio has no write path.
+- PriceLabs context is read-only and has two complementary sources: synced listing snapshots provide exact forward 7/30/90-day occupancy and market occupancy, while the latest completed Report Builder run provides monthly current, market, same-time-last-year (STLY), and final-last-year (LY) comparisons. The legacy `pl_occupancy_past_90` / `pl_market_occupancy_past_90` columns actually store PriceLabs' `adjusted_occupancy_next_90` values; Agent Studio exposes them with accurate forward-looking names. Monthly portfolio occupancy is a simple listing average and revenue is summed; it is not used as a substitute for the exact 90-day snapshot. Per-listing monthly detail is bounded to 10 listings in model context while portfolio aggregates cover up to 50 matched listings. Studio has no PriceLabs write path.
 - Local health requires `ASSEMBLY_API_KEY` and `PRICELABS_API_KEY` in `.env.local`; production uses the same server-only Vercel variables.
 
 ## Leads Read API (outbound, implemented 2026-07-10)

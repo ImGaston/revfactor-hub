@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Agent Studio 90-day and last-year PriceLabs context
+
+- Fixed performance drafts that stopped at 30 days by exposing the already-synced exact forward 90-day listing and market occupancy fields, along with cleaning fees, bedroom count, and 60-day market penetration.
+- Added a bounded server-only Report Builder loader for monthly current, market, STLY, LY, revenue, booking-window, RevPAR, and penetration data. Portfolio monthly context covers all matched listings (up to 50); near-term per-listing detail is capped at 10.
+- Added the monthly report as a separate inspectable source and frozen it in run snapshots, with immutable prompt rules that distinguish exact rolling 90-day values from calendar-month comparisons.
+
 ## 2026-07-31 — Reopen Agent Studio runs
 
 - Added a Reopen action to the Runs ledger that restores a saved run in the Playground, including the client, model, playbook instructions, conversation messages, result, sources, tool trace, token usage, comparison costs, and inspector state.
