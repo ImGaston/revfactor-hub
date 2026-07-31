@@ -44,10 +44,10 @@ export const agentCoachOutputSchema = z.object({
   playbookDescription: z.string().min(1).max(500),
   changeNote: z.string().min(1).max(500),
   workflow: z.object({
-    // Gemini's response_schema rejects numeric enum values emitted by
-    // z.literal(1). A bounded integer preserves the same contract without
-    // producing an incompatible enum entry.
-    version: z.number().int().min(1).max(1),
+    // Gemini treats an improved workflow as a version bump even though this
+    // field describes our JSON schema. Accept a bounded provider value;
+    // normalizeAgentWorkflow always persists the supported schema as v1.
+    version: z.number().int().min(1).max(100),
     nodes: z.array(workflowNodeSchema).min(4).max(16),
     edges: z.array(workflowEdgeSchema).min(3).max(24),
   }),
