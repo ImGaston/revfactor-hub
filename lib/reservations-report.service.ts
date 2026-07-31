@@ -20,6 +20,7 @@ import {
 import {
   CHANNEL_COLORS,
   renderStackedBarChartPng,
+  type RenderedChart,
 } from "@/lib/reservations-chart.server"
 import { buildGrantStyleWorkbook } from "@/lib/reservations-workbook.server"
 
@@ -168,33 +169,44 @@ export async function generateClientReservationsReport(
 
   const chartData = model.channelChartData
   const currencySymbol = model.currentKpis.currencies.length > 1 ? "" : "$"
-  const charts =
-    chartData.listings.length > 0
-      ? {
-          revenue: await renderStackedBarChartPng({
-            title: "Rental Revenue by Listing and Channel",
-            categories: chartData.listings,
-            series: chartData.channels.map((channel, i) => ({
-              name: channel,
-              color: CHANNEL_COLORS[channel],
-              values: chartData.revenue.map((row) => row[i]),
-            })),
-            valueKind: "money",
-            currencySymbol,
-          }),
-          reservations: await renderStackedBarChartPng({
-            title: "Reservations by Listing and Channel",
-            categories: chartData.listings,
-            series: chartData.channels.map((channel, i) => ({
-              name: channel,
-              color: CHANNEL_COLORS[channel],
-              values: chartData.reservations.map((row) => row[i]),
-            })),
-            valueKind: "count",
-            currencySymbol,
-          }),
-        }
-      : null
+  // Chart rasterization needs sharp's native binding, which can be missing in
+  // some runtimes — degrade to a chartless report instead of failing the export.
+  let charts: { revenue: RenderedChart; reservations: RenderedChart } | null =
+    null
+  if (chartData.listings.length > 0) {
+    try {
+      charts = {
+        revenue: await renderStackedBarChartPng({
+          title: "Rental Revenue by Listing and Channel",
+          categories: chartData.listings,
+          series: chartData.channels.map((channel, i) => ({
+            name: channel,
+            color: CHANNEL_COLORS[channel],
+            values: chartData.revenue.map((row) => row[i]),
+          })),
+          valueKind: "money",
+          currencySymbol,
+        }),
+        reservations: await renderStackedBarChartPng({
+          title: "Reservations by Listing and Channel",
+          categories: chartData.listings,
+          series: chartData.channels.map((channel, i) => ({
+            name: channel,
+            color: CHANNEL_COLORS[channel],
+            values: chartData.reservations.map((row) => row[i]),
+          })),
+          valueKind: "count",
+          currencySymbol,
+        }),
+      }
+    } catch (error) {
+      console.error("Chart rendering unavailable, exporting without charts:", error)
+      model.warnings.push({
+        code: "charts_unavailable",
+        message: "Charts could not be rendered in this environment; the report was generated without them",
+      })
+    }
+  }
 
   const buffer = await buildGrantStyleWorkbook({
     clientName: opts.clientName,

@@ -1,8 +1,10 @@
 // Server-only chart rendering for the Grant-style report. ExcelJS has no
 // stable native-chart API, so charts are hand-rolled SVG (no chart library)
 // rasterized to PNG with sharp and embedded via workbook.addImage().
+// sharp is imported lazily: its native libvips binding can be missing in some
+// runtimes, and that failure must be catchable per-call so the report can
+// still be generated without charts instead of the whole route crashing.
 
-import sharp from "sharp"
 import type { CanonicalChannel } from "@/lib/reservations-export"
 
 // Stable per-channel colors so charts stay comparable across reports
@@ -152,6 +154,7 @@ export type RenderedChart = {
 export async function renderStackedBarChartPng(
   input: StackedBarChartInput
 ): Promise<RenderedChart> {
+  const { default: sharp } = await import("sharp")
   const svg = renderStackedBarChartSvg(input)
   const png = await sharp(Buffer.from(svg)).png().toBuffer()
   const height =
