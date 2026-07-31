@@ -15,6 +15,7 @@ export const RESOURCES = [
   { key: "knowledge", label: "Knowledge", description: "Policies, SOPs, and internal knowledge base" },
   { key: "adjustments", label: "Adjustments", description: "Change requests, triage queue, and control" },
   { key: "agent_studio", label: "Agent Studio", description: "Test and configure the client service AI sandbox" },
+  { key: "reservations", label: "Reservations", description: "PriceLabs booking data (read-only, synced from BigQuery)" },
 ] as const
 
 export const ACTIONS = ["view", "create", "edit", "delete", "publish", "control"] as const

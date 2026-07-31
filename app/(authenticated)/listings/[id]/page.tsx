@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { notFound } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
 import { getListingReport } from "@/lib/report-builder/queries"
+import { getRecentReservationsByListing, type Reservation } from "@/lib/reservations"
+import { RecentReservationsCard } from "@/components/reservations/recent-reservations-card"
 import { ListingDetail } from "./listing-detail"
 import type { ListingSubscriptionOption } from "./change-listing-subscription-dialog"
 
@@ -46,7 +49,9 @@ export default async function ListingPage({
     (listing.airbnb_link as string | null)?.match(/\/rooms\/(\d+)/)?.[1],
   ].filter((v): v is string => !!v)
 
-  const [report, rankbreezeResult] = await Promise.all([
+  const canViewReservations = await hasPermission("reservations", "view")
+
+  const [report, rankbreezeResult, recentReservations] = await Promise.all([
     getListingReport(supabase, listing.listing_id),
     airbnbIdCandidates.length > 0
       ? supabase
@@ -58,6 +63,9 @@ export default async function ListingPage({
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    canViewReservations
+      ? getRecentReservationsByListing(supabase, id, 10)
+      : Promise.resolve([] as Reservation[]),
   ])
   const rankbreezeId =
     (rankbreezeResult.data?.rankbreeze_id as string | undefined) ?? null
@@ -150,6 +158,14 @@ export default async function ListingPage({
       }
       subscriptionOptions={subscriptionOptions}
       clientCustomerIds={clientCustomerIds}
+      reservationsCard={
+        canViewReservations ? (
+          <RecentReservationsCard
+            reservations={recentReservations}
+            context="listing"
+          />
+        ) : null
+      }
     />
   )
 }

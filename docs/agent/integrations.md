@@ -144,6 +144,10 @@ Implemented in migration `033_bank_statements.sql`, `lib/bank-import.ts`, the Fi
 - Payout reconciliation: `Receive` rows whose payee contains "stripe" match `stripe_payouts` by exact `amount_cents` and `arrival_date` within ±3 days. Non-Stripe income (e.g. bonuses) stays unmatched income and is not added to Stripe revenue.
 - RLS follows the financials pattern: `SELECT` to authenticated, writes `super_admin` only (the route is also `super_admin` gated).
 
+## PriceLabs Reservations (BigQuery wrapper)
+
+Reservation-level data reaches the Hub through an externally-managed pipeline: BigQuery → Supabase `wrappers` FDW foreign table `pricelabs_bq.pricelabs_reservations` → external view `public.pricelabs_reservations_bq` (joins hub `listings`/`clients`; do not modify either). **The foreign table is only queryable by `postgres`** — the FDW resolves its BigQuery credentials from `vault` as the *calling* role, so authenticated/service_role fail with "permission denied for schema vault", and every query is a live BigQuery round-trip. The app therefore reads only the local matview `pricelabs_reservations_cache` (migration 054), refreshed hourly by pg_cron as postgres (migration 055); the BQ source itself refreshes daily ~02:20 UTC. Data layer: `lib/reservations.ts`; UI: `/reservations` + `RecentReservationsCard` on client/listing detail. The older `pricelabs_reservations_airbnb` table is a separate legacy ingest — do not use it (user decision, 2026-07-31). See project-map.md → Database Tables for the cache details.
+
 ## Pacing Chart
 
 The dashboard home's pacing visual is the **Monthly Pacing** chart (real Report Builder data) — see the Monthly Pacing section below.

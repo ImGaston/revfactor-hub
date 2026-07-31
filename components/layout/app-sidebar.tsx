@@ -3,6 +3,7 @@
 import {
   LayoutDashboard,
   Users,
+  CalendarCheck,
   CheckSquare,
   ClipboardList,
   Calendar,
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Clients", href: "/clients", icon: Users, resource: "clients" },
   { title: "Listings", href: "/listings", icon: Building2, resource: "listings" },
+  { title: "Reservations", href: "/reservations", icon: CalendarCheck, resource: "reservations" },
   { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
   { title: "Adjustments", href: "/adjustments", icon: SlidersHorizontal, resource: "adjustments" },
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },

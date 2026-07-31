@@ -18,6 +18,8 @@ import {
   getStripeSubscriptionOptionsAction,
 } from "./stripe-actions"
 import { getClientStripeBilling } from "@/lib/client-stripe-billing"
+import { getRecentReservationsByClient, type Reservation } from "@/lib/reservations"
+import { RecentReservationsCard } from "@/components/reservations/recent-reservations-card"
 
 export default async function ClientPage({
   params,
@@ -31,7 +33,10 @@ export default async function ClientPage({
   ])
   const isSuperAdmin = profile?.role === "super_admin"
 
-  const canViewAdjustments = await hasPermission("adjustments", "view")
+  const [canViewAdjustments, canViewReservations] = await Promise.all([
+    hasPermission("adjustments", "view"),
+    hasPermission("reservations", "view"),
+  ])
 
   const [
     { data: client },
@@ -39,6 +44,7 @@ export default async function ClientPage({
     stripeCustomersResult,
     billingByClient,
     adjustmentsResult,
+    recentReservations,
   ] = await Promise.all([
     supabase
       .from("clients")
@@ -73,6 +79,9 @@ export default async function ClientPage({
           .order("created_at", { ascending: false })
           .limit(20)
       : Promise.resolve({ data: [] }),
+    canViewReservations
+      ? getRecentReservationsByClient(supabase, id, 10)
+      : Promise.resolve([] as Reservation[]),
   ])
 
   if (!client) notFound()
@@ -110,6 +119,12 @@ export default async function ClientPage({
           adjustments={
             (adjustmentsResult.data ?? []) as unknown as ClientAdjustmentItem[]
           }
+        />
+      )}
+      {canViewReservations && (
+        <RecentReservationsCard
+          reservations={recentReservations}
+          context="client"
         />
       )}
     </div>

@@ -170,6 +170,7 @@ export function ListingDetail({
   currentSubscriptionId = null,
   subscriptionOptions = [],
   clientCustomerIds = [],
+  reservationsCard = null,
 }: {
   listing: ListingWithMetrics
   client: ClientData
@@ -179,6 +180,7 @@ export function ListingDetail({
   currentSubscriptionId?: string | null
   subscriptionOptions?: ListingSubscriptionOption[]
   clientCustomerIds?: string[]
+  reservationsCard?: React.ReactNode
 }) {
   const hasPLData = listing.pl_synced_at != null
   const [subDialogOpen, setSubDialogOpen] = useState(false)
@@ -458,6 +460,9 @@ export function ListingDetail({
           suffix={listing.pl_occupancy_past_90 != null ? "%" : ""}
         />
       </div>
+
+      {/* ─── Recent Reservations (server-rendered slot) ──── */}
+      {reservationsCard}
 
       {/* ─── Tabs ────────────────────────────────────────── */}
       <Tabs defaultValue="overview" className="space-y-4">

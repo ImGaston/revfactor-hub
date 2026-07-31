@@ -2,12 +2,27 @@
 
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
+## 2026-07-31 — Reservations module (PriceLabs BigQuery view)
+
+- New `/reservations` section (permission resource `reservations`, `view` seeded TRUE for all 5 roles in migration 053): URL-param-driven server-side filtering (client, listing, check-in date range, text search), sorting, and 50-row pagination over ~26k booked reservations. Cancelled reservations are excluded everywhere by product decision (filter hardcoded in `lib/reservations.ts`).
+- Shared `RecentReservationsCard` (latest 10, newest booked first) added to client detail (after Adjustments) and listing detail (between KPI cards and tabs via a server-rendered slot prop).
+- Key discovery: `pricelabs_bq.pricelabs_reservations` behind the external view `pricelabs_reservations_bq` is a BigQuery FDW foreign table only `postgres` can query (vault credential lookup runs as the caller). Fix: migration 054 materializes the view into `pricelabs_reservations_cache` (unique `row_key`, partial indexes, grants to authenticated/service_role only — no anon) and migration 055 adds pg_cron (`CREATE EXTENSION`) with an hourly concurrent refresh as postgres. The app reads only the cache; the external view and `pricelabs_reservations_airbnb` are untouched (per user: source of truth is `pricelabs_reservations_bq`; do not use `pricelabs_reservations_airbnb`).
+- Verified in the running app: table, client/listing combobox filters, date range + sort via URL, page 2, both detail cards, and cache readability as `authenticated`. `pnpm typecheck` clean for the new files (pre-existing agent-studio errors from missing `zod`/`ai` deps remain).
+- Follow-up: migration 056 recreates the cache with computed `booking_window_days` (`check_in - booked_date`; avg ~52d, 131 negative rows from post-check-in alterations shown as-is), surfaced as a sortable "Bkg Window" column on `/reservations`.
+
 ## 2026-07-28 — Internal Agent Studio MVP
 
 - Added `/agent-studio`: synthetic or RLS-scoped real-client context, three selectable Gateway models, session-only instructions, multi-turn test chat, and an inspector for disposition/confidence, reviewer notes, Knowledge sources, tool calls, tokens, duration, and estimated cost.
 - Added the server-only AI SDK `ToolLoopAgent` with immutable safety policy, structured output, a read-only published-Knowledge search tool, bounded steps/output, explicit safe client-data projection, and no persistence, data mutation, Assembly call, or send UI.
 - Added `agent_studio:view` (migration 049, granted to admin and applied to the production `revfactorHub` Supabase project on 2026-07-28), sidebar/command/breadcrumb entries, Gateway env documentation, and new shadcn Field/Empty/Spinner primitives.
 - Verified `pnpm typecheck`, targeted ESLint, and the synthetic UI at wide and narrow layouts. A live authenticated/model run remains environment-dependent: this Codex session did not have Supabase or AI Gateway credentials.
+
+## 2026-07-22 — DB resource audit v0.1 (diagnóstico post-incidente, sin código)
+
+- New `docs/agent/db-resource-audit-v0.1.md`: full diagnostic of Postgres IO/memory waste after the 2026-07-21 Disk IO budget exhaustion (statement-timeout burst 21:44–23:31 UTC; postgres logs carry no SQL for the canceled statements, `pg_stat_statements` reset at the 07-22 restart).
+- Headline findings: (1) every RLS policy calls `has_permission()`/`auth.uid()` unwrapped — and `has_permission` is SECURITY DEFINER so it can never be inlined, costing up to ~3 lookups **per row scanned**; (2) zero request-level caching — layout + pages re-run `auth.getUser` + `profiles` + `role_permissions` 2-3× per navigation; (3) ~74 MB of the 118 MB DB is sync data with no retention (`report_metrics` appends ~2.9k rows/run daily, `report_runs.raw_envelope` holds 17 MB, Stripe mirror `raw_json` never pruned); (4) PriceLabs sync writes ~256 sequential row-by-row UPDATEs; (5) dashboard fires 5 exact counts + a ~2.9k-row `report_metrics` pagination per load.
+- Advisor snapshot: 19 auth_rls_initplan, 20 multiple_permissive_policies, 45 unindexed FKs (inventoried only — execution is a separate scope), 94 "unused" indexes (weak signal: stats reset same day). `get_my_role()` is missing from migrations (lives only in the live DB). Legacy `USING (true)` remains on `roadmap_items` (all cmds) and `reservations` SELECT.
+- Top-5 fix ranking in the doc; nothing implemented. Adjustments module excluded per scope. `clients-listings-perf-plan-v2.md` referenced by the task does not exist in the repo.
 
 ## 2026-07-21 — Client churn tracking: reason tags/note, auto ending_date, LTV (super_admin only)
 
