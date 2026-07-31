@@ -68,6 +68,11 @@ export type AgentCoachResult =
   | { ok: true; review: AgentCoachReview }
   | { ok: false; error: string }
 
+export function normalizeCoachScore(value: number): number {
+  const fivePointValue = value > 5 ? value / 20 : value
+  return Math.min(5, Math.max(1, Math.round(fivePointValue)))
+}
+
 export const DEFAULT_AGENT_WORKFLOW: AgentWorkflow = {
   version: 1,
   nodes: [
