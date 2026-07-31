@@ -231,22 +231,25 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
     })
   )
 
-  const integrationHealth = Array.from(
-    new Map(
-      (checks ?? []).map((check) => [
-        check.integration,
-        {
-          integration: check.integration,
-          status: check.status,
-          latencyMs:
-            check.latency_ms == null ? null : Number(check.latency_ms),
-          lastSourceUpdateAt: check.last_source_update_at,
-          details: record(check.details),
-          checkedAt: check.checked_at,
-        } satisfies AgentIntegrationHealth,
-      ])
-    ).values()
-  )
+  // The query is newest-first. Keep the first row for each integration;
+  // constructing a Map from every row would let older checks overwrite it.
+  const latestIntegrationHealth = new Map<
+    AgentIntegrationHealth["integration"],
+    AgentIntegrationHealth
+  >()
+  for (const check of checks ?? []) {
+    if (latestIntegrationHealth.has(check.integration)) continue
+    latestIntegrationHealth.set(check.integration, {
+      integration: check.integration,
+      status: check.status,
+      latencyMs:
+        check.latency_ms == null ? null : Number(check.latency_ms),
+      lastSourceUpdateAt: check.last_source_update_at,
+      details: record(check.details),
+      checkedAt: check.checked_at,
+    })
+  }
+  const integrationHealth = Array.from(latestIntegrationHealth.values())
 
   const settingsRow = settingsRows?.[0]
   const settings = settingsRow
