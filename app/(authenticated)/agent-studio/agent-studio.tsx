@@ -83,6 +83,7 @@ import {
   type AgentStudioClientOption,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
+  type AgentStudioReopenState,
   type AgentStudioRun,
 } from "@/lib/agent-studio"
 import type { AgentPlaybookVersionSummary } from "@/lib/agent-studio-governance"
@@ -94,6 +95,22 @@ type StudioMessage = AgentStudioHistoryMessage & {
   id: string
   run?: AgentStudioRun
   failed?: boolean
+}
+
+function messagesFromReopenedRun(
+  reopenedRun: AgentStudioReopenState | null
+): StudioMessage[] {
+  if (!reopenedRun) return []
+  return reopenedRun.messages.map((message) => ({
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    failed: message.failed,
+    run:
+      message.runId === reopenedRun.activeRun?.id
+        ? reopenedRun.activeRun ?? undefined
+        : undefined,
+  }))
 }
 
 const EXAMPLE_PROMPTS = [
@@ -552,10 +569,14 @@ export function AgentStudio({
   clients,
   gatewayConfigured,
   playbookVersions,
+  reopenedRun,
+  onStartNewConversation,
 }: {
   clients: AgentStudioClientOption[]
   gatewayConfigured: boolean
   playbookVersions: AgentPlaybookVersionSummary[]
+  reopenedRun: AgentStudioReopenState | null
+  onStartNewConversation: () => void
 }) {
   const initialPlaybook =
     playbookVersions.find((version) => version.status === "production") ??
@@ -563,20 +584,42 @@ export function AgentStudio({
     playbookVersions.find((version) => version.status === "testing") ??
     playbookVersions[0] ??
     null
-  const [clientId, setClientId] = useState(SYNTHETIC_CLIENT_ID)
+  const reopenedPlaybookVersionId =
+    reopenedRun?.playbookVersionId &&
+    playbookVersions.some(
+      (version) =>
+        version.id === reopenedRun.playbookVersionId &&
+        version.status !== "archived"
+    )
+      ? reopenedRun.playbookVersionId
+      : null
+  const [clientId, setClientId] = useState(
+    reopenedRun?.clientId ?? SYNTHETIC_CLIENT_ID
+  )
   const [modelId, setModelId] = useState<AgentStudioModelId>(
-    initialPlaybook?.modelId ?? DEFAULT_AGENT_STUDIO_MODEL
+    reopenedRun?.modelId ??
+      initialPlaybook?.modelId ??
+      DEFAULT_AGENT_STUDIO_MODEL
   )
   const [instructions, setInstructions] = useState(
-    initialPlaybook?.instructions ?? DEFAULT_AGENT_STUDIO_INSTRUCTIONS
+    reopenedRun?.instructions ??
+      initialPlaybook?.instructions ??
+      DEFAULT_AGENT_STUDIO_INSTRUCTIONS
   )
   const [playbookVersionId, setPlaybookVersionId] = useState(
-    initialPlaybook?.id ?? "session"
+    reopenedPlaybookVersionId ??
+      (reopenedRun ? "session" : initialPlaybook?.id ?? "session")
   )
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [message, setMessage] = useState("")
-  const [messages, setMessages] = useState<StudioMessage[]>([])
-  const [activeRun, setActiveRun] = useState<AgentStudioRun | null>(null)
+  const [conversationId, setConversationId] = useState<string | null>(
+    reopenedRun?.conversationId ?? null
+  )
+  const [message, setMessage] = useState(reopenedRun?.draftMessage ?? "")
+  const [messages, setMessages] = useState<StudioMessage[]>(() =>
+    messagesFromReopenedRun(reopenedRun)
+  )
+  const [activeRun, setActiveRun] = useState<AgentStudioRun | null>(
+    reopenedRun?.activeRun ?? null
+  )
   const [isPending, startTransition] = useTransition()
 
   const selectedModel = useMemo(
@@ -584,10 +627,10 @@ export function AgentStudio({
     [modelId]
   )
 
-  function resetConversation() {
+  function resetConversation({ preserveDraft = false } = {}) {
     setMessages([])
     setActiveRun(null)
-    setMessage("")
+    if (!preserveDraft) setMessage("")
     setConversationId(null)
   }
 
@@ -603,6 +646,7 @@ export function AgentStudio({
 
     const history = messages
       .filter((item) => !item.failed)
+      .slice(-24)
       .map(({ role, content }) => ({ role, content }))
     const userMessage: StudioMessage = {
       id: crypto.randomUUID(),
@@ -695,7 +739,7 @@ export function AgentStudio({
   function changeModel(value: string) {
     if (!isAgentStudioModelId(value)) return
     setModelId(value)
-    resetConversation()
+    resetConversation({ preserveDraft: true })
   }
 
   function changePlaybook(value: string) {
@@ -744,7 +788,14 @@ export function AgentStudio({
               Copy draft
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={resetConversation}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              resetConversation()
+              onStartNewConversation()
+            }}
+          >
             <RotateCcw data-icon="inline-start" />
             New conversation
           </Button>
@@ -772,6 +823,21 @@ export function AgentStudio({
           are not yet classified as customer-safe.
         </AlertDescription>
       </Alert>
+
+      {reopenedRun && (
+        <Alert>
+          <RotateCcw />
+          <AlertTitle>Saved run reopened</AlertTitle>
+          <AlertDescription>
+            Run {reopenedRun.runId.slice(0, 8)} is restored for review. Sending
+            another message creates a new run and leaves the saved result
+            unchanged.
+            {reopenedRun.copiedFromAnotherUser
+              ? " Because a teammate created it, your next message starts a separate conversation copy."
+              : ""}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
         <Card>

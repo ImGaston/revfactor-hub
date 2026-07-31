@@ -70,6 +70,7 @@ import {
   isAgentStudioModelId,
   type AgentStudioClientOption,
   type AgentStudioModelId,
+  type AgentStudioReopenState,
 } from "@/lib/agent-studio"
 import type {
   AgentIntegrationHealth,
@@ -78,6 +79,7 @@ import type {
   AgentStudioSettings,
 } from "@/lib/agent-studio-governance"
 import { AgentStudio } from "./agent-studio"
+import { reopenAgentStudioRun } from "./actions"
 import {
   checkStudioIntegrationsAction,
   createShadowCaseAction,
@@ -120,8 +122,12 @@ function statusVariant(
 
 function RunsPanel({
   governance,
+  reopeningRunId,
+  onReopen,
 }: {
   governance: AgentStudioGovernanceSnapshot
+  reopeningRunId: string | null
+  onReopen: (runId: string) => void
 }) {
   const totals = useMemo(() => {
     const completed = governance.recentRuns.filter(
@@ -208,6 +214,7 @@ function RunsPanel({
                 <TableHead>Latency</TableHead>
                 <TableHead>Rating</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -255,11 +262,27 @@ function RunsPanel({
                   <TableCell className="text-right font-mono">
                     {formatCost(run.estimatedCostUsd)}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onReopen(run.id)}
+                      disabled={reopeningRunId !== null}
+                    >
+                      {reopeningRunId === run.id ? (
+                        <Spinner data-icon="inline-start" />
+                      ) : (
+                        <Play data-icon="inline-start" />
+                      )}
+                      Reopen
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {governance.recentRuns.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     Run the playground to create the first durable record.
                   </TableCell>
                 </TableRow>
@@ -1209,8 +1232,41 @@ export function AgentStudioShell({
   gatewayConfigured: boolean
   governance: AgentStudioGovernanceSnapshot
 }) {
+  const [activeTab, setActiveTab] = useState("playground")
+  const [reopenedRun, setReopenedRun] =
+    useState<AgentStudioReopenState | null>(null)
+  const [reopeningRunId, setReopeningRunId] = useState<string | null>(null)
+
+  async function reopenRun(runId: string) {
+    setReopeningRunId(runId)
+    try {
+      const result = await reopenAgentStudioRun(runId)
+
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+
+      setReopenedRun(result.state)
+      setActiveTab("playground")
+      toast.success(
+        result.state.copiedFromAnotherUser
+          ? "Run copied into your Playground"
+          : "Run reopened in Playground"
+      )
+    } catch {
+      toast.error("The saved run could not be reopened. Please try again.")
+    } finally {
+      setReopeningRunId(null)
+    }
+  }
+
   return (
-    <Tabs defaultValue="playground" className="flex flex-col gap-6">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="flex flex-col gap-6"
+    >
       <TabsList className="w-full justify-start">
         <TabsTrigger value="playground">
           <Bot data-icon="inline-start" />
@@ -1236,13 +1292,20 @@ export function AgentStudioShell({
 
       <TabsContent value="playground">
         <AgentStudio
+          key={reopenedRun?.runId ?? "new-conversation"}
           clients={clients}
           gatewayConfigured={gatewayConfigured}
           playbookVersions={governance.playbookVersions}
+          reopenedRun={reopenedRun}
+          onStartNewConversation={() => setReopenedRun(null)}
         />
       </TabsContent>
       <TabsContent value="runs">
-        <RunsPanel governance={governance} />
+        <RunsPanel
+          governance={governance}
+          reopeningRunId={reopeningRunId}
+          onReopen={(runId) => void reopenRun(runId)}
+        />
       </TabsContent>
       <TabsContent value="playbooks">
         <PlaybooksPanel governance={governance} />
