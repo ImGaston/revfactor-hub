@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import {
   AGENT_STUDIO_COACH_MODEL_ID,
+  normalizeCoachScore,
   normalizeAgentWorkflow,
   type AgentCoachResult,
 } from "@/lib/agent-studio-coach"
@@ -267,6 +268,7 @@ export async function coachAgentStudioRun(
     const durationMs = Date.now() - startedAt
     const output = {
       ...result.output,
+      score: normalizeCoachScore(result.output.score),
       workflow: normalizeAgentWorkflow(result.output.workflow),
     }
     const { data: review, error: reviewError } = await supabase

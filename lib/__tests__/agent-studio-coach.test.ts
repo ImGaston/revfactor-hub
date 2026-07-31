@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   DEFAULT_AGENT_WORKFLOW,
   applyCoachToInstructions,
+  normalizeCoachScore,
   normalizeAgentWorkflow,
   workflowToInstructions,
 } from "@/lib/agent-studio-coach"
@@ -72,5 +73,14 @@ describe("workflow instructions", () => {
     expect(second.match(/\[Studio workflow rules\]/g)).toHaveLength(1)
     expect(second).toContain("Keep the direct answer first.")
     expect(second).not.toContain("Prefer explicit date-grain labels.")
+  })
+})
+
+describe("normalizeCoachScore", () => {
+  it("accepts both five-point and percentage-style model scores", () => {
+    expect(normalizeCoachScore(4)).toBe(4)
+    expect(normalizeCoachScore(60)).toBe(3)
+    expect(normalizeCoachScore(100)).toBe(5)
+    expect(normalizeCoachScore(0)).toBe(1)
   })
 })
