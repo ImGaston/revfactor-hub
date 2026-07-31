@@ -1,4 +1,5 @@
 import type { AgentStudioModelId } from "@/lib/agent-studio"
+import type { AgentWorkflow } from "@/lib/agent-studio-coach"
 
 export type AgentPlaybookStatus =
   | "draft"
@@ -15,6 +16,7 @@ export type AgentPlaybookVersionSummary = {
   version: number
   status: AgentPlaybookStatus
   instructions: string
+  workflow: AgentWorkflow
   modelId: AgentStudioModelId
   allowedTools: string[]
   maxInputTokens: number

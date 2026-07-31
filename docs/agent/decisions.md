@@ -2,6 +2,10 @@
 
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
+## 2026-07-31 — Studio Coach Maps Observable Decisions, Not Private Chain-of-Thought
+
+The right-side Studio Coach is a separate low-cost structured review agent, not a second client responder. It analyzes the selected completed run, its frozen sources and reviewer feedback, plus up to four recent completed runs from the same playbook. Its editable graph is deliberately limited to inspectable operating stages—intent, evidence selection, sufficiency/policy gates, answer/clarify/escalate strategy, and a client-ready check—and must never claim to expose private model chain-of-thought. Reviews have their own immutable token/cost ledger. Proposed guidance may update the current browser session or create a new draft playbook version; it never edits an approved/production version or promotes automatically.
+
 ## 2026-07-31 — Agent Studio Separates Exact 90-Day Snapshots from Monthly Comparisons
 
 Performance drafts use two PriceLabs read models with explicit semantics. Exact forward 7/30/90-day occupancy and market occupancy come from the daily synced listing snapshot; the misleading legacy columns `pl_occupancy_past_90` / `pl_market_occupancy_past_90` contain PriceLabs' forward `adjusted_occupancy_next_90` values and are renamed only in Agent Studio context. Month-by-month current-vs-market, STLY booking pace, and final LY results come from the latest completed Report Builder run. Calendar-month averages must not be presented as an exact rolling 90-day calculation. Both source payloads are inspectable and frozen per run so reopened runs retain the evidence originally used.

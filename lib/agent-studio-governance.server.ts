@@ -9,6 +9,7 @@ import {
   type AgentRunSummary,
   type AgentStudioGovernanceSnapshot,
 } from "@/lib/agent-studio-governance"
+import { normalizeAgentWorkflow } from "@/lib/agent-studio-coach"
 import { isAgentStudioModelId } from "@/lib/agent-studio"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
@@ -148,6 +149,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
         version: Number(version.version),
         status: version.status,
         instructions: version.instructions,
+        workflow: normalizeAgentWorkflow(version.workflow),
         modelId: version.model_id,
         allowedTools: version.allowed_tools ?? [],
         maxInputTokens: Number(version.max_input_tokens),
