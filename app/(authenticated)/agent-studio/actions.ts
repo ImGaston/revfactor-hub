@@ -621,7 +621,24 @@ ${message}
 }
 
 function friendlyAgentError(error: unknown): string {
-  const message = error instanceof Error ? error.message.toLowerCase() : ""
+  const messages: string[] = []
+  const seen = new Set<unknown>()
+  let current: unknown = error
+
+  while (current && !seen.has(current) && messages.length < 4) {
+    seen.add(current)
+    if (current instanceof Error) {
+      messages.push(current.name, current.message)
+      current = current.cause
+      continue
+    }
+    if (typeof current === "object" && "message" in current) {
+      messages.push(String(current.message))
+    }
+    break
+  }
+
+  const message = messages.join(" ").toLowerCase()
 
   if (
     message.includes("api key") ||
@@ -639,6 +656,20 @@ function friendlyAgentError(error: unknown): string {
   }
   if (message.includes("aborted") || message.includes("timeout")) {
     return "The selected model exceeded the Studio latency limit."
+  }
+  if (
+    message.includes("nooutputgenerated") ||
+    message.includes("no output generated") ||
+    message.includes("noobjectgenerated") ||
+    message.includes("did not match schema")
+  ) {
+    return "The selected model did not return a valid structured draft. Try again or select another model."
+  }
+  if (
+    message.includes("unsupported value") ||
+    message.includes("invalidparameter")
+  ) {
+    return "The selected model rejected this Studio configuration. Try another model while the run is reviewed."
   }
   return "The model could not complete this run. Try again or select another model."
 }
@@ -1244,9 +1275,20 @@ export async function runAgentStudio(
         action: "run.failed",
         entity_type: "agent_run",
         entity_id: failedRun.id,
-        details: { modelId, durationMs },
+        details: {
+          modelId,
+          durationMs,
+          errorType: error instanceof Error ? error.name : typeof error,
+        },
       })
     }
-    return { ok: false, error: errorMessage }
+    return {
+      ok: false,
+      error: errorMessage,
+      runId: failedRun?.id,
+      conversationId: conversation.id,
+      modelId,
+      durationMs,
+    }
   }
 }

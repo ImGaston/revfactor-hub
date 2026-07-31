@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Agent Studio runtime compatibility and playbook recovery
+
+- Diagnosed production failures from the durable run ledger, then reproduced the provider behavior against AI Gateway: default GPT-5 Nano reasoning returned no structured output, Qwen required explicit JSON schema instructions, and GPT-5.4 Mini rejected Nano's reasoning level.
+- Added per-model reasoning controls and an explicit immutable JSON contract; directly smoke-tested all seven configured Gateway models with their resolved settings.
+- Made failed runs visible inline and in the Runs ledger, preserved safe diagnostic types in audit events, and ensured ad-hoc instruction edits switch to the custom session draft instead of being ignored by a saved playbook.
+- Added and applied migration 057 to normalize the callable tool list and seed focused performance-explanation, pricing-change, and sensitive-escalation playbooks for repeatable testing.
+
 Short rolling summaries of substantive agent work. Keep entries compact and delete or condense stale detail when this file grows.
 
 ## 2026-07-31 — Per-client Grant-style reservations report

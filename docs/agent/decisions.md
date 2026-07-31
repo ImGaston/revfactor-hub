@@ -10,6 +10,10 @@ The per-client export evolved into a Grant-style report (Summary dashboard + Res
 
 The per-client reservations export (`GET /clients/[id]/export`) needs a formatted multi-sheet workbook — real Excel date cells, currency number formats, frozen bold headers, KPI summary and period-comparison sheets — which CSV cannot deliver, so `exceljs` was added. This narrows (does not fully reverse) the 2026-06-15 bank-import "CSV-only" stance: simple tabular exports (clients list, pipeline leads, listings) stay client-side CSV via `lib/csv.ts`; ExcelJS is server-only, imported exclusively from `lib/reservations-workbook.server.ts`, and must never reach the client bundle. This is also the project's first session-authenticated binary route handler: the route lives under `app/(authenticated)/clients/[id]/export/route.ts`, validates query params, and gates with `hasPermission("reservations","view")` inside the handler because `pricelabs_reservations_cache` is a matview with no RLS. Client identification is by the cache's resolved `client_id` (upstream `listings.listing_id` mapping), explicitly NOT by PriceLabs `Group` (not present in the cache; `report_listings.group_name` only covers ~69% of rows) and never by parsing `listing_name`.
 
+## 2026-07-31 — Agent Studio Uses Tested Per-Model Reasoning Controls
+
+AI Gateway models do not share one safe reasoning/structured-output configuration: GPT-5 Nano can exhaust its response budget before producing the required object, GPT-5.4 Mini rejects `minimal`, and Qwen requires explicit JSON instructions. Agent Studio therefore keeps the five-field output contract in immutable instructions and chooses a tested low-cost reasoning level by model. Provider failures remain durable run records and are visible inline instead of appearing as dropped messages.
+
 ## 2026-07-28 — Agent Studio Starts as an Ephemeral, Read-Only Draft Sandbox
 
 Superseded for persistence and governance by the 2026-07-29 decision below; the no-send boundary remains.

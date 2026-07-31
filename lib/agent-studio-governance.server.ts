@@ -87,7 +87,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
         `
           id, conversation_id, model_id, status, disposition,
           input_tokens, output_tokens, total_tokens, estimated_cost_usd,
-          duration_ms, created_at, created_by, playbook_version_id,
+          duration_ms, error_message, created_at, created_by, playbook_version_id,
           agent_conversations(title, source, clients(name)),
           agent_feedback(overall_rating)
         `
@@ -184,6 +184,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
           ? `${playbook.name} v${version.version}`
           : null,
       status: run.status,
+      errorMessage: run.error_message,
       disposition: run.disposition,
       inputTokens: Number(run.input_tokens),
       outputTokens: Number(run.output_tokens),

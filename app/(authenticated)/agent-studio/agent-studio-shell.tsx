@@ -202,6 +202,7 @@ function RunsPanel({
               <TableRow>
                 <TableHead>Conversation</TableHead>
                 <TableHead>Model</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Tokens</TableHead>
                 <TableHead>Latency</TableHead>
@@ -219,11 +220,21 @@ function RunsPanel({
                     <div className="text-xs text-muted-foreground">
                       {run.clientName ?? "Synthetic"} · {formatDate(run.createdAt)}
                     </div>
+                    {run.errorMessage && (
+                      <div className="mt-1 max-w-96 text-xs text-destructive">
+                        {run.errorMessage}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {isAgentStudioModelId(run.modelId)
                       ? getAgentStudioModel(run.modelId).label
                       : run.modelId}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant(run.status)}>
+                      {run.status}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={statusVariant(run.conversationSource)}>
@@ -248,7 +259,7 @@ function RunsPanel({
               ))}
               {governance.recentRuns.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Run the playground to create the first durable record.
                   </TableCell>
                 </TableRow>

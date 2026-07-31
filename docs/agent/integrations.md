@@ -51,17 +51,17 @@ Client onboarding Custom App contract:
 
 The authenticated `/agent-studio` route is the internal pre-production environment for the RevFactor client-service agent.
 
-- Runtime: Vercel AI SDK `ToolLoopAgent`, server-side only, using AI Gateway model IDs.
-- Default model: `openai/gpt-5.4-mini`; selectable comparison models are `openai/gpt-5.6-luna` and `anthropic/claude-sonnet-5`.
+- Runtime: Vercel AI SDK `ToolLoopAgent`, server-side only, using AI Gateway model IDs. The runtime requires an explicit five-field JSON result and applies a tested per-model reasoning level; do not assume one reasoning setting is portable across Gateway providers.
+- Default model: `openai/gpt-5-nano`. Selectable low-cost comparisons are Gemini 2.5 Flash Lite, Qwen 3.5 Flash, and GPT-5 Mini; GPT-5.4 Mini, GPT-5.6 Luna, and Claude Sonnet 5 remain higher-cost benchmarks.
 - Local auth: server-only `AI_GATEWAY_API_KEY`. Vercel deployments can authenticate Gateway via OIDC.
 - Access: `agent_studio:view` (migration `049_agent_studio_permission.sql`); client options additionally respect `clients:view`.
 - Client context: a synthetic fixture by default, or a deliberately limited real-client projection read through the current user's RLS. It includes operational identity/status, listing metrics, and open tasks; it excludes contact, financial, credential, note, and private-link fields.
-- Knowledge: only published Knowledge articles are searchable. The tool is read-only and returns the article title, slug, and excerpt used by the run.
+- Knowledge: only published, client-safe, approved, agent-enabled Knowledge articles are searchable. The tool is read-only and returns the governed answer/context used by the run.
 - Safety: immutable runtime instructions sit outside the session-editable draft instructions. The agent cannot write Supabase data or call Assembly, and the UI never presents a send action.
-- Persistence: none in the MVP. Conversations, instruction edits, and run details disappear when the browser session is reset/reloaded.
-- Observability: each run exposes structured disposition/confidence, reviewer notes, retrieved sources, tool calls, duration, token usage, and a cost estimate using the model catalog's pricing snapshot.
+- Persistence: conversations, messages, runs, governed source snapshots, tool traces, and feedback are durable; browser-only draft edits reset with the session.
+- Observability: each run exposes structured disposition/confidence, reviewer notes, retrieved sources, tool calls, duration, token usage, a cost estimate using the model catalog's pricing snapshot, and a persistent failure reason when a provider run fails.
 
-Treat the pricing metadata as a display estimate, not billing truth; update `AGENT_STUDIO_MODELS` when Gateway pricing changes. Before production sending, add a versioned configuration/evaluation store, approval and audit records, a constrained Assembly send service, and a separate permission from Studio access.
+Treat the pricing metadata as a display estimate, not billing truth; update `AGENT_STUDIO_MODELS` when Gateway pricing changes. Assembly sending remains intentionally absent and requires a separately authorized, human-approved path.
 
 ## PriceLabs
 

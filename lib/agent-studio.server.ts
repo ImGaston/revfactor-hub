@@ -24,7 +24,27 @@ Security and reliability rules:
 - Search the knowledge base before making factual claims about RevFactor services, policies, or procedures.
 - Make at most one focused knowledge search per run. Use the supplied context after that search.
 - If facts are missing or conflicting, choose clarify or escalate instead of inventing an answer.
-- Return a client-ready draft. Review notes must be short factual caveats for the internal reviewer, not hidden reasoning.`
+- Return a client-ready draft. Review notes must be short factual caveats for the internal reviewer, not hidden reasoning.
+- Return only one JSON object with exactly these keys: disposition (answer, clarify, or escalate), reply (string), confidence (low, medium, or high), escalationReason (string or null), and reviewNotes (an array of strings).
+- Example JSON: {"disposition":"answer","reply":"Thanks for reaching out.","confidence":"high","escalationReason":null,"reviewNotes":[]}`
+
+function reasoningLevelForModel(
+  modelId: AgentStudioModelId
+): "none" | "minimal" {
+  // These models reject or waste substantial tokens with `minimal` reasoning.
+  // Disabling it also keeps inexpensive playground runs comfortably inside the
+  // Studio latency and output-token budgets.
+  if (
+    modelId === "alibaba/qwen3.5-flash" ||
+    modelId === "openai/gpt-5.4-mini" ||
+    modelId === "openai/gpt-5.6-luna" ||
+    modelId === "anthropic/claude-sonnet-5"
+  ) {
+    return "none"
+  }
+
+  return "minimal"
+}
 
 const agentOutputSchema = z.object({
   disposition: z.enum(["answer", "clarify", "escalate"]),
@@ -152,6 +172,7 @@ export function createRevFactorSupportAgent({
   return new ToolLoopAgent({
     id: "revfactor-client-service",
     model: modelId,
+    reasoning: reasoningLevelForModel(modelId),
     instructions: `${AGENT_SAFETY_INSTRUCTIONS}
 
 Team-configured draft instructions:

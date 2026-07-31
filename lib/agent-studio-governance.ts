@@ -34,6 +34,7 @@ export type AgentRunSummary = {
   modelId: string
   playbookVersion: string | null
   status: "completed" | "failed" | "blocked"
+  errorMessage: string | null
   disposition: "answer" | "clarify" | "escalate" | null
   inputTokens: number
   outputTokens: number

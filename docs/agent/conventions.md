@@ -131,5 +131,7 @@ Do not commit local hook settings unless the team deliberately decides to versio
 - Assembly and PriceLabs access is read-only. Any future Assembly send path must use the approval ledger and explicit human approval.
 - Playbook changes create immutable draft versions. Production promotion requires a separate approver.
 - Token, cost, latency, daily/monthly budget, and retention limits are server-enforced.
+- Only callable model tools belong in `agent_playbook_versions.allowed_tools`. Client, Assembly, and PriceLabs context is preloaded by the server and recorded as sources; it is not represented as a callable tool.
+- Structured-output compatibility and reasoning controls are model-specific. Keep the required JSON fields explicit in immutable instructions and smoke-test every selectable Gateway model after model-catalog or AI SDK changes.
 - Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
 - “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.
