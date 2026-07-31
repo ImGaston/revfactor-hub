@@ -60,6 +60,7 @@ The authenticated `/agent-studio` route is the internal pre-production environme
 - Safety: immutable runtime instructions sit outside the session-editable draft instructions. The agent cannot write Supabase data or call Assembly, and the UI never presents a send action.
 - Persistence: conversations, messages, runs, governed source snapshots, tool traces, and feedback are durable; browser-only draft edits reset with the session.
 - Observability: each run exposes structured disposition/confidence, reviewer notes, retrieved sources, tool calls, duration, token usage, a cost estimate using the model catalog's pricing snapshot, and a persistent failure reason when a provider run fails.
+- Studio Coach: a separate structured review agent (`google/gemini-3.5-flash-lite`) examines one completed run and up to four recent runs from the same playbook, then returns grounded observations, teaching, a draft instruction patch, and an editable process workflow. It receives only the already-governed run snapshots, cannot call tools or modify production, persists its own token/cost ledger, and can create only a draft playbook version through the existing permissioned action.
 
 Treat the pricing metadata as a display estimate, not billing truth; update `AGENT_STUDIO_MODELS` when Gateway pricing changes. Assembly sending remains intentionally absent and requires a separately authorized, human-approved path.
 

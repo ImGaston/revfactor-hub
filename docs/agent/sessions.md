@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Studio Coach and editable response workflows
+
+- Added a default-right-rail Studio Coach that reviews a completed run and up to four comparable runs, returns grounded feedback/teaching and a playbook instruction patch, and records its own model, token usage, latency, and estimated cost.
+- Added an editable answer/clarify/escalate process graph to playbook versions. The graph represents explicit operating rules rather than hidden chain-of-thought; steps can be edited, added, removed, applied to a session draft, or saved as a new draft playbook version.
+- Added and applied migration 058 for versioned workflow JSON and immutable permission-gated `agent_coach_reviews`, plus audit events and normalization/rendering tests.
+
 ## 2026-07-31 — Agent Studio 90-day and last-year PriceLabs context
 
 - Fixed performance drafts that stopped at 30 days by exposing the already-synced exact forward 90-day listing and market occupancy fields, along with cleaning fees, bedroom count, and 60-day market penetration.

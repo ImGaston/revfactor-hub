@@ -90,6 +90,7 @@ import type { AgentPlaybookVersionSummary } from "@/lib/agent-studio-governance"
 import { cn } from "@/lib/utils"
 import { runAgentStudio } from "./actions"
 import { submitRunFeedbackAction } from "./governance-actions"
+import { StudioCoachWorkspace } from "./studio-coach"
 
 type StudioMessage = AgentStudioHistoryMessage & {
   id: string
@@ -626,6 +627,15 @@ export function AgentStudio({
     () => getAgentStudioModel(modelId),
     [modelId]
   )
+  const selectedPlaybookVersion = useMemo(
+    () =>
+      playbookVersionId === "session"
+        ? null
+        : playbookVersions.find(
+            (version) => version.id === playbookVersionId
+          ) ?? null,
+    [playbookVersionId, playbookVersions]
+  )
 
   function resetConversation({ preserveDraft = false } = {}) {
     setMessages([])
@@ -839,7 +849,7 @@ export function AgentStudio({
         </Alert>
       )}
 
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[280px_minmax(0,1fr)_400px]">
         <Card>
           <CardHeader>
             <CardTitle>Configuration</CardTitle>
@@ -1079,16 +1089,40 @@ export function AgentStudio({
 
         <Card className="min-w-0">
           <CardHeader>
-            <CardTitle>Inspector</CardTitle>
+            <CardTitle>Review studio</CardTitle>
             <CardDescription>
-              Review what happened before trusting a draft.
+              Inspect evidence or ask the Coach to turn runs into process.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4">
-              <RunInspector run={activeRun} />
-              {activeRun && <RunFeedback run={activeRun} />}
-            </div>
+            <Tabs defaultValue="coach" className="flex flex-col gap-4">
+              <TabsList className="w-full">
+                <TabsTrigger value="coach">
+                  <Sparkles data-icon="inline-start" />
+                  Coach
+                </TabsTrigger>
+                <TabsTrigger value="inspector">
+                  <Wrench data-icon="inline-start" />
+                  Inspector
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="coach">
+                <StudioCoachWorkspace
+                  key={`${activeRun?.id ?? "no-run"}:${playbookVersionId}`}
+                  run={activeRun}
+                  playbookVersion={selectedPlaybookVersion}
+                  currentInstructions={instructions}
+                  currentModelId={modelId}
+                  onApplyInstructions={changeInstructions}
+                />
+              </TabsContent>
+              <TabsContent value="inspector">
+                <div className="flex flex-col gap-4">
+                  <RunInspector run={activeRun} />
+                  {activeRun && <RunFeedback run={activeRun} />}
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       </div>

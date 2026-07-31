@@ -9,6 +9,7 @@ import {
   isAgentStudioModelId,
   type AgentStudioModelId,
 } from "@/lib/agent-studio"
+import { normalizeAgentWorkflow } from "@/lib/agent-studio-coach"
 import { getAgentStudioPricing } from "@/lib/agent-studio-pricing.server"
 import {
   getAssemblyClient,
@@ -42,6 +43,7 @@ const savePlaybookSchema = z.object({
   maxOutputTokens: z.number().int().min(100).max(10_000),
   maxRunCostUsd: z.number().positive().max(100),
   changeNote: z.string().trim().max(500).nullable().optional(),
+  workflow: z.unknown().optional(),
 })
 
 const feedbackSchema = z.object({
@@ -163,6 +165,7 @@ export async function savePlaybookVersionAction(input: unknown) {
       version: nextVersion,
       status: "draft",
       instructions: parsed.data.instructions,
+      workflow: normalizeAgentWorkflow(parsed.data.workflow),
       model_id: parsed.data.modelId,
       allowed_tools: ["searchKnowledge"],
       max_input_tokens: parsed.data.maxInputTokens,
