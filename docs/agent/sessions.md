@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Reopen Agent Studio runs
+
+- Added a Reopen action to the Runs ledger that restores a saved run in the Playground, including the client, model, playbook instructions, conversation messages, result, sources, tool trace, token usage, comparison costs, and inspector state.
+- Reopened runs remain immutable: continuing appends a new run to the same owned Playground conversation; runs created by another teammate or by evaluations/shadow mode open as a separate conversation copy.
+- Failed runs now persist their prompt/configuration snapshot and reopen with the attempted question prefilled for retry. Existing failed first-message runs fall back to the saved conversation title.
+
 ## 2026-07-31 — Agent Studio runtime compatibility and playbook recovery
 
 - Diagnosed production failures from the durable run ledger, then reproduced the provider behavior against AI Gateway: default GPT-5 Nano reasoning returned no structured output, Qwen required explicit JSON schema instructions, and GPT-5.4 Mini rejected Nano's reasoning level.

@@ -9,10 +9,14 @@ import {
   type AssemblyMessage,
 } from "@/lib/assembly"
 import {
+  DEFAULT_AGENT_STUDIO_INSTRUCTIONS,
   SYNTHETIC_CLIENT_ID,
   isAgentStudioModelId,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
+  type AgentStudioReopenResult,
+  type AgentStudioReopenState,
+  type AgentStudioRun,
   type AgentStudioRunResult,
   type AgentStudioSource,
 } from "@/lib/agent-studio"
@@ -43,6 +47,8 @@ const runInputSchema = z.object({
     )
     .max(24),
 })
+
+const reopenRunSchema = z.string().uuid()
 
 type ClientSnapshot = {
   id: string
@@ -1265,6 +1271,20 @@ export async function runAgentStudio(
         status: "failed",
         duration_ms: durationMs,
         error_message: errorMessage,
+        input_snapshot: {
+          instructions,
+          client: {
+            id: client.id,
+            name: client.name,
+            status: client.status,
+            onboardingDate: client.onboardingDate,
+            listings: client.listings,
+            openTasks: client.openTasks,
+          },
+          assemblyHistory: assemblyContext.messages,
+          studioHistory: parsed.data.history,
+          newMessage: parsed.data.message,
+        },
         created_by: user.id,
       })
       .select("id")
@@ -1290,5 +1310,268 @@ export async function runAgentStudio(
       modelId,
       durationMs,
     }
+  }
+}
+
+export async function reopenAgentStudioRun(
+  input: unknown
+): Promise<AgentStudioReopenResult> {
+  const canUseStudio = await hasPermission("agent_studio", "view")
+  if (!canUseStudio) return { ok: false, error: "You do not have access." }
+
+  const parsed = reopenRunSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: "The selected run is invalid." }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Your session has expired." }
+
+  const { data: run, error: runError } = await supabase
+    .from("agent_runs")
+    .select(
+      `
+        id, conversation_id, response_message_id, playbook_version_id,
+        model_id, status, disposition, confidence, escalation_reason,
+        review_notes, input_tokens, cached_input_tokens, cache_write_tokens,
+        output_tokens, reasoning_tokens, total_tokens, estimated_cost_usd,
+        duration_ms, input_snapshot, error_message, created_at
+      `
+    )
+    .eq("id", parsed.data)
+    .maybeSingle()
+
+  if (runError || !run) {
+    return { ok: false, error: "That saved run is no longer available." }
+  }
+  if (!isAgentStudioModelId(run.model_id)) {
+    return { ok: false, error: "That run used a model that is no longer available." }
+  }
+
+  const [
+    { data: conversation },
+    { data: messages },
+    { data: sources },
+    { data: toolCalls },
+    { data: modelEstimates },
+    { data: playbookVersion },
+  ] = await Promise.all([
+    supabase
+      .from("agent_conversations")
+      .select("id, title, source, client_id, synthetic_client, created_by, clients(name, status)")
+      .eq("id", run.conversation_id)
+      .maybeSingle(),
+    supabase
+      .from("agent_messages")
+      .select("id, role, content, created_at")
+      .eq("conversation_id", run.conversation_id)
+      .lte("created_at", run.created_at)
+      .order("created_at", { ascending: true })
+      .limit(100),
+    supabase
+      .from("agent_run_sources")
+      .select(
+        "id, source_type, source_id, title, excerpt, payload, fetched_at, source_updated_at, warning"
+      )
+      .eq("run_id", run.id)
+      .order("fetched_at", { ascending: true }),
+    supabase
+      .from("agent_run_tool_calls")
+      .select(
+        "tool_call_id, tool_name, input, output, result_summary, duration_ms"
+      )
+      .eq("run_id", run.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("agent_run_model_estimates")
+      .select(
+        "model_id, input_usd_per_million, output_usd_per_million, cached_input_usd_per_million, same_token_estimate_usd, pricing_fetched_at"
+      )
+      .eq("run_id", run.id),
+    run.playbook_version_id
+      ? supabase
+          .from("agent_playbook_versions")
+          .select("id, instructions")
+          .eq("id", run.playbook_version_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
+  if (!conversation) {
+    return { ok: false, error: "The saved conversation has expired." }
+  }
+
+  const snapshot = isRecord(run.input_snapshot) ? run.input_snapshot : {}
+  const snapshotClient = isRecord(snapshot.client) ? snapshot.client : {}
+  const clientId = conversation.synthetic_client
+    ? SYNTHETIC_CLIENT_ID
+    : conversation.client_id
+  const clientRecord = Array.isArray(conversation.clients)
+    ? conversation.clients[0]
+    : conversation.clients
+  const clientIsActive =
+    conversation.synthetic_client ||
+    (clientId && isRecord(clientRecord) && clientRecord.status === "active")
+
+  if (!clientId || !clientIsActive) {
+    return {
+      ok: false,
+      error: "This run's client is no longer active, so it cannot be reopened.",
+    }
+  }
+
+  const instructions =
+    typeof snapshot.instructions === "string"
+      ? snapshot.instructions
+      : playbookVersion?.instructions ?? DEFAULT_AGENT_STUDIO_INSTRUCTIONS
+  const newMessage =
+    typeof snapshot.newMessage === "string"
+      ? snapshot.newMessage
+      : conversation.title ?? ""
+  const clientName =
+    (isRecord(clientRecord) && typeof clientRecord.name === "string"
+      ? clientRecord.name
+      : null) ??
+    (typeof snapshotClient.name === "string" ? snapshotClient.name : null) ??
+    "Synthetic client"
+
+  const reopenedMessages: AgentStudioReopenState["messages"] = (
+    messages ?? []
+  ).flatMap((message) =>
+    (message.role === "user" || message.role === "assistant") &&
+    typeof message.content === "string"
+      ? [
+          {
+            id: message.id,
+            role: message.role,
+            content: message.content,
+            ...(message.id === run.response_message_id
+              ? { runId: run.id }
+              : {}),
+          },
+        ]
+      : []
+  )
+
+  let activeRun: AgentStudioRun | null = null
+  if (
+    run.status === "completed" &&
+    (run.disposition === "answer" ||
+      run.disposition === "clarify" ||
+      run.disposition === "escalate") &&
+    (run.confidence === "low" ||
+      run.confidence === "medium" ||
+      run.confidence === "high")
+  ) {
+    const response = reopenedMessages.find(
+      (message) => message.id === run.response_message_id
+    )
+    activeRun = {
+      id: run.id,
+      conversationId: run.conversation_id,
+      modelId: run.model_id,
+      clientName,
+      reply: response?.content ?? "",
+      disposition: run.disposition,
+      confidence: run.confidence,
+      escalationReason: run.escalation_reason,
+      reviewNotes: Array.isArray(run.review_notes)
+        ? run.review_notes.filter(
+            (note): note is string => typeof note === "string"
+          )
+        : [],
+      sources: (sources ?? []).map((source) => {
+        const payload = isRecord(source.payload) ? source.payload : {}
+        return {
+          id: source.source_id ?? source.id,
+          title: source.title,
+          slug:
+            typeof payload.slug === "string"
+              ? payload.slug
+              : source.source_id ?? source.id,
+          excerpt: source.excerpt ?? "",
+          type: source.source_type,
+          payload,
+          fetchedAt: source.fetched_at,
+          sourceUpdatedAt: source.source_updated_at,
+          warning: source.warning,
+        }
+      }),
+      toolCalls: (toolCalls ?? []).map((toolCall) => ({
+        id: toolCall.tool_call_id,
+        name: toolCall.tool_name,
+        input: isRecord(toolCall.input) ? toolCall.input : {},
+        output: isRecord(toolCall.output) ? toolCall.output : {},
+        resultSummary: toolCall.result_summary ?? "Tool completed",
+        durationMs: toolCall.duration_ms,
+      })),
+      usage: {
+        inputTokens: Number(run.input_tokens),
+        cachedInputTokens: Number(run.cached_input_tokens),
+        cacheWriteTokens: Number(run.cache_write_tokens),
+        outputTokens: Number(run.output_tokens),
+        reasoningTokens: Number(run.reasoning_tokens),
+        totalTokens: Number(run.total_tokens),
+        estimatedCostUsd: Number(run.estimated_cost_usd),
+      },
+      modelEstimates: (modelEstimates ?? []).flatMap((estimate) =>
+        isAgentStudioModelId(estimate.model_id)
+          ? [
+              {
+                modelId: estimate.model_id,
+                inputUsdPerMillion: Number(estimate.input_usd_per_million),
+                outputUsdPerMillion: Number(estimate.output_usd_per_million),
+                cachedInputUsdPerMillion:
+                  estimate.cached_input_usd_per_million == null
+                    ? null
+                    : Number(estimate.cached_input_usd_per_million),
+                estimatedCostUsd: Number(estimate.same_token_estimate_usd),
+                pricingFetchedAt: estimate.pricing_fetched_at,
+              },
+            ]
+          : []
+      ),
+      durationMs: Number(run.duration_ms),
+      createdAt: run.created_at,
+    }
+  } else {
+    const alreadyHasPrompt = reopenedMessages.some(
+      (message) => message.role === "user" && message.content === newMessage
+    )
+    if (newMessage && !alreadyHasPrompt) {
+      reopenedMessages.push({
+        id: `${run.id}-request`,
+        role: "user",
+        content: newMessage,
+      })
+    }
+    reopenedMessages.push({
+      id: run.id,
+      role: "assistant",
+      content: run.error_message ?? "This run did not complete.",
+      failed: true,
+    })
+  }
+
+  const copiedFromAnotherUser = conversation.created_by !== user.id
+
+  return {
+    ok: true,
+    state: {
+      runId: run.id,
+      conversationId:
+        !copiedFromAnotherUser && conversation.source === "playground"
+          ? conversation.id
+          : null,
+      clientId,
+      modelId: run.model_id,
+      playbookVersionId: run.playbook_version_id,
+      instructions,
+      messages: reopenedMessages,
+      activeRun,
+      draftMessage: run.status === "completed" ? "" : newMessage,
+      copiedFromAnotherUser,
+    },
   }
 }

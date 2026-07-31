@@ -145,6 +145,29 @@ export type AgentStudioRun = {
   createdAt: string
 }
 
+export type AgentStudioReopenMessage = AgentStudioHistoryMessage & {
+  id: string
+  runId?: string
+  failed?: boolean
+}
+
+export type AgentStudioReopenState = {
+  runId: string
+  conversationId: string | null
+  clientId: string
+  modelId: AgentStudioModelId
+  playbookVersionId: string | null
+  instructions: string
+  messages: AgentStudioReopenMessage[]
+  activeRun: AgentStudioRun | null
+  draftMessage: string
+  copiedFromAnotherUser: boolean
+}
+
+export type AgentStudioReopenResult =
+  | { ok: true; state: AgentStudioReopenState }
+  | { ok: false; error: string }
+
 export type AgentStudioRunResult =
   | { ok: true; run: AgentStudioRun }
   | {
