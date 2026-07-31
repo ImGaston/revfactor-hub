@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Negative-performance framing workflow
+
+- Added a fourth editable Studio Coach scenario for negative performance: verify the benchmark, frame the result without sugarcoating or unsupported diagnosis, and route to a client-ready answer, internal brainstorm, or human escalation.
+- Added explicit escalation triggers for material/repeated/unexplained gaps, stale/conflicting data, churn/refund/cancellation/sensitive disputes, and approval-required actions. Coach-generated workflows must preserve the scenario.
+- Added and applied migration 059 to all four saved playbook workflows without changing approved/production prompt text; added instruction-rendering regression coverage and a responsive two-column scenario selector.
+
 ## 2026-07-31 — Studio Coach and editable response workflows
 
 - Added a default-right-rail Studio Coach that reviews a completed run and up to four comparable runs, returns grounded feedback/teaching and a playbook instruction patch, and records its own model, token usage, latency, and estimated cost.

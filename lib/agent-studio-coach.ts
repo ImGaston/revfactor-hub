@@ -3,6 +3,7 @@ export const AGENT_STUDIO_COACH_MODEL_ID = "google/gemini-3.5-flash-lite"
 export type AgentWorkflowResponseType =
   | "all"
   | "answer"
+  | "negative"
   | "clarify"
   | "escalate"
 
@@ -109,6 +110,30 @@ export const DEFAULT_AGENT_WORKFLOW: AgentWorkflow = {
         "Lead with the direct answer, distinguish exact from approximate metrics, add the clearest interpretation, and state any material limitation.",
     },
     {
+      id: "negative-performance-gate",
+      label: "Confirm negative performance",
+      kind: "decision",
+      responseType: "negative",
+      instruction:
+        "Treat performance as negative only when a verified metric materially trails the relevant market, same-time-last-year pace, final last-year result, or an explicit target for the requested horizon. Do not diagnose underperformance from one unlabeled metric.",
+    },
+    {
+      id: "negative-performance-frame",
+      label: "Frame the result constructively",
+      kind: "process",
+      responseType: "negative",
+      instruction:
+        "Acknowledge the concern and state the verified gap plainly. Separate observed facts from possible causes, avoid blame, false optimism, and recovery promises, and mention positive context only when it materially changes the interpretation. Offer at most three evidence-backed, controllable levers as hypotheses to investigate, not automatic recommendations.",
+    },
+    {
+      id: "negative-performance-route",
+      label: "Choose answer, brainstorm, or escalate",
+      kind: "decision",
+      responseType: "negative",
+      instruction:
+        "Give a client-ready next step when the evidence supports the cause and action. Flag an internal brainstorm when the cause is uncertain but low risk. Escalate when the gap is material, repeated, or unexplained; data is stale or conflicting; the client raises churn, refund, cancellation, or a sensitive dispute; or a requested action requires approval.",
+    },
+    {
       id: "clarify-branch",
       label: "Ask one question",
       kind: "process",
@@ -159,6 +184,12 @@ export const DEFAULT_AGENT_WORKFLOW: AgentWorkflow = {
       condition: "One answerable fact is missing",
     },
     {
+      id: "validate-to-negative",
+      source: "validate-sufficiency",
+      target: "negative-performance-gate",
+      condition: "Verified performance materially trails a valid benchmark",
+    },
+    {
       id: "validate-to-escalate",
       source: "validate-sufficiency",
       target: "escalate-branch",
@@ -169,6 +200,24 @@ export const DEFAULT_AGENT_WORKFLOW: AgentWorkflow = {
       source: "answer-branch",
       target: "quality-check",
       condition: null,
+    },
+    {
+      id: "negative-gate-to-frame",
+      source: "negative-performance-gate",
+      target: "negative-performance-frame",
+      condition: "The comparison is valid",
+    },
+    {
+      id: "negative-frame-to-route",
+      source: "negative-performance-frame",
+      target: "negative-performance-route",
+      condition: null,
+    },
+    {
+      id: "negative-route-to-quality",
+      source: "negative-performance-route",
+      target: "quality-check",
+      condition: "Client-ready, brainstorm internally, or escalate",
     },
     {
       id: "clarify-to-quality",
@@ -190,7 +239,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function responseType(value: unknown): AgentWorkflowResponseType {
-  return value === "answer" || value === "clarify" || value === "escalate"
+  return value === "answer" ||
+    value === "negative" ||
+    value === "clarify" ||
+    value === "escalate"
     ? value
     : "all"
 }
@@ -270,12 +322,14 @@ export function workflowToInstructions(workflow: AgentWorkflow): string {
   const sections: AgentWorkflowResponseType[] = [
     "all",
     "answer",
+    "negative",
     "clarify",
     "escalate",
   ]
   const labels: Record<AgentWorkflowResponseType, string> = {
     all: "Every response",
     answer: "Answer responses",
+    negative: "Negative performance responses",
     clarify: "Clarification responses",
     escalate: "Escalation responses",
   }
