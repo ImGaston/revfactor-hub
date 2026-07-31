@@ -1,5 +1,6 @@
 "use server"
 
+import { NoObjectGeneratedError } from "ai"
 import { z } from "zod"
 
 import {
@@ -326,6 +327,21 @@ export async function coachAgentStudioRun(
     }
   } catch (error) {
     const durationMs = Date.now() - startedAt
+    const noObjectError = NoObjectGeneratedError.isInstance(error)
+      ? error
+      : null
+    const pricing = await loadCoachPricing()
+    const usage = {
+      inputTokens: noObjectError?.usage?.inputTokens ?? 0,
+      outputTokens: noObjectError?.usage?.outputTokens ?? 0,
+      totalTokens:
+        noObjectError?.usage?.totalTokens ??
+        (noObjectError?.usage?.inputTokens ?? 0) +
+          (noObjectError?.usage?.outputTokens ?? 0),
+    }
+    const estimatedCostUsd =
+      (usage.inputTokens / 1_000_000) * pricing.inputUsdPerMillion +
+      (usage.outputTokens / 1_000_000) * pricing.outputUsdPerMillion
     const errorMessage =
       error instanceof Error
         ? error.message.slice(0, 500)
@@ -337,6 +353,23 @@ export async function coachAgentStudioRun(
       ),
       model_id: AGENT_STUDIO_COACH_MODEL_ID,
       status: "failed",
+      output: noObjectError
+        ? {
+            invalidOutput: clipped(noObjectError.text, 12_000),
+            validationError: clipped(
+              noObjectError.cause instanceof Error
+                ? noObjectError.cause.message
+                : null,
+              4_000
+            ),
+            finishReason: noObjectError.finishReason,
+          }
+        : {},
+      input_tokens: usage.inputTokens,
+      output_tokens: usage.outputTokens,
+      total_tokens: usage.totalTokens,
+      estimated_cost_usd: estimatedCostUsd,
+      pricing_snapshot: pricing,
       duration_ms: durationMs,
       error_message: errorMessage,
       created_by: user.id,
