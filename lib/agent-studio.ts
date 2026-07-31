@@ -147,7 +147,14 @@ export type AgentStudioRun = {
 
 export type AgentStudioRunResult =
   | { ok: true; run: AgentStudioRun }
-  | { ok: false; error: string }
+  | {
+      ok: false
+      error: string
+      runId?: string
+      conversationId?: string
+      modelId?: AgentStudioModelId
+      durationMs?: number
+    }
 
 export function isAgentStudioModelId(
   value: string

@@ -164,12 +164,7 @@ export async function savePlaybookVersionAction(input: unknown) {
       status: "draft",
       instructions: parsed.data.instructions,
       model_id: parsed.data.modelId,
-      allowed_tools: [
-        "searchKnowledge",
-        "loadClientContext",
-        "loadAssemblyHistory",
-        "loadPriceLabsContext",
-      ],
+      allowed_tools: ["searchKnowledge"],
       max_input_tokens: parsed.data.maxInputTokens,
       max_output_tokens: parsed.data.maxOutputTokens,
       max_run_cost_usd: parsed.data.maxRunCostUsd,

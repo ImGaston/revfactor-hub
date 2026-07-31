@@ -93,6 +93,7 @@ import { submitRunFeedbackAction } from "./governance-actions"
 type StudioMessage = AgentStudioHistoryMessage & {
   id: string
   run?: AgentStudioRun
+  failed?: boolean
 }
 
 const EXAMPLE_PROMPTS = [
@@ -117,14 +118,23 @@ function dispositionVariant(disposition: AgentStudioRun["disposition"]) {
 
 function ConversationMessage({ message }: { message: StudioMessage }) {
   const isUser = message.role === "user"
+  const failed = message.failed === true
 
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-      <Card size="sm" className="max-w-[88%]">
+      <Card
+        size="sm"
+        className={cn("max-w-[88%]", failed && "border-destructive/40")}
+      >
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {isUser ? <UserRound /> : <Bot />}
-            {isUser ? "Client" : "RevFactor draft"}
+          <CardTitle
+            className={cn(
+              "flex items-center gap-2",
+              failed && "text-destructive"
+            )}
+          >
+            {isUser ? <UserRound /> : failed ? <TriangleAlert /> : <Bot />}
+            {isUser ? "Client" : failed ? "Run failed" : "RevFactor draft"}
           </CardTitle>
           {message.run && (
             <CardAction className="flex items-center gap-1.5">
@@ -136,7 +146,12 @@ function ConversationMessage({ message }: { message: StudioMessage }) {
           )}
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm max-w-none wrap-anywhere dark:prose-invert">
+          <div
+            className={cn(
+              "prose prose-sm max-w-none wrap-anywhere dark:prose-invert",
+              failed && "text-destructive"
+            )}
+          >
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         </CardContent>
@@ -586,7 +601,9 @@ export function AgentStudio({
     const cleanMessage = nextMessage.trim()
     if (!cleanMessage || isPending) return
 
-    const history = messages.map(({ role, content }) => ({ role, content }))
+    const history = messages
+      .filter((item) => !item.failed)
+      .map(({ role, content }) => ({ role, content }))
     const userMessage: StudioMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -609,11 +626,34 @@ export function AgentStudio({
         history,
       })
     } catch {
-      toast.error("The Studio run failed. Check the server configuration and try again.")
+      const errorMessage =
+        "The Studio run failed before it could return a result. Check the server configuration and try again."
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: errorMessage,
+          failed: true,
+        },
+      ])
+      setActiveRun(null)
+      toast.error(errorMessage)
       return
     }
 
     if (!result.ok) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: result.runId ?? crypto.randomUUID(),
+          role: "assistant",
+          content: result.error,
+          failed: true,
+        },
+      ])
+      setActiveRun(null)
+      setConversationId(result.conversationId ?? conversationId)
       toast.error(result.error)
       return
     }
@@ -669,6 +709,14 @@ export function AgentStudio({
         setInstructions(version.instructions)
         setModelId(version.modelId)
       }
+    }
+    resetConversation()
+  }
+
+  function changeInstructions(value: string) {
+    setInstructions(value)
+    if (playbookVersionId !== "session") {
+      setPlaybookVersionId("session")
     }
     resetConversation()
   }
@@ -746,7 +794,9 @@ export function AgentStudio({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="session">Session draft</SelectItem>
+                      <SelectItem value="session">
+                        Session draft · custom
+                      </SelectItem>
                       {playbookVersions
                         .filter((version) => version.status !== "archived")
                         .map((version) => (
@@ -758,6 +808,12 @@ export function AgentStudio({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <FieldDescription>
+                  {playbookVersions.filter(
+                    (version) => version.status !== "archived"
+                  ).length} saved version(s). Create and version more from the
+                  Playbooks tab.
+                </FieldDescription>
               </Field>
 
               <Field>
@@ -823,7 +879,7 @@ export function AgentStudio({
                     variant="ghost"
                     size="xs"
                     onClick={() =>
-                      setInstructions(DEFAULT_AGENT_STUDIO_INSTRUCTIONS)
+                      changeInstructions(DEFAULT_AGENT_STUDIO_INSTRUCTIONS)
                     }
                   >
                     Reset
@@ -832,7 +888,7 @@ export function AgentStudio({
                 <Textarea
                   id="studio-instructions"
                   value={instructions}
-                  onChange={(event) => setInstructions(event.target.value)}
+                  onChange={(event) => changeInstructions(event.target.value)}
                   className="min-h-72"
                 />
                 <FieldDescription>
