@@ -102,6 +102,7 @@ export default async function ClientPage({
       client={filteredClient}
       credentials={credentials ?? []}
       isSuperAdmin={isSuperAdmin}
+      canViewReservations={canViewReservations}
       assemblyConfigured={isAssemblyConfigured()}
       stripeConfigured={isSuperAdmin && isStripeConfigured()}
       stripeCustomerIds={

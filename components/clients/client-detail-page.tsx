@@ -51,6 +51,7 @@ import type { Client, ClientCredential, Listing } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
 import { ClientCredentials } from "./client-credentials"
 import { AddListingDialog } from "./add-listing-dialog"
+import { ExportReservationsDialog } from "./export-reservations-dialog"
 import { PricingDashboardButton } from "./pricing-dashboard-button"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { ClientDialog } from "@/app/(authenticated)/settings/clients/client-dialog"
@@ -187,6 +188,7 @@ export function ClientDetailPage({
   assemblyConfigured,
   stripeConfigured,
   stripeCustomerIds = [],
+  canViewReservations = false,
   onLinkAssembly,
   onUnlinkAssembly,
   onLoadStripeOptions,
@@ -198,6 +200,7 @@ export function ClientDetailPage({
   assemblyConfigured: boolean
   stripeConfigured: boolean
   stripeCustomerIds?: string[]
+  canViewReservations?: boolean
   onLinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
   onUnlinkAssembly?: (clientId: string) => Promise<{ error: string | null }>
   onLoadStripeOptions?: () => Promise<{
@@ -490,6 +493,12 @@ export function ClientDetailPage({
             </Button>
           )}
           <PricingDashboardButton dashboardUrl={client.dashboard_url} />
+          {canViewReservations && (
+            <ExportReservationsDialog
+              clientId={client.id}
+              clientName={client.name}
+            />
+          )}
           {isLinked && (
             <Button
               variant="ghost"

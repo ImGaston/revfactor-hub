@@ -30,6 +30,30 @@ export type Reservation = {
 const RESERVATION_SELECT =
   "row_key, hub_listing_id, client_id, client_name, listing_name, guest_name, booked_at, check_in, check_out, number_of_days, booking_window_days, booking_channel, rental_revenue, total_cost, currency"
 
+// Wider projection for the per-client Excel export. guest_name is omitted on
+// purpose — the source always redacts it to "Hidden".
+export type ReservationExportRow = {
+  row_key: string
+  listing_name: string | null
+  listing_id: string | null
+  check_in: string | null
+  check_out: string | null
+  booked_date: string | null
+  number_of_days: number | null
+  booking_window_days: number | null
+  booking_channel: string | null
+  rental_revenue: number | null
+  cleaning_fees: number | null
+  total_cost: number | null
+  currency: string | null
+  reservation_id: string | null
+  pms: string | null
+  channel_confirmation_code: string | null
+}
+
+const RESERVATION_EXPORT_SELECT =
+  "row_key, listing_name, listing_id, check_in, check_out, booked_date, number_of_days, booking_window_days, booking_channel, rental_revenue, cleaning_fees, total_cost, currency, reservation_id, pms, channel_confirmation_code"
+
 const RESERVATIONS_TABLE = "pricelabs_reservations_cache"
 
 export const RESERVATION_SORT_FIELDS = [
@@ -72,6 +96,31 @@ export async function getRecentReservationsByListing(
     .order("booked_at", { ascending: false, nullsFirst: false })
     .limit(limit)
   return (data ?? []) as Reservation[]
+}
+
+// Fetch every booked reservation for a client, paging past PostgREST's
+// per-request row cap. Date-range filtering happens in memory downstream so
+// comparison periods (which can overlap) reuse a single fetch.
+export async function getAllReservationsByClient(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<ReservationExportRow[]> {
+  const CHUNK = 1000
+  const rows: ReservationExportRow[] = []
+  for (let offset = 0; ; offset += CHUNK) {
+    const { data, error } = await supabase
+      .from(RESERVATIONS_TABLE)
+      .select(RESERVATION_EXPORT_SELECT)
+      .eq("booking_status", "booked")
+      .eq("client_id", clientId)
+      .order("check_in", { ascending: true, nullsFirst: false })
+      .order("row_key", { ascending: true })
+      .range(offset, offset + CHUNK - 1)
+    if (error) throw new Error(`Failed to fetch reservations: ${error.message}`)
+    rows.push(...((data ?? []) as ReservationExportRow[]))
+    if ((data ?? []).length < CHUNK) break
+  }
+  return rows
 }
 
 export type ReservationsPageParams = {
