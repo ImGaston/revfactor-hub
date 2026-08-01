@@ -2,13 +2,14 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import {
   Calendar,
   Clock,
   Edit,
   Eye,
   EyeOff,
+  RefreshCcw,
   Trash2,
   User,
 } from "lucide-react"
@@ -17,12 +18,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Spinner } from "@/components/ui/spinner"
 import { TagChip } from "./tag-chip"
 import { DeleteArticleDialog } from "./delete-article-dialog"
 import {
   approveArticleForAgent,
   disableArticleForAgent,
   publishArticle,
+  reindexArticleForAgent,
   unpublishArticle,
 } from "../actions"
 import { formatRelativeDate } from "../_lib/utils"
@@ -33,6 +36,7 @@ type Props = {
   canEdit?: boolean
   canPublish?: boolean
   canDelete?: boolean
+  indexedChunks?: Array<{ id: string; heading: string; content: string }>
 }
 
 export function ArticleMetadataSidebar({
@@ -40,9 +44,11 @@ export function ArticleMetadataSidebar({
   canEdit = true,
   canPublish = true,
   canDelete = true,
+  indexedChunks = [],
 }: Props) {
   const router = useRouter()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [isIndexing, startIndexing] = useTransition()
 
   async function handlePublish() {
     const result = await publishArticle(article.id)
@@ -69,9 +75,31 @@ export function ArticleMetadataSidebar({
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success("Approved and enabled for Agent Studio")
+      if (result.indexingError) {
+        toast.warning(
+          `Approved for Agent Studio, but indexing failed: ${result.indexingError}`
+        )
+      } else {
+        toast.success(
+          `Approved and indexed ${result.indexedChunks} searchable passage${result.indexedChunks === 1 ? "" : "s"}`
+        )
+      }
       router.refresh()
     }
+  }
+
+  function handleReindex() {
+    startIndexing(async () => {
+      const result = await reindexArticleForAgent(article.id)
+      if (result.error) {
+        toast.error(result.error)
+      } else {
+        toast.success(
+          `Indexed ${result.chunkCount} searchable passage${result.chunkCount === 1 ? "" : "s"}`
+        )
+        router.refresh()
+      }
+    })
   }
 
   async function handleDisableAgent() {
@@ -154,8 +182,59 @@ export function ArticleMetadataSidebar({
               ? "Client-safe candidate"
               : "Internal only"}
           </Badge>
+          {article.agent_enabled && (
+            <Badge
+              variant={
+                article.agent_index_status === "indexed"
+                  ? "default"
+                  : article.agent_index_status === "failed"
+                    ? "destructive"
+                    : "secondary"
+              }
+            >
+              {article.agent_index_status.replaceAll("_", " ")}
+            </Badge>
+          )}
         </div>
+        {article.agent_index_status === "indexed" && (
+          <dl className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div>
+              <dt>Passages</dt>
+              <dd className="mt-0.5 font-mono text-foreground">
+                {article.agent_chunk_count}
+              </dd>
+            </div>
+            <div>
+              <dt>Index cost</dt>
+              <dd className="mt-0.5 font-mono text-foreground">
+                ${article.agent_index_cost_usd.toFixed(6)}
+              </dd>
+            </div>
+          </dl>
+        )}
+        {article.agent_index_error && (
+          <p className="text-xs text-destructive wrap-anywhere">
+            {article.agent_index_error}
+          </p>
+        )}
       </div>
+
+      {indexedChunks.length > 0 && (
+        <>
+          <Separator />
+          <div className="flex flex-col gap-2">
+            <h4 className="text-sm font-semibold">Indexed passages</h4>
+            {indexedChunks.map((chunk) => (
+              <div key={chunk.id} className="rounded-xl border p-2.5">
+                <p className="text-xs font-medium">{chunk.heading}</p>
+                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground wrap-anywhere">
+                  {chunk.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <Separator />
 
@@ -224,6 +303,24 @@ export function ArticleMetadataSidebar({
               Approve for Agent Studio
             </Button>
           )}
+        {canPublish && article.agent_enabled && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={handleReindex}
+            disabled={isIndexing}
+          >
+            {isIndexing ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <RefreshCcw data-icon="inline-start" />
+            )}
+            {article.agent_index_status === "indexed"
+              ? "Re-index Knowledge"
+              : "Index Knowledge"}
+          </Button>
+        )}
         {canPublish && article.agent_enabled && (
           <Button
             variant="outline"

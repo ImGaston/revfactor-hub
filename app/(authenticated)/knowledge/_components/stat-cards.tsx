@@ -67,7 +67,7 @@ export function KnowledgeStatCards({ stats }: { stats: KnowledgeStats }) {
       />
       <StatCard
         icon={Bot}
-        label="Agent Ready"
+        label="Agent Indexed"
         value={stats.agent_ready}
         color="text-emerald-600"
       />

@@ -72,6 +72,13 @@ export default async function ArticleDetailPage({ params }: Props) {
     source_notes: raw.source_notes ?? "",
     review_status: raw.review_status ?? "draft",
     agent_enabled: raw.agent_enabled ?? false,
+    agent_index_status: raw.agent_index_status ?? "not_indexed",
+    agent_indexed_at: raw.agent_indexed_at ?? null,
+    agent_index_error: raw.agent_index_error ?? "",
+    agent_index_model: raw.agent_index_model ?? "",
+    agent_chunk_count: Number(raw.agent_chunk_count ?? 0),
+    agent_index_input_tokens: Number(raw.agent_index_input_tokens ?? 0),
+    agent_index_cost_usd: Number(raw.agent_index_cost_usd ?? 0),
     approved_by: raw.approved_by ?? null,
     approved_at: raw.approved_at ?? null,
     last_reviewed_at: raw.last_reviewed_at ?? null,
@@ -83,6 +90,14 @@ export default async function ArticleDetailPage({ params }: Props) {
     hasPermission("knowledge", "publish"),
     hasPermission("knowledge", "delete"),
   ])
+  const { data: indexedChunks } = article.agent_enabled
+    ? await supabase
+        .from("knowledge_chunks")
+        .select("id, heading, content, chunk_index")
+        .eq("article_id", article.id)
+        .order("chunk_index")
+        .limit(8)
+    : { data: [] }
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
@@ -132,6 +147,11 @@ export default async function ArticleDetailPage({ params }: Props) {
             canEdit={canEdit}
             canPublish={canPublish}
             canDelete={canDelete}
+            indexedChunks={(indexedChunks ?? []).map((chunk) => ({
+              id: chunk.id,
+              heading: chunk.heading ?? "Article",
+              content: chunk.content,
+            }))}
           />
         </div>
       </aside>

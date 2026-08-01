@@ -89,6 +89,53 @@ export type AgentStudioHistoryMessage = {
 export type AgentStudioDisposition = "answer" | "clarify" | "escalate"
 export type AgentStudioConfidence = "low" | "medium" | "high"
 
+export const AGENT_STUDIO_RETRIEVAL_MODES = [
+  {
+    id: "keyword",
+    label: "Keyword",
+    description: "Current exact-term search; no embedding cost.",
+  },
+  {
+    id: "hybrid",
+    label: "Hybrid",
+    description: "Combines exact terminology with meaning-based retrieval.",
+  },
+  {
+    id: "compare",
+    label: "Compare",
+    description: "Uses hybrid results and records both rankings for review.",
+  },
+] as const
+
+export type AgentStudioRetrievalMode =
+  (typeof AGENT_STUDIO_RETRIEVAL_MODES)[number]["id"]
+
+export type AgentStudioRetrievalCandidate = {
+  articleId: string
+  chunkId: string | null
+  title: string
+  heading: string | null
+  keywordScore: number
+  semanticScore: number | null
+  combinedScore: number | null
+  keywordRank: number
+  semanticRank: number | null
+  hybridRank: number | null
+  selected: boolean
+}
+
+export type AgentStudioRetrievalDiagnostics = {
+  query: string
+  requestedMode: AgentStudioRetrievalMode
+  effectiveMode: "keyword" | "hybrid"
+  embeddingModel: string | null
+  embeddingInputTokens: number
+  embeddingCostUsd: number
+  durationMs: number
+  fallbackReason: string | null
+  candidates: AgentStudioRetrievalCandidate[]
+}
+
 export type AgentStudioSource = {
   id: string
   title: string
@@ -129,6 +176,7 @@ export type AgentStudioRun = {
   confidence: AgentStudioConfidence
   escalationReason: string | null
   reviewNotes: string[]
+  retrieval: AgentStudioRetrievalDiagnostics | null
   sources: AgentStudioSource[]
   toolCalls: AgentStudioToolTrace[]
   usage: {
@@ -137,7 +185,10 @@ export type AgentStudioRun = {
     cacheWriteTokens: number
     outputTokens: number
     reasoningTokens: number
+    retrievalInputTokens: number
     totalTokens: number
+    generationCostUsd: number
+    retrievalCostUsd: number
     estimatedCostUsd: number
   }
   modelEstimates: AgentStudioModelEstimate[]
@@ -156,6 +207,7 @@ export type AgentStudioReopenState = {
   conversationId: string | null
   clientId: string
   modelId: AgentStudioModelId
+  retrievalMode: AgentStudioRetrievalMode
   playbookVersionId: string | null
   instructions: string
   messages: AgentStudioReopenMessage[]

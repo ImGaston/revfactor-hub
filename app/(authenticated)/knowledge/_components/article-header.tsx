@@ -29,7 +29,21 @@ export function ArticleHeader({ article }: { article: KnowledgeArticle }) {
             Draft
           </Badge>
         )}
-        {article.agent_enabled && <Badge>Agent ready</Badge>}
+        {article.agent_enabled && article.agent_index_status === "indexed" && (
+          <Badge>Agent indexed</Badge>
+        )}
+        {article.agent_enabled && article.agent_index_status === "failed" && (
+          <Badge variant="destructive">Index failed</Badge>
+        )}
+        {article.agent_enabled &&
+          article.agent_index_status !== "indexed" &&
+          article.agent_index_status !== "failed" && (
+            <Badge variant="secondary">
+              {article.agent_index_status === "indexing"
+                ? "Indexing"
+                : "Needs indexing"}
+            </Badge>
+          )}
         {!article.agent_enabled && article.review_status === "needs_review" && (
           <Badge variant="secondary">Needs agent review</Badge>
         )}

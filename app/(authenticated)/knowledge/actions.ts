@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { hasPermission } from "@/lib/permissions.server"
+import { indexKnowledgeArticle } from "@/lib/knowledge-retrieval.server"
 import { createClient } from "@/lib/supabase/server"
 import { estimateReadingTime, htmlToExcerpt } from "./_lib/utils"
 
@@ -258,8 +259,45 @@ export async function approveArticleForAgent(id: string) {
     .eq("id", id)
   if (error) return { error: error.message }
 
+  const indexing = await indexKnowledgeArticle({
+    supabase,
+    articleId: id,
+    userId: user.id,
+  })
+
   revalidatePath("/knowledge")
-  return { error: null }
+  return {
+    error: null,
+    indexingError: indexing.ok ? null : indexing.error,
+    indexedChunks: indexing.ok ? indexing.chunkCount : 0,
+  }
+}
+
+export async function reindexArticleForAgent(id: string) {
+  if (!(await hasPermission("knowledge", "publish"))) {
+    return { error: "You do not have permission to index agent knowledge." }
+  }
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: "Not authenticated" }
+
+  const result = await indexKnowledgeArticle({
+    supabase,
+    articleId: id,
+    userId: user.id,
+  })
+  revalidatePath("/knowledge")
+
+  return result.ok
+    ? {
+        error: null,
+        chunkCount: result.chunkCount,
+        inputTokens: result.inputTokens,
+        costUsd: result.costUsd,
+      }
+    : { error: result.error }
 }
 
 export async function disableArticleForAgent(id: string) {

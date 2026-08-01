@@ -8,6 +8,7 @@ import {
   Database,
   FlaskConical,
   RotateCcw,
+  Search,
   Send,
   ShieldCheck,
   Sparkles,
@@ -75,6 +76,7 @@ import {
 } from "@/components/ui/toggle-group"
 import {
   AGENT_STUDIO_MODELS,
+  AGENT_STUDIO_RETRIEVAL_MODES,
   DEFAULT_AGENT_STUDIO_INSTRUCTIONS,
   DEFAULT_AGENT_STUDIO_MODEL,
   SYNTHETIC_CLIENT_ID,
@@ -83,6 +85,7 @@ import {
   type AgentStudioClientOption,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
+  type AgentStudioRetrievalMode,
   type AgentStudioReopenState,
   type AgentStudioRun,
 } from "@/lib/agent-studio"
@@ -239,6 +242,18 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
                 </dd>
               </div>
               <div>
+                <dt className="text-xs text-muted-foreground">Generation</dt>
+                <dd className="mt-1 font-mono">
+                  {formatCost(run.usage.generationCostUsd)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Retrieval</dt>
+                <dd className="mt-1 font-mono">
+                  {formatCost(run.usage.retrievalCostUsd)}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-xs text-muted-foreground">Input</dt>
                 <dd className="mt-1 font-mono">
                   {run.usage.inputTokens.toLocaleString()} tokens
@@ -260,6 +275,14 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
                 <dt className="text-xs text-muted-foreground">Reasoning</dt>
                 <dd className="mt-1 font-mono">
                   {run.usage.reasoningTokens.toLocaleString()} tokens
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">
+                  Retrieval input
+                </dt>
+                <dd className="mt-1 font-mono">
+                  {run.usage.retrievalInputTokens.toLocaleString()} tokens
                 </dd>
               </div>
             </dl>
@@ -298,7 +321,9 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
             <CardDescription>
               What this run would cost at current Gateway rates if every model
               used the same token counts. Actual reruns may use different
-              tokenization and output lengths.
+              tokenization and output lengths. Retrieval cost (
+              {formatCost(run.usage.retrievalCostUsd)}) is model-independent
+              and excluded from the comparison rows.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -338,6 +363,117 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
       </TabsContent>
 
       <TabsContent value="sources" className="flex flex-col gap-3 pt-2">
+        {run.retrieval && (
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search />
+                Knowledge retrieval
+              </CardTitle>
+              <CardDescription className="wrap-anywhere">
+                Query: “{run.retrieval.query}”
+              </CardDescription>
+              <CardAction className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary">
+                  Requested: {run.retrieval.requestedMode}
+                </Badge>
+                <Badge variant="outline">
+                  Used: {run.retrieval.effectiveMode}
+                </Badge>
+              </CardAction>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {run.retrieval.fallbackReason && (
+                <Alert>
+                  <TriangleAlert />
+                  <AlertTitle>Retrieval fallback</AlertTitle>
+                  <AlertDescription>
+                    {run.retrieval.fallbackReason}
+                  </AlertDescription>
+                </Alert>
+              )}
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Embedding</dt>
+                  <dd className="mt-1 wrap-anywhere">
+                    {run.retrieval.embeddingModel ?? "Not used"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Latency</dt>
+                  <dd className="mt-1 font-mono">
+                    {formatDuration(run.retrieval.durationMs)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Tokens</dt>
+                  <dd className="mt-1 font-mono">
+                    {run.retrieval.embeddingInputTokens.toLocaleString()}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Cost</dt>
+                  <dd className="mt-1 font-mono">
+                    {formatCost(run.retrieval.embeddingCostUsd)}
+                  </dd>
+                </div>
+              </dl>
+              {run.retrieval.candidates.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidate</TableHead>
+                      <TableHead className="text-right">Keyword</TableHead>
+                      <TableHead className="text-right">Semantic</TableHead>
+                      <TableHead className="text-right">Hybrid</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {run.retrieval.candidates.map((candidate) => (
+                      <TableRow
+                        key={`${candidate.articleId}:${candidate.chunkId ?? "article"}`}
+                      >
+                        <TableCell>
+                          <div className="flex min-w-0 flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate font-medium">
+                                {candidate.title}
+                              </span>
+                              {candidate.selected && (
+                                <Badge variant="secondary">Used</Badge>
+                              )}
+                            </div>
+                            {candidate.heading && (
+                              <span className="truncate text-xs text-muted-foreground">
+                                {candidate.heading}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          #{candidate.keywordRank} ·{" "}
+                          {candidate.keywordScore.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {candidate.semanticRank == null ||
+                          candidate.semanticScore == null
+                            ? "—"
+                            : `#${candidate.semanticRank} · ${candidate.semanticScore.toFixed(2)}`}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {candidate.hybridRank == null ||
+                          candidate.combinedScore == null
+                            ? "—"
+                            : `#${candidate.hybridRank} · ${candidate.combinedScore.toFixed(2)}`}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {run.sources.length > 0 ? (
           run.sources.map((source) => (
             <Card key={source.id} size="sm">
@@ -602,6 +738,10 @@ export function AgentStudio({
       initialPlaybook?.modelId ??
       DEFAULT_AGENT_STUDIO_MODEL
   )
+  const [retrievalMode, setRetrievalMode] =
+    useState<AgentStudioRetrievalMode>(
+      reopenedRun?.retrievalMode ?? "hybrid"
+    )
   const [instructions, setInstructions] = useState(
     reopenedRun?.instructions ??
       initialPlaybook?.instructions ??
@@ -635,6 +775,13 @@ export function AgentStudio({
             (version) => version.id === playbookVersionId
           ) ?? null,
     [playbookVersionId, playbookVersions]
+  )
+  const selectedRetrievalMode = useMemo(
+    () =>
+      AGENT_STUDIO_RETRIEVAL_MODES.find(
+        (option) => option.id === retrievalMode
+      )!,
+    [retrievalMode]
   )
 
   function resetConversation({ preserveDraft = false } = {}) {
@@ -672,6 +819,7 @@ export function AgentStudio({
       result = await runAgentStudio({
         clientId,
         modelId,
+        retrievalMode,
         playbookVersionId:
           playbookVersionId === "session" ? null : playbookVersionId,
         conversationId,
@@ -752,6 +900,18 @@ export function AgentStudio({
     resetConversation({ preserveDraft: true })
   }
 
+  function changeRetrievalMode(value: string) {
+    if (
+      value !== "keyword" &&
+      value !== "hybrid" &&
+      value !== "compare"
+    ) {
+      return
+    }
+    setRetrievalMode(value)
+    resetConversation({ preserveDraft: true })
+  }
+
   function changePlaybook(value: string) {
     setPlaybookVersionId(value)
     if (value === "session") {
@@ -829,8 +989,9 @@ export function AgentStudio({
         <AlertTitle>Safe sandbox</AlertTitle>
         <AlertDescription>
           Agent Studio cannot send Assembly messages or modify client data.
-          Published Knowledge articles are available for internal testing but
-          are not yet classified as customer-safe.
+          Only published, approved, client-safe, agent-enabled Knowledge can
+          be retrieved. Hybrid search falls back to keyword search if its
+          index is unavailable.
         </AlertDescription>
       </Alert>
 
@@ -923,6 +1084,34 @@ export function AgentStudio({
               </Field>
 
               <Field>
+                <FieldLabel>Knowledge retrieval</FieldLabel>
+                <ToggleGroup
+                  type="single"
+                  value={retrievalMode}
+                  onValueChange={(value) => {
+                    if (value) changeRetrievalMode(value)
+                  }}
+                  variant="outline"
+                  className="w-full"
+                  aria-label="Choose a Knowledge retrieval mode"
+                >
+                  {AGENT_STUDIO_RETRIEVAL_MODES.map((option) => (
+                    <ToggleGroupItem
+                      key={option.id}
+                      value={option.id}
+                      className="flex-1"
+                      aria-label={option.label}
+                    >
+                      {option.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+                <FieldDescription>
+                  {selectedRetrievalMode.description}
+                </FieldDescription>
+              </Field>
+
+              <Field>
                 <FieldLabel htmlFor="studio-client">Client context</FieldLabel>
                 <Select value={clientId} onValueChange={changeClient}>
                   <SelectTrigger id="studio-client" className="w-full">
@@ -993,6 +1182,10 @@ export function AgentStudio({
               <Badge variant="outline">
                 <Database data-icon="inline-start" />
                 {clients.find((client) => client.id === clientId)?.name}
+              </Badge>
+              <Badge variant="outline">
+                <Search data-icon="inline-start" />
+                {selectedRetrievalMode.label}
               </Badge>
             </CardAction>
           </CardHeader>

@@ -14,6 +14,8 @@ import {
   isAgentStudioModelId,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
+  type AgentStudioRetrievalDiagnostics,
+  type AgentStudioRetrievalMode,
   type AgentStudioReopenResult,
   type AgentStudioReopenState,
   type AgentStudioRun,
@@ -30,6 +32,7 @@ import {
   type AgentStudioPriceLabsReport,
 } from "@/lib/agent-studio-pricelabs.server"
 import { createRevFactorSupportAgent } from "@/lib/agent-studio.server"
+import { createKnowledgeSearch } from "@/lib/knowledge-retrieval.server"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 
@@ -40,6 +43,9 @@ const runInputSchema = z.object({
   conversationId: z.string().uuid().nullable().optional(),
   instructions: z.string().min(20).max(12_000),
   message: z.string().min(1).max(4_000),
+  retrievalMode: z
+    .enum(["keyword", "hybrid", "compare"])
+    .default("hybrid"),
   frozenSourceSnapshot: z
     .record(z.string(), z.unknown())
     .optional(),
@@ -266,7 +272,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isKnowledgeResult(
   value: unknown
-): value is { results: AgentStudioSource[] } {
+): value is {
+  results: AgentStudioSource[]
+  diagnostics: AgentStudioRetrievalDiagnostics
+} {
   return (
     isRecord(value) &&
     Array.isArray(value.results) &&
@@ -277,7 +286,12 @@ function isKnowledgeResult(
         typeof source.title === "string" &&
         typeof source.slug === "string" &&
         typeof source.excerpt === "string"
-    )
+    ) &&
+    isRecord(value.diagnostics) &&
+    typeof value.diagnostics.query === "string" &&
+    (value.diagnostics.requestedMode === "keyword" ||
+      value.diagnostics.requestedMode === "hybrid" ||
+      value.diagnostics.requestedMode === "compare")
   )
 }
 
@@ -993,6 +1007,8 @@ async function persistCompletedRun({
   reply,
   output,
   usage,
+  retrieval,
+  retrievalMode,
   durationMs,
   inputSnapshot,
   sources,
@@ -1020,6 +1036,8 @@ async function persistCompletedRun({
     reasoningTokens: number
     totalTokens: number
   }
+  retrieval: AgentStudioRetrievalDiagnostics | null
+  retrievalMode: AgentStudioRetrievalMode
   durationMs: number
   inputSnapshot: Record<string, unknown>
   sources: AgentStudioSource[]
@@ -1036,7 +1054,9 @@ async function persistCompletedRun({
   const selectedEstimate = modelEstimates.find(
     (estimate) => estimate.modelId === modelId
   )
-  const estimatedCostUsd = selectedEstimate?.estimatedCostUsd ?? 0
+  const generationCostUsd = selectedEstimate?.estimatedCostUsd ?? 0
+  const retrievalCostUsd = retrieval?.embeddingCostUsd ?? 0
+  const estimatedCostUsd = generationCostUsd + retrievalCostUsd
 
   const { data: insertedMessages, error: messageError } = await supabase
     .from("agent_messages")
@@ -1084,12 +1104,23 @@ async function persistCompletedRun({
       output_tokens: usage.outputTokens,
       reasoning_tokens: usage.reasoningTokens,
       total_tokens: usage.totalTokens,
+      retrieval_mode: retrievalMode,
+      retrieval_input_tokens: retrieval?.embeddingInputTokens ?? 0,
+      retrieval_cost_usd: retrievalCostUsd,
+      retrieval_duration_ms: retrieval?.durationMs ?? 0,
       estimated_cost_usd: estimatedCostUsd,
       duration_ms: durationMs,
       input_snapshot: inputSnapshot,
       pricing_snapshot: {
         selectedModel: selectedEstimate ?? null,
         estimates: modelEstimates,
+        retrieval: retrieval
+          ? {
+              embeddingModel: retrieval.embeddingModel,
+              inputTokens: retrieval.embeddingInputTokens,
+              estimatedCostUsd: retrievalCostUsd,
+            }
+          : null,
       },
       created_by: userId,
     })
@@ -1158,6 +1189,8 @@ async function persistCompletedRun({
         clientId:
           client.id === SYNTHETIC_CLIENT_ID ? "synthetic" : client.id,
         estimatedCostUsd,
+        retrievalMode,
+        retrievalCostUsd,
       },
     }),
   ])
@@ -1166,6 +1199,8 @@ async function persistCompletedRun({
     runId: run.id,
     createdAt: run.created_at,
     estimatedCostUsd,
+    generationCostUsd,
+    retrievalCostUsd,
   }
 }
 
@@ -1239,6 +1274,7 @@ export async function runAgentStudio(
     settings.maxRunCostUsd,
     playbook?.maxRunCostUsd ?? settings.maxRunCostUsd
   )
+  const retrievalMode: AgentStudioRetrievalMode = parsed.data.retrievalMode
 
   const prompt = buildConversationPrompt({
     client,
@@ -1288,7 +1324,7 @@ export async function runAgentStudio(
   const { data: knowledgeArticles } = await supabase
     .from("knowledge_articles")
     .select(
-      "id, title, slug, excerpt, content_html, canonical_question, approved_answer, escalation_guidance"
+      "id, title, slug, excerpt, content_html, canonical_question, approved_answer, escalation_guidance, updated_at"
     )
     .eq("status", "published")
     .eq("agent_enabled", true)
@@ -1297,10 +1333,17 @@ export async function runAgentStudio(
     .order("updated_at", { ascending: false })
     .limit(200)
 
+  const searchKnowledge = createKnowledgeSearch({
+    supabase,
+    articles: knowledgeArticles ?? [],
+    userId: user.id,
+    mode: retrievalMode,
+  })
+
   const agent = createRevFactorSupportAgent({
     modelId,
     studioInstructions: instructions,
-    knowledgeArticles: knowledgeArticles ?? [],
+    searchKnowledge,
     maxOutputTokens,
     allowedTools,
     userId: user.id,
@@ -1357,6 +1400,12 @@ export async function runAgentStudio(
       ).values()
     )
     const sources = [...contextSources, ...knowledgeSources]
+    const retrieval = result.toolResults.find((toolResult) =>
+      isKnowledgeResult(toolResult.output)
+    )?.output
+    const retrievalDiagnostics = isKnowledgeResult(retrieval)
+      ? retrieval.diagnostics
+      : null
 
     const usage = {
       inputTokens: result.usage.inputTokens ?? 0,
@@ -1384,6 +1433,8 @@ export async function runAgentStudio(
       reply: output.reply,
       output,
       usage,
+      retrieval: retrievalDiagnostics,
+      retrievalMode,
       durationMs,
       inputSnapshot: {
         instructions,
@@ -1399,6 +1450,7 @@ export async function runAgentStudio(
         assemblyHistory: assemblyContext.messages,
         studioHistory: parsed.data.history,
         newMessage: parsed.data.message,
+        retrievalMode,
       },
       sources,
       toolCalls,
@@ -1417,10 +1469,15 @@ export async function runAgentStudio(
         confidence: output.confidence,
         escalationReason: output.escalationReason,
         reviewNotes: output.reviewNotes,
+        retrieval: retrievalDiagnostics,
         sources,
         toolCalls,
         usage: {
           ...usage,
+          retrievalInputTokens:
+            retrievalDiagnostics?.embeddingInputTokens ?? 0,
+          generationCostUsd: persisted.generationCostUsd,
+          retrievalCostUsd: persisted.retrievalCostUsd,
           estimatedCostUsd: persisted.estimatedCostUsd,
         },
         modelEstimates,
@@ -1439,6 +1496,7 @@ export async function runAgentStudio(
         playbook_version_id: playbook?.id ?? null,
         model_id: modelId,
         status: "failed",
+        retrieval_mode: retrievalMode,
         duration_ms: durationMs,
         error_message: errorMessage,
         input_snapshot: {
@@ -1455,6 +1513,7 @@ export async function runAgentStudio(
           assemblyHistory: assemblyContext.messages,
           studioHistory: parsed.data.history,
           newMessage: parsed.data.message,
+          retrievalMode,
         },
         created_by: user.id,
       })
@@ -1507,6 +1566,8 @@ export async function reopenAgentStudioRun(
         model_id, status, disposition, confidence, escalation_reason,
         review_notes, input_tokens, cached_input_tokens, cache_write_tokens,
         output_tokens, reasoning_tokens, total_tokens, estimated_cost_usd,
+        retrieval_mode, retrieval_input_tokens, retrieval_cost_usd,
+        retrieval_duration_ms,
         duration_ms, input_snapshot, error_message, created_at
       `
     )
@@ -1519,6 +1580,10 @@ export async function reopenAgentStudioRun(
   if (!isAgentStudioModelId(run.model_id)) {
     return { ok: false, error: "That run used a model that is no longer available." }
   }
+  const retrievalMode: AgentStudioRetrievalMode =
+    run.retrieval_mode === "hybrid" || run.retrieval_mode === "compare"
+      ? run.retrieval_mode
+      : "keyword"
 
   const [
     { data: conversation },
@@ -1635,6 +1700,12 @@ export async function reopenAgentStudioRun(
       run.confidence === "medium" ||
       run.confidence === "high")
   ) {
+    const retrievalOutput = (toolCalls ?? [])
+      .map((toolCall) => toolCall.output)
+      .find((output) => isKnowledgeResult(output))
+    const retrieval = isKnowledgeResult(retrievalOutput)
+      ? retrievalOutput.diagnostics
+      : null
     const response = reopenedMessages.find(
       (message) => message.id === run.response_message_id
     )
@@ -1652,6 +1723,7 @@ export async function reopenAgentStudioRun(
             (note): note is string => typeof note === "string"
           )
         : [],
+      retrieval,
       sources: (sources ?? []).map((source) => {
         const payload = isRecord(source.payload) ? source.payload : {}
         return {
@@ -1683,7 +1755,13 @@ export async function reopenAgentStudioRun(
         cacheWriteTokens: Number(run.cache_write_tokens),
         outputTokens: Number(run.output_tokens),
         reasoningTokens: Number(run.reasoning_tokens),
+        retrievalInputTokens: Number(run.retrieval_input_tokens ?? 0),
         totalTokens: Number(run.total_tokens),
+        generationCostUsd: Math.max(
+          0,
+          Number(run.estimated_cost_usd) - Number(run.retrieval_cost_usd ?? 0)
+        ),
+        retrievalCostUsd: Number(run.retrieval_cost_usd ?? 0),
         estimatedCostUsd: Number(run.estimated_cost_usd),
       },
       modelEstimates: (modelEstimates ?? []).flatMap((estimate) =>
@@ -1737,6 +1815,7 @@ export async function reopenAgentStudioRun(
           : null,
       clientId,
       modelId: run.model_id,
+      retrievalMode,
       playbookVersionId: run.playbook_version_id,
       instructions,
       messages: reopenedMessages,

@@ -76,6 +76,15 @@ export default async function CategoryPage({ params }: Props) {
         review_status:
           (a.review_status as KnowledgeArticle["review_status"]) ?? "draft",
         agent_enabled: Boolean(a.agent_enabled),
+        agent_index_status:
+          (a.agent_index_status as KnowledgeArticle["agent_index_status"]) ??
+          "not_indexed",
+        agent_indexed_at: (a.agent_indexed_at as string) ?? null,
+        agent_index_error: (a.agent_index_error as string) ?? "",
+        agent_index_model: (a.agent_index_model as string) ?? "",
+        agent_chunk_count: Number(a.agent_chunk_count ?? 0),
+        agent_index_input_tokens: Number(a.agent_index_input_tokens ?? 0),
+        agent_index_cost_usd: Number(a.agent_index_cost_usd ?? 0),
         approved_by: (a.approved_by as string) ?? null,
         approved_at: (a.approved_at as string) ?? null,
         last_reviewed_at: (a.last_reviewed_at as string) ?? null,
