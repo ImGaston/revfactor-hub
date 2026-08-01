@@ -1,5 +1,14 @@
 # Conventions — RevFactor Hub
 
+## Visual Agent Flows
+
+- Agent Flows use a controlled `@xyflow/react` canvas with explicit full-snapshot saves; the Supabase version is authoritative and drafts may be temporarily invalid while being designed.
+- Validate reachability, cycles, decision labels, terminal outputs, and graph size before testing or promotion. Keep the initial ceiling at 50 nodes and 100 edges.
+- Store only serializable node data in JSONB. React components, callbacks, and node behavior live in the code registry in `lib/agent-flows.ts`.
+- Do not add arbitrary JavaScript, shell, SQL, database-query, or unrestricted HTTP nodes. Assembly, PriceLabs, client context, and Knowledge nodes are read-only; any future side effect requires a human-approval node and a separately authorized runtime.
+- Lifecycle versions after draft are immutable. Production promotion does not implicitly attach a flow to a playbook or change Agent Studio behavior.
+- Flow instructions must describe observable operating behavior and evidence boundaries, never private chain-of-thought.
+
 ## Coding
 - Use TypeScript strict mode.
 - Use `@/` imports from the project root.

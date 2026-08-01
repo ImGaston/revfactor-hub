@@ -9,6 +9,7 @@ import type {
   KnowledgeTag,
   KnowledgeStats,
 } from "./_lib/types"
+import type { AgentFlowStatus, AgentFlowSummary } from "@/lib/agent-flows"
 
 export default async function KnowledgePage() {
   const supabase = await createClient()
@@ -36,64 +37,105 @@ export default async function KnowledgePage() {
     .select("*")
     .order("name")
 
+  const [{ data: flowsRaw }, { data: flowVersionsRaw }] = await Promise.all([
+    supabase
+      .from("agent_flows")
+      .select("id, name, description, updated_at, archived_at")
+      .is("archived_at", null)
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("agent_flow_versions")
+      .select("id, flow_id, version, status")
+      .order("version", { ascending: false }),
+  ])
+
   const categories = (categoriesRaw ?? []) as KnowledgeCategory[]
   const tags = (tagsRaw ?? []) as KnowledgeTag[]
-
-  // Transform articles to match component types
-  const articles: KnowledgeArticle[] = (articlesRaw ?? []).map((a: Record<string, unknown>) => {
-    const profile = a.profiles as Record<string, unknown> | null
-    const tagAssignments = (a.knowledge_article_tags ?? []) as Array<{
-      knowledge_tags: KnowledgeTag
-    }>
-    const articleTags = tagAssignments
-      .map((ta) => ta.knowledge_tags)
-      .filter(Boolean)
-
+  const latestVersionByFlow = new Map<
+    string,
+    { id: string; version: number; status: AgentFlowStatus }
+  >()
+  for (const version of flowVersionsRaw ?? []) {
+    if (!latestVersionByFlow.has(version.flow_id)) {
+      latestVersionByFlow.set(version.flow_id, {
+        id: version.id,
+        version: Number(version.version),
+        status: version.status as AgentFlowStatus,
+      })
+    }
+  }
+  const flows: AgentFlowSummary[] = (flowsRaw ?? []).map((flow) => {
+    const latest = latestVersionByFlow.get(flow.id)
     return {
-      id: a.id as string,
-      title: a.title as string,
-      slug: a.slug as string,
-      excerpt: (a.excerpt as string) || "",
-      content_html: (a.content_html as string) || "",
-      category_id: a.category_id as string | null,
-      category: categories.find((c) => c.id === a.category_id) ?? null,
-      tag_ids: articleTags.map((t) => t.id),
-      tags: articleTags,
-      author: {
-        id: (profile?.id as string) ?? "",
-        full_name: (profile?.full_name as string) ?? "Unknown",
-        avatar_url: (profile?.avatar_url as string) ?? null,
-      },
-      author_id: a.author_id as string,
-      status: a.status as "draft" | "published",
-      published_at: a.published_at as string | null,
-      updated_at: a.updated_at as string,
-      created_at: a.created_at as string,
-      reading_time_min: (a.reading_time_min as number) ?? 1,
-      article_type: (a.article_type as KnowledgeArticle["article_type"]) ?? "guide",
-      audience: (a.audience as KnowledgeArticle["audience"]) ?? "internal",
-      canonical_question: (a.canonical_question as string) ?? "",
-      approved_answer: (a.approved_answer as string) ?? "",
-      escalation_guidance: (a.escalation_guidance as string) ?? "",
-      source_notes: (a.source_notes as string) ?? "",
-      review_status:
-        (a.review_status as KnowledgeArticle["review_status"]) ?? "draft",
-      agent_enabled: Boolean(a.agent_enabled),
-      agent_index_status:
-        (a.agent_index_status as KnowledgeArticle["agent_index_status"]) ??
-        "not_indexed",
-      agent_indexed_at: (a.agent_indexed_at as string) ?? null,
-      agent_index_error: (a.agent_index_error as string) ?? "",
-      agent_index_model: (a.agent_index_model as string) ?? "",
-      agent_chunk_count: Number(a.agent_chunk_count ?? 0),
-      agent_index_input_tokens: Number(a.agent_index_input_tokens ?? 0),
-      agent_index_cost_usd: Number(a.agent_index_cost_usd ?? 0),
-      approved_by: (a.approved_by as string) ?? null,
-      approved_at: (a.approved_at as string) ?? null,
-      last_reviewed_at: (a.last_reviewed_at as string) ?? null,
-      review_due_at: (a.review_due_at as string) ?? null,
+      id: flow.id,
+      name: flow.name,
+      description: flow.description,
+      updated_at: flow.updated_at,
+      archived_at: flow.archived_at,
+      latest_version: latest?.version ?? null,
+      latest_status: latest?.status ?? null,
+      latest_version_id: latest?.id ?? null,
     }
   })
+
+  // Transform articles to match component types
+  const articles: KnowledgeArticle[] = (articlesRaw ?? []).map(
+    (a: Record<string, unknown>) => {
+      const profile = a.profiles as Record<string, unknown> | null
+      const tagAssignments = (a.knowledge_article_tags ?? []) as Array<{
+        knowledge_tags: KnowledgeTag
+      }>
+      const articleTags = tagAssignments
+        .map((ta) => ta.knowledge_tags)
+        .filter(Boolean)
+
+      return {
+        id: a.id as string,
+        title: a.title as string,
+        slug: a.slug as string,
+        excerpt: (a.excerpt as string) || "",
+        content_html: (a.content_html as string) || "",
+        category_id: a.category_id as string | null,
+        category: categories.find((c) => c.id === a.category_id) ?? null,
+        tag_ids: articleTags.map((t) => t.id),
+        tags: articleTags,
+        author: {
+          id: (profile?.id as string) ?? "",
+          full_name: (profile?.full_name as string) ?? "Unknown",
+          avatar_url: (profile?.avatar_url as string) ?? null,
+        },
+        author_id: a.author_id as string,
+        status: a.status as "draft" | "published",
+        published_at: a.published_at as string | null,
+        updated_at: a.updated_at as string,
+        created_at: a.created_at as string,
+        reading_time_min: (a.reading_time_min as number) ?? 1,
+        article_type:
+          (a.article_type as KnowledgeArticle["article_type"]) ?? "guide",
+        audience: (a.audience as KnowledgeArticle["audience"]) ?? "internal",
+        canonical_question: (a.canonical_question as string) ?? "",
+        approved_answer: (a.approved_answer as string) ?? "",
+        escalation_guidance: (a.escalation_guidance as string) ?? "",
+        source_notes: (a.source_notes as string) ?? "",
+        review_status:
+          (a.review_status as KnowledgeArticle["review_status"]) ?? "draft",
+        agent_enabled: Boolean(a.agent_enabled),
+        agent_index_status:
+          (a.agent_index_status as KnowledgeArticle["agent_index_status"]) ??
+          "not_indexed",
+        agent_indexed_at: (a.agent_indexed_at as string) ?? null,
+        agent_index_error: (a.agent_index_error as string) ?? "",
+        agent_index_model: (a.agent_index_model as string) ?? "",
+        agent_chunk_count: Number(a.agent_chunk_count ?? 0),
+        agent_index_input_tokens: Number(a.agent_index_input_tokens ?? 0),
+        agent_index_cost_usd: Number(a.agent_index_cost_usd ?? 0),
+        approved_by: (a.approved_by as string) ?? null,
+        approved_at: (a.approved_at as string) ?? null,
+        last_reviewed_at: (a.last_reviewed_at as string) ?? null,
+        review_due_at: (a.review_due_at as string) ?? null,
+      }
+    }
+  )
 
   // Compute stats
   const stats: KnowledgeStats = {
@@ -101,9 +143,8 @@ export default async function KnowledgePage() {
     total_drafts: articles.filter((a) => a.status === "draft").length,
     categories_count: categories.length,
     my_drafts: user
-      ? articles.filter(
-          (a) => a.status === "draft" && a.author_id === user.id
-        ).length
+      ? articles.filter((a) => a.status === "draft" && a.author_id === user.id)
+          .length
       : 0,
     agent_ready: articles.filter(
       (article) =>
@@ -121,10 +162,10 @@ export default async function KnowledgePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Knowledge</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             Internal reference for RevFactor processes and SOPs
           </p>
         </div>
@@ -141,6 +182,8 @@ export default async function KnowledgePage() {
         articles={articles}
         categories={categories}
         tags={tags}
+        flows={flows}
+        canCreateFlows={canCreate}
       />
     </div>
   )
