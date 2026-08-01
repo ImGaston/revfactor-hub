@@ -34,11 +34,25 @@ export function ArticleCard({ article }: { article: KnowledgeArticle }) {
                 FAQ
               </Badge>
             )}
-            {article.agent_enabled && (
+            {article.agent_enabled && article.agent_index_status === "indexed" && (
               <Badge variant="default" className="text-xs shrink-0">
-                Agent ready
+                Agent indexed
               </Badge>
             )}
+            {article.agent_enabled && article.agent_index_status === "failed" && (
+              <Badge variant="destructive" className="text-xs shrink-0">
+                Index failed
+              </Badge>
+            )}
+            {article.agent_enabled &&
+              article.agent_index_status !== "indexed" &&
+              article.agent_index_status !== "failed" && (
+                <Badge variant="secondary" className="text-xs shrink-0">
+                  {article.agent_index_status === "indexing"
+                    ? "Indexing"
+                    : "Needs indexing"}
+                </Badge>
+              )}
             {!article.agent_enabled &&
               article.review_status === "needs_review" && (
                 <Badge variant="secondary" className="text-xs shrink-0">

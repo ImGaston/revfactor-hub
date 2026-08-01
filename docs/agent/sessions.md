@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-07-31 — Governed hybrid Knowledge retrieval
+
+- Added and applied migration 060 for pgvector-backed, version-bound Knowledge chunks, full-text/vector indexes, indexing audit events, run-level retrieval usage/cost, permission-based RLS, stale-on-edit behavior, and a security-invoker hybrid search RPC.
+- Added section-aware chunking and `openai/text-embedding-3-small` indexing through AI Gateway. Article approval attempts indexing automatically; Knowledge detail/Insights show readiness, passage previews, failures, and manual re-indexing.
+- Added Playground keyword/hybrid/compare controls and Inspector diagnostics for exact passages, keyword/semantic/hybrid ranks, fallback behavior, embedding model/tokens/latency/cost, and generation-versus-retrieval cost. Hybrid failures preserve availability through the governed keyword fallback.
+- Verified the implementation with direct TypeScript checking, targeted ESLint, a pure retrieval smoke test, and a full Next.js production build. The repository's Vitest install was blocked by the configured minimum-release-age policy for a newly published transitive package, so that policy was not relaxed.
+
 ## 2026-07-31 — Negative-performance framing workflow
 
 - Added a fourth editable Studio Coach scenario for negative performance: verify the benchmark, frame the result without sugarcoating or unsupported diagnosis, and route to a client-ready answer, internal brainstorm, or human escalation.

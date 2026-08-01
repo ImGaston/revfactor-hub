@@ -1,18 +1,8 @@
 import { Output, ToolLoopAgent, isStepCount, tool } from "ai"
 import { z } from "zod"
 
-import type { AgentStudioModelId, AgentStudioSource } from "@/lib/agent-studio"
-
-type KnowledgeArticle = {
-  id: string
-  title: string
-  slug: string
-  excerpt: string | null
-  content_html: string | null
-  canonical_question?: string | null
-  approved_answer?: string | null
-  escalation_guidance?: string | null
-}
+import type { AgentStudioModelId } from "@/lib/agent-studio"
+import type { KnowledgeSearchOutput } from "@/lib/knowledge-retrieval.server"
 
 const AGENT_SAFETY_INSTRUCTIONS = `You are operating in RevFactor Agent Studio, an internal sandbox.
 
@@ -55,106 +45,10 @@ const agentOutputSchema = z.object({
   reviewNotes: z.array(z.string()).max(5),
 })
 
-function htmlToPlainText(html: string): string {
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-function countOccurrences(text: string, term: string): number {
-  let count = 0
-  let offset = 0
-
-  while (count < 6) {
-    const index = text.indexOf(term, offset)
-    if (index === -1) break
-    count += 1
-    offset = index + term.length
-  }
-
-  return count
-}
-
-function searchKnowledge(
-  articles: KnowledgeArticle[],
-  query: string
-): Array<
-  AgentStudioSource & {
-    content: string
-    canonicalQuestion: string
-    approvedAnswer: string
-    escalationGuidance: string
-  }
-> {
-  const terms = Array.from(
-    new Set(
-      query
-        .toLowerCase()
-        .split(/[^a-z0-9]+/)
-        .filter((term) => term.length >= 3)
-    )
-  ).slice(0, 12)
-
-  if (terms.length === 0) return []
-
-  return articles
-    .map((article) => {
-      const content = htmlToPlainText(article.content_html ?? "")
-      const approvedAnswer = article.approved_answer?.trim() ?? ""
-      const canonicalQuestion = article.canonical_question?.trim() ?? ""
-      const title = article.title.toLowerCase()
-      const excerpt = (article.excerpt ?? "").toLowerCase()
-      const searchableContent =
-        `${canonicalQuestion} ${approvedAnswer} ${content}`.toLowerCase()
-      const score = terms.reduce(
-        (total, term) =>
-          total +
-          countOccurrences(title, term) * 8 +
-          countOccurrences(excerpt, term) * 3 +
-          countOccurrences(searchableContent, term),
-        0
-      )
-
-      return {
-        id: article.id,
-        title: article.title,
-        slug: article.slug,
-        excerpt:
-          article.excerpt?.trim() ||
-          `${content.slice(0, 180)}${content.length > 180 ? "…" : ""}`,
-        content: content.slice(0, 1_400),
-        approvedAnswer,
-        canonicalQuestion,
-        escalationGuidance: article.escalation_guidance?.trim() ?? "",
-        score,
-      }
-    })
-    .filter((article) => article.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
-    .map((article) => ({
-      id: article.id,
-      title: article.title,
-      slug: article.slug,
-      excerpt: article.excerpt,
-      content: article.content,
-      approvedAnswer: article.approvedAnswer,
-      canonicalQuestion: article.canonicalQuestion,
-      escalationGuidance: article.escalationGuidance,
-    }))
-}
-
 export function createRevFactorSupportAgent({
   modelId,
   studioInstructions,
-  knowledgeArticles,
+  searchKnowledge,
   maxOutputTokens = 1_200,
   allowedTools = ["searchKnowledge"],
   userId,
@@ -162,7 +56,7 @@ export function createRevFactorSupportAgent({
 }: {
   modelId: AgentStudioModelId
   studioInstructions: string
-  knowledgeArticles: KnowledgeArticle[]
+  searchKnowledge: (query: string) => Promise<KnowledgeSearchOutput>
   maxOutputTokens?: number
   allowedTools?: string[]
   userId?: string
@@ -214,26 +108,7 @@ ${studioInstructions}`,
                 "The per-run knowledge-search limit has been reached. Use the context already returned or escalate.",
             }
           }
-          const results = searchKnowledge(knowledgeArticles, query)
-          return {
-            query,
-            results: results.map((result) => ({
-              ...result,
-              type: "knowledge" as const,
-              payload: {
-                slug: result.slug,
-                content: result.content,
-                canonicalQuestion: result.canonicalQuestion,
-                approvedAnswer: result.approvedAnswer,
-                escalationGuidance: result.escalationGuidance,
-              },
-              fetchedAt: new Date().toISOString(),
-            })),
-            note:
-              results.length > 0
-                ? "Published internal knowledge. This sandbox does not yet distinguish customer-safe articles."
-                : "No matching published knowledge was found.",
-          }
+          return searchKnowledge(query)
         },
       }),
     },

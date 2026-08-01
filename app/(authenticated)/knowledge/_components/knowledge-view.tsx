@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CheckCircle, FileEdit, BarChart3 } from "lucide-react"
+import { AlertTriangle, BarChart3, CheckCircle, FileEdit, RefreshCcw } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { SearchBar } from "./search-bar"
 import { TagFilterBar } from "./tag-filter-bar"
 import { CategoryGrid } from "./category-grid"
@@ -30,6 +37,24 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
   )
   const draftArticles = useMemo(
     () => articles.filter((a) => a.status === "draft"),
+    [articles]
+  )
+  const indexedArticles = useMemo(
+    () => articles.filter((article) => article.agent_index_status === "indexed"),
+    [articles]
+  )
+  const staleArticles = useMemo(
+    () =>
+      articles.filter(
+        (article) =>
+          article.agent_enabled &&
+          article.agent_index_status !== "indexed" &&
+          article.agent_index_status !== "failed"
+      ),
+    [articles]
+  )
+  const failedArticles = useMemo(
+    () => articles.filter((article) => article.agent_index_status === "failed"),
     [articles]
   )
 
@@ -115,16 +140,59 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
         />
       </TabsContent>
 
-      <TabsContent value="insights" className="mt-6">
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-muted p-4">
-            <BarChart3 className="size-8 text-muted-foreground" />
-          </div>
-          <p className="mt-4 text-sm font-medium">Coming soon</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Article engagement metrics and reading analytics
-          </p>
+      <TabsContent value="insights" className="mt-6 flex flex-col gap-6">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle /> Indexed
+              </CardTitle>
+              <CardDescription>Available to hybrid retrieval</CardDescription>
+            </CardHeader>
+            <CardContent className="font-mono text-3xl">
+              {indexedArticles.length}
+            </CardContent>
+          </Card>
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCcw /> Needs indexing
+              </CardTitle>
+              <CardDescription>Approved but not current</CardDescription>
+            </CardHeader>
+            <CardContent className="font-mono text-3xl">
+              {staleArticles.length}
+            </CardContent>
+          </Card>
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle /> Failed
+              </CardTitle>
+              <CardDescription>Requires publisher review</CardDescription>
+            </CardHeader>
+            <CardContent className="font-mono text-3xl">
+              {failedArticles.length}
+            </CardContent>
+          </Card>
         </div>
+
+        {(staleArticles.length > 0 || failedArticles.length > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Indexing attention</CardTitle>
+              <CardDescription>
+                Open an article to inspect its passages or retry indexing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ArticleList
+                articles={[...failedArticles, ...staleArticles]}
+                emptyMessage="All agent-enabled Knowledge is indexed"
+              />
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
     </Tabs>
   )
