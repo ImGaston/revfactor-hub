@@ -1,0 +1,4 @@
+interface:
+  display_name: "RevFactor Agent Flow Builder"
+  short_description: "Build governed visual workflows for RevFactor agents"
+  default_prompt: "Use $revfactor-agent-flow-builder to design or implement a governed Agent Flow in RevFactor Hub."

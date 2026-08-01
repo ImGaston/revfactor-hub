@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-01 — Agent Flows Are Governed Instruction Graphs, Not a General Automation Runtime
+
+The Knowledge flow builder uses React Flow for editable business logic but intentionally does not recreate n8n's arbitrary execution surface. A strict RevFactor node registry covers untrusted message input, read-only context/Knowledge/PriceLabs retrieval, observable decisions, drafting, negative-performance brainstorming, escalation, human approval, and terminal internal output. Drafts save complete graph snapshots; validation gates testing and promotion. Non-draft versions are immutable and production is only an eligibility state until a playbook or agent explicitly attaches the version. This keeps the first release inspectable, permission-safe, regression-testable, and unable to send messages or mutate client data by accident.
+
 Keep dated decisions here when they should shape future work. Include enough rationale to avoid relitigating the same choice.
 
 ## 2026-07-31 — Knowledge Retrieval Is Hybrid, Governed, and Observable

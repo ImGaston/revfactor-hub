@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertTriangle, BarChart3, CheckCircle, FileEdit, RefreshCcw } from "lucide-react"
+import {
+  AlertTriangle,
+  BarChart3,
+  CheckCircle,
+  FileEdit,
+  RefreshCcw,
+  Workflow,
+} from "lucide-react"
 import {
   Card,
   CardContent,
@@ -19,14 +26,24 @@ import type {
   KnowledgeCategory,
   KnowledgeTag,
 } from "../_lib/types"
+import type { AgentFlowSummary } from "@/lib/agent-flows"
+import { AgentFlowsPanel } from "./agent-flows-panel"
 
 type Props = {
   articles: KnowledgeArticle[]
   categories: KnowledgeCategory[]
   tags: KnowledgeTag[]
+  flows: AgentFlowSummary[]
+  canCreateFlows: boolean
 }
 
-export function KnowledgeView({ articles, categories, tags }: Props) {
+export function KnowledgeView({
+  articles,
+  categories,
+  tags,
+  flows,
+  canCreateFlows,
+}: Props) {
   const [tab, setTab] = useState("published")
   const [search, setSearch] = useState("")
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
@@ -40,7 +57,8 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
     [articles]
   )
   const indexedArticles = useMemo(
-    () => articles.filter((article) => article.agent_index_status === "indexed"),
+    () =>
+      articles.filter((article) => article.agent_index_status === "indexed"),
     [articles]
   )
   const staleArticles = useMemo(
@@ -60,7 +78,9 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
 
   function toggleTag(tagId: string) {
     setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
     )
   }
 
@@ -110,6 +130,13 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
           <BarChart3 className="size-4" />
           Insights
         </TabsTrigger>
+        <TabsTrigger value="agent-flows" className="gap-1.5">
+          <Workflow className="size-4" />
+          Agent Flows
+          <span className="ml-1 text-xs text-muted-foreground">
+            ({flows.length})
+          </span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="published" className="mt-6 space-y-6">
@@ -120,11 +147,11 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
           onToggle={toggleTag}
         />
         <div>
-          <h3 className="text-lg font-semibold mb-4">Categories</h3>
+          <h3 className="mb-4 text-lg font-semibold">Categories</h3>
           <CategoryGrid categories={categories} />
         </div>
         <div>
-          <h3 className="text-lg font-semibold mb-4">Articles</h3>
+          <h3 className="mb-4 text-lg font-semibold">Articles</h3>
           <ArticleList
             articles={filterArticles(publishedArticles)}
             emptyMessage="No published articles match your search"
@@ -193,6 +220,10 @@ export function KnowledgeView({ articles, categories, tags }: Props) {
             </CardContent>
           </Card>
         )}
+      </TabsContent>
+
+      <TabsContent value="agent-flows" className="mt-6">
+        <AgentFlowsPanel flows={flows} canCreate={canCreateFlows} />
       </TabsContent>
     </Tabs>
   )
