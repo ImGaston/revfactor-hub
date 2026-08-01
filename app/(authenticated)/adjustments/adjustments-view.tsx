@@ -425,7 +425,7 @@ function QueueSection({
                     onClick={() => router.push(`/adjustments/${adjustment.id}`)}
                     className={`cursor-pointer ${stale ? "bg-red-50 dark:bg-red-950/30" : ""}`}
                   >
-                    <TableCell>
+                    <TableCell className="whitespace-normal">
                       <span className="font-medium">
                         {adjustmentTypeLabel(adjustment.type)}
                         {adjustment.target_value ? ` ${adjustment.target_value}` : ""}
@@ -464,7 +464,7 @@ function QueueSection({
                         </p>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="whitespace-normal text-sm text-muted-foreground">
                       {adjustment.clients?.name}
                       {adjustment.scope === "single_listing" && adjustment.listings
                         ? ` · ${adjustment.listings.name}`

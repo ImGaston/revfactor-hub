@@ -29,7 +29,7 @@ export default async function AuthenticatedLayout({
       <BreadcrumbProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <AppSidebar profile={profile} permissionMap={permissionMap} />
-          <SidebarInset>
+          <SidebarInset className="min-w-0">
             <TopBar profile={profile} permissionMap={permissionMap} />
             <main className="flex-1 p-6">{children}</main>
             {modal}
