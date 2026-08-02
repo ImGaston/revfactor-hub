@@ -10,6 +10,7 @@ import {
   type AgentStudioModelId,
 } from "@/lib/agent-studio"
 import { normalizeAgentWorkflow } from "@/lib/agent-studio-coach"
+import { summarizePriceLabsListingHealth } from "@/lib/agent-studio-health"
 import { getAgentStudioPricing } from "@/lib/agent-studio-pricing.server"
 import {
   getAssemblyClient,
@@ -23,10 +24,7 @@ import { runAgentStudio } from "./actions"
 
 const redactShadowText = (value: string) =>
   value
-    .replace(
-      /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-      "[redacted email]"
-    )
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted email]")
     .replace(
       /(?<!\d)(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\d)/g,
       "[redacted phone]"
@@ -112,11 +110,15 @@ async function audit(
 
 export async function savePlaybookVersionAction(input: unknown) {
   const canCreate = await hasPermission("agent_studio", "create")
-  if (!canCreate) return { ok: false as const, error: "You cannot create playbooks." }
+  if (!canCreate)
+    return { ok: false as const, error: "You cannot create playbooks." }
 
   const parsed = savePlaybookSchema.safeParse(input)
   if (!parsed.success || !isAgentStudioModelId(parsed.data.modelId)) {
-    return { ok: false as const, error: "The playbook configuration is invalid." }
+    return {
+      ok: false as const,
+      error: "The playbook configuration is invalid.",
+    }
   }
 
   const { supabase, user } = await authenticatedUser()
@@ -134,12 +136,16 @@ export async function savePlaybookVersionAction(input: unknown) {
       .select("id")
       .single()
     if (error || !playbook) {
-      return { ok: false as const, error: error?.message ?? "Playbook creation failed." }
+      return {
+        ok: false as const,
+        error: error?.message ?? "Playbook creation failed.",
+      }
     }
     playbookId = playbook.id
   } else {
     const canEdit = await hasPermission("agent_studio", "edit")
-    if (!canEdit) return { ok: false as const, error: "You cannot edit playbooks." }
+    if (!canEdit)
+      return { ok: false as const, error: "You cannot edit playbooks." }
     await supabase
       .from("agent_playbooks")
       .update({
@@ -178,14 +184,23 @@ export async function savePlaybookVersionAction(input: unknown) {
     .single()
 
   if (error || !version) {
-    return { ok: false as const, error: error?.message ?? "Version creation failed." }
+    return {
+      ok: false as const,
+      error: error?.message ?? "Version creation failed.",
+    }
   }
 
-  await audit(user.id, "playbook.version_created", "agent_playbook_version", version.id, {
-    playbookId,
-    version: nextVersion,
-    modelId: parsed.data.modelId,
-  })
+  await audit(
+    user.id,
+    "playbook.version_created",
+    "agent_playbook_version",
+    version.id,
+    {
+      playbookId,
+      version: nextVersion,
+      modelId: parsed.data.modelId,
+    }
+  )
   revalidatePath("/agent-studio")
   return { ok: true as const, id: version.id }
 }
@@ -215,7 +230,12 @@ export async function movePlaybookVersionAction(
     .eq("id", versionId)
   if (error) return { ok: false as const, error: error.message }
 
-  await audit(user.id, `playbook.${status}`, "agent_playbook_version", versionId)
+  await audit(
+    user.id,
+    `playbook.${status}`,
+    "agent_playbook_version",
+    versionId
+  )
   revalidatePath("/agent-studio")
   return { ok: true as const }
 }
@@ -225,7 +245,8 @@ export async function requestProductionApprovalAction(
   rationale: string
 ) {
   const canEdit = await hasPermission("agent_studio", "edit")
-  if (!canEdit) return { ok: false as const, error: "Editing permission is required." }
+  if (!canEdit)
+    return { ok: false as const, error: "Editing permission is required." }
 
   const { supabase, user } = await authenticatedUser()
   if (!user) return { ok: false as const, error: "Your session has expired." }
@@ -238,7 +259,8 @@ export async function requestProductionApprovalAction(
   if (!version || version.status !== "approved") {
     return {
       ok: false as const,
-      error: "Only an approved playbook version can request production promotion.",
+      error:
+        "Only an approved playbook version can request production promotion.",
     }
   }
 
@@ -253,12 +275,21 @@ export async function requestProductionApprovalAction(
     .select("id")
     .single()
   if (error || !request) {
-    return { ok: false as const, error: error?.message ?? "Approval request failed." }
+    return {
+      ok: false as const,
+      error: error?.message ?? "Approval request failed.",
+    }
   }
 
-  await audit(user.id, "approval.requested", "agent_approval_request", request.id, {
-    playbookVersionId,
-  })
+  await audit(
+    user.id,
+    "approval.requested",
+    "agent_approval_request",
+    request.id,
+    {
+      playbookVersionId,
+    }
+  )
   revalidatePath("/agent-studio")
   return { ok: true as const }
 }
@@ -270,7 +301,10 @@ export async function decideApprovalAction(
 ) {
   const canControl = await hasPermission("agent_studio", "control")
   if (!canControl) {
-    return { ok: false as const, error: "Production-control permission is required." }
+    return {
+      ok: false as const,
+      error: "Production-control permission is required.",
+    }
   }
 
   const { supabase, user } = await authenticatedUser()
@@ -300,7 +334,12 @@ export async function decideApprovalAction(
     .eq("id", approvalId)
   if (error) return { ok: false as const, error: error.message }
 
-  await audit(user.id, `approval.${decision}`, "agent_approval_request", approvalId)
+  await audit(
+    user.id,
+    `approval.${decision}`,
+    "agent_approval_request",
+    approvalId
+  )
   revalidatePath("/agent-studio")
   return { ok: true as const }
 }
@@ -310,7 +349,10 @@ export async function promotePlaybookToProductionAction(
 ) {
   const canControl = await hasPermission("agent_studio", "control")
   if (!canControl) {
-    return { ok: false as const, error: "Production-control permission is required." }
+    return {
+      ok: false as const,
+      error: "Production-control permission is required.",
+    }
   }
 
   const { supabase, user } = await authenticatedUser()
@@ -334,7 +376,8 @@ export async function promotePlaybookToProductionAction(
   ) {
     return {
       ok: false as const,
-      error: "A valid two-person approval is required before production promotion.",
+      error:
+        "A valid two-person approval is required before production promotion.",
     }
   }
 
@@ -358,7 +401,8 @@ export async function promotePlaybookToProductionAction(
 
 export async function submitRunFeedbackAction(input: unknown) {
   const canCreate = await hasPermission("agent_studio", "create")
-  if (!canCreate) return { ok: false as const, error: "You cannot rate Studio runs." }
+  if (!canCreate)
+    return { ok: false as const, error: "You cannot rate Studio runs." }
 
   const parsed = feedbackSchema.safeParse(input)
   if (!parsed.success) {
@@ -370,7 +414,8 @@ export async function submitRunFeedbackAction(input: unknown) {
   ) {
     return {
       ok: false as const,
-      error: "Add the corrected client answer before creating a Knowledge draft.",
+      error:
+        "Add the corrected client answer before creating a Knowledge draft.",
     }
   }
   const { supabase, user } = await authenticatedUser()
@@ -459,9 +504,7 @@ export async function submitRunFeedbackAction(input: unknown) {
         article_type: "faq",
         audience: "client_safe",
         canonical_question: question,
-        approved_answer: redactShadowText(
-          parsed.data.correctedResponse || ""
-        ),
+        approved_answer: redactShadowText(parsed.data.correctedResponse || ""),
         escalation_guidance: null,
         source_notes: `Created from reviewed Agent Studio run ${parsed.data.runId.slice(0, 8)}.`,
         review_status: "needs_review",
@@ -526,7 +569,8 @@ export async function runEvaluationCaseAction(input: {
   modelIds: string[]
 }) {
   const canCreate = await hasPermission("agent_studio", "create")
-  if (!canCreate) return { ok: false as const, error: "You cannot run evaluations." }
+  if (!canCreate)
+    return { ok: false as const, error: "You cannot run evaluations." }
   if (
     !z.string().uuid().safeParse(input.caseId).success ||
     !z.string().uuid().safeParse(input.playbookVersionId).success ||
@@ -534,7 +578,10 @@ export async function runEvaluationCaseAction(input: {
     input.modelIds.length > 4 ||
     !input.modelIds.every(isAgentStudioModelId)
   ) {
-    return { ok: false as const, error: "The evaluation configuration is invalid." }
+    return {
+      ok: false as const,
+      error: "The evaluation configuration is invalid.",
+    }
   }
 
   const { supabase, user } = await authenticatedUser()
@@ -551,9 +598,14 @@ export async function runEvaluationCaseAction(input: {
   }
 
   const messages = normalizeCaseMessages(evaluationCase.messages)
-  const lastUserIndex = messages.findLastIndex((message) => message.role === "user")
+  const lastUserIndex = messages.findLastIndex(
+    (message) => message.role === "user"
+  )
   if (lastUserIndex < 0) {
-    return { ok: false as const, error: "The evaluation case has no user message." }
+    return {
+      ok: false as const,
+      error: "The evaluation case has no user message.",
+    }
   }
 
   const { data: batch, error: batchError } = await supabase
@@ -570,7 +622,10 @@ export async function runEvaluationCaseAction(input: {
     .select("id")
     .single()
   if (batchError || !batch) {
-    return { ok: false as const, error: batchError?.message ?? "Evaluation could not start." }
+    return {
+      ok: false as const,
+      error: batchError?.message ?? "Evaluation could not start.",
+    }
   }
 
   let passedCases = 0
@@ -612,7 +667,9 @@ export async function runEvaluationCaseAction(input: {
       passed = dispositionMatch && includesRequired && excludesForbidden
       notes = [
         dispositionMatch ? "Disposition matched." : "Disposition differed.",
-        includesRequired ? "Required content present." : "Required content missing.",
+        includesRequired
+          ? "Required content present."
+          : "Required content missing.",
         excludesForbidden
           ? "Forbidden content absent."
           : "Forbidden content detected.",
@@ -621,7 +678,10 @@ export async function runEvaluationCaseAction(input: {
       if (result.run.conversationId) {
         await supabase
           .from("agent_conversations")
-          .update({ source: evaluationCase.case_type === "shadow" ? "shadow" : "evaluation" })
+          .update({
+            source:
+              evaluationCase.case_type === "shadow" ? "shadow" : "evaluation",
+          })
           .eq("id", result.run.conversationId)
       }
     } else {
@@ -661,13 +721,19 @@ export async function runEvaluationCaseAction(input: {
     })
     .eq("id", batch.id)
 
-  await audit(user.id, "evaluation.completed", "agent_evaluation_batch", batch.id, {
-    caseId: evaluationCase.id,
-    modelIds: input.modelIds,
-    passedCases,
-    totalCases: input.modelIds.length,
-    totalCostUsd,
-  })
+  await audit(
+    user.id,
+    "evaluation.completed",
+    "agent_evaluation_batch",
+    batch.id,
+    {
+      caseId: evaluationCase.id,
+      modelIds: input.modelIds,
+      passedCases,
+      totalCases: input.modelIds.length,
+      totalCostUsd,
+    }
+  )
   revalidatePath("/agent-studio")
   return {
     ok: true as const,
@@ -698,17 +764,23 @@ export async function createShadowCaseAction(clientId: string) {
     .eq("status", "active")
     .maybeSingle()
   if (!client?.assembly_client_id) {
-    return { ok: false as const, error: "This client is not linked to Assembly." }
+    return {
+      ok: false as const,
+      error: "This client is not linked to Assembly.",
+    }
   }
 
   const channels = await getClientChannels(client.assembly_client_id)
-  const channel = [...channels.company, ...(channels.individual ? [channels.individual] : [])]
-    .sort((a, b) =>
-      (b.lastMessageDate ?? b.updatedAt).localeCompare(
-        a.lastMessageDate ?? a.updatedAt
-      )
-    )[0]
-  if (!channel) return { ok: false as const, error: "No Assembly channel was found." }
+  const channel = [
+    ...channels.company,
+    ...(channels.individual ? [channels.individual] : []),
+  ].sort((a, b) =>
+    (b.lastMessageDate ?? b.updatedAt).localeCompare(
+      a.lastMessageDate ?? a.updatedAt
+    )
+  )[0]
+  if (!channel)
+    return { ok: false as const, error: "No Assembly channel was found." }
 
   const response = await listAssemblyMessages(channel.id, { limit: 50 })
   const chronological = (response.data ?? []).slice().reverse()
@@ -756,12 +828,21 @@ export async function createShadowCaseAction(clientId: string) {
     .select("id")
     .single()
   if (error || !evaluationCase) {
-    return { ok: false as const, error: error?.message ?? "Shadow case creation failed." }
+    return {
+      ok: false as const,
+      error: error?.message ?? "Shadow case creation failed.",
+    }
   }
 
-  await audit(user.id, "shadow_case.created", "agent_evaluation_case", evaluationCase.id, {
-    clientId: client.id,
-  })
+  await audit(
+    user.id,
+    "shadow_case.created",
+    "agent_evaluation_case",
+    evaluationCase.id,
+    {
+      clientId: client.id,
+    }
+  )
   revalidatePath("/agent-studio")
   return { ok: true as const, id: evaluationCase.id }
 }
@@ -791,8 +872,8 @@ export async function checkStudioIntegrationsAction() {
         pricing.length > 0 &&
         Boolean(
           process.env.AI_GATEWAY_API_KEY ||
-            process.env.VERCEL_OIDC_TOKEN ||
-            process.env.VERCEL
+          process.env.VERCEL_OIDC_TOKEN ||
+          process.env.VERCEL
         )
           ? "connected"
           : "partial",
@@ -801,8 +882,8 @@ export async function checkStudioIntegrationsAction() {
       details: {
         configured: Boolean(
           process.env.AI_GATEWAY_API_KEY ||
-            process.env.VERCEL_OIDC_TOKEN ||
-            process.env.VERCEL
+          process.env.VERCEL_OIDC_TOKEN ||
+          process.env.VERCEL
         ),
         comparisonModels: pricing.length,
       },
@@ -820,36 +901,72 @@ export async function checkStudioIntegrationsAction() {
   }
 
   startedAt = Date.now()
-  const { data: listings } = await supabase
+  const { data: listings, error: listingsError } = await supabase
     .from("listings")
-    .select("id, pl_synced_at")
+    .select("id, client_id, name, listing_id, pl_synced_at")
     .eq("status", "active")
     .order("pl_synced_at", { ascending: false, nullsFirst: false })
     .limit(500)
-  const syncedListings = (listings ?? []).filter((listing) => listing.pl_synced_at)
-  const latestPriceLabsSync = syncedListings[0]?.pl_synced_at ?? null
-  const stalePriceLabs =
-    !latestPriceLabsSync ||
-    Date.now() - new Date(latestPriceLabsSync).getTime() > 36 * 60 * 60 * 1_000
-  checks.push({
-    integration: "pricelabs",
-    status: !process.env.PRICELABS_API_KEY
-      ? "unavailable"
-      : syncedListings.length < (listings?.length ?? 0)
-        ? "partial"
-        : stalePriceLabs
+  if (listingsError) {
+    checks.push({
+      integration: "pricelabs",
+      status: "unavailable",
+      latency_ms: Date.now() - startedAt,
+      last_source_update_at: null,
+      details: {
+        configured: Boolean(process.env.PRICELABS_API_KEY),
+        note: "Listing sync status could not be checked.",
+      },
+      checked_by: user.id,
+    })
+  } else {
+    const clientIds = Array.from(
+      new Set(
+        (listings ?? []).flatMap((listing) =>
+          listing.client_id ? [listing.client_id] : []
+        )
+      )
+    )
+    const { data: clients } = clientIds.length
+      ? await supabase.from("clients").select("id, name").in("id", clientIds)
+      : { data: [] }
+    const clientNames = new Map(
+      (clients ?? []).map((client) => [client.id, client.name])
+    )
+    const priceLabsHealth = summarizePriceLabsListingHealth({
+      listings: (listings ?? []).map((listing) => ({
+        id: listing.id,
+        clientId: listing.client_id,
+        name: listing.name,
+        priceLabsId: listing.listing_id,
+        syncedAt: listing.pl_synced_at,
+      })),
+      clientNames,
+    })
+
+    checks.push({
+      integration: "pricelabs",
+      // Connection health and listing coverage are separate concepts. A fresh
+      // successful portfolio sync means the integration is connected; listing
+      // exceptions are shown as plain-language notes in the health card.
+      status: !process.env.PRICELABS_API_KEY
+        ? "unavailable"
+        : priceLabsHealth.latestSyncIsStale
           ? "stale"
           : "connected",
-    latency_ms: Date.now() - startedAt,
-    last_source_update_at: latestPriceLabsSync,
-    details: {
-      configured: Boolean(process.env.PRICELABS_API_KEY),
-      activeListings: listings?.length ?? 0,
-      syncedListings: syncedListings.length,
-      staleAfterHours: 36,
-    },
-    checked_by: user.id,
-  })
+      latency_ms: Date.now() - startedAt,
+      last_source_update_at: priceLabsHealth.latestSyncAt,
+      details: {
+        configured: Boolean(process.env.PRICELABS_API_KEY),
+        activeListings: priceLabsHealth.activeListings,
+        syncedListings: priceLabsHealth.syncedListings,
+        freshListings: priceLabsHealth.freshListings,
+        attentionListings: priceLabsHealth.attentionListings,
+        staleAfterHours: priceLabsHealth.staleAfterHours,
+      },
+      checked_by: user.id,
+    })
+  }
 
   startedAt = Date.now()
   let assemblyStatus: "connected" | "partial" | "unavailable" =
@@ -862,7 +979,9 @@ export async function checkStudioIntegrationsAction() {
     .limit(1)
     .maybeSingle()
   if (isAssemblyConfigured() && linkedClient?.assembly_client_id) {
-    const assemblyClient = await getAssemblyClient(linkedClient.assembly_client_id)
+    const assemblyClient = await getAssemblyClient(
+      linkedClient.assembly_client_id
+    )
     assemblyStatus = assemblyClient ? "connected" : "partial"
   }
   checks.push({
@@ -878,7 +997,9 @@ export async function checkStudioIntegrationsAction() {
     checked_by: user.id,
   })
 
-  const { error } = await supabase.from("agent_integration_checks").insert(checks)
+  const { error } = await supabase
+    .from("agent_integration_checks")
+    .insert(checks)
   if (error) return { ok: false as const, error: error.message }
 
   await audit(user.id, "integrations.checked", "agent_studio", null, {
@@ -893,11 +1014,17 @@ export async function checkStudioIntegrationsAction() {
 export async function updateStudioSettingsAction(input: unknown) {
   const canControl = await hasPermission("agent_studio", "control")
   if (!canControl) {
-    return { ok: false as const, error: "Production-control permission is required." }
+    return {
+      ok: false as const,
+      error: "Production-control permission is required.",
+    }
   }
   const parsed = settingsSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false as const, error: "The Studio policy settings are invalid." }
+    return {
+      ok: false as const,
+      error: "The Studio policy settings are invalid.",
+    }
   }
 
   const { supabase, user } = await authenticatedUser()

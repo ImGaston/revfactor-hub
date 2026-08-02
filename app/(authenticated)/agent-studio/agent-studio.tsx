@@ -1,6 +1,12 @@
 "use client"
 
-import { FormEvent, KeyboardEvent, useMemo, useState, useTransition } from "react"
+import {
+  FormEvent,
+  KeyboardEvent,
+  useMemo,
+  useState,
+  useTransition,
+} from "react"
 import {
   Bot,
   BookOpen,
@@ -55,12 +61,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -70,10 +71,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   AGENT_STUDIO_MODELS,
   AGENT_STUDIO_RETRIEVAL_MODES,
@@ -112,7 +110,7 @@ function messagesFromReopenedRun(
     failed: message.failed,
     run:
       message.runId === reopenedRun.activeRun?.id
-        ? reopenedRun.activeRun ?? undefined
+        ? (reopenedRun.activeRun ?? undefined)
         : undefined,
   }))
 }
@@ -311,7 +309,6 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
             </CardContent>
           </Card>
         )}
-
       </TabsContent>
 
       <TabsContent value="cost" className="pt-2">
@@ -322,8 +319,8 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
               What this run would cost at current Gateway rates if every model
               used the same token counts. Actual reruns may use different
               tokenization and output lengths. Retrieval cost (
-              {formatCost(run.usage.retrievalCostUsd)}) is model-independent
-              and excluded from the comparison rows.
+              {formatCost(run.usage.retrievalCostUsd)}) is model-independent and
+              excluded from the comparison rows.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -602,8 +599,7 @@ function RunFeedback({ run }: { run: AgentStudioRun }) {
             ? "Feedback saved and Knowledge draft created"
             : "Feedback saved"
         )
-      }
-      else toast.error(result.error)
+      } else toast.error(result.error)
     })
   }
 
@@ -676,8 +672,8 @@ function RunFeedback({ run }: { run: AgentStudioRun }) {
             />
             {lessonAction === "knowledge" && (
               <FieldDescription>
-                This creates a disabled FAQ draft in Knowledge. A publisher
-                must review and enable it before Agent Studio can retrieve it.
+                This creates a disabled FAQ draft in Knowledge. A publisher must
+                review and enable it before Agent Studio can retrieve it.
               </FieldDescription>
             )}
           </Field>
@@ -738,10 +734,9 @@ export function AgentStudio({
       initialPlaybook?.modelId ??
       DEFAULT_AGENT_STUDIO_MODEL
   )
-  const [retrievalMode, setRetrievalMode] =
-    useState<AgentStudioRetrievalMode>(
-      reopenedRun?.retrievalMode ?? "hybrid"
-    )
+  const [retrievalMode, setRetrievalMode] = useState<AgentStudioRetrievalMode>(
+    reopenedRun?.retrievalMode ?? "hybrid"
+  )
   const [instructions, setInstructions] = useState(
     reopenedRun?.instructions ??
       initialPlaybook?.instructions ??
@@ -749,7 +744,7 @@ export function AgentStudio({
   )
   const [playbookVersionId, setPlaybookVersionId] = useState(
     reopenedPlaybookVersionId ??
-      (reopenedRun ? "session" : initialPlaybook?.id ?? "session")
+      (reopenedRun ? "session" : (initialPlaybook?.id ?? "session"))
   )
   const [conversationId, setConversationId] = useState<string | null>(
     reopenedRun?.conversationId ?? null
@@ -763,17 +758,14 @@ export function AgentStudio({
   )
   const [isPending, startTransition] = useTransition()
 
-  const selectedModel = useMemo(
-    () => getAgentStudioModel(modelId),
-    [modelId]
-  )
+  const selectedModel = useMemo(() => getAgentStudioModel(modelId), [modelId])
   const selectedPlaybookVersion = useMemo(
     () =>
       playbookVersionId === "session"
         ? null
-        : playbookVersions.find(
+        : (playbookVersions.find(
             (version) => version.id === playbookVersionId
-          ) ?? null,
+          ) ?? null),
     [playbookVersionId, playbookVersions]
   )
   const selectedRetrievalMode = useMemo(
@@ -880,9 +872,7 @@ export function AgentStudio({
     })
   }
 
-  function handleComposerKeyDown(
-    event: KeyboardEvent<HTMLTextAreaElement>
-  ) {
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
       event.preventDefault()
       event.currentTarget.form?.requestSubmit()
@@ -901,30 +891,11 @@ export function AgentStudio({
   }
 
   function changeRetrievalMode(value: string) {
-    if (
-      value !== "keyword" &&
-      value !== "hybrid" &&
-      value !== "compare"
-    ) {
+    if (value !== "keyword" && value !== "hybrid" && value !== "compare") {
       return
     }
     setRetrievalMode(value)
     resetConversation({ preserveDraft: true })
-  }
-
-  function changePlaybook(value: string) {
-    setPlaybookVersionId(value)
-    if (value === "session") {
-      setInstructions(DEFAULT_AGENT_STUDIO_INSTRUCTIONS)
-      setModelId(DEFAULT_AGENT_STUDIO_MODEL)
-    } else {
-      const version = playbookVersions.find((item) => item.id === value)
-      if (version) {
-        setInstructions(version.instructions)
-        setModelId(version.modelId)
-      }
-    }
-    resetConversation()
   }
 
   function changeInstructions(value: string) {
@@ -988,10 +959,10 @@ export function AgentStudio({
         <ShieldCheck />
         <AlertTitle>Safe sandbox</AlertTitle>
         <AlertDescription>
-          Agent Studio cannot send Assembly messages or modify client data.
-          Only published, approved, client-safe, agent-enabled Knowledge can
-          be retrieved. Hybrid search falls back to keyword search if its
-          index is unavailable.
+          Agent Studio cannot send Assembly messages or modify client data. Only
+          published, approved, client-safe, agent-enabled Knowledge can be
+          retrieved. Hybrid search falls back to keyword search if its index is
+          unavailable.
         </AlertDescription>
       </Alert>
 
@@ -1021,35 +992,17 @@ export function AgentStudio({
           <CardContent>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="studio-playbook">Playbook</FieldLabel>
-                <Select
-                  value={playbookVersionId}
-                  onValueChange={changePlaybook}
-                >
-                  <SelectTrigger id="studio-playbook" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="session">
-                        Session draft · custom
-                      </SelectItem>
-                      {playbookVersions
-                        .filter((version) => version.status !== "archived")
-                        .map((version) => (
-                          <SelectItem key={version.id} value={version.id}>
-                            {version.playbookName} v{version.version} ·{" "}
-                            {version.status}
-                          </SelectItem>
-                        ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <FieldLabel>Agent setup</FieldLabel>
+                <Badge variant="outline">
+                  <BookOpen data-icon="inline-start" />
+                  {selectedPlaybookVersion
+                    ? `${selectedPlaybookVersion.playbookName} v${selectedPlaybookVersion.version}`
+                    : "Temporary test instructions"}
+                </Badge>
                 <FieldDescription>
-                  {playbookVersions.filter(
-                    (version) => version.status !== "archived"
-                  ).length} saved version(s). Create and version more from the
-                  Playbooks tab.
+                  The Playground uses RevFactor&apos;s single approved setup.
+                  Editing Draft instructions below creates a temporary test for
+                  this browser only.
                 </FieldDescription>
               </Field>
 
@@ -1078,7 +1031,8 @@ export function AgentStudio({
                   ))}
                 </ToggleGroup>
                 <FieldDescription>
-                  {selectedModel.description}. ${selectedModel.inputUsdPerMillion}
+                  {selectedModel.description}. $
+                  {selectedModel.inputUsdPerMillion}
                   /M input, ${selectedModel.outputUsdPerMillion}/M output.
                 </FieldDescription>
               </Field>
@@ -1157,8 +1111,8 @@ export function AgentStudio({
                   className="min-h-72"
                 />
                 <FieldDescription>
-                  Security rules remain fixed even when these draft
-                  instructions change.
+                  Security rules remain fixed even when these draft instructions
+                  change.
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -1230,7 +1184,7 @@ export function AgentStudio({
                         key={prompt}
                         type="button"
                         variant="outline"
-                        className="h-auto w-full whitespace-normal py-2"
+                        className="h-auto w-full py-2 whitespace-normal"
                         onClick={() =>
                           startTransition(() => {
                             void submitMessage(prompt)
@@ -1246,7 +1200,10 @@ export function AgentStudio({
             </ScrollArea>
           </CardContent>
           <CardFooter className="border-t">
-            <form className="flex w-full items-end gap-2" onSubmit={handleSubmit}>
+            <form
+              className="flex w-full items-end gap-2"
+              onSubmit={handleSubmit}
+            >
               <Field>
                 <FieldLabel htmlFor="studio-message" className="sr-only">
                   Client message
@@ -1270,11 +1227,7 @@ export function AgentStudio({
                 disabled={isPending || message.trim().length === 0}
                 aria-label="Run agent"
               >
-                {isPending ? (
-                  <Spinner />
-                ) : (
-                  <Send data-icon="inline-start" />
-                )}
+                {isPending ? <Spinner /> : <Send data-icon="inline-start" />}
               </Button>
             </form>
           </CardFooter>
