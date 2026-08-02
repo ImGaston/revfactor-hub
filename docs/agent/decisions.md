@@ -152,6 +152,12 @@ Decision: reads that can exceed 1000 rows must page with `.range(from, from+999)
 
 Agent behavior is promoted through immutable playbook versions (`draft → testing → approved → production`) instead of editing a live prompt. Production requires a second authorized approver, and future Assembly sending is separately human-approved. Playground, regression, and shadow runs share one durable cost/audit ledger. Client and Assembly text is untrusted and sanitized. Server-side per-run limits and daily/monthly budgets put low-cost models first while retaining same-token benchmark comparisons.
 
+## 2026-08-02 — One Live Agent Uses One Production Playbook
+
+The future client-service runtime will load one default playbook version marked `production`; it will not ask the model to choose among several playbooks. Focused pricing, triage, and escalation playbooks remain sandbox experiments or candidate versions until their behavior is consolidated into the main RevFactor Client Service playbook. Intent-specific behavior belongs in the production playbook's observable workflow/branches. Agent Studio copy must explain this distinction plainly before a live inbox runtime is attached.
+
+PriceLabs integration health represents whether the API and portfolio sync are working, while individual listing coverage is reported separately. A fresh successful sync is `connected` even if a small number of listings have missing IDs, have never synced, or are individually stale; those exceptions must appear by listing name as actionable notes instead of turning the whole integration into an unexplained `partial` state.
+
 ## 2026-07-29 — Internal Knowledge Publication Is Not Agent Approval
 
 A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.

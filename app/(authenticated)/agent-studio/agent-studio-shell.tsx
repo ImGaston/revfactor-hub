@@ -55,12 +55,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
   AGENT_STUDIO_MODELS,
@@ -78,6 +73,7 @@ import type {
   AgentStudioGovernanceSnapshot,
   AgentStudioSettings,
 } from "@/lib/agent-studio-governance"
+import type { PriceLabsAttentionListing } from "@/lib/agent-studio-health"
 import { AgentStudio } from "./agent-studio"
 import { reopenAgentStudioRun } from "./actions"
 import {
@@ -135,10 +131,7 @@ function RunsPanel({
     )
     return {
       runs: completed.length,
-      cost: completed.reduce(
-        (total, run) => total + run.estimatedCostUsd,
-        0
-      ),
+      cost: completed.reduce((total, run) => total + run.estimatedCostUsd, 0),
       latency:
         completed.length > 0
           ? completed.reduce((total, run) => total + run.durationMs, 0) /
@@ -147,10 +140,8 @@ function RunsPanel({
       rating: (() => {
         const rated = completed.filter((run) => run.feedbackRating != null)
         return rated.length > 0
-          ? rated.reduce(
-              (total, run) => total + (run.feedbackRating ?? 0),
-              0
-            ) / rated.length
+          ? rated.reduce((total, run) => total + (run.feedbackRating ?? 0), 0) /
+              rated.length
           : null
       })(),
     }
@@ -225,7 +216,8 @@ function RunsPanel({
                       {run.conversationTitle ?? "Untitled"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {run.clientName ?? "Synthetic"} · {formatDate(run.createdAt)}
+                      {run.clientName ?? "Synthetic"} ·{" "}
+                      {formatDate(run.createdAt)}
                     </div>
                     {run.errorMessage && (
                       <div className="mt-1 max-w-96 text-xs text-destructive">
@@ -306,7 +298,9 @@ function PlaybookEditor({
   const [isPending, startTransition] = useTransition()
   const initial = versions[0]
   const [playbookId, setPlaybookId] = useState(initial?.playbookId ?? "new")
-  const [name, setName] = useState(initial?.playbookName ?? "RevFactor Client Service")
+  const [name, setName] = useState(
+    initial?.playbookName ?? "RevFactor Client Service"
+  )
   const [description, setDescription] = useState(initial?.description ?? "")
   const [instructions, setInstructions] = useState(
     initial?.instructions ?? DEFAULT_AGENT_STUDIO_INSTRUCTIONS
@@ -378,10 +372,7 @@ function PlaybookEditor({
                   <SelectItem value="new">New playbook</SelectItem>
                   {Array.from(
                     new Map(
-                      versions.map((version) => [
-                        version.playbookId,
-                        version,
-                      ])
+                      versions.map((version) => [version.playbookId, version])
                     ).values()
                   ).map((version) => (
                     <SelectItem
@@ -498,16 +489,19 @@ function PlaybooksPanel({
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Playbooks</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Version, test, approve, and deliberately promote agent behavior.
+          A playbook is a saved version of the agent&apos;s instructions. Only
+          one version can be live in production.
         </p>
       </div>
 
       <Alert>
-        <ShieldCheck />
-        <AlertTitle>Two-person production gate</AlertTitle>
+        <Bot />
+        <AlertTitle>One live agent, one production playbook</AlertTitle>
         <AlertDescription>
-          The person requesting production promotion cannot approve the same
-          request. Assembly sending remains unavailable even after promotion.
+          The agent does not choose between these playbooks. Draft and testing
+          versions are experiments; the one marked production becomes the
+          default instruction set for the live agent. A second team member must
+          approve that promotion.
         </AlertDescription>
       </Alert>
 
@@ -526,7 +520,9 @@ function PlaybooksPanel({
                     {version.playbookName} v{version.version}
                   </CardTitle>
                   <CardDescription>
-                    {version.changeNote || version.description || "No change note"}
+                    {version.changeNote ||
+                      version.description ||
+                      "No change note"}
                   </CardDescription>
                   <CardAction>
                     <Badge variant={statusVariant(version.status)}>
@@ -595,7 +591,8 @@ function PlaybooksPanel({
                           () =>
                             requestProductionApprovalAction(
                               version.id,
-                              version.changeNote || "Ready for production review"
+                              version.changeNote ||
+                                "Ready for production review"
                             ),
                           "Production approval requested"
                         )
@@ -610,8 +607,7 @@ function PlaybooksPanel({
                       disabled={!governance.canControl || pendingAction}
                       onClick={() =>
                         mutate(
-                          () =>
-                            promotePlaybookToProductionAction(version.id),
+                          () => promotePlaybookToProductionAction(version.id),
                           "Playbook promoted to production"
                         )
                       }
@@ -632,8 +628,8 @@ function PlaybooksPanel({
                 <CardHeader>
                   <CardTitle>Pending production approval</CardTitle>
                   <CardDescription>
-                    {approval.playbookLabel ?? approval.requestType} requested by{" "}
-                    {approval.requestedByName ?? "a team member"}.
+                    {approval.playbookLabel ?? approval.requestType} requested
+                    by {approval.requestedByName ?? "a team member"}.
                   </CardDescription>
                 </CardHeader>
                 <CardFooter className="flex gap-2">
@@ -747,23 +743,32 @@ function EvaluationsPanel({
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Evaluations</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Replay frozen scenarios across the low-cost model ladder before
-          promoting a playbook.
+          Test the same agent instructions against repeatable questions before
+          making them live.
         </p>
       </div>
 
+      <Alert>
+        <BookOpenCheck />
+        <AlertTitle>Three simple steps</AlertTitle>
+        <AlertDescription>
+          Choose the playbook you are testing, run each test below, then review
+          the actual answers in Runs. A pass checks basic safety rules; you
+          still decide whether the answer is good enough for a client.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
-          <CardTitle>Evaluation configuration</CardTitle>
+          <CardTitle>1. Choose the playbook to test</CardTitle>
           <CardDescription>
-            Each case runs against Nano, Gemini Flash Lite, Qwen Flash, and
-            GPT-5 Mini.
+            Every test uses this exact version of the instructions.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Field>
             <FieldLabel htmlFor="evaluation-playbook">
-              Playbook version
+              Playbook to test
             </FieldLabel>
             <Select
               value={playbookVersionId}
@@ -789,6 +794,14 @@ function EvaluationsPanel({
         </CardContent>
       </Card>
 
+      <div>
+        <h3 className="text-lg font-semibold">2. Run the safety tests</h3>
+        <p className="text-sm text-muted-foreground">
+          Each test tries four models so you can find the least expensive model
+          that still follows the rules.
+        </p>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {governance.evaluationCases.map((evaluationCase) => (
           <Card key={evaluationCase.id}>
@@ -805,8 +818,11 @@ function EvaluationsPanel({
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Expected: {evaluationCase.expectedDisposition ?? "rubric review"}
-                {evaluationCase.hasFrozenSnapshot ? " · Frozen data" : " · Live data"}
+                Expected:{" "}
+                {evaluationCase.expectedDisposition ?? "rubric review"}
+                {evaluationCase.hasFrozenSnapshot
+                  ? " · Frozen data"
+                  : " · Live data"}
               </p>
             </CardContent>
             <CardFooter>
@@ -814,9 +830,7 @@ function EvaluationsPanel({
                 variant="outline"
                 size="sm"
                 disabled={
-                  !governance.canCreate ||
-                  !playbookVersionId ||
-                  isPending
+                  !governance.canCreate || !playbookVersionId || isPending
                 }
                 onClick={() => runCase(evaluationCase.id)}
               >
@@ -825,7 +839,7 @@ function EvaluationsPanel({
                 ) : (
                   <Play data-icon="inline-start" />
                 )}
-                Run four-model comparison
+                Test on 4 models
               </Button>
             </CardFooter>
           </Card>
@@ -834,10 +848,10 @@ function EvaluationsPanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>Capture production shadow case</CardTitle>
+          <CardTitle>Optional: save a real Assembly example</CardTitle>
           <CardDescription>
-            Uses a recent real Assembly client-message/team-reply pair. The
-            model draft is never sent.
+            Save a recent client question and your team&apos;s reply as a
+            reusable test. Nothing generated here is sent to the client.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -868,14 +882,17 @@ function EvaluationsPanel({
             disabled={!shadowClientId || isPending || !governance.canCreate}
           >
             <Plus data-icon="inline-start" />
-            Capture shadow case
+            Save real example
           </Button>
         </CardFooter>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent evaluation batches</CardTitle>
+          <CardTitle>3. Recent test results</CardTitle>
+          <CardDescription>
+            Open Runs to read the generated answers before approving a playbook.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -921,22 +938,129 @@ function EvaluationsPanel({
   )
 }
 
+function numberDetail(details: Record<string, unknown>, key: string) {
+  return typeof details[key] === "number" ? details[key] : null
+}
+
+function priceLabsAttentionListings(
+  details: Record<string, unknown>
+): PriceLabsAttentionListing[] {
+  const raw = details.attentionListings
+  if (!Array.isArray(raw)) return []
+
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return []
+    const value = item as Record<string, unknown>
+    if (
+      typeof value.id !== "string" ||
+      typeof value.listingName !== "string" ||
+      !["missing_id", "never_synced", "stale"].includes(String(value.reason))
+    ) {
+      return []
+    }
+
+    return [
+      {
+        id: value.id,
+        listingName: value.listingName,
+        clientName:
+          typeof value.clientName === "string" ? value.clientName : null,
+        priceLabsId:
+          typeof value.priceLabsId === "string" ? value.priceLabsId : null,
+        lastSyncedAt:
+          typeof value.lastSyncedAt === "string" ? value.lastSyncedAt : null,
+        reason: value.reason as PriceLabsAttentionListing["reason"],
+      },
+    ]
+  })
+}
+
+function priceLabsReason(listing: PriceLabsAttentionListing) {
+  if (listing.reason === "missing_id") return "Missing PriceLabs ID"
+  if (listing.reason === "never_synced") return "Has never synced"
+  return listing.lastSyncedAt
+    ? `Last synced ${formatDate(listing.lastSyncedAt)}`
+    : "Sync is stale"
+}
+
 function IntegrationCard({ health }: { health: AgentIntegrationHealth }) {
+  const isPriceLabs = health.integration === "pricelabs"
+  const attentionListings = isPriceLabs
+    ? priceLabsAttentionListings(health.details)
+    : []
+  const activeListings = numberDetail(health.details, "activeListings")
+  const syncedListings = numberDetail(health.details, "syncedListings")
+  const freshListings = numberDetail(health.details, "freshListings")
+  const legacyConnected =
+    isPriceLabs &&
+    health.status === "partial" &&
+    health.details.configured === true &&
+    syncedListings !== null &&
+    syncedListings > 0
+  const displayStatus = legacyConnected ? "connected" : health.status
+
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle className="capitalize">{health.integration.replace("_", " ")}</CardTitle>
+        <CardTitle className="capitalize">
+          {health.integration.replace("_", " ")}
+        </CardTitle>
         <CardDescription>
           Checked {formatDate(health.checkedAt)}
         </CardDescription>
         <CardAction>
-          <Badge variant={statusVariant(health.status)}>{health.status}</Badge>
+          <Badge variant={statusVariant(displayStatus)}>{displayStatus}</Badge>
         </CardAction>
       </CardHeader>
-      <CardContent>
-        <pre className="max-h-48 overflow-auto rounded-2xl bg-muted p-3 text-xs wrap-anywhere">
-          {JSON.stringify(health.details, null, 2)}
-        </pre>
+      <CardContent className="flex flex-col gap-3">
+        {isPriceLabs ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {displayStatus === "connected"
+                ? `PriceLabs is connected. ${freshListings ?? syncedListings ?? 0} of ${activeListings ?? 0} active listings are synced${freshListings === null ? "" : " and fresh"}.`
+                : "PriceLabs needs attention before listing data can be trusted."}
+            </p>
+            {attentionListings.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">
+                  Listings needing attention
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {attentionListings.map((listing) => (
+                    <li key={listing.id} className="text-sm">
+                      <span className="font-medium">{listing.listingName}</span>
+                      {listing.clientName ? ` · ${listing.clientName}` : ""}
+                      <span className="block text-muted-foreground">
+                        {priceLabsReason(listing)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : activeListings !== null &&
+              syncedListings !== null &&
+              activeListings > syncedListings ? (
+              <p className="text-sm text-muted-foreground">
+                {activeListings - syncedListings} listing(s) need attention.
+                Refresh the status to show their names.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No listing sync issues were found.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {health.integration === "assembly"
+              ? health.details.readOnly === true
+                ? "Assembly is connected in read-only mode. Agent Studio cannot send messages."
+                : "Assembly could not be verified."
+              : health.details.configured === true
+                ? `${numberDetail(health.details, "comparisonModels") ?? 0} AI models are available through the gateway.`
+                : "The AI Gateway could not be verified."}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
@@ -953,10 +1077,7 @@ function PolicyEditor({
   const [settings, setSettings] = useState(initialSettings)
   const [isPending, startTransition] = useTransition()
 
-  function numeric<K extends keyof AgentStudioSettings>(
-    key: K,
-    value: string
-  ) {
+  function numeric<K extends keyof AgentStudioSettings>(key: K, value: string) {
     setSettings((current) => ({
       ...current,
       [key]: Number(value),
@@ -1020,9 +1141,7 @@ function PolicyEditor({
               type="number"
               step="0.001"
               value={settings.maxRunCostUsd}
-              onChange={(event) =>
-                numeric("maxRunCostUsd", event.target.value)
-              }
+              onChange={(event) => numeric("maxRunCostUsd", event.target.value)}
               disabled={!canControl}
             />
           </Field>
@@ -1040,9 +1159,7 @@ function PolicyEditor({
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="policy-monthly">
-              Monthly budget ($)
-            </FieldLabel>
+            <FieldLabel htmlFor="policy-monthly">Monthly budget ($)</FieldLabel>
             <Input
               id="policy-monthly"
               type="number"
@@ -1062,9 +1179,7 @@ function PolicyEditor({
               id="policy-retention"
               type="number"
               value={settings.retentionDays}
-              onChange={(event) =>
-                numeric("retentionDays", event.target.value)
-              }
+              onChange={(event) => numeric("retentionDays", event.target.value)}
               disabled={!canControl}
             />
           </Field>
@@ -1200,9 +1315,7 @@ function HealthPanel({
                     <TableCell>{event.actorName ?? "System"}</TableCell>
                     <TableCell>
                       {event.entityType}
-                      {event.entityId
-                        ? ` · ${event.entityId.slice(0, 8)}`
-                        : ""}
+                      {event.entityId ? ` · ${event.entityId.slice(0, 8)}` : ""}
                     </TableCell>
                     <TableCell>{formatDate(event.createdAt)}</TableCell>
                   </TableRow>
@@ -1233,8 +1346,9 @@ export function AgentStudioShell({
   governance: AgentStudioGovernanceSnapshot
 }) {
   const [activeTab, setActiveTab] = useState("playground")
-  const [reopenedRun, setReopenedRun] =
-    useState<AgentStudioReopenState | null>(null)
+  const [reopenedRun, setReopenedRun] = useState<AgentStudioReopenState | null>(
+    null
+  )
   const [reopeningRunId, setReopeningRunId] = useState<string | null>(null)
 
   async function reopenRun(runId: string) {
