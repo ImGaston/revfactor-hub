@@ -158,6 +158,12 @@ The future client-service runtime will load one default playbook version marked 
 
 PriceLabs integration health represents whether the API and portfolio sync are working, while individual listing coverage is reported separately. A fresh successful sync is `connected` even if a small number of listings have missing IDs, have never synced, or are individually stale; those exceptions must appear by listing name as actionable notes instead of turning the whole integration into an unexplained `partial` state.
 
+## 2026-08-03 — Hermes Research Becomes Review-Only Drafts, Not Automatic Training
+
+Sanitized Assembly question mining is an evidence source for drafting behavior, not a mechanism that trains or changes the live agent automatically. Migration 062 normalizes the first Hermes analysis into one disabled metric-glossary Knowledge draft, ten synthetic frozen-source evaluation cases, and one editable master Agent Flow draft. The existing markup article is enriched instead of duplicated. Broad chat clusters are split at the behavioral layer: operational changes, performance explanations, integration status, and reservation/billing/sensitive decisions have separate observable branches and human-approval boundaries.
+
+Every seeded artifact remains review-only. Knowledge stays unpublished, `needs_review`, and `agent_enabled = false`; the flow stays `draft`; evaluations use synthetic client, PriceLabs, Report Builder, and Assembly snapshots with no real identifiers. Applying the migration does not attach the flow to a playbook, publish an answer, promote production behavior, or enable any Assembly/PriceLabs write path.
+
 ## 2026-07-29 — Internal Knowledge Publication Is Not Agent Approval
 
 A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.
