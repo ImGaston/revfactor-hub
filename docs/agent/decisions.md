@@ -164,6 +164,12 @@ Sanitized Assembly question mining is an evidence source for drafting behavior, 
 
 Every seeded artifact remains review-only. Knowledge stays unpublished, `needs_review`, and `agent_enabled = false`; the flow stays `draft`; evaluations use synthetic client, PriceLabs, Report Builder, and Assembly snapshots with no real identifiers. Applying the migration does not attach the flow to a playbook, publish an answer, promote production behavior, or enable any Assembly/PriceLabs write path.
 
+## 2026-08-03 — Airbnb Reservation Alterations Start From the Host Side
+
+When an Airbnb guest wants to change a confirmed reservation, RevFactor's default recommendation is to initiate the alteration from the host side. A guest-initiated request can reprice the entire stay and trigger additional length-of-stay discounts, reducing the intended accommodation total or host payout. If an incoming guest request is priced incorrectly, do not accept it: ask the guest to withdraw it (or decline it when needed), then send a corrected host-side request.
+
+The operator opens the reservation from the Airbnb Inbox, chooses Manage reservation → Change reservation, selects the revised dates, expands Price difference to review the pricing breakdown, and enters the full revised accommodation cost. The difference from the original accommodation cost must equal the approved price of added nights or approved refund for removed nights. Price adjustment is the gross accommodation-charge change; service-fee adjustment is Airbnb's host-fee change; new payout is the revised host payout; and guest total including fees and taxes is what the guest pays. Agent Studio may explain the policy and draft the guest message, but every live alteration remains human-executed. The branded PDF in `public/resources/airbnb-host-side-reservation-alteration-guide.pdf` is a manual team attachment until an approved Assembly send path exists.
+
 ## 2026-07-29 — Internal Knowledge Publication Is Not Agent Approval
 
 A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.
