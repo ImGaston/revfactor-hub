@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-03 — OTA markup and Airbnb discount policy draft
+
+- Refined the existing disabled `ota-markup-policy` Knowledge draft around RevFactor's `$100 PriceLabs → $100 Hospitable → $144 Airbnb` example, with the 44% markup explicitly treated as a verified policy example rather than a universal live setting.
+- Added client-ready wording, live rate/discount/payout verification steps, approved longer-stay exceptions, ranking and MPI wording boundaries, and escalation rules.
+- Added five synthetic Agent Studio regression cases; no raw client message, client identity, live rate, or production playbook behavior is included.
+
 ## 2026-07-31 — Governed hybrid Knowledge retrieval
 
 - Added and applied migration 060 for pgvector-backed, version-bound Knowledge chunks, full-text/vector indexes, indexing audit events, run-level retrieval usage/cost, permission-based RLS, stale-on-edit behavior, and a security-invoker hybrid search RPC.
