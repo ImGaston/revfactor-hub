@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-03 — Owner-specific gap rules and PriceLabs sync timing
+
+- Refined the one-night/gap-night Knowledge draft so minimum stays are explicitly owner-approved and listing-specific rather than a RevFactor-wide default.
+- Documented how bookings and cancellations can change the applicable gap/default/far-out rule and leave open dates temporarily unbookable until the overnight or authorized manual PriceLabs refresh and sync.
+- Added four synthetic booking, cancellation, one-night, and urgent-sync regression cases; no live listing data or production action is included.
+
 ## 2026-08-03 — Pacing, calendar availability, and operational update policies
 
 - Refined three disabled Knowledge drafts: slow-booking/pacing diagnosis, blocking/unblocking availability, and price/discount/fee/minimum-stay requests.
