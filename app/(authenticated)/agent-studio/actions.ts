@@ -29,6 +29,10 @@ import {
   getAgentStudioPricing,
 } from "@/lib/agent-studio-pricing.server"
 import {
+  LANGSMITH_SANDBOX_PROJECT,
+  tracePricingPerformanceSandbox,
+} from "@/lib/agent-studio-langsmith.server"
+import {
   PRICING_PERFORMANCE_PILOT_ID,
   runPricingPerformancePilot,
   type PricingPerformanceFlowStep,
@@ -1377,29 +1381,43 @@ export async function runAgentStudio(
       })
     let result: Awaited<ReturnType<typeof generateDraft>> | null = null
     let workflowSteps: PricingPerformanceFlowStep[] = []
+    let langSmithTraceId: string | null = null
     let output
 
     if (parsed.data.executionMode === "pricing_performance_pilot") {
-      const flowResult = await runPricingPerformancePilot({
-        message: parsed.data.message,
-        evidence: {
-          listingCount: client.listings.length,
-          hasForwardPerformanceMetrics: client.listings.some(
-            (listing) =>
-              listing.occupancyNext7 != null ||
-              listing.occupancyNext30 != null ||
-              listing.occupancyNext90 != null ||
-              listing.marketPenetrationIndex30 != null ||
-              listing.marketPenetrationIndex60 != null
-          ),
-          hasPriceLabsReport: client.priceLabsReport != null,
+      const tracedFlow = await tracePricingPerformanceSandbox({
+        context: {
+          clientId: parsed.data.clientId,
+          executionMode: parsed.data.executionMode,
+          hasFrozenSourceSnapshot: parsed.data.frozenSourceSnapshot != null,
+          modelId,
+          playbookVersionId: playbook?.id ?? null,
+          question: parsed.data.message,
         },
-        generateDraft,
-        readOutput: (generation) => generation.output,
+        operation: () =>
+          runPricingPerformancePilot({
+            message: parsed.data.message,
+            evidence: {
+              listingCount: client.listings.length,
+              hasForwardPerformanceMetrics: client.listings.some(
+                (listing) =>
+                  listing.occupancyNext7 != null ||
+                  listing.occupancyNext30 != null ||
+                  listing.occupancyNext90 != null ||
+                  listing.marketPenetrationIndex30 != null ||
+                  listing.marketPenetrationIndex60 != null
+              ),
+              hasPriceLabsReport: client.priceLabsReport != null,
+            },
+            generateDraft,
+            readOutput: (generation) => generation.output,
+          }),
       })
+      const flowResult = tracedFlow.result
       result = flowResult.generation
       output = flowResult.output
       workflowSteps = flowResult.steps
+      langSmithTraceId = tracedFlow.traceId
     } else {
       result = await generateDraft()
       output = result.output
@@ -1509,6 +1527,13 @@ export async function runAgentStudio(
           dataBoundary: isSyntheticOnlyModel(modelId)
             ? "synthetic_only"
             : "permission_scoped_client_data",
+          langSmith:
+            langSmithTraceId == null
+              ? null
+              : {
+                  project: LANGSMITH_SANDBOX_PROJECT,
+                  traceId: langSmithTraceId,
+                },
         },
       },
       sources,
@@ -1540,6 +1565,13 @@ export async function runAgentStudio(
           dataBoundary: isSyntheticOnlyModel(modelId)
             ? "synthetic_only"
             : "permission_scoped_client_data",
+          langSmith:
+            langSmithTraceId == null
+              ? null
+              : {
+                  project: LANGSMITH_SANDBOX_PROJECT,
+                  traceId: langSmithTraceId,
+                },
         },
         usage: {
           ...usage,
@@ -1724,6 +1756,37 @@ export async function reopenAgentStudioRun(
 
   const snapshot = isRecord(run.input_snapshot) ? run.input_snapshot : {}
   const snapshotClient = isRecord(snapshot.client) ? snapshot.client : {}
+  const snapshotExecution = isRecord(snapshot.execution)
+    ? snapshot.execution
+    : null
+  const snapshotLangSmith =
+    snapshotExecution && isRecord(snapshotExecution.langSmith)
+      ? snapshotExecution.langSmith
+      : null
+  const execution: AgentStudioRun["execution"] =
+    snapshotExecution &&
+    (snapshotExecution.mode === "standard" ||
+      snapshotExecution.mode === "pricing_performance_pilot") &&
+    (snapshotExecution.dataBoundary === "synthetic_only" ||
+      snapshotExecution.dataBoundary === "permission_scoped_client_data")
+      ? {
+          mode: snapshotExecution.mode,
+          flowId:
+            typeof snapshotExecution.flowId === "string"
+              ? snapshotExecution.flowId
+              : null,
+          dataBoundary: snapshotExecution.dataBoundary,
+          langSmith:
+            snapshotLangSmith &&
+            typeof snapshotLangSmith.project === "string" &&
+            typeof snapshotLangSmith.traceId === "string"
+              ? {
+                  project: snapshotLangSmith.project,
+                  traceId: snapshotLangSmith.traceId,
+                }
+              : null,
+        }
+      : undefined
   const clientId = conversation.synthetic_client
     ? SYNTHETIC_CLIENT_ID
     : conversation.client_id
@@ -1833,6 +1896,7 @@ export async function reopenAgentStudioRun(
         resultSummary: toolCall.result_summary ?? "Tool completed",
         durationMs: toolCall.duration_ms,
       })),
+      execution,
       usage: {
         inputTokens: Number(run.input_tokens),
         cachedInputTokens: Number(run.cached_input_tokens),

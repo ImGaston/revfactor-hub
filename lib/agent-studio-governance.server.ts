@@ -10,6 +10,7 @@ import {
   type AgentStudioGovernanceSnapshot,
 } from "@/lib/agent-studio-governance"
 import { normalizeAgentWorkflow } from "@/lib/agent-studio-coach"
+import { getLangSmithSandboxHealth } from "@/lib/agent-studio-langsmith.server"
 import { isAgentStudioModelId } from "@/lib/agent-studio"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
@@ -249,7 +250,10 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
       checkedAt: check.checked_at,
     })
   }
-  const integrationHealth = Array.from(latestIntegrationHealth.values())
+  const integrationHealth = [
+    ...Array.from(latestIntegrationHealth.values()),
+    getLangSmithSandboxHealth(),
+  ]
 
   const settingsRow = settingsRows?.[0]
   const settings = settingsRow

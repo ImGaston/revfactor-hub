@@ -330,6 +330,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Evaluations without a frozen snapshot can include DeepSeek against the built-in synthetic client. Real-client, Assembly shadow, and frozen-snapshot cases keep the existing approved model set and explicitly show why DeepSeek is excluded.
 - Added an opt-in Pricing & Performance LangGraph TypeScript mode. It executes classify, permitted-evidence validation, grounded draft, and client-ready-check nodes; early exits avoid a model call, and every observable node appears in the existing run Trace. It remains internal-only and unattached to production.
 - Added seven focused tests covering model/data enforcement, frozen-snapshot rejection, intent scope, insufficient-evidence stopping, and successful graph execution. No migration, production promotion, merge, or deployment was performed.
+- Added optional LangSmith trace correlation for the Pricing & Performance pilot. It is disabled globally and enabled per run only for the built-in synthetic client outside Production; personal tokens, real clients, and frozen snapshots are rejected. Health and Trace UIs explain configuration and show the external trace id. Added an idempotent eight-case synthetic dataset seeder and environment template; no secret was stored.
 
 ## 2026-07-29 — Production Agent Studio and First Assembly FAQ Batch
 

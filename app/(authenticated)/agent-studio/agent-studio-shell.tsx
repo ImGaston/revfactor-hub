@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   BookOpenCheck,
   Bot,
+  ExternalLink,
   FlaskConical,
   History,
   Play,
@@ -1001,6 +1002,7 @@ function priceLabsReason(listing: PriceLabsAttentionListing) {
 
 function IntegrationCard({ health }: { health: AgentIntegrationHealth }) {
   const isPriceLabs = health.integration === "pricelabs"
+  const isLangSmith = health.integration === "langsmith"
   const attentionListings = isPriceLabs
     ? priceLabsAttentionListings(health.details)
     : []
@@ -1066,6 +1068,24 @@ function IntegrationCard({ health }: { health: AgentIntegrationHealth }) {
               </p>
             )}
           </>
+        ) : isLangSmith ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              {health.details.configured === true
+                ? "LangSmith is configured for built-in synthetic Pricing & Performance flow runs only. Production, real clients, and frozen snapshots are blocked in code."
+                : `LangSmith sandbox tracing is off (${String(health.details.reason ?? "configuration incomplete").replaceAll("_", " ")}).`}
+            </p>
+            <Button asChild variant="outline" size="sm" className="self-start">
+              <a
+                href="https://smith.langchain.com"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink data-icon="inline-start" />
+                Open LangSmith
+              </a>
+            </Button>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             {health.integration === "assembly"

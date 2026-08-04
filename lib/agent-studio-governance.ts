@@ -77,7 +77,7 @@ export type AgentEvaluationBatchSummary = {
 }
 
 export type AgentIntegrationHealth = {
-  integration: "assembly" | "pricelabs" | "ai_gateway"
+  integration: "assembly" | "pricelabs" | "ai_gateway" | "langsmith"
   status: "connected" | "stale" | "partial" | "unavailable"
   latencyMs: number | null
   lastSourceUpdateAt: string | null

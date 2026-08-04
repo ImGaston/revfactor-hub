@@ -239,6 +239,10 @@ export type AgentStudioRun = {
     mode: "standard" | "pricing_performance_pilot"
     flowId: string | null
     dataBoundary: "synthetic_only" | "permission_scoped_client_data"
+    langSmith: {
+      project: string
+      traceId: string
+    } | null
   }
   usage: {
     inputTokens: number

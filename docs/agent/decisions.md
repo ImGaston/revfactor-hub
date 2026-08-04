@@ -194,6 +194,8 @@ RevFactor will evaluate LangGraph without introducing a Python/FastAPI service. 
 
 DeepSeek V4 Flash 0731 is added through the existing Vercel AI Gateway only as a synthetic-data candidate until its privacy and data-processing terms are approved. The restriction is enforced twice: the UI disables the model for real clients, and `runAgentStudio` rejects both a mismatched model/client and every frozen snapshot before loading any client context. Only the built-in, code-defined synthetic client is permitted. Evaluations with real clients, shadow data, or frozen snapshots exclude DeepSeek. A label alone is not considered a sufficient privacy control.
 
+LangSmith follows the same sandbox boundary and does not replace the Hub's durable trace ledger. Global tracing remains disabled. Eligible flow runs are opted in programmatically only when using the built-in synthetic client without frozen data outside Production, with an exact sandbox project and workspace-scoped service key. The trace id is correlated back to the Hub run. No real-client, Assembly, PriceLabs, production, or frozen-snapshot trace may be sent to LangSmith until a separate privacy and retention decision is approved.
+
 ## 2026-07-29 — Internal Knowledge Publication Is Not Agent Approval
 
 A published internal SOP may contain operational detail that should not be quoted to a client. Agent Studio therefore retrieves only articles with all four gates: published, client-safe audience, approved review status, and agent enabled. The short approved answer and escalation guidance are first-class fields. Editing governed content automatically disables retrieval until a publisher reviews it again. Studio feedback can create a draft FAQ, but cannot update live behavior directly.

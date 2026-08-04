@@ -11,6 +11,11 @@ import {
   isPricingPerformanceRequest,
   runPricingPerformancePilot,
 } from "@/lib/agent-studio-pricing-flow.server"
+import {
+  LANGSMITH_SANDBOX_PROJECT,
+  getLangSmithSandboxTraceDecision,
+  tracePricingPerformanceSandbox,
+} from "@/lib/agent-studio-langsmith.server"
 
 const generatedOutput = {
   disposition: "answer" as const,
@@ -46,6 +51,81 @@ describe("DeepSeek data boundary", () => {
         hasFrozenSourceSnapshot: false,
       })
     ).toBe(true)
+  })
+})
+
+describe("LangSmith sandbox boundary", () => {
+  const context = {
+    clientId: SYNTHETIC_CLIENT_ID,
+    executionMode: "pricing_performance_pilot" as const,
+    hasFrozenSourceSnapshot: false,
+  }
+  const validEnv: NodeJS.ProcessEnv = {
+    NODE_ENV: "development",
+    LANGSMITH_API_KEY: "lsv2_sk_test-service-key",
+    LANGSMITH_WORKSPACE_ID: "workspace-test",
+    LANGSMITH_PROJECT: LANGSMITH_SANDBOX_PROJECT,
+  }
+
+  it("enables only a correctly configured synthetic pilot run", () => {
+    expect(getLangSmithSandboxTraceDecision(context, validEnv)).toEqual({
+      enabled: true,
+      reason: "enabled",
+    })
+  })
+
+  it("rejects personal access tokens", () => {
+    expect(
+      getLangSmithSandboxTraceDecision(context, {
+        ...validEnv,
+        LANGSMITH_API_KEY: "lsv2_pt_exposed-personal-token",
+      })
+    ).toEqual({ enabled: false, reason: "service_key_required" })
+  })
+
+  it("blocks production regardless of configuration", () => {
+    expect(
+      getLangSmithSandboxTraceDecision(context, {
+        ...validEnv,
+        VERCEL_ENV: "production",
+      })
+    ).toEqual({ enabled: false, reason: "production_blocked" })
+  })
+
+  it("blocks real clients and frozen snapshots", () => {
+    expect(
+      getLangSmithSandboxTraceDecision(
+        { ...context, clientId: "real-client-id" },
+        validEnv
+      )
+    ).toEqual({ enabled: false, reason: "synthetic_client_required" })
+    expect(
+      getLangSmithSandboxTraceDecision(
+        { ...context, hasFrozenSourceSnapshot: true },
+        validEnv
+      )
+    ).toEqual({ enabled: false, reason: "frozen_snapshot_blocked" })
+  })
+
+  it("still executes locally without emitting a trace when unconfigured", async () => {
+    const result = await tracePricingPerformanceSandbox({
+      context: {
+        ...context,
+        modelId: "openai/gpt-5-nano",
+        playbookVersionId: null,
+        question: "How is my occupancy?",
+      },
+      operation: async () => ({
+        flowId: PRICING_PERFORMANCE_PILOT_ID,
+        output: generatedOutput,
+        generation: null,
+        steps: [],
+      }),
+    })
+
+    expect(result.result.output).toEqual(generatedOutput)
+    expect(result.traced).toBe(false)
+    expect(result.traceId).toBeNull()
   })
 })
 

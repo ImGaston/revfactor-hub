@@ -12,6 +12,7 @@ import {
   BookOpen,
   Copy,
   Database,
+  ExternalLink,
   FlaskConical,
   RotateCcw,
   Search,
@@ -543,48 +544,91 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
       </TabsContent>
 
       <TabsContent value="trace" className="pt-2">
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Tool trace</CardTitle>
-            <CardDescription>
-              Sanitized inputs and outputs for every model-selected tool.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {run.toolCalls.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {run.toolCalls.map((toolCall) => (
-                  <div key={toolCall.id} className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <Badge variant="secondary">
-                        <Wrench data-icon="inline-start" />
-                        {toolCall.name}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {toolCall.resultSummary}
-                      </span>
-                    </div>
-                    <pre className="max-h-64 overflow-auto rounded-2xl bg-muted p-3 text-xs wrap-anywhere">
-                      {JSON.stringify(
-                        {
-                          input: toolCall.input,
-                          output: toolCall.output ?? {},
-                        },
-                        null,
-                        2
-                      )}
-                    </pre>
+        <div className="flex flex-col gap-3">
+          {run.execution?.langSmith && (
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>LangSmith sandbox trace</CardTitle>
+                <CardDescription>
+                  Synthetic-only external trace for this flow run.
+                </CardDescription>
+                <CardAction>
+                  <Badge variant="secondary">Traced</Badge>
+                </CardAction>
+              </CardHeader>
+              <CardContent>
+                <dl className="flex flex-col gap-2 text-sm">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Project</dt>
+                    <dd className="mt-1 wrap-anywhere">
+                      {run.execution.langSmith.project}
+                    </dd>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground">
-                The model used only the server-supplied context shown under
-                Sources.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Trace ID</dt>
+                    <dd className="mt-1 font-mono text-xs wrap-anywhere">
+                      {run.execution.langSmith.traceId}
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+              <CardFooter>
+                <Button asChild variant="outline" size="sm">
+                  <a
+                    href="https://smith.langchain.com"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink data-icon="inline-start" />
+                    Open LangSmith
+                  </a>
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>Tool trace</CardTitle>
+              <CardDescription>
+                Sanitized inputs and outputs for every model-selected tool.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {run.toolCalls.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {run.toolCalls.map((toolCall) => (
+                    <div key={toolCall.id} className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="secondary">
+                          <Wrench data-icon="inline-start" />
+                          {toolCall.name}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {toolCall.resultSummary}
+                        </span>
+                      </div>
+                      <pre className="max-h-64 overflow-auto rounded-2xl bg-muted p-3 text-xs wrap-anywhere">
+                        {JSON.stringify(
+                          {
+                            input: toolCall.input,
+                            output: toolCall.output ?? {},
+                          },
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  The model used only the server-supplied context shown under
+                  Sources.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </TabsContent>
     </Tabs>
   )
