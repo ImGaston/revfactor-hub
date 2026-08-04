@@ -1,5 +1,9 @@
 export const SYNTHETIC_CLIENT_ID = "synthetic-revfactor-client"
 
+export type AgentStudioModelDataPolicy =
+  | "permission_scoped_client_data"
+  | "synthetic_only"
+
 export const AGENT_STUDIO_MODELS = [
   {
     id: "openai/gpt-5-nano",
@@ -8,6 +12,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 0.05,
     outputUsdPerMillion: 0.4,
     tier: "economy",
+    dataPolicy: "permission_scoped_client_data",
   },
   {
     id: "google/gemini-2.5-flash-lite",
@@ -16,6 +21,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 0.1,
     outputUsdPerMillion: 0.4,
     tier: "economy",
+    dataPolicy: "permission_scoped_client_data",
   },
   {
     id: "alibaba/qwen3.5-flash",
@@ -24,6 +30,16 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 0.1,
     outputUsdPerMillion: 0.4,
     tier: "economy",
+    dataPolicy: "permission_scoped_client_data",
+  },
+  {
+    id: "deepseek/deepseek-v4-flash-0731",
+    label: "DeepSeek V4 Flash 0731",
+    description: "Low-cost executable-flow candidate",
+    inputUsdPerMillion: 0.13,
+    outputUsdPerMillion: 0.26,
+    tier: "economy",
+    dataPolicy: "synthetic_only",
   },
   {
     id: "openai/gpt-5-mini",
@@ -32,6 +48,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 0.25,
     outputUsdPerMillion: 2,
     tier: "economy",
+    dataPolicy: "permission_scoped_client_data",
   },
   {
     id: "openai/gpt-5.4-mini",
@@ -40,6 +57,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 0.75,
     outputUsdPerMillion: 4.5,
     tier: "benchmark",
+    dataPolicy: "permission_scoped_client_data",
   },
   {
     id: "openai/gpt-5.6-luna",
@@ -48,6 +66,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 1,
     outputUsdPerMillion: 6,
     tier: "benchmark",
+    dataPolicy: "permission_scoped_client_data",
   },
   {
     id: "anthropic/claude-sonnet-5",
@@ -56,6 +75,7 @@ export const AGENT_STUDIO_MODELS = [
     inputUsdPerMillion: 2,
     outputUsdPerMillion: 10,
     tier: "benchmark",
+    dataPolicy: "permission_scoped_client_data",
   },
 ] as const
 
@@ -63,6 +83,36 @@ export type AgentStudioModelId = (typeof AGENT_STUDIO_MODELS)[number]["id"]
 
 export const DEFAULT_AGENT_STUDIO_MODEL: AgentStudioModelId =
   "openai/gpt-5-nano"
+
+export function isSyntheticOnlyModel(modelId: AgentStudioModelId): boolean {
+  return (
+    AGENT_STUDIO_MODELS.find((model) => model.id === modelId)?.dataPolicy ===
+    "synthetic_only"
+  )
+}
+
+export function canModelUseClient(
+  modelId: AgentStudioModelId,
+  clientId: string
+): boolean {
+  return !isSyntheticOnlyModel(modelId) || clientId === SYNTHETIC_CLIENT_ID
+}
+
+export function canModelUseRunInput(
+  modelId: AgentStudioModelId,
+  {
+    clientId,
+    hasFrozenSourceSnapshot,
+  }: {
+    clientId: string
+    hasFrozenSourceSnapshot: boolean
+  }
+): boolean {
+  return (
+    canModelUseClient(modelId, clientId) &&
+    (!isSyntheticOnlyModel(modelId) || !hasFrozenSourceSnapshot)
+  )
+}
 
 export const DEFAULT_AGENT_STUDIO_INSTRUCTIONS = `You are the RevFactor client service assistant.
 
@@ -141,7 +191,13 @@ export type AgentStudioSource = {
   title: string
   slug: string
   excerpt: string
-  type?: "client" | "pricelabs" | "assembly" | "knowledge" | "task" | "adjustment"
+  type?:
+    | "client"
+    | "pricelabs"
+    | "assembly"
+    | "knowledge"
+    | "task"
+    | "adjustment"
   payload?: Record<string, unknown>
   fetchedAt?: string
   sourceUpdatedAt?: string | null
@@ -179,6 +235,11 @@ export type AgentStudioRun = {
   retrieval: AgentStudioRetrievalDiagnostics | null
   sources: AgentStudioSource[]
   toolCalls: AgentStudioToolTrace[]
+  execution?: {
+    mode: "standard" | "pricing_performance_pilot"
+    flowId: string | null
+    dataBoundary: "synthetic_only" | "permission_scoped_client_data"
+  }
   usage: {
     inputTokens: number
     cachedInputTokens: number

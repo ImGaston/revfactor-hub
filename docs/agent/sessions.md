@@ -63,7 +63,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 
 ## 2026-07-31 — Per-client Grant-style reservations report
 
-- Evolved the client export into a Grant-style report replicating the manual Google-Sheet reporting: Summary dashboard (title band, KPIs, per-listing and per-channel breakdowns with booking-window segment cells `count (revenue%)`, two embedded stacked-bar PNG charts, monthly pickup matrix listing × check-in month with 12-month cap + Later column, occupancy blocks, revenue and reservations current-vs-previous tables with green/red deltas), Reservations/Previous Period/Last Year detail sheets as real Excel tables with autofilters (Last Year hidden), Comparison sheet, hidden Occupancy and _ChartData sheets. Grant visual language (Arial, #13342D/#073763/#0B5394 bands, zebra rows, #CCCCCC totals, white→#C9DAF8 occupancy color scale, hidden gridlines, frozen headers).
+- Evolved the client export into a Grant-style report replicating the manual Google-Sheet reporting: Summary dashboard (title band, KPIs, per-listing and per-channel breakdowns with booking-window segment cells `count (revenue%)`, two embedded stacked-bar PNG charts, monthly pickup matrix listing × check-in month with 12-month cap + Later column, occupancy blocks, revenue and reservations current-vs-previous tables with green/red deltas), Reservations/Previous Period/Last Year detail sheets as real Excel tables with autofilters (Last Year hidden), Comparison sheet, hidden Occupancy and \_ChartData sheets. Grant visual language (Arial, #13342D/#073763/#0B5394 bands, zebra rows, #CCCCCC totals, white→#C9DAF8 occupancy color scale, hidden gridlines, frozen headers).
 - Period semantics: default date field `booked_date`; previous period = previous month aligned by day of month (Jul 1-28 → Jun 1-28, clamped month ends, Feb 29 safe); `asOf` drives occupancy horizons and pickup cutoff. Occupancy from `report_metrics` (latest completed run, monthly; property vs market; no daily nights source exists — documented in decisions.md).
 - Architecture: `lib/reservations-export.ts` (pure period/median/bucket/aggregation helpers) → `lib/reservations-report-model.ts` (GrantStyleReportModel with built-in reconciliation warnings) → `lib/reservations-report.service.ts` (fetch + occupancy provider + charts + workbook; 50k-reservation cap; shared by route and future cron) → `lib/reservations-workbook.server.ts` (ExcelJS layout; formulas only for totals/changes, always with cached results) + `lib/reservations-chart.server.ts` (SVG→PNG via sharp). Route `GET /clients/[id]/export` validates from/to/asOf/dateField.
 - Added vitest (first test runner): 26 tests over period math (month-end clamp, Feb 29), KPI rules (null revenue, negative booking windows), channel normalization, pickup, full-outer-join listing comparisons (new listing → previous 0 + empty pct) and model reconciliation (listing/channel/comparison sums = KPIs). Validated a real Grant workbook programmatically (sheet order/hidden states, tables, freeze panes, formula cache, no formula errors, 2 embedded images, conditional formatting, XML well-formedness of all 25 package parts).
@@ -143,6 +143,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Added Assembly attachment metadata and a submission-notification delivery outbox to migration 042. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
 - Added a service-role-only internal verification RPC. It records the Assembly internal reviewer, verifies only client-submitted tasks, and atomically advances run status to `in_review` or `ready_for_launch` when all tasks are complete.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
+
 ## 2026-07-10 — Leads Read API + Full-Funnel Attribution (migration 043)
 
 - Marketing asked for a read endpoint to tie lead source → booked call → closed deal. The blocker was data, not the endpoint: no UTMs, no stage history, no conversion timestamp. Migration 043 adds nine attribution columns + `attribution_extra` jsonb, `converted_at`, `lead_stage_events` (written by a `SECURITY DEFINER` trigger so admin-client writes are captured), the first `updated_at` trigger on `leads`, and the `api_keys` table. Won = `assembly_client_id IS NOT NULL`.
@@ -237,7 +238,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Fixed the sync (`lib/stripe-sync.ts`) to mirror canceled subs, excluding `canceled`/`incomplete_expired` from the single-subscription payout-attribution fallback maps so reconciliation is unchanged.
 - Added `setListingSubscription(listingId, subscriptionId|null)` action (only touches that listing; does not clear sub-mates like `linkSubscriptionToListings`).
 - Listing detail page (`listings/[id]`) now shows a `super_admin`-only Subscription card + `change-listing-subscription-dialog.tsx` to view/reassign/clear the listing's subscription (current sub shown even if canceled/orphaned).
-- `link-subscription-dialog.tsx` now names the *other* subscription a listing is attached to (customer + status) instead of a generic note; `subscriptions` array passed from the table and new-subscriptions section.
+- `link-subscription-dialog.tsx` now names the _other_ subscription a listing is attached to (customer + status) instead of a generic note; `subscriptions` array passed from the table and new-subscriptions section.
 - Verified end-to-end in the running app: typecheck clean; the orphaned canceled link rendered as "Not found in Stripe / canceled"; reassigned the real case (Beach Rd | FL | Trey → `sub_1TjiRc…` K Properties) and confirmed in DB; Financials dialog showed "linked to Jane Ng · active".
 
 ## 2026-06-15 — Quick-add Listing inside Link-Subscription Dialog
@@ -322,6 +323,13 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Verified an authenticated Gemini Flash Lite run, durable cost/latency, rating, audit trail, and health checks. Local AI Gateway is connected; local Assembly and PriceLabs keys remain unconfigured.
 - Added Knowledge agent-readiness governance and applied migration 051. Added FAQ intake, approved-answer/escalation/source/review fields, publisher approval, readiness counts/badges, and agent-safe retrieval filters.
 - Connected Studio “Knowledge change” feedback to disabled FAQ drafts. Classified the existing OTA Markup Policy under Pricing Strategy with FAQ/Policy tags and left its factual answer unapproved.
+
+## 2026-08-04 — Sandbox LangGraph and DeepSeek Pilot
+
+- Added DeepSeek V4 Flash 0731 to the Gateway-backed model ladder with live pricing, cost comparisons, non-thinking execution, visible `Synthetic only` labeling, disabled real-client selection, and server enforcement before any real client or frozen snapshot can be loaded.
+- Evaluations without a frozen snapshot can include DeepSeek against the built-in synthetic client. Real-client, Assembly shadow, and frozen-snapshot cases keep the existing approved model set and explicitly show why DeepSeek is excluded.
+- Added an opt-in Pricing & Performance LangGraph TypeScript mode. It executes classify, permitted-evidence validation, grounded draft, and client-ready-check nodes; early exits avoid a model call, and every observable node appears in the existing run Trace. It remains internal-only and unattached to production.
+- Added seven focused tests covering model/data enforcement, frozen-snapshot rejection, intent scope, insufficient-evidence stopping, and successful graph execution. No migration, production promotion, merge, or deployment was performed.
 
 ## 2026-07-29 — Production Agent Studio and First Assembly FAQ Batch
 

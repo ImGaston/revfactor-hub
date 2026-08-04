@@ -33,7 +33,7 @@ function profileName(
   profileId: unknown,
   names: Map<string, string>
 ): string | null {
-  return typeof profileId === "string" ? names.get(profileId) ?? null : null
+  return typeof profileId === "string" ? (names.get(profileId) ?? null) : null
 }
 
 function normalizeMessages(
@@ -182,9 +182,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
       clientName: stringValue(client.name),
       modelId: run.model_id,
       playbookVersion:
-        version && playbook
-          ? `${playbook.name} v${version.version}`
-          : null,
+        version && playbook ? `${playbook.name} v${version.version}` : null,
       status: run.status,
       errorMessage: run.error_message,
       disposition: run.disposition,
@@ -214,6 +212,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
       expectedMustNotInclude: evaluationCase.expected_must_not_include ?? [],
       rubric: evaluationCase.rubric,
       active: evaluationCase.active,
+      syntheticClient: evaluationCase.synthetic_client,
       hasFrozenSnapshot: evaluationCase.frozen_source_snapshot != null,
       createdAt: evaluationCase.created_at,
     })
@@ -244,8 +243,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
     latestIntegrationHealth.set(check.integration, {
       integration: check.integration,
       status: check.status,
-      latencyMs:
-        check.latency_ms == null ? null : Number(check.latency_ms),
+      latencyMs: check.latency_ms == null ? null : Number(check.latency_ms),
       lastSourceUpdateAt: check.last_source_update_at,
       details: record(check.details),
       checkedAt: check.checked_at,
@@ -263,9 +261,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
         dailyBudgetUsd: Number(settingsRow.daily_budget_usd),
         monthlyBudgetUsd: Number(settingsRow.monthly_budget_usd),
         retentionDays: Number(settingsRow.retention_days),
-        assemblyContextMessages: Number(
-          settingsRow.assembly_context_messages
-        ),
+        assemblyContextMessages: Number(settingsRow.assembly_context_messages),
         requireSendApproval: Boolean(settingsRow.require_send_approval),
       }
     : DEFAULT_STUDIO_SETTINGS
@@ -282,9 +278,7 @@ export async function loadAgentStudioGovernance(): Promise<AgentStudioGovernance
         status: approval.status,
         playbookVersionId: approval.playbook_version_id,
         playbookLabel:
-          version && playbook
-            ? `${playbook.name} v${version.version}`
-            : null,
+          version && playbook ? `${playbook.name} v${version.version}` : null,
         rationale: approval.rationale,
         requestedByName: profileName(approval.requested_by, profileNames),
         decidedByName: profileName(approval.decided_by, profileNames),

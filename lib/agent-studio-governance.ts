@@ -59,6 +59,7 @@ export type AgentEvaluationCaseSummary = {
   expectedMustNotInclude: string[]
   rubric: string | null
   active: boolean
+  syntheticClient: boolean
   hasFrozenSnapshot: boolean
   createdAt: string
 }

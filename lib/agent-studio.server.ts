@@ -27,6 +27,7 @@ function reasoningLevelForModel(
   // Studio latency and output-token budgets.
   if (
     modelId === "alibaba/qwen3.5-flash" ||
+    modelId === "deepseek/deepseek-v4-flash-0731" ||
     modelId === "openai/gpt-5.4-mini" ||
     modelId === "openai/gpt-5.6-luna" ||
     modelId === "anthropic/claude-sonnet-5"
@@ -104,8 +105,7 @@ ${studioInstructions}`,
             return {
               query,
               results: [],
-              note:
-                "The per-run knowledge-search limit has been reached. Use the context already returned or escalate.",
+              note: "The per-run knowledge-search limit has been reached. Use the context already returned or escalate.",
             }
           }
           return searchKnowledge(query)

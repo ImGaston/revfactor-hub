@@ -11,7 +11,9 @@ import {
 import {
   DEFAULT_AGENT_STUDIO_INSTRUCTIONS,
   SYNTHETIC_CLIENT_ID,
+  canModelUseRunInput,
   isAgentStudioModelId,
+  isSyntheticOnlyModel,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
   type AgentStudioRetrievalDiagnostics,
@@ -26,6 +28,11 @@ import {
   buildAgentStudioModelEstimates,
   getAgentStudioPricing,
 } from "@/lib/agent-studio-pricing.server"
+import {
+  PRICING_PERFORMANCE_PILOT_ID,
+  runPricingPerformancePilot,
+  type PricingPerformanceFlowStep,
+} from "@/lib/agent-studio-pricing-flow.server"
 import {
   loadAgentStudioPriceLabsReport,
   parseFrozenPriceLabsReport,
@@ -43,12 +50,11 @@ const runInputSchema = z.object({
   conversationId: z.string().uuid().nullable().optional(),
   instructions: z.string().min(20).max(12_000),
   message: z.string().min(1).max(4_000),
-  retrievalMode: z
-    .enum(["keyword", "hybrid", "compare"])
-    .default("hybrid"),
-  frozenSourceSnapshot: z
-    .record(z.string(), z.unknown())
-    .optional(),
+  retrievalMode: z.enum(["keyword", "hybrid", "compare"]).default("hybrid"),
+  executionMode: z
+    .enum(["standard", "pricing_performance_pilot"])
+    .default("standard"),
+  frozenSourceSnapshot: z.record(z.string(), z.unknown()).optional(),
   history: z
     .array(
       z.object({
@@ -270,9 +276,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function isKnowledgeResult(
-  value: unknown
-): value is {
+function isKnowledgeResult(value: unknown): value is {
   results: AgentStudioSource[]
   diagnostics: AgentStudioRetrievalDiagnostics
 } {
@@ -318,74 +322,68 @@ function parseFrozenClientSnapshot(
   }
 
   const listings = Array.isArray(rawClient.listings)
-    ? rawClient.listings
-        .filter(isRecord)
-        .flatMap((listing) =>
-          typeof listing.id === "string" &&
-          typeof listing.name === "string" &&
-          typeof listing.status === "string"
-            ? [
-                {
-                  id: listing.id,
-                  name: listing.name,
-                  status: listing.status,
-                  listingId: stringOrNull(listing.listingId),
-                  market: stringOrNull(listing.market),
-                  basePrice: numberOrNull(listing.basePrice),
-                  minimumPrice: numberOrNull(listing.minimumPrice),
-                  maximumPrice: numberOrNull(listing.maximumPrice),
-                  recommendedBasePrice: numberOrNull(
-                    listing.recommendedBasePrice
-                  ),
-                  cleaningFees: numberOrNull(listing.cleaningFees),
-                  bedroomCount: numberOrNull(listing.bedroomCount),
-                  occupancyNext7: numberOrNull(listing.occupancyNext7),
-                  marketOccupancyNext7: numberOrNull(
-                    listing.marketOccupancyNext7
-                  ),
-                  occupancyNext30: numberOrNull(listing.occupancyNext30),
-                  marketOccupancyNext30: numberOrNull(
-                    listing.marketOccupancyNext30
-                  ),
-                  occupancyNext90: numberOrNull(listing.occupancyNext90),
-                  marketOccupancyNext90: numberOrNull(
-                    listing.marketOccupancyNext90
-                  ),
-                  marketPenetrationIndex30: numberOrNull(
-                    listing.marketPenetrationIndex30
-                  ),
-                  marketPenetrationIndex60: numberOrNull(
-                    listing.marketPenetrationIndex60
-                  ),
-                  lastBookedDate: stringOrNull(listing.lastBookedDate),
-                  priceLabsSyncedAt: stringOrNull(
-                    listing.priceLabsSyncedAt
-                  ),
-                },
-              ]
-            : []
-        )
+    ? rawClient.listings.filter(isRecord).flatMap((listing) =>
+        typeof listing.id === "string" &&
+        typeof listing.name === "string" &&
+        typeof listing.status === "string"
+          ? [
+              {
+                id: listing.id,
+                name: listing.name,
+                status: listing.status,
+                listingId: stringOrNull(listing.listingId),
+                market: stringOrNull(listing.market),
+                basePrice: numberOrNull(listing.basePrice),
+                minimumPrice: numberOrNull(listing.minimumPrice),
+                maximumPrice: numberOrNull(listing.maximumPrice),
+                recommendedBasePrice: numberOrNull(
+                  listing.recommendedBasePrice
+                ),
+                cleaningFees: numberOrNull(listing.cleaningFees),
+                bedroomCount: numberOrNull(listing.bedroomCount),
+                occupancyNext7: numberOrNull(listing.occupancyNext7),
+                marketOccupancyNext7: numberOrNull(
+                  listing.marketOccupancyNext7
+                ),
+                occupancyNext30: numberOrNull(listing.occupancyNext30),
+                marketOccupancyNext30: numberOrNull(
+                  listing.marketOccupancyNext30
+                ),
+                occupancyNext90: numberOrNull(listing.occupancyNext90),
+                marketOccupancyNext90: numberOrNull(
+                  listing.marketOccupancyNext90
+                ),
+                marketPenetrationIndex30: numberOrNull(
+                  listing.marketPenetrationIndex30
+                ),
+                marketPenetrationIndex60: numberOrNull(
+                  listing.marketPenetrationIndex60
+                ),
+                lastBookedDate: stringOrNull(listing.lastBookedDate),
+                priceLabsSyncedAt: stringOrNull(listing.priceLabsSyncedAt),
+              },
+            ]
+          : []
+      )
     : []
 
   const openTasks = Array.isArray(rawClient.openTasks)
-    ? rawClient.openTasks
-        .filter(isRecord)
-        .flatMap((task) =>
-          typeof task.title === "string" && typeof task.status === "string"
-            ? [
-                {
-                  id: stringOrNull(task.id) ?? undefined,
-                  title: task.title,
-                  status: task.status,
-                  tags: Array.isArray(task.tags)
-                    ? task.tags.filter(
-                        (tag): tag is string => typeof tag === "string"
-                      )
-                    : [],
-                },
-              ]
-            : []
-        )
+    ? rawClient.openTasks.filter(isRecord).flatMap((task) =>
+        typeof task.title === "string" && typeof task.status === "string"
+          ? [
+              {
+                id: stringOrNull(task.id) ?? undefined,
+                title: task.title,
+                status: task.status,
+                tags: Array.isArray(task.tags)
+                  ? task.tags.filter(
+                      (tag): tag is string => typeof tag === "string"
+                    )
+                  : [],
+              },
+            ]
+          : []
+      )
     : []
 
   return {
@@ -406,25 +404,23 @@ function parseFrozenAssemblyMessages(
 ): AssemblyContextMessage[] | null {
   if (!snapshot || !Array.isArray(snapshot.assemblyHistory)) return null
 
-  return snapshot.assemblyHistory
-    .filter(isRecord)
-    .flatMap((message) =>
-      typeof message.id === "string" &&
-      (message.role === "client" || message.role === "team") &&
-      typeof message.text === "string" &&
-      typeof message.createdAt === "string"
-        ? [
-            {
-              id: message.id,
-              role: message.role,
-              text: message.text,
-              createdAt: message.createdAt,
-              attachmentUnavailable: Boolean(message.attachmentUnavailable),
-              redacted: Boolean(message.redacted),
-            },
-          ]
-        : []
-    )
+  return snapshot.assemblyHistory.filter(isRecord).flatMap((message) =>
+    typeof message.id === "string" &&
+    (message.role === "client" || message.role === "team") &&
+    typeof message.text === "string" &&
+    typeof message.createdAt === "string"
+      ? [
+          {
+            id: message.id,
+            role: message.role,
+            text: message.text,
+            createdAt: message.createdAt,
+            attachmentUnavailable: Boolean(message.attachmentUnavailable),
+            redacted: Boolean(message.redacted),
+          },
+        ]
+      : []
+  )
 }
 
 function redactSensitiveText(value: string): {
@@ -515,14 +511,10 @@ async function loadClientSnapshot(
     occupancyNext7: numberOrNull(listing.pl_occupancy_next_7),
     marketOccupancyNext7: numberOrNull(listing.pl_market_occupancy_next_7),
     occupancyNext30: numberOrNull(listing.pl_occupancy_next_30),
-    marketOccupancyNext30: numberOrNull(
-      listing.pl_market_occupancy_next_30
-    ),
+    marketOccupancyNext30: numberOrNull(listing.pl_market_occupancy_next_30),
     // These legacy column names store PriceLabs adjusted_occupancy_next_90.
     occupancyNext90: numberOrNull(listing.pl_occupancy_past_90),
-    marketOccupancyNext90: numberOrNull(
-      listing.pl_market_occupancy_past_90
-    ),
+    marketOccupancyNext90: numberOrNull(listing.pl_market_occupancy_past_90),
     marketPenetrationIndex30: numberOrNull(listing.pl_mpi_next_30),
     marketPenetrationIndex60: numberOrNull(listing.pl_mpi_next_60),
     lastBookedDate: listing.pl_last_booked_date,
@@ -580,12 +572,14 @@ async function loadAssemblyContext(
 
   try {
     const channels = await getClientChannels(client.assemblyClientId)
-    const candidates = [...channels.company, ...(channels.individual ? [channels.individual] : [])]
-      .sort((a, b) =>
-        (b.lastMessageDate ?? b.updatedAt).localeCompare(
-          a.lastMessageDate ?? a.updatedAt
-        )
+    const candidates = [
+      ...channels.company,
+      ...(channels.individual ? [channels.individual] : []),
+    ].sort((a, b) =>
+      (b.lastMessageDate ?? b.updatedAt).localeCompare(
+        a.lastMessageDate ?? a.updatedAt
       )
+    )
     const channel = candidates[0]
     if (!channel) {
       return { messages: [], warning: "No Assembly message channel was found." }
@@ -660,8 +654,7 @@ function buildContextSources({
               definitions: {
                 occupancyNext90:
                   "Exact forward 90-day occupancy comes from each listing snapshot, not from aggregating monthly rows.",
-                stly:
-                  "Same-time-last-year booking pace for the comparable calendar month.",
+                stly: "Same-time-last-year booking pace for the comparable calendar month.",
                 ly: "Final result for the comparable calendar month last year.",
                 portfolioOccupancy:
                   "Simple average across listings with data; revenue is summed.",
@@ -771,8 +764,7 @@ function buildConversationPrompt({
             "Use each listing's occupancyNext90 and marketOccupancyNext90 for the exact overall forward 90-day comparison.",
           monthlyOccupancy:
             "occupancyPct and marketOccupancyPct are current monthly forecast snapshots.",
-          stly:
-            "occupancyStlyPct is the same-time-last-year pace for that comparable calendar month.",
+          stly: "occupancyStlyPct is the same-time-last-year pace for that comparable calendar month.",
           ly: "occupancyLyPct is the final result for that comparable calendar month last year.",
           portfolioAggregation:
             "Portfolio occupancy is a simple average across listings with data; portfolio revenue is summed.",
@@ -1186,8 +1178,7 @@ async function persistCompletedRun({
       details: {
         conversationId: conversation.id,
         modelId,
-        clientId:
-          client.id === SYNTHETIC_CLIENT_ID ? "synthetic" : client.id,
+        clientId: client.id === SYNTHETIC_CLIENT_ID ? "synthetic" : client.id,
         estimatedCostUsd,
         retrievalMode,
         retrievalCostUsd,
@@ -1222,12 +1213,26 @@ export async function runAgentStudio(
   if (!user) return { ok: false, error: "Your session has expired." }
 
   const modelId: AgentStudioModelId = parsed.data.modelId
+  if (
+    !canModelUseRunInput(modelId, {
+      clientId: parsed.data.clientId,
+      hasFrozenSourceSnapshot: parsed.data.frozenSourceSnapshot != null,
+    })
+  ) {
+    return {
+      ok: false,
+      error:
+        "DeepSeek is restricted to the built-in synthetic client and cannot use frozen snapshots while its client-data privacy review is pending.",
+    }
+  }
   const frozenClient = parseFrozenClientSnapshot(
     parsed.data.frozenSourceSnapshot
   )
   const [liveClient, settings, playbook, dailySpend, monthlySpend] =
     await Promise.all([
-      frozenClient ? Promise.resolve(null) : loadClientSnapshot(parsed.data.clientId),
+      frozenClient
+        ? Promise.resolve(null)
+        : loadClientSnapshot(parsed.data.clientId),
       loadStudioSettings(),
       loadPlaybookVersion(parsed.data.playbookVersionId),
       budgetSpendSince(startOfUtcDay()),
@@ -1238,11 +1243,15 @@ export async function runAgentStudio(
   if (!client) {
     return {
       ok: false,
-      error: "The selected active client is unavailable or you cannot access it.",
+      error:
+        "The selected active client is unavailable or you cannot access it.",
     }
   }
   if (dailySpend >= settings.dailyBudgetUsd) {
-    return { ok: false, error: "The Agent Studio daily budget has been reached." }
+    return {
+      ok: false,
+      error: "The Agent Studio daily budget has been reached.",
+    }
   }
   if (monthlySpend >= settings.monthlyBudgetUsd) {
     return {
@@ -1358,21 +1367,54 @@ export async function runAgentStudio(
   const startedAt = Date.now()
 
   try {
-    const result = await agent.generate({
-      prompt,
-      timeout: {
-        totalMs: settings.maxRunDurationMs,
-        stepMs: settings.maxRunDurationMs,
-      },
-    })
+    const generateDraft = () =>
+      agent.generate({
+        prompt,
+        timeout: {
+          totalMs: settings.maxRunDurationMs,
+          stepMs: settings.maxRunDurationMs,
+        },
+      })
+    let result: Awaited<ReturnType<typeof generateDraft>> | null = null
+    let workflowSteps: PricingPerformanceFlowStep[] = []
+    let output
+
+    if (parsed.data.executionMode === "pricing_performance_pilot") {
+      const flowResult = await runPricingPerformancePilot({
+        message: parsed.data.message,
+        evidence: {
+          listingCount: client.listings.length,
+          hasForwardPerformanceMetrics: client.listings.some(
+            (listing) =>
+              listing.occupancyNext7 != null ||
+              listing.occupancyNext30 != null ||
+              listing.occupancyNext90 != null ||
+              listing.marketPenetrationIndex30 != null ||
+              listing.marketPenetrationIndex60 != null
+          ),
+          hasPriceLabsReport: client.priceLabsReport != null,
+        },
+        generateDraft,
+        readOutput: (generation) => generation.output,
+      })
+      result = flowResult.generation
+      output = flowResult.output
+      workflowSteps = flowResult.steps
+    } else {
+      result = await generateDraft()
+      output = result.output
+    }
+
+    const resultToolResults = result?.toolResults ?? []
+    const resultToolCalls = result?.toolCalls ?? []
 
     const toolResultsById = new Map(
-      result.toolResults.map((toolResult) => [
+      resultToolResults.map((toolResult) => [
         toolResult.toolCallId,
         toolResult.output,
       ])
     )
-    const toolCalls = result.toolCalls.map((toolCall) => {
+    const modelToolCalls = resultToolCalls.map((toolCall) => {
       const rawOutput = toolResultsById.get(toolCall.toolCallId)
       const output = isRecord(rawOutput) ? rawOutput : {}
       const sourceCount = isKnowledgeResult(output) ? output.results.length : 0
@@ -1388,9 +1430,20 @@ export async function runAgentStudio(
             : "Tool completed",
       }
     })
+    const workflowToolCalls = workflowSteps.map((workflowStep, index) => ({
+      id: `${PRICING_PERFORMANCE_PILOT_ID}:${index}:${workflowStep.id}`,
+      name: `workflow.${workflowStep.id}`,
+      input: { flowId: PRICING_PERFORMANCE_PILOT_ID },
+      output: {
+        outcome: workflowStep.outcome,
+        durationMs: workflowStep.durationMs,
+      },
+      resultSummary: workflowStep.summary,
+    }))
+    const toolCalls = [...workflowToolCalls, ...modelToolCalls]
     const knowledgeSources = Array.from(
       new Map(
-        result.toolResults
+        resultToolResults
           .filter((toolResult) => isKnowledgeResult(toolResult.output))
           .flatMap((toolResult) =>
             isKnowledgeResult(toolResult.output)
@@ -1400,7 +1453,7 @@ export async function runAgentStudio(
       ).values()
     )
     const sources = [...contextSources, ...knowledgeSources]
-    const retrieval = result.toolResults.find((toolResult) =>
+    const retrieval = resultToolResults.find((toolResult) =>
       isKnowledgeResult(toolResult.output)
     )?.output
     const retrievalDiagnostics = isKnowledgeResult(retrieval)
@@ -1408,21 +1461,17 @@ export async function runAgentStudio(
       : null
 
     const usage = {
-      inputTokens: result.usage.inputTokens ?? 0,
-      cachedInputTokens:
-        result.usage.inputTokenDetails?.cacheReadTokens ?? 0,
-      cacheWriteTokens:
-        result.usage.inputTokenDetails?.cacheWriteTokens ?? 0,
-      outputTokens: result.usage.outputTokens ?? 0,
-      reasoningTokens:
-        result.usage.outputTokenDetails?.reasoningTokens ?? 0,
+      inputTokens: result?.usage.inputTokens ?? 0,
+      cachedInputTokens: result?.usage.inputTokenDetails?.cacheReadTokens ?? 0,
+      cacheWriteTokens: result?.usage.inputTokenDetails?.cacheWriteTokens ?? 0,
+      outputTokens: result?.usage.outputTokens ?? 0,
+      reasoningTokens: result?.usage.outputTokenDetails?.reasoningTokens ?? 0,
       totalTokens:
-        result.usage.totalTokens ??
-        (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0),
+        result?.usage.totalTokens ??
+        (result?.usage.inputTokens ?? 0) + (result?.usage.outputTokens ?? 0),
     }
     const modelEstimates = await buildAgentStudioModelEstimates(usage)
     const durationMs = Date.now() - startedAt
-    const output = result.output
     const persisted = await persistCompletedRun({
       userId: user.id,
       conversation,
@@ -1451,6 +1500,16 @@ export async function runAgentStudio(
         studioHistory: parsed.data.history,
         newMessage: parsed.data.message,
         retrievalMode,
+        execution: {
+          mode: parsed.data.executionMode,
+          flowId:
+            parsed.data.executionMode === "pricing_performance_pilot"
+              ? PRICING_PERFORMANCE_PILOT_ID
+              : null,
+          dataBoundary: isSyntheticOnlyModel(modelId)
+            ? "synthetic_only"
+            : "permission_scoped_client_data",
+        },
       },
       sources,
       toolCalls,
@@ -1472,10 +1531,19 @@ export async function runAgentStudio(
         retrieval: retrievalDiagnostics,
         sources,
         toolCalls,
+        execution: {
+          mode: parsed.data.executionMode,
+          flowId:
+            parsed.data.executionMode === "pricing_performance_pilot"
+              ? PRICING_PERFORMANCE_PILOT_ID
+              : null,
+          dataBoundary: isSyntheticOnlyModel(modelId)
+            ? "synthetic_only"
+            : "permission_scoped_client_data",
+        },
         usage: {
           ...usage,
-          retrievalInputTokens:
-            retrievalDiagnostics?.embeddingInputTokens ?? 0,
+          retrievalInputTokens: retrievalDiagnostics?.embeddingInputTokens ?? 0,
           generationCostUsd: persisted.generationCostUsd,
           retrievalCostUsd: persisted.retrievalCostUsd,
           estimatedCostUsd: persisted.estimatedCostUsd,
@@ -1514,6 +1582,16 @@ export async function runAgentStudio(
           studioHistory: parsed.data.history,
           newMessage: parsed.data.message,
           retrievalMode,
+          execution: {
+            mode: parsed.data.executionMode,
+            flowId:
+              parsed.data.executionMode === "pricing_performance_pilot"
+                ? PRICING_PERFORMANCE_PILOT_ID
+                : null,
+            dataBoundary: isSyntheticOnlyModel(modelId)
+              ? "synthetic_only"
+              : "permission_scoped_client_data",
+          },
         },
         created_by: user.id,
       })
@@ -1550,7 +1628,8 @@ export async function reopenAgentStudioRun(
   if (!canUseStudio) return { ok: false, error: "You do not have access." }
 
   const parsed = reopenRunSchema.safeParse(input)
-  if (!parsed.success) return { ok: false, error: "The selected run is invalid." }
+  if (!parsed.success)
+    return { ok: false, error: "The selected run is invalid." }
 
   const supabase = await createClient()
   const {
@@ -1578,7 +1657,10 @@ export async function reopenAgentStudioRun(
     return { ok: false, error: "That saved run is no longer available." }
   }
   if (!isAgentStudioModelId(run.model_id)) {
-    return { ok: false, error: "That run used a model that is no longer available." }
+    return {
+      ok: false,
+      error: "That run used a model that is no longer available.",
+    }
   }
   const retrievalMode: AgentStudioRetrievalMode =
     run.retrieval_mode === "hybrid" || run.retrieval_mode === "compare"
@@ -1595,7 +1677,9 @@ export async function reopenAgentStudioRun(
   ] = await Promise.all([
     supabase
       .from("agent_conversations")
-      .select("id, title, source, client_id, synthetic_client, created_by, clients(name, status)")
+      .select(
+        "id, title, source, client_id, synthetic_client, created_by, clients(name, status)"
+      )
       .eq("id", run.conversation_id)
       .maybeSingle(),
     supabase
@@ -1660,11 +1744,11 @@ export async function reopenAgentStudioRun(
   const instructions =
     typeof snapshot.instructions === "string"
       ? snapshot.instructions
-      : playbookVersion?.instructions ?? DEFAULT_AGENT_STUDIO_INSTRUCTIONS
+      : (playbookVersion?.instructions ?? DEFAULT_AGENT_STUDIO_INSTRUCTIONS)
   const newMessage =
     typeof snapshot.newMessage === "string"
       ? snapshot.newMessage
-      : conversation.title ?? ""
+      : (conversation.title ?? "")
   const clientName =
     (isRecord(clientRecord) && typeof clientRecord.name === "string"
       ? clientRecord.name
@@ -1732,7 +1816,7 @@ export async function reopenAgentStudioRun(
           slug:
             typeof payload.slug === "string"
               ? payload.slug
-              : source.source_id ?? source.id,
+              : (source.source_id ?? source.id),
           excerpt: source.excerpt ?? "",
           type: source.source_type,
           payload,

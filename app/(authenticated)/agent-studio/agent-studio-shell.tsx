@@ -68,6 +68,7 @@ import {
   type AgentStudioReopenState,
 } from "@/lib/agent-studio"
 import type {
+  AgentEvaluationCaseSummary,
   AgentIntegrationHealth,
   AgentPlaybookVersionSummary,
   AgentStudioGovernanceSnapshot,
@@ -703,17 +704,26 @@ function EvaluationsPanel({
     clients.find((client) => !client.synthetic)?.id ?? ""
   )
 
-  function runCase(caseId: string) {
+  function runCase(evaluationCase: AgentEvaluationCaseSummary) {
     startTransition(async () => {
+      const canUseDeepSeek =
+        evaluationCase.syntheticClient && !evaluationCase.hasFrozenSnapshot
       const result = await runEvaluationCaseAction({
-        caseId,
+        caseId: evaluationCase.id,
         playbookVersionId,
-        modelIds: [
-          "openai/gpt-5-nano",
-          "google/gemini-2.5-flash-lite",
-          "alibaba/qwen3.5-flash",
-          "openai/gpt-5-mini",
-        ],
+        modelIds: canUseDeepSeek
+          ? [
+              "openai/gpt-5-nano",
+              "google/gemini-2.5-flash-lite",
+              "alibaba/qwen3.5-flash",
+              "deepseek/deepseek-v4-flash-0731",
+            ]
+          : [
+              "openai/gpt-5-nano",
+              "google/gemini-2.5-flash-lite",
+              "alibaba/qwen3.5-flash",
+              "openai/gpt-5-mini",
+            ],
       })
       if (result.ok) {
         toast.success(
@@ -823,6 +833,12 @@ function EvaluationsPanel({
                 {evaluationCase.hasFrozenSnapshot
                   ? " · Frozen data"
                   : " · Live data"}
+                {evaluationCase.syntheticClient &&
+                !evaluationCase.hasFrozenSnapshot
+                  ? " · DeepSeek included"
+                  : evaluationCase.hasFrozenSnapshot
+                    ? " · DeepSeek excluded: frozen snapshot"
+                    : " · DeepSeek excluded: real client"}
               </p>
             </CardContent>
             <CardFooter>
@@ -832,7 +848,7 @@ function EvaluationsPanel({
                 disabled={
                   !governance.canCreate || !playbookVersionId || isPending
                 }
-                onClick={() => runCase(evaluationCase.id)}
+                onClick={() => runCase(evaluationCase)}
               >
                 {isPending ? (
                   <Spinner data-icon="inline-start" />

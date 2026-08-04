@@ -78,8 +78,10 @@ import {
   DEFAULT_AGENT_STUDIO_INSTRUCTIONS,
   DEFAULT_AGENT_STUDIO_MODEL,
   SYNTHETIC_CLIENT_ID,
+  canModelUseClient,
   getAgentStudioModel,
   isAgentStudioModelId,
+  isSyntheticOnlyModel,
   type AgentStudioClientOption,
   type AgentStudioHistoryMessage,
   type AgentStudioModelId,
@@ -218,6 +220,20 @@ function RunInspector({ run }: { run: AgentStudioRun | null }) {
             <CardDescription>{model.label}</CardDescription>
           </CardHeader>
           <CardContent>
+            {run.execution && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Badge variant="secondary">
+                  {run.execution.mode === "pricing_performance_pilot"
+                    ? "LangGraph pilot"
+                    : "Standard runtime"}
+                </Badge>
+                <Badge variant="outline">
+                  {run.execution.dataBoundary === "synthetic_only"
+                    ? "Synthetic data only"
+                    : "Permission-scoped data"}
+                </Badge>
+              </div>
+            )}
             <dl className="grid grid-cols-2 gap-3">
               <div>
                 <dt className="text-xs text-muted-foreground">Disposition</dt>
@@ -737,6 +753,9 @@ export function AgentStudio({
   const [retrievalMode, setRetrievalMode] = useState<AgentStudioRetrievalMode>(
     reopenedRun?.retrievalMode ?? "hybrid"
   )
+  const [executionMode, setExecutionMode] = useState<
+    "standard" | "pricing_performance_pilot"
+  >("standard")
   const [instructions, setInstructions] = useState(
     reopenedRun?.instructions ??
       initialPlaybook?.instructions ??
@@ -812,6 +831,7 @@ export function AgentStudio({
         clientId,
         modelId,
         retrievalMode,
+        executionMode,
         playbookVersionId:
           playbookVersionId === "session" ? null : playbookVersionId,
         conversationId,
@@ -880,12 +900,24 @@ export function AgentStudio({
   }
 
   function changeClient(value: string) {
+    if (!canModelUseClient(modelId, value)) {
+      setModelId(DEFAULT_AGENT_STUDIO_MODEL)
+      toast.info(
+        "Switched to GPT-5 Nano because DeepSeek is synthetic-only during privacy review."
+      )
+    }
     setClientId(value)
     resetConversation()
   }
 
   function changeModel(value: string) {
     if (!isAgentStudioModelId(value)) return
+    if (!canModelUseClient(value, clientId)) {
+      toast.error(
+        "DeepSeek can only use the synthetic client while privacy review is pending."
+      )
+      return
+    }
     setModelId(value)
     resetConversation({ preserveDraft: true })
   }
@@ -1007,6 +1039,41 @@ export function AgentStudio({
               </Field>
 
               <Field>
+                <FieldLabel>Execution</FieldLabel>
+                <ToggleGroup
+                  type="single"
+                  value={executionMode}
+                  onValueChange={(value) => {
+                    if (
+                      value === "standard" ||
+                      value === "pricing_performance_pilot"
+                    ) {
+                      setExecutionMode(value)
+                      resetConversation({ preserveDraft: true })
+                    }
+                  }}
+                  variant="outline"
+                  className="w-full"
+                  aria-label="Choose the Agent Studio execution mode"
+                >
+                  <ToggleGroupItem value="standard" className="flex-1">
+                    Standard
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="pricing_performance_pilot"
+                    className="flex-1"
+                  >
+                    Flow pilot
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <FieldDescription>
+                  {executionMode === "pricing_performance_pilot"
+                    ? "LangGraph executes and traces the Pricing & Performance steps. Internal drafts only; no sends or writes."
+                    : "Uses the current Agent Studio tool loop without executable workflow routing."}
+                </FieldDescription>
+              </Field>
+
+              <Field>
                 <FieldLabel>Model</FieldLabel>
                 <ToggleGroup
                   type="single"
@@ -1025,8 +1092,14 @@ export function AgentStudio({
                       value={model.id}
                       className="w-full justify-start"
                       aria-label={model.label}
+                      disabled={!canModelUseClient(model.id, clientId)}
                     >
-                      {model.label}
+                      <span>{model.label}</span>
+                      {isSyntheticOnlyModel(model.id) && (
+                        <Badge variant="secondary" className="ml-auto">
+                          Synthetic only
+                        </Badge>
+                      )}
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
@@ -1034,6 +1107,9 @@ export function AgentStudio({
                   {selectedModel.description}. $
                   {selectedModel.inputUsdPerMillion}
                   /M input, ${selectedModel.outputUsdPerMillion}/M output.
+                  {isSyntheticOnlyModel(modelId)
+                    ? " Privacy boundary: the server rejects real-client context."
+                    : " Uses permission-scoped client context."}
                 </FieldDescription>
               </Field>
 
@@ -1083,8 +1159,9 @@ export function AgentStudio({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  Real client data is loaded read-only through your existing
-                  permissions.
+                  {isSyntheticOnlyModel(modelId)
+                    ? "DeepSeek is locked to synthetic data until its privacy review is approved."
+                    : "Real client data is loaded read-only through your existing permissions."}
                 </FieldDescription>
               </Field>
 
@@ -1141,6 +1218,12 @@ export function AgentStudio({
                 <Search data-icon="inline-start" />
                 {selectedRetrievalMode.label}
               </Badge>
+              {executionMode === "pricing_performance_pilot" && (
+                <Badge variant="secondary">
+                  <Sparkles data-icon="inline-start" />
+                  LangGraph pilot
+                </Badge>
+              )}
             </CardAction>
           </CardHeader>
           <CardContent className="min-w-0">
