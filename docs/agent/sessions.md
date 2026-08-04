@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-03 — Pacing, calendar availability, and operational update policies
+
+- Refined three disabled Knowledge drafts: slow-booking/pacing diagnosis, blocking/unblocking availability, and price/discount/fee/minimum-stay requests.
+- Standardized exact-scope intake, aligned evidence, answer/clarify/escalate outcomes, human approval, live-system verification, and no-outcome-guarantee boundaries.
+- Added thirteen synthetic Agent Studio regression cases across migrations 066–068; no real client data, live settings, or production playbook behavior is included.
+
 ## 2026-08-03 — OTA markup and Airbnb discount policy draft
 
 - Refined the existing disabled `ota-markup-policy` Knowledge draft around RevFactor's `$100 PriceLabs → $100 Hospitable → $144 Airbnb` example, with the 44% markup explicitly treated as a verified policy example rather than a universal live setting.
