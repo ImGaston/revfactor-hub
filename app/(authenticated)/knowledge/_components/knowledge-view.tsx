@@ -26,6 +26,7 @@ import { TagFilterBar } from "./tag-filter-bar"
 import { CategoryGrid } from "./category-grid"
 import { ArticleList } from "./article-list"
 import { AgentPipelinePanel } from "./agent-pipeline-panel"
+import { AgentGatesTable } from "./agent-gates-table"
 import { TeamCredentials } from "./team-credentials"
 import type {
   KnowledgeArticle,
@@ -54,6 +55,8 @@ type Props = {
   tags: KnowledgeTag[]
   flows: AgentFlowSummary[]
   canCreateFlows: boolean
+  canPublish: boolean
+  canEditArticles: boolean
   credentials: TeamCredential[]
   canViewCredentials: boolean
   canManageCredentials: { create: boolean; edit: boolean; delete: boolean }
@@ -65,6 +68,8 @@ export function KnowledgeView({
   tags,
   flows,
   canCreateFlows,
+  canPublish,
+  canEditArticles,
   credentials,
   canViewCredentials,
   canManageCredentials,
@@ -87,6 +92,7 @@ export function KnowledgeView({
     resolveTab(searchParams.get("tab"))
   )
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [agentView, setAgentView] = useState<"pipeline" | "table">("pipeline")
   const [search, setSearch] = useState("")
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
@@ -181,18 +187,19 @@ export function KnowledgeView({
 
   return (
     <Tabs value={tab} onValueChange={handleTabChange}>
-      <TabsList>
+      <div className="max-w-full overflow-x-auto">
+        <TabsList className="w-max">
         <TabsTrigger value="team" className="gap-1.5">
           <BookOpen className="size-4" />
           Team
-          <span className="ml-1 text-xs text-muted-foreground">
+          <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
             ({articles.length})
           </span>
         </TabsTrigger>
         <TabsTrigger value="agent" className="gap-1.5">
           <Bot className="size-4" />
           Agent
-          <span className="ml-1 text-xs text-muted-foreground">
+          <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
             ({agentArticles.length})
           </span>
         </TabsTrigger>
@@ -200,7 +207,7 @@ export function KnowledgeView({
           <TabsTrigger value="credentials" className="gap-1.5">
             <KeyRound className="size-4" />
             Credentials
-            <span className="ml-1 text-xs text-muted-foreground">
+            <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
               ({credentials.length})
             </span>
           </TabsTrigger>
@@ -212,11 +219,12 @@ export function KnowledgeView({
         <TabsTrigger value="agent-flows" className="gap-1.5">
           <Workflow className="size-4" />
           Agent Flows
-          <span className="ml-1 text-xs text-muted-foreground">
+          <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
             ({flows.length})
           </span>
         </TabsTrigger>
-      </TabsList>
+        </TabsList>
+      </div>
 
       <TabsContent value="team" className="mt-6 space-y-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -232,7 +240,7 @@ export function KnowledgeView({
                 onClick={() => setStatusFilter(pill.value)}
               >
                 {pill.label}
-                <span className="ml-1 text-xs text-muted-foreground">
+                <span className="ml-1 hidden text-xs text-muted-foreground sm:inline">
                   ({pill.count})
                 </span>
               </Button>
@@ -258,8 +266,36 @@ export function KnowledgeView({
       </TabsContent>
 
       <TabsContent value="agent" className="mt-6 space-y-6">
-        <SearchBar value={search} onChange={setSearch} />
-        <AgentPipelinePanel articles={applySearch(agentArticles)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-[200px]">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant={agentView === "pipeline" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setAgentView("pipeline")}
+            >
+              Pipeline
+            </Button>
+            <Button
+              variant={agentView === "table" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setAgentView("table")}
+            >
+              Gates table
+            </Button>
+          </div>
+        </div>
+        {agentView === "pipeline" ? (
+          <AgentPipelinePanel articles={applySearch(agentArticles)} />
+        ) : (
+          <AgentGatesTable
+            articles={applySearch(articles)}
+            canPublish={canPublish}
+            canEdit={canEditArticles}
+          />
+        )}
       </TabsContent>
 
       {canViewCredentials && (

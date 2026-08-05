@@ -20,18 +20,18 @@ type StatCardProps = {
 
 function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
   return (
-    <Card>
-      <CardContent className="p-5">
+    <Card className="py-2 sm:py-6">
+      <CardContent className="p-3 sm:p-5">
         <div className="flex items-start justify-between">
-          <div className="rounded-lg bg-primary/10 p-2.5">
-            <Icon className={`size-5 ${color ?? "text-primary"}`} />
+          <div className="rounded-lg bg-primary/10 p-2 sm:p-2.5">
+            <Icon className={`size-4 sm:size-5 ${color ?? "text-primary"}`} />
           </div>
         </div>
-        <div className="mt-3">
-          <p className="text-3xl font-semibold font-mono tracking-tight">
+        <div className="mt-2 sm:mt-3">
+          <p className="text-xl sm:text-3xl font-semibold font-mono tracking-tight">
             {value}
           </p>
-          <p className="text-sm text-muted-foreground">{label}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">{label}</p>
         </div>
       </CardContent>
     </Card>
@@ -40,7 +40,7 @@ function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
 
 export function KnowledgeStatCards({ stats }: { stats: KnowledgeStats }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-3 xl:grid-cols-6">
       <StatCard
         icon={CheckCircle}
         label="Published"

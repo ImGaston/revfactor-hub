@@ -159,6 +159,7 @@ export default async function KnowledgePage() {
   const [
     canCreate,
     canManageCategories,
+    canPublish,
     canViewCredentials,
     canCreateCredentials,
     canEditCredentials,
@@ -166,6 +167,7 @@ export default async function KnowledgePage() {
   ] = await Promise.all([
     hasPermission("knowledge", "create"),
     hasPermission("knowledge", "edit"),
+    hasPermission("knowledge", "publish"),
     hasPermission("team_credentials", "view"),
     hasPermission("team_credentials", "create"),
     hasPermission("team_credentials", "edit"),
@@ -206,6 +208,8 @@ export default async function KnowledgePage() {
         tags={tags}
         flows={flows}
         canCreateFlows={canCreate}
+        canPublish={canPublish}
+        canEditArticles={canManageCategories}
         credentials={credentials}
         canViewCredentials={canViewCredentials}
         canManageCredentials={{

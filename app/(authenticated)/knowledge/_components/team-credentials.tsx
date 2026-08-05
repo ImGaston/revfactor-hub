@@ -351,7 +351,7 @@ export function TeamCredentials({
           {canCreate && " Click “Add credential” to store a shared login."}
         </p>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

@@ -7,6 +7,8 @@
 - Added and applied migration 070: `team_credentials` table with permission-based RLS on a new `team_credentials` resource; `admin` granted view/create/edit (delete off), external roles explicitly denied. Verified live policies and seeds.
 - New `credentials-actions.ts` (in-code `hasPermission` checks + RLS backstop) and `team-credentials.tsx` (table with show/hide password, clipboard copy, form dialog, AlertDialog delete), copied from the client-credentials pattern.
 - Fold-ins: Knowledge `loading.tsx` skeleton, `nav-knowledge` command-registry entry, "Agent Indexed" stat card relabeled "Agent Live". `pnpm typecheck` passes.
+- Mobile pass: stat cards and category cards go 2-up and compact below `sm` (Card `py-2`, hidden category descriptions), the tab bar scrolls horizontally in its own container with counts hidden on mobile, and the credentials table wrapper got `overflow-x-auto`. Desktop layout unchanged.
+- Added a "Gates table" view to the Agent tab (`agent-gates-table.tsx` + Pipeline/Gates-table switcher): every article as a row with Live indicator, inline switches for Published / Client-safe / Agent enabled (wired to existing publish, approve, and disable actions plus new `setArticleAudience`), review and index badges, re-index button, and titles linking to the article. Verified inline toggles round-trip against the live DB and that precondition errors (e.g. enabling a draft) surface as toasts without mutating.
 
 ## 2026-08-04 — Removed unused Calendar and Notes sections
 

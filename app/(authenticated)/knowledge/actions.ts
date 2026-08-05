@@ -321,6 +321,35 @@ export async function disableArticleForAgent(id: string) {
   return { error: null }
 }
 
+export async function setArticleAudience(
+  id: string,
+  audience: "internal" | "client_safe"
+) {
+  if (!(await hasPermission("knowledge", "edit"))) {
+    return { error: "You do not have permission to edit Knowledge." }
+  }
+  const supabase = await createClient()
+
+  // Changing audience resets governance, mirroring updateArticle: the agent
+  // pipeline restarts from review for the new audience.
+  const { error } = await supabase
+    .from("knowledge_articles")
+    .update({
+      audience,
+      review_status: audience === "client_safe" ? "needs_review" : "draft",
+      agent_enabled: false,
+      approved_by: null,
+      approved_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/knowledge")
+  return { error: null }
+}
+
 // ── Categories ─────────────────────────────────────────────────────────────
 
 type CategoryInput = {
