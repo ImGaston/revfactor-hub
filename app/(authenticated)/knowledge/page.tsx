@@ -10,6 +10,7 @@ import type {
   KnowledgeStats,
 } from "./_lib/types"
 import type { AgentFlowStatus, AgentFlowSummary } from "@/lib/agent-flows"
+import type { TeamCredential } from "@/lib/types"
 
 export default async function KnowledgePage() {
   const supabase = await createClient()
@@ -155,10 +156,33 @@ export default async function KnowledgePage() {
     ).length,
   }
 
-  const [canCreate, canManageCategories] = await Promise.all([
+  const [
+    canCreate,
+    canManageCategories,
+    canPublish,
+    canViewCredentials,
+    canCreateCredentials,
+    canEditCredentials,
+    canDeleteCredentials,
+  ] = await Promise.all([
     hasPermission("knowledge", "create"),
     hasPermission("knowledge", "edit"),
+    hasPermission("knowledge", "publish"),
+    hasPermission("team_credentials", "view"),
+    hasPermission("team_credentials", "create"),
+    hasPermission("team_credentials", "edit"),
+    hasPermission("team_credentials", "delete"),
   ])
+
+  let credentials: TeamCredential[] = []
+  if (canViewCredentials) {
+    const { data: credentialsRaw } = await supabase
+      .from("team_credentials")
+      .select("*")
+      .order("software")
+      .order("name")
+    credentials = (credentialsRaw ?? []) as TeamCredential[]
+  }
 
   return (
     <div className="space-y-6">
@@ -184,6 +208,15 @@ export default async function KnowledgePage() {
         tags={tags}
         flows={flows}
         canCreateFlows={canCreate}
+        canPublish={canPublish}
+        canEditArticles={canManageCategories}
+        credentials={credentials}
+        canViewCredentials={canViewCredentials}
+        canManageCredentials={{
+          create: canCreateCredentials,
+          edit: canEditCredentials,
+          delete: canDeleteCredentials,
+        }}
       />
     </div>
   )

@@ -5,12 +5,11 @@ import {
   Building2,
   CheckSquare,
   ClipboardList,
-  Calendar,
-  MessageSquare,
   Lightbulb,
   Funnel,
   DollarSign,
   Bot,
+  BookOpen,
   Settings,
   Plus,
 } from "lucide-react"
@@ -41,12 +40,11 @@ export const commands: CommandDef[] = [
   { id: "nav-listings", label: "Go to Listings", icon: Building2, category: "pages", href: "/listings", permission: { resource: "listings", action: "view" }, contextRoutes: ["/listings"] },
   { id: "nav-tasks", label: "Go to Tasks", icon: CheckSquare, category: "pages", href: "/tasks", permission: { resource: "tasks", action: "view" }, contextRoutes: ["/tasks"] },
   { id: "nav-onboarding", label: "Go to Onboarding", icon: ClipboardList, category: "pages", href: "/onboarding", permission: { resource: "onboarding", action: "view" }, contextRoutes: ["/onboarding"] },
-  { id: "nav-calendar", label: "Go to Calendar", icon: Calendar, category: "pages", href: "/calendar", permission: { resource: "calendar", action: "view" }, contextRoutes: ["/calendar"] },
-  { id: "nav-notes", label: "Go to Notes", icon: MessageSquare, category: "pages", href: "/notes", permission: { resource: "notes", action: "view" }, contextRoutes: ["/notes"] },
   { id: "nav-roadmap", label: "Go to Ideas & Roadmap", icon: Lightbulb, category: "pages", href: "/roadmap", permission: { resource: "roadmap", action: "view" }, contextRoutes: ["/roadmap"] },
   { id: "nav-pipeline", label: "Go to Pipeline", icon: Funnel, category: "pages", href: "/pipeline", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/pipeline"] },
   { id: "nav-financials", label: "Go to Financials", icon: DollarSign, category: "pages", href: "/financials", superAdminOnly: true, contextRoutes: ["/financials"] },
   { id: "nav-agent-studio", label: "Go to Agent Studio", icon: Bot, category: "pages", href: "/agent-studio", permission: { resource: "agent_studio", action: "view" }, contextRoutes: ["/agent-studio"], keywords: ["ai", "assistant", "sandbox", "agent"] },
+  { id: "nav-knowledge", label: "Go to Knowledge", icon: BookOpen, category: "pages", href: "/knowledge", permission: { resource: "knowledge", action: "view" }, contextRoutes: ["/knowledge"], keywords: ["kb", "sop", "articles", "credentials"] },
 
   // --- Actions ---
   { id: "action-new-client", label: "New Client", icon: Plus, category: "actions", href: "/settings/clients", keywords: ["create", "add", "client"], permission: { resource: "clients", action: "create" }, contextRoutes: ["/clients"] },

@@ -24,8 +24,6 @@ const routeLabels: Record<string, string> = {
   clients: "Clients",
   tasks: "Tasks",
   onboarding: "Onboarding",
-  calendar: "Calendar",
-  notes: "Notes",
   settings: "Settings",
   account: "Account",
   users: "Users",

@@ -1,5 +1,39 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-05 — Knowledge redesign: Team/Agent tabs and Team Credentials
+
+- Restructured the Knowledge root tabs into Team / Agent / Credentials / Insights / Agent Flows with `?tab=` URL sync (legacy `published|drafts` map to Team); Insights and Agent Flows content unchanged.
+- Team tab shows all articles with All/Published/Drafts status pills; new `agent-pipeline-panel.tsx` groups client-safe/agent-enabled articles by pipeline stage (failed → live → indexing → needs review → approved → drafting).
+- Added and applied migration 070: `team_credentials` table with permission-based RLS on a new `team_credentials` resource; `admin` granted view/create/edit (delete off), external roles explicitly denied. Verified live policies and seeds.
+- New `credentials-actions.ts` (in-code `hasPermission` checks + RLS backstop) and `team-credentials.tsx` (table with show/hide password, clipboard copy, form dialog, AlertDialog delete), copied from the client-credentials pattern.
+- Fold-ins: Knowledge `loading.tsx` skeleton, `nav-knowledge` command-registry entry, "Agent Indexed" stat card relabeled "Agent Live". `pnpm typecheck` passes.
+- Mobile pass: stat cards and category cards go 2-up and compact below `sm` (Card `py-2`, hidden category descriptions), the tab bar scrolls horizontally in its own container with counts hidden on mobile, and the credentials table wrapper got `overflow-x-auto`. Desktop layout unchanged.
+- Added a "Gates table" view to the Agent tab (`agent-gates-table.tsx` + Pipeline/Gates-table switcher): every article as a row with Live indicator, inline switches for Published / Client-safe / Agent enabled (wired to existing publish, approve, and disable actions plus new `setArticleAudience`), review and index badges, re-index button, and titles linking to the article. Verified inline toggles round-trip against the live DB and that precondition errors (e.g. enabling a draft) surface as toasts without mutating.
+
+## 2026-08-04 — Removed unused Calendar and Notes sections
+
+- Deleted the `/calendar` and `/notes` stub routes and every UI reference: sidebar nav, command palette, top-bar breadcrumb labels, and the `calendar`/`notes` entries in `RESOURCES` (`lib/permissions.ts`).
+- Database tables (`calendar_events`, `notes`) and migration-012 permission seed rows were left in place as inert leftovers; see `decisions.md` 2026-08-04.
+- `pnpm typecheck` passes after clearing stale `.next` generated types.
+
+## 2026-08-03 — Owner-specific gap rules and PriceLabs sync timing
+
+- Refined the one-night/gap-night Knowledge draft so minimum stays are explicitly owner-approved and listing-specific rather than a RevFactor-wide default.
+- Documented how bookings and cancellations can change the applicable gap/default/far-out rule and leave open dates temporarily unbookable until the overnight or authorized manual PriceLabs refresh and sync.
+- Added four synthetic booking, cancellation, one-night, and urgent-sync regression cases; no live listing data or production action is included.
+
+## 2026-08-03 — Pacing, calendar availability, and operational update policies
+
+- Refined three disabled Knowledge drafts: slow-booking/pacing diagnosis, blocking/unblocking availability, and price/discount/fee/minimum-stay requests.
+- Standardized exact-scope intake, aligned evidence, answer/clarify/escalate outcomes, human approval, live-system verification, and no-outcome-guarantee boundaries.
+- Added thirteen synthetic Agent Studio regression cases across migrations 066–068; no real client data, live settings, or production playbook behavior is included.
+
+## 2026-08-03 — OTA markup and Airbnb discount policy draft
+
+- Refined the existing disabled `ota-markup-policy` Knowledge draft around RevFactor's `$100 PriceLabs → $100 Hospitable → $144 Airbnb` example, with the 44% markup explicitly treated as a verified policy example rather than a universal live setting.
+- Added client-ready wording, live rate/discount/payout verification steps, approved longer-stay exceptions, ranking and MPI wording boundaries, and escalation rules.
+- Added five synthetic Agent Studio regression cases; no raw client message, client identity, live rate, or production playbook behavior is included.
+
 ## 2026-07-31 — Governed hybrid Knowledge retrieval
 
 - Added and applied migration 060 for pgvector-backed, version-bound Knowledge chunks, full-text/vector indexes, indexing audit events, run-level retrieval usage/cost, permission-based RLS, stale-on-edit behavior, and a security-invoker hybrid search RPC.

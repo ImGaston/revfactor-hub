@@ -7,7 +7,7 @@ This file is intentionally short and synchronized across agent entrypoints. It r
 - Built for 2-3 internal users in Phase 1; not client-facing.
 - Production URL: `hub.revfactor.io`.
 - Stack: Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, Supabase, Vercel, pnpm.
-- Important app area: `app/(authenticated)/` holds the authenticated dashboard, clients, listings, tasks, adjustments, roadmap, pipeline, onboarding, financials, settings, calendar, notes, and knowledge routes. `app/a/[token]/` is the public Adjustments share card (no login).
+- Important app area: `app/(authenticated)/` holds the authenticated dashboard, clients, listings, tasks, adjustments, roadmap, pipeline, onboarding, financials, settings, and knowledge routes. `app/a/[token]/` is the public Adjustments share card (no login).
 
 ## Memory Map
 Read the smallest relevant docs before changing code:
