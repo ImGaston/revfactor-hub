@@ -396,6 +396,18 @@ export type ClientCredential = {
   updated_at: string
 }
 
+export type TeamCredential = {
+  id: string
+  name: string
+  software: string
+  email: string | null
+  password: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Sales Pipeline ─────────────────────────────────────
 
 export type LeadStage =

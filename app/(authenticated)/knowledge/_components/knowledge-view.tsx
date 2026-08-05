@@ -1,12 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertTriangle,
   BarChart3,
+  BookOpen,
+  Bot,
   CheckCircle,
-  FileEdit,
+  KeyRound,
   RefreshCcw,
   Workflow,
 } from "lucide-react"
@@ -17,17 +20,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { SearchBar } from "./search-bar"
 import { TagFilterBar } from "./tag-filter-bar"
 import { CategoryGrid } from "./category-grid"
 import { ArticleList } from "./article-list"
+import { AgentPipelinePanel } from "./agent-pipeline-panel"
+import { TeamCredentials } from "./team-credentials"
 import type {
   KnowledgeArticle,
   KnowledgeCategory,
   KnowledgeTag,
 } from "../_lib/types"
 import type { AgentFlowSummary } from "@/lib/agent-flows"
+import type { TeamCredential } from "@/lib/types"
 import { AgentFlowsPanel } from "./agent-flows-panel"
+
+const TAB_VALUES = [
+  "team",
+  "agent",
+  "credentials",
+  "insights",
+  "agent-flows",
+] as const
+
+type TabValue = (typeof TAB_VALUES)[number]
+
+type StatusFilter = "all" | "published" | "draft"
 
 type Props = {
   articles: KnowledgeArticle[]
@@ -35,6 +54,9 @@ type Props = {
   tags: KnowledgeTag[]
   flows: AgentFlowSummary[]
   canCreateFlows: boolean
+  credentials: TeamCredential[]
+  canViewCredentials: boolean
+  canManageCredentials: { create: boolean; edit: boolean; delete: boolean }
 }
 
 export function KnowledgeView({
@@ -43,10 +65,40 @@ export function KnowledgeView({
   tags,
   flows,
   canCreateFlows,
+  credentials,
+  canViewCredentials,
+  canManageCredentials,
 }: Props) {
-  const [tab, setTab] = useState("published")
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  function resolveTab(param: string | null): TabValue {
+    // Legacy deep links from the old tab structure
+    if (param === "published" || param === "drafts") return "team"
+    if (param && (TAB_VALUES as readonly string[]).includes(param)) {
+      if (param === "credentials" && !canViewCredentials) return "team"
+      return param as TabValue
+    }
+    return "team"
+  }
+
+  const [tab, setTab] = useState<TabValue>(() =>
+    resolveTab(searchParams.get("tab"))
+  )
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [search, setSearch] = useState("")
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+
+  function handleTabChange(value: string) {
+    const next = resolveTab(value)
+    setTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === "team") params.delete("tab")
+    else params.set("tab", next)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
 
   const publishedArticles = useMemo(
     () => articles.filter((a) => a.status === "published"),
@@ -54,6 +106,11 @@ export function KnowledgeView({
   )
   const draftArticles = useMemo(
     () => articles.filter((a) => a.status === "draft"),
+    [articles]
+  )
+  const agentArticles = useMemo(
+    () =>
+      articles.filter((a) => a.audience === "client_safe" || a.agent_enabled),
     [articles]
   )
   const indexedArticles = useMemo(
@@ -84,20 +141,20 @@ export function KnowledgeView({
     )
   }
 
-  function filterArticles(list: KnowledgeArticle[]): KnowledgeArticle[] {
-    let filtered = list
+  function applySearch(list: KnowledgeArticle[]): KnowledgeArticle[] {
+    if (!search.trim()) return list
+    const q = search.toLowerCase()
+    return list.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.excerpt.toLowerCase().includes(q) ||
+        a.category?.name.toLowerCase().includes(q) ||
+        a.tags?.some((t) => t.name.toLowerCase().includes(q))
+    )
+  }
 
-    // Search filter
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      filtered = filtered.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) ||
-          a.excerpt.toLowerCase().includes(q) ||
-          a.category?.name.toLowerCase().includes(q) ||
-          a.tags?.some((t) => t.name.toLowerCase().includes(q))
-      )
-    }
+  function filterArticles(list: KnowledgeArticle[]): KnowledgeArticle[] {
+    let filtered = applySearch(list)
 
     // Tag filter
     if (selectedTagIds.length > 0) {
@@ -109,23 +166,45 @@ export function KnowledgeView({
     return filtered
   }
 
+  const teamArticles =
+    statusFilter === "published"
+      ? publishedArticles
+      : statusFilter === "draft"
+        ? draftArticles
+        : articles
+
+  const statusPills: Array<{ value: StatusFilter; label: string; count: number }> = [
+    { value: "all", label: "All", count: articles.length },
+    { value: "published", label: "Published", count: publishedArticles.length },
+    { value: "draft", label: "Drafts", count: draftArticles.length },
+  ]
+
   return (
-    <Tabs value={tab} onValueChange={setTab}>
+    <Tabs value={tab} onValueChange={handleTabChange}>
       <TabsList>
-        <TabsTrigger value="published" className="gap-1.5">
-          <CheckCircle className="size-4" />
-          Published
+        <TabsTrigger value="team" className="gap-1.5">
+          <BookOpen className="size-4" />
+          Team
           <span className="ml-1 text-xs text-muted-foreground">
-            ({publishedArticles.length})
+            ({articles.length})
           </span>
         </TabsTrigger>
-        <TabsTrigger value="drafts" className="gap-1.5">
-          <FileEdit className="size-4" />
-          Drafts
+        <TabsTrigger value="agent" className="gap-1.5">
+          <Bot className="size-4" />
+          Agent
           <span className="ml-1 text-xs text-muted-foreground">
-            ({draftArticles.length})
+            ({agentArticles.length})
           </span>
         </TabsTrigger>
+        {canViewCredentials && (
+          <TabsTrigger value="credentials" className="gap-1.5">
+            <KeyRound className="size-4" />
+            Credentials
+            <span className="ml-1 text-xs text-muted-foreground">
+              ({credentials.length})
+            </span>
+          </TabsTrigger>
+        )}
         <TabsTrigger value="insights" className="gap-1.5">
           <BarChart3 className="size-4" />
           Insights
@@ -139,8 +218,27 @@ export function KnowledgeView({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="published" className="mt-6 space-y-6">
-        <SearchBar value={search} onChange={setSearch} />
+      <TabsContent value="team" className="mt-6 space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-[200px]">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <div className="flex items-center gap-1">
+            {statusPills.map((pill) => (
+              <Button
+                key={pill.value}
+                variant={statusFilter === pill.value ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setStatusFilter(pill.value)}
+              >
+                {pill.label}
+                <span className="ml-1 text-xs text-muted-foreground">
+                  ({pill.count})
+                </span>
+              </Button>
+            ))}
+          </div>
+        </div>
         <TagFilterBar
           tags={tags}
           selectedTagIds={selectedTagIds}
@@ -153,19 +251,27 @@ export function KnowledgeView({
         <div>
           <h3 className="mb-4 text-lg font-semibold">Articles</h3>
           <ArticleList
-            articles={filterArticles(publishedArticles)}
-            emptyMessage="No published articles match your search"
+            articles={filterArticles(teamArticles)}
+            emptyMessage="No articles match your search"
           />
         </div>
       </TabsContent>
 
-      <TabsContent value="drafts" className="mt-6 space-y-6">
+      <TabsContent value="agent" className="mt-6 space-y-6">
         <SearchBar value={search} onChange={setSearch} />
-        <ArticleList
-          articles={filterArticles(draftArticles)}
-          emptyMessage="No drafts found"
-        />
+        <AgentPipelinePanel articles={applySearch(agentArticles)} />
       </TabsContent>
+
+      {canViewCredentials && (
+        <TabsContent value="credentials" className="mt-6">
+          <TeamCredentials
+            credentials={credentials}
+            canCreate={canManageCredentials.create}
+            canEdit={canManageCredentials.edit}
+            canDelete={canManageCredentials.delete}
+          />
+        </TabsContent>
+      )}
 
       <TabsContent value="insights" className="mt-6 flex flex-col gap-6">
         <div className="grid gap-4 md:grid-cols-3">

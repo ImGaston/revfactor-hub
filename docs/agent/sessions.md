@@ -1,5 +1,19 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-05 — Knowledge redesign: Team/Agent tabs and Team Credentials
+
+- Restructured the Knowledge root tabs into Team / Agent / Credentials / Insights / Agent Flows with `?tab=` URL sync (legacy `published|drafts` map to Team); Insights and Agent Flows content unchanged.
+- Team tab shows all articles with All/Published/Drafts status pills; new `agent-pipeline-panel.tsx` groups client-safe/agent-enabled articles by pipeline stage (failed → live → indexing → needs review → approved → drafting).
+- Added and applied migration 070: `team_credentials` table with permission-based RLS on a new `team_credentials` resource; `admin` granted view/create/edit (delete off), external roles explicitly denied. Verified live policies and seeds.
+- New `credentials-actions.ts` (in-code `hasPermission` checks + RLS backstop) and `team-credentials.tsx` (table with show/hide password, clipboard copy, form dialog, AlertDialog delete), copied from the client-credentials pattern.
+- Fold-ins: Knowledge `loading.tsx` skeleton, `nav-knowledge` command-registry entry, "Agent Indexed" stat card relabeled "Agent Live". `pnpm typecheck` passes.
+
+## 2026-08-04 — Removed unused Calendar and Notes sections
+
+- Deleted the `/calendar` and `/notes` stub routes and every UI reference: sidebar nav, command palette, top-bar breadcrumb labels, and the `calendar`/`notes` entries in `RESOURCES` (`lib/permissions.ts`).
+- Database tables (`calendar_events`, `notes`) and migration-012 permission seed rows were left in place as inert leftovers; see `decisions.md` 2026-08-04.
+- `pnpm typecheck` passes after clearing stale `.next` generated types.
+
 ## 2026-08-03 — Owner-specific gap rules and PriceLabs sync timing
 
 - Refined the one-night/gap-night Knowledge draft so minimum stays are explicitly owner-approved and listing-specific rather than a RevFactor-wide default.
