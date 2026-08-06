@@ -724,9 +724,26 @@ export type AdjustmentType =
   | "availability"
   | "review"
   | "recommendation"
+  | "visibility"
+  | "blocked_dates"
+  | "pricing_flexibility"
   | "other"
 
 export type AdjustmentOrigin = "client" | "internal" | "hostpricing"
+
+// Manually-entered metrics from HostPricing's consolidated report — free-form
+// strings ("2.1%", "1,240"), display-only, never queried. Labels/placeholders
+// live in ADJUSTMENT_SIGNAL_FIELDS (lib/adjustments.ts).
+export type AdjustmentSignalKey =
+  | "airbnb_impressions"
+  | "rankbreeze_avg_impressions_3m"
+  | "visibility_index"
+  | "conversion"
+  | "pace"
+  | "occupancy"
+  | "market_occupancy"
+
+export type AdjustmentSignals = Partial<Record<AdjustmentSignalKey, string>>
 
 export type AdjustmentStatus =
   | "open"
@@ -756,6 +773,8 @@ export type Adjustment = {
   origin: AdjustmentOrigin
   requested_by: string | null
   origin_message: string | null
+  signals: AdjustmentSignals
+  suggested_actions: string[]
   status: AdjustmentStatus
   resolver_id: string | null
   resolved_at: string | null

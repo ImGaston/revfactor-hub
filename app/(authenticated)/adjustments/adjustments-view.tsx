@@ -83,6 +83,7 @@ import {
   buildWhatsappUpdate,
   hasUnansweredExternalComment,
   isEscalated,
+  isPendingApproval,
   pricelabsUrl,
 } from "@/lib/adjustments"
 import {
@@ -148,21 +149,29 @@ export function AdjustmentsView({
       URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
       Number(isEscalated(b)) - Number(isEscalated(a)) ||
       a.created_at.localeCompare(b.created_at)
-    // The internal bottleneck: blocked on info from us, or the last word on
-    // the ticket came from outside. Rendered first so it can't be missed.
+    // The internal bottleneck: blocked on info from us, a HostPricing proposal
+    // awaiting approval, or the last word on the ticket came from outside.
+    // Rendered first so it can't be missed.
     const waitingOnUs = visible
       .filter(
         (a) =>
           a.status === "needs_info" ||
+          isPendingApproval(a) ||
           (a.status !== "controlled" &&
             a.status !== "rejected" &&
             hasUnansweredExternalComment(a.comment_stats))
       )
       .sort(byUrgencyThenAge)
-    // needs_info rows live only in "Waiting on us"; unanswered-comment rows
-    // stay in their status queue too — the flag is an overlay, not a status
+    // needs_info and pending-approval rows live only in "Waiting on us" (their
+    // sole next step is internal); unanswered-comment rows stay in their status
+    // queue too — the flag is an overlay, not a status
     const triage = visible
-      .filter((a) => OPEN_STATUSES.includes(a.status) && a.status !== "needs_info")
+      .filter(
+        (a) =>
+          OPEN_STATUSES.includes(a.status) &&
+          a.status !== "needs_info" &&
+          !isPendingApproval(a)
+      )
       .sort(byUrgencyThenAge)
     const awaitingControl = visible
       .filter((a) => a.status === "resolved")
@@ -244,7 +253,7 @@ export function AdjustmentsView({
       {waitingOnUs.length > 0 && (
         <QueueSection
           title="Waiting on us"
-          description="Blocked on the internal team — needs info or an unanswered external comment."
+          description="Blocked on the internal team — needs info, a HostPricing proposal to approve, or an unanswered external comment."
           adjustments={waitingOnUs}
           emptyLabel="Nothing waiting on us"
           canControl={canControl}

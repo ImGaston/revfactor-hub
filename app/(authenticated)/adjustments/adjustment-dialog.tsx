@@ -21,13 +21,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   ADJUSTMENT_ORIGINS,
-  ADJUSTMENT_TYPES,
+  ADJUSTMENT_SIGNAL_FIELDS,
+  ADJUSTMENT_SUGGESTED_ACTIONS,
   ADJUSTMENT_TYPE_CONFIG,
   ADJUSTMENT_URGENCIES,
   BOOKING_WINDOWS,
   adjustmentShareUrl,
+  adjustmentTypeOptions,
 } from "@/lib/adjustments"
 import type { Adjustment, AdjustmentType } from "@/lib/types"
 import { createAdjustment, getAdjustmentFormOptions, updateAdjustment } from "./actions"
@@ -71,6 +74,9 @@ export function AdjustmentDialog({
   const [urgency, setUrgency] = useState("medium")
   const [requestedBy, setRequestedBy] = useState("")
   const [originMessage, setOriginMessage] = useState("")
+  const [signals, setSignals] = useState<Record<string, string>>({})
+  const [suggestedActions, setSuggestedActions] = useState<string[]>([])
+  const [otherAction, setOtherAction] = useState("")
 
   const config = ADJUSTMENT_TYPE_CONFIG[adjustmentType as AdjustmentType] ?? null
   const isSetup = adjustmentType === "setup"
@@ -99,6 +105,12 @@ export function AdjustmentDialog({
     setUrgency(adjustment.urgency)
     setRequestedBy(adjustment.requested_by ?? "")
     setOriginMessage(adjustment.origin_message ?? "")
+    setSignals({ ...(adjustment.signals ?? {}) })
+    // Known slugs drive the checkboxes; free-text entries land in "Other"
+    const known = new Set<string>(ADJUSTMENT_SUGGESTED_ACTIONS.map((a) => a.value))
+    const stored = adjustment.suggested_actions ?? []
+    setSuggestedActions(stored.filter((a) => known.has(a)))
+    setOtherAction(stored.filter((a) => !known.has(a)).join(", "))
   }, [open, adjustment])
 
   const selectedClient = clients?.find((c) => c.id === clientId)
@@ -135,6 +147,9 @@ export function AdjustmentDialog({
     setUrgency("medium")
     setRequestedBy("")
     setOriginMessage("")
+    setSignals({})
+    setSuggestedActions([])
+    setOtherAction("")
   }
 
   async function handleSave() {
@@ -160,6 +175,14 @@ export function AdjustmentDialog({
     formData.set("urgency", urgency)
     formData.set("requested_by", requestedBy)
     formData.set("origin_message", originMessage)
+    formData.set("signals", JSON.stringify(signals))
+    formData.set(
+      "suggested_actions",
+      JSON.stringify([
+        ...suggestedActions,
+        ...(otherAction.trim() ? [otherAction.trim()] : []),
+      ])
+    )
 
     if (adjustment) {
       const result = await updateAdjustment(adjustment.id, formData)
@@ -279,7 +302,7 @@ export function AdjustmentDialog({
                   <SelectValue placeholder="What changes?" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ADJUSTMENT_TYPES.map((t) => (
+                  {adjustmentTypeOptions(lockOriginToHostpricing, adjustment?.type).map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
@@ -356,6 +379,66 @@ export function AdjustmentDialog({
                   onChange={(e) => setDateTo(e.target.value)}
                 />
               </div>
+            </div>
+          )}
+
+          {config?.showsSignals && (
+            <div className="grid gap-2 rounded-md border bg-muted/30 p-3">
+              <p className="text-sm font-medium">
+                Report signals{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {ADJUSTMENT_SIGNAL_FIELDS.map((field) => (
+                  <div key={field.key} className="grid gap-1">
+                    <Label className="text-xs font-normal text-muted-foreground">
+                      {field.label}
+                    </Label>
+                    <Input
+                      className="h-8"
+                      value={signals[field.key] ?? ""}
+                      onChange={(e) =>
+                        setSignals((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      placeholder={field.placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {config?.showsSuggestions && (
+            <div className="grid gap-2">
+              <Label>
+                Suggested actions{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+              </Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {ADJUSTMENT_SUGGESTED_ACTIONS.map((action) => (
+                  <label
+                    key={action.value}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={suggestedActions.includes(action.value)}
+                      onCheckedChange={(checked) =>
+                        setSuggestedActions((prev) =>
+                          checked
+                            ? [...prev, action.value]
+                            : prev.filter((a) => a !== action.value)
+                        )
+                      }
+                    />
+                    {action.label}
+                  </label>
+                ))}
+              </div>
+              <Input
+                value={otherAction}
+                onChange={(e) => setOtherAction(e.target.value)}
+                placeholder="Other suggestion…"
+              />
             </div>
           )}
 

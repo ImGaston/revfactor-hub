@@ -35,8 +35,20 @@ async function commentOriginForUser(
   return data?.role === "hostpricing" ? "hostpricing" : "internal"
 }
 
+// Signals/suggested actions ride as JSON strings in the form data
+function safeParseJson(raw: FormDataEntryValue | null): unknown {
+  if (typeof raw !== "string" || !raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 // Conditional per-type validation + hidden-field clearing lives in the shared normalizer
 function parseAdjustmentForm(formData: FormData) {
+  const signals = safeParseJson(formData.get("signals"))
+  const suggestedActions = safeParseJson(formData.get("suggested_actions"))
   return validateAdjustmentInput({
     scope: formData.get("scope") as string,
     clientId: formData.get("client_id") as string,
@@ -47,6 +59,11 @@ function parseAdjustmentForm(formData: FormData) {
     dateTo: (formData.get("date_to") as string) || null,
     bookingWindow: (formData.get("booking_window") as string) || null,
     origin: (formData.get("origin") as string) || "internal",
+    signals:
+      signals && typeof signals === "object" && !Array.isArray(signals)
+        ? (signals as Record<string, string>)
+        : {},
+    suggestedActions: Array.isArray(suggestedActions) ? suggestedActions : [],
   })
 }
 
@@ -136,7 +153,7 @@ export async function duplicateAdjustment(adjustmentId: string) {
   const { data: source, error: fetchError } = await supabase
     .from("adjustments")
     .select(
-      "scope, client_id, listing_id, type, target_value, date_from, date_to, booking_window, urgency, origin, requested_by, origin_message"
+      "scope, client_id, listing_id, type, target_value, date_from, date_to, booking_window, urgency, origin, requested_by, origin_message, signals, suggested_actions"
     )
     .eq("id", adjustmentId)
     .single()

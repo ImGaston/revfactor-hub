@@ -1,5 +1,17 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-06 — Adjustments Is the HostPricing Ticket Channel (071)
+
+Underperforming-listing reviews from Host Pricing's consolidated report (pace, Airbnb impressions, Rankbreeze, visibility index, conversion, occupancy vs market) move from Google Sheets/email into Adjustments as structured tickets. Design choices, building on the 2026-07-16 decisions rather than adding machinery:
+
+- **Pending approval is derived, never stored.** `isPendingApproval()` = origin `hostpricing` + status `open`; those rows join "Waiting on us" and are excluded from Triage (their only next step is an internal approve/deny). No `assignee` column — extends the computed-not-stored rule.
+- **Three new types, not four**: `visibility`, `blocked_dates`, `pricing_flexibility`. "Low performance" was not added — `review` already is that ticket and now also shows signals/suggestions. `blocked_dates` gets **no new column**: the range is `date_from`/`date_to` (from required), context goes in `target_value`/`origin_message`.
+- **`signals` is one JSONB column of free-form strings** ("2.1%", "1,240 (30d)"), manually entered, app-validated to known keys (`ADJUSTMENT_SIGNAL_FIELDS`), display-only and never queried — discrete columns would buy nothing (precedent: `leads.attribution_extra`). `suggested_actions` is TEXT[] of known slugs (`top15_discount`, `mobile_discount`, `flexible_cancellation`) + free text verbatim.
+- **Both new fields are excluded from the public `/a/<token>` shell** (client-performance data, same class as `origin_message`). They render on the internal detail and the authed card via the shared `components/adjustments/adjustment-signals.tsx`.
+- **`setup` is hidden from hostpricing creators UI-side only** (`INTERNAL_ONLY_TYPES`/`adjustmentTypeOptions`); the server accepts any valid type — 2–3 trusted users, not a security boundary.
+- **The response channel back to Host Pricing stays WhatsApp-manual**: a per-note "Copy for WhatsApp" action (`buildWhatsappCommentUpdate`, `💬 <summary>\n<note>`) on top-level internal notes only. No email/push infra.
+- **Operational, no code**: Host Pricing accounts switch from `contractor` to the existing `hostpricing` role (045) in Settings → Users to gain `adjustments:create`; delete/control stay explicitly FALSE, so the two-step closure remains internal.
+
 ## 2026-08-05 — Knowledge Tabs Split Into Team vs Agent; Team Credentials Live in Knowledge
 
 The old Published/Drafts tabs hid the distinction the team actually cares about: internal knowledge vs the agent pipeline, which is column-based (`audience`, `review_status`, `agent_enabled`, `agent_index_status`) rather than a separate article type. The root Knowledge page now has Team (all articles + status pills), Agent (pipeline stages), Credentials, Insights (unchanged), and Agent Flows (unchanged), synced to `?tab=` with legacy values mapped. No schema change to articles — an approved article intentionally appears in both Team and Agent. Shared team app credentials get their own `team_credentials` table and permission resource instead of inheriting `knowledge` permissions, so access can be restricted (external roles are explicitly denied) without restricting Knowledge itself. The UI is a parallel component copied from `client-credentials.tsx` rather than a generalization — the client version is tightly coupled to `clientId` and churn there had no user-facing gain. Passwords are stored plaintext, accepting parity with the existing `client_credentials` precedent.

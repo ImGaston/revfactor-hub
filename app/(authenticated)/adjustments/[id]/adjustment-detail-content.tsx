@@ -13,6 +13,7 @@ import { AdjustmentDetail } from "./adjustment-detail"
 const DETAIL_SELECT = `
   id, public_token, scope, client_id, listing_id, type, target_value,
   date_from, date_to, booking_window, urgency, origin, requested_by, origin_message,
+  signals, suggested_actions,
   status, resolver_id, resolved_at, reviewer_id, controlled_at, created_by,
   created_at, updated_at,
   clients:clients_basic(id, name),

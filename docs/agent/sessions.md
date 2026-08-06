@@ -1,5 +1,14 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-06 — Adjustments as the bidirectional HostPricing ticket channel
+
+- Applied migration 071: type CHECK widened to 16 values (+`visibility`, `blocked_dates`, `pricing_flexibility`), new `adjustments.signals` JSONB (report metrics as free-form strings) and `suggested_actions` TEXT[] (slugs + free text). No RLS changes.
+- `lib/adjustments.ts`: `ADJUSTMENT_TYPE_CONFIG` gained `showsSignals`/`showsSuggestions` (also enabled on `review`), `ADJUSTMENT_SIGNAL_FIELDS` (7 metrics), `ADJUSTMENT_SUGGESTED_ACTIONS`, `adjustmentTypeOptions()` (hides `setup` from hostpricing creators, UI-only), `isPendingApproval()` (derived: hostpricing + open), `buildWhatsappCommentUpdate()`. `validateAdjustmentInput` normalizes both new fields.
+- Queue: pending HostPricing proposals join "Waiting on us" and leave Triage (exclusive, like `needs_info`). Dialog: signals grid + suggestion checkboxes/free-text for review types, serialized as JSON form fields. Shared render: `components/adjustments/adjustment-signals.tsx` (internal detail + authed `/a` card; excluded from the public shell projection). Per-note "Copy for WhatsApp" (`Send` icon) on top-level internal notes via a new optional `onCopyForWhatsapp` prop on `CommentActionBar`.
+- Edit-wipe guard: added `signals, suggested_actions` to `ADJUSTMENT_SELECT` (list), `DETAIL_SELECT` (detail — it is an explicit projection, not `select("*")`), and the `duplicateAdjustment` source select.
+- Verified end-to-end against the live DB: created a visibility ticket with signals/suggestions (normalization confirmed in SQL), edit round-trip preserved both fields, unauthenticated `/a/<token>` HTML contains none of the values, then deleted the test ticket. `pnpm typecheck` passes.
+- Pending operational step (no code): switch Host Pricing accounts from `contractor` to the `hostpricing` role in Settings → Users so they can create tickets.
+
 ## 2026-08-05 — Knowledge redesign: Team/Agent tabs and Team Credentials
 
 - Restructured the Knowledge root tabs into Team / Agent / Credentials / Insights / Agent Flows with `?tab=` URL sync (legacy `published|drafts` map to Team); Insights and Agent Flows content unchanged.
