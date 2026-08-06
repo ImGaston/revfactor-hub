@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-06 — Roles & Permissions fix: broken checkboxes and stale grid
+
+- Root cause of "checkboxes don't save": `togglePermission`/`bulkToggleResource` used `update`, which no-ops on missing rows. Roles created before newer resources/actions existed had gaps (`admin` 63/84 rows, `hostpricing` and `marketing` 10/84).
+- Migration 072 (applied to prod): backfilled every role × resource × action row (super_admin `allowed=true`, others `false`) and deleted stale `calendar`/`notes` rows. All 5 roles now have 84 rows.
+- Server actions now `upsert` on `(role_name, resource, action)` and validate resource/action against the canonical lists.
+- `roles-manager.tsx` redesign: grid template was hardcoded for 4 actions while `ACTIONS` has 6 — `publish`/`control` columns rendered unlabeled and misaligned. Added labels/colors for both, a shared 6+All column template with horizontal scroll on narrow widths, optimistic checkbox state (instant flip, revert + toast on error), and counts derived from `RESOURCES × ACTIONS` instead of raw DB rows.
+
 ## 2026-08-06 — Adjustments as the bidirectional HostPricing ticket channel
 
 - Applied migration 071: type CHECK widened to 16 values (+`visibility`, `blocked_dates`, `pricing_flexibility`), new `adjustments.signals` JSONB (report metrics as free-form strings) and `suggested_actions` TEXT[] (slugs + free text). No RLS changes.

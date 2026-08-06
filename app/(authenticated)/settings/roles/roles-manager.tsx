@@ -106,6 +106,8 @@ const ACTION_LABELS: Record<string, string> = {
   create: "Create",
   edit: "Edit",
   delete: "Delete",
+  publish: "Publish",
+  control: "Control",
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -113,7 +115,12 @@ const ACTION_COLORS: Record<string, string> = {
   create: "text-green-600 dark:text-green-400",
   edit: "text-amber-600 dark:text-amber-400",
   delete: "text-red-600 dark:text-red-400",
+  publish: "text-purple-600 dark:text-purple-400",
+  control: "text-teal-600 dark:text-teal-400",
 }
+
+// Resource column + one column per action + the "All" column
+const GRID_COLS = "grid-cols-[minmax(160px,1fr)_repeat(6,52px)_44px]"
 
 // ─── Create Role Dialog ─────────────────────────────────────
 
@@ -199,11 +206,19 @@ function RoleCard({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
   const [descValue, setDescValue] = useState(role.description ?? "")
+  // Optimistic checkbox state: overrides win over server data until refresh
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({})
   const router = useRouter()
 
   const isSuperAdmin = role.name === "super_admin"
   const permMap = buildPermissionMap(role.permissions)
   const roleUsers = users.filter((u) => u.role === role.name)
+
+  function isAllowed(resource: string, action: string) {
+    if (isSuperAdmin) return true
+    const key = `${resource}:${action}`
+    return overrides[key] ?? permMap[key] ?? false
+  }
 
   function toggleResource(resource: string) {
     setExpandedResources((prev) => {
@@ -216,10 +231,14 @@ function RoleCard({
 
   async function handleToggle(resource: string, action: string, allowed: boolean) {
     const key = `${resource}:${action}`
-    setLoading(key)
+    setOverrides((prev) => ({ ...prev, [key]: allowed }))
     const result = await togglePermission(role.name, resource, action, allowed)
-    setLoading(null)
     if (result.error) {
+      setOverrides((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
       toast.error(result.error)
     } else {
       router.refresh()
@@ -227,15 +246,21 @@ function RoleCard({
   }
 
   async function handleBulkToggle(resource: string, allowed: boolean) {
-    setLoading(`bulk:${resource}`)
+    const keys = ACTIONS.map((action) => `${resource}:${action}`)
+    setOverrides((prev) => {
+      const next = { ...prev }
+      for (const key of keys) next[key] = allowed
+      return next
+    })
     const result = await bulkToggleResource(role.name, resource, allowed)
-    setLoading(null)
     if (result.error) {
+      setOverrides((prev) => {
+        const next = { ...prev }
+        for (const key of keys) delete next[key]
+        return next
+      })
       toast.error(result.error)
     } else {
-      toast.success(
-        `${allowed ? "Enabled" : "Disabled"} all permissions for ${resource}`
-      )
       router.refresh()
     }
   }
@@ -273,14 +298,17 @@ function RoleCard({
     }
   }
 
-  // Count enabled permissions
-  const enabledCount = role.permissions.filter((p) => p.allowed).length
-  const totalCount = role.permissions.length
+  // Count from the canonical RESOURCES × ACTIONS grid (not raw DB rows) so
+  // totals stay correct even if the table has gaps or stale resources
+  const totalCount = RESOURCES.length * ACTIONS.length
+  const enabledCount = RESOURCES.reduce(
+    (acc, r) => acc + ACTIONS.filter((a) => isAllowed(r.key, a)).length,
+    0
+  )
 
   function getResourcePermCount(resource: string) {
-    const perms = role.permissions.filter((p) => p.resource === resource)
-    const enabled = perms.filter((p) => p.allowed).length
-    return { enabled, total: perms.length }
+    const enabled = ACTIONS.filter((a) => isAllowed(resource, a)).length
+    return { enabled, total: ACTIONS.length }
   }
 
   return (
@@ -457,69 +485,68 @@ function RoleCard({
               Super Admin has full access to all resources and actions. Permissions cannot be modified.
             </div>
           ) : (
-            <div className="space-y-0.5">
-              {/* Header row */}
-              <div className="grid grid-cols-[1fr_repeat(4,60px)_40px] items-center gap-1 px-3 py-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Resource
-                </span>
-                {ACTIONS.map((action) => (
-                  <span
-                    key={action}
-                    className={cn(
-                      "text-[10px] font-medium text-center uppercase tracking-wider",
-                      ACTION_COLORS[action]
-                    )}
-                  >
-                    {ACTION_LABELS[action]}
+            <div className="overflow-x-auto">
+              <div className="min-w-[620px] space-y-0.5">
+                {/* Header row */}
+                <div className={cn("grid items-center gap-1 px-3 py-1.5", GRID_COLS)}>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Resource
                   </span>
-                ))}
-                <span className="text-[10px] font-medium text-center text-muted-foreground uppercase tracking-wider">
-                  All
-                </span>
-              </div>
-
-              {RESOURCES.map((resource) => {
-                const { enabled, total } = getResourcePermCount(resource.key)
-                const allEnabled = enabled === total
-                const isExpanded = expandedResources.has(resource.key)
-
-                return (
-                  <Collapsible
-                    key={resource.key}
-                    open={isExpanded}
-                    onOpenChange={() => toggleResource(resource.key)}
-                  >
-                    <div
+                  {ACTIONS.map((action) => (
+                    <span
+                      key={action}
                       className={cn(
-                        "grid grid-cols-[1fr_repeat(4,60px)_40px] items-center gap-1 rounded-md px-3 py-2 transition-colors",
-                        "hover:bg-muted/50"
+                        "text-[9px] font-medium text-center uppercase tracking-wide",
+                        ACTION_COLORS[action]
                       )}
                     >
-                      <CollapsibleTrigger asChild>
-                        <button className="flex items-center gap-2 text-sm font-medium text-left">
-                          {isExpanded ? (
-                            <ChevronDown className="size-3.5 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="size-3.5 text-muted-foreground" />
-                          )}
-                          {resource.label}
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] tabular-nums ml-1"
-                          >
-                            {enabled}/{total}
-                          </Badge>
-                        </button>
-                      </CollapsibleTrigger>
+                      {ACTION_LABELS[action]}
+                    </span>
+                  ))}
+                  <span className="text-[9px] font-medium text-center text-muted-foreground uppercase tracking-wide">
+                    All
+                  </span>
+                </div>
 
-                      {ACTIONS.map((action) => {
-                        const key = `${resource.key}:${action}`
-                        const allowed = permMap[key] ?? false
-                        return (
+                {RESOURCES.map((resource) => {
+                  const { enabled, total } = getResourcePermCount(resource.key)
+                  const allEnabled = enabled === total
+                  const isExpanded = expandedResources.has(resource.key)
+
+                  return (
+                    <Collapsible
+                      key={resource.key}
+                      open={isExpanded}
+                      onOpenChange={() => toggleResource(resource.key)}
+                    >
+                      <div
+                        className={cn(
+                          "grid items-center gap-1 rounded-md px-3 py-2 transition-colors",
+                          GRID_COLS,
+                          "hover:bg-muted/50"
+                        )}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <button className="flex items-center gap-2 text-sm font-medium text-left">
+                            {isExpanded ? (
+                              <ChevronDown className="size-3.5 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="size-3.5 text-muted-foreground" />
+                            )}
+                            {resource.label}
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] tabular-nums ml-1"
+                            >
+                              {enabled}/{total}
+                            </Badge>
+                          </button>
+                        </CollapsibleTrigger>
+
+                        {ACTIONS.map((action) => (
                           <div key={action} className="flex justify-center">
                             <Checkbox
-                              checked={allowed}
+                              checked={isAllowed(resource.key, action)}
                               onCheckedChange={(checked) =>
                                 handleToggle(
                                   resource.key,
@@ -527,35 +554,33 @@ function RoleCard({
                                   checked === true
                                 )
                               }
-                              disabled={loading === key}
                               aria-label={`${resource.label} ${action}`}
                             />
                           </div>
-                        )
-                      })}
+                        ))}
 
-                      <div className="flex justify-center">
-                        <Checkbox
-                          checked={allEnabled}
-                          onCheckedChange={(checked) =>
-                            handleBulkToggle(resource.key, checked === true)
-                          }
-                          disabled={loading === `bulk:${resource.key}`}
-                          aria-label={`Toggle all ${resource.label}`}
-                        />
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={allEnabled}
+                            onCheckedChange={(checked) =>
+                              handleBulkToggle(resource.key, checked === true)
+                            }
+                            aria-label={`Toggle all ${resource.label}`}
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <CollapsibleContent>
-                      <div className="pl-10 pr-3 pb-2">
-                        <p className="text-xs text-muted-foreground">
-                          {resource.description}
-                        </p>
-                      </div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                )
-              })}
+                      <CollapsibleContent>
+                        <div className="pl-10 pr-3 pb-2">
+                          <p className="text-xs text-muted-foreground">
+                            {resource.description}
+                          </p>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>

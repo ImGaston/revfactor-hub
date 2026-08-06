@@ -116,6 +116,13 @@ export async function deleteRole(roleName: string) {
   return { error: null }
 }
 
+function isValidPermission(resource: string, action: string) {
+  return (
+    RESOURCES.some((r) => r.key === resource) &&
+    (ACTIONS as readonly string[]).includes(action)
+  )
+}
+
 export async function togglePermission(
   roleName: string,
   resource: string,
@@ -127,15 +134,18 @@ export async function togglePermission(
 
   // Can't modify super_admin permissions
   if (roleName === "super_admin") return { error: "Cannot modify super_admin permissions" }
+  if (!isValidPermission(resource, action)) return { error: "Invalid resource or action" }
 
   const admin = createAdminClient()
 
+  // Upsert so missing rows (roles created before a resource/action existed)
+  // are created instead of silently no-oping
   const { error } = await admin
     .from("role_permissions")
-    .update({ allowed })
-    .eq("role_name", roleName)
-    .eq("resource", resource)
-    .eq("action", action)
+    .upsert(
+      { role_name: roleName, resource, action, allowed },
+      { onConflict: "role_name,resource,action" }
+    )
 
   if (error) return { error: error.message }
 
@@ -152,14 +162,16 @@ export async function bulkToggleResource(
   if (authError) return { error: authError }
 
   if (roleName === "super_admin") return { error: "Cannot modify super_admin permissions" }
+  if (!RESOURCES.some((r) => r.key === resource)) return { error: "Invalid resource" }
 
   const admin = createAdminClient()
 
   const { error } = await admin
     .from("role_permissions")
-    .update({ allowed })
-    .eq("role_name", roleName)
-    .eq("resource", resource)
+    .upsert(
+      ACTIONS.map((action) => ({ role_name: roleName, resource, action, allowed })),
+      { onConflict: "role_name,resource,action" }
+    )
 
   if (error) return { error: error.message }
 
