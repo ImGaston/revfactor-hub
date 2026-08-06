@@ -29,7 +29,7 @@ export default async function ListingPage({
        pl_mpi_next_30, pl_mpi_next_60, pl_last_booked_date,
        pl_wknd_occupancy_next_30, pl_market_wknd_occupancy_next_30,
        pl_push_enabled, pl_last_refreshed_at, pl_synced_at,
-       clients(id, name, status)`
+       clients:clients_basic(id, name, status)`
       )
       .eq("id", id)
       .single(),

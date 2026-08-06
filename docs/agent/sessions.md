@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-06 — Minimal hostpricing role scope
+
+- hostpricing now has only `adjustments` view/create/edit + `listings:view`; revoked `clients:view` and `reservations:view` directly in prod (`role_permissions` is UI-managed data, no migration). Sidebar shows just Adjustments and Listings for them.
+- `getAdjustmentFormOptions` (create-dialog client/listing picker) no longer queries `clients` — it reads `clients_basic` + `listings` flat and groups in JS, so roles without `clients:view` can still pick a client.
+- Listings list/detail/export embeds switched from `clients(...)` to `clients:clients_basic(...)` (same `id, name, status` fields) so client names render without `clients:view`. Verified PostgREST resolves the view relationship and `clients_basic` is granted to `authenticated`.
+
 ## 2026-08-06 — Roles & Permissions fix: broken checkboxes and stale grid
 
 - Root cause of "checkboxes don't save": `togglePermission`/`bulkToggleResource` used `update`, which no-ops on missing rows. Roles created before newer resources/actions existed had gaps (`admin` 63/84 rows, `hostpricing` and `marketing` 10/84).

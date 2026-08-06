@@ -464,22 +464,34 @@ export async function deleteAdjustmentComment(commentId: string) {
   return { success: true }
 }
 
-// Lazy lookup data for the create dialog (fetched when the dialog opens)
+// Lazy lookup data for the create dialog (fetched when the dialog opens).
+// Uses clients_basic (not clients) so roles without clients:view — e.g.
+// hostpricing — can still pick a client; listings SELECT already allows
+// adjustments:view.
 export async function getAdjustmentFormOptions() {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("clients")
-    .select("id, name, listings(id, name, status)")
-    .order("name")
+  const [{ data: clientRows, error }, { data: listingRows }] = await Promise.all([
+    supabase.from("clients_basic").select("id, name").order("name"),
+    supabase
+      .from("listings")
+      .select("id, name, status, client_id")
+      .neq("status", "inactive")
+      .order("name"),
+  ])
 
   if (error) return { error: error.message, clients: [] }
 
-  const clients = (data ?? []).map((client) => ({
+  const listingsByClient = new Map<string, { id: string; name: string }[]>()
+  for (const l of listingRows ?? []) {
+    const list = listingsByClient.get(l.client_id) ?? []
+    list.push({ id: l.id, name: l.name })
+    listingsByClient.set(l.client_id, list)
+  }
+
+  const clients = (clientRows ?? []).map((client) => ({
     id: client.id,
     name: client.name,
-    listings: (client.listings ?? [])
-      .filter((l) => l.status !== "inactive")
-      .map((l) => ({ id: l.id, name: l.name })),
+    listings: listingsByClient.get(client.id) ?? [],
   }))
 
   return { clients }

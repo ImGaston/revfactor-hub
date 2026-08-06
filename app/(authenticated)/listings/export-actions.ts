@@ -42,7 +42,7 @@ export async function getListingsExportData(
     .from("listings")
     .select(
       `id, name, listing_id, pricelabs_link, airbnb_link, city, state, status,
-       clients(name, status),
+       clients:clients_basic(name, status),
        pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price,
        pl_cleaning_fees, pl_no_of_bedrooms,
        pl_occupancy_next_7, pl_market_occupancy_next_7,
