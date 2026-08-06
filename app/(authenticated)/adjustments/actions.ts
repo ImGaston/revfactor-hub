@@ -470,16 +470,20 @@ export async function deleteAdjustmentComment(commentId: string) {
 // adjustments:view.
 export async function getAdjustmentFormOptions() {
   const supabase = await createClient()
-  const [{ data: clientRows, error }, { data: listingRows }] = await Promise.all([
-    supabase.from("clients_basic").select("id, name").order("name"),
-    supabase
-      .from("listings")
-      .select("id, name, status, client_id")
-      .neq("status", "inactive")
-      .order("name"),
-  ])
+  const [{ data: clientRows, error }, { data: listingRows }, { data: typeSettings }] =
+    await Promise.all([
+      supabase.from("clients_basic").select("id, name").order("name"),
+      supabase
+        .from("listings")
+        .select("id, name, status, client_id")
+        .neq("status", "inactive")
+        .order("name"),
+      supabase
+        .from("adjustment_type_settings")
+        .select("type, internal_enabled, hostpricing_enabled"),
+    ])
 
-  if (error) return { error: error.message, clients: [] }
+  if (error) return { error: error.message, clients: [], typeSettings: [] }
 
   const listingsByClient = new Map<string, { id: string; name: string }[]>()
   for (const l of listingRows ?? []) {
@@ -494,5 +498,5 @@ export async function getAdjustmentFormOptions() {
     listings: listingsByClient.get(client.id) ?? [],
   }))
 
-  return { clients }
+  return { clients, typeSettings: typeSettings ?? [] }
 }

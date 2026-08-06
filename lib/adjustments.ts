@@ -30,15 +30,35 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
 ]
 
 // Internal-ops types HostPricing users don't file (onboarding lives with the
-// internal team). UI-level filter only — the server accepts any valid type.
+// internal team). Fallback for when adjustment_type_settings hasn't loaded —
+// the DB table (Settings > Adjustment Types) is the managed source of truth.
+// UI-level filter only — the server accepts any valid type.
 export const INTERNAL_ONLY_TYPES: AdjustmentType[] = ["setup"]
 
-// `currentType` keeps the edit-mode Select from rendering blank if an
-// internal-only type ends up on a hostpricing-editable ticket
+// Row shape of adjustment_type_settings (migration 073)
+export type AdjustmentTypeSetting = {
+  type: string
+  internal_enabled: boolean
+  hostpricing_enabled: boolean
+}
+
+// `currentType` keeps the edit-mode Select from rendering blank if a
+// now-hidden type ends up on an editable ticket. Types without a settings
+// row default to visible for both groups (matches the table's defaults).
 export function adjustmentTypeOptions(
   isHostpricing: boolean,
-  currentType?: string
+  currentType?: string,
+  settings?: AdjustmentTypeSetting[] | null
 ): { value: AdjustmentType; label: string }[] {
+  if (settings && settings.length > 0) {
+    const byType = new Map(settings.map((s) => [s.type, s]))
+    return ADJUSTMENT_TYPES.filter((t) => {
+      if (t.value === currentType) return true
+      const row = byType.get(t.value)
+      if (!row) return true
+      return isHostpricing ? row.hostpricing_enabled : row.internal_enabled
+    })
+  }
   if (!isHostpricing) return ADJUSTMENT_TYPES
   return ADJUSTMENT_TYPES.filter(
     (t) => !INTERNAL_ONLY_TYPES.includes(t.value) || t.value === currentType

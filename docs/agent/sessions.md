@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-06 — Managed adjustment-type visibility per creator group
+
+- Migration 073 (applied to prod): `adjustment_type_settings` with `internal_enabled`/`hostpricing_enabled` per type, seeded from the old hardcoded rule (everything on; `setup` off for HostPricing). SELECT via `adjustments:view` OR `settings:edit`, writes via `settings:edit`.
+- New Settings → Adjustment Types tab (`settings:edit`): two-column checkbox grid (RevFactor / HostPricing) with optimistic toggles and a "Hidden for everyone" warning badge when both are off.
+- `adjustmentTypeOptions()` now takes the fetched settings (via `getAdjustmentFormOptions`, which the dialog already lazy-loads) and filters by creator group (`lockOriginToHostpricing`); falls back to `INTERNAL_ONLY_TYPES` when unloaded. Edit mode keeps the current type selectable; server still accepts any valid type.
+
 ## 2026-08-06 — Minimal hostpricing role scope
 
 - hostpricing now has only `adjustments` view/create/edit + `listings:view`; revoked `clients:view` and `reservations:view` directly in prod (`role_permissions` is UI-managed data, no migration). Sidebar shows just Adjustments and Listings for them.

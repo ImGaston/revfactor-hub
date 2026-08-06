@@ -18,6 +18,7 @@ const allTabs: Tab[] = [
   { label: "Clients", href: "/settings/clients", permission: "clients:edit" },
   { label: "Listings", href: "/settings/listings", permission: "listings:edit" },
   { label: "Boards & Tags", href: "/settings/boards-tags", permission: "settings:edit" },
+  { label: "Adjustment Types", href: "/settings/adjustment-types", permission: "settings:edit" },
   { label: "Onboarding", href: "/settings/onboarding", permission: "onboarding:edit" },
 ]
 

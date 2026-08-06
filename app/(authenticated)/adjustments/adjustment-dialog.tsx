@@ -31,6 +31,7 @@ import {
   BOOKING_WINDOWS,
   adjustmentShareUrl,
   adjustmentTypeOptions,
+  type AdjustmentTypeSetting,
 } from "@/lib/adjustments"
 import type { Adjustment, AdjustmentType } from "@/lib/types"
 import { createAdjustment, getAdjustmentFormOptions, updateAdjustment } from "./actions"
@@ -59,6 +60,7 @@ export function AdjustmentDialog({
   lockOriginToHostpricing?: boolean
 }) {
   const [clients, setClients] = useState<ClientOption[] | null>(null)
+  const [typeSettings, setTypeSettings] = useState<AdjustmentTypeSetting[] | null>(null)
   const [saving, setSaving] = useState(false)
 
   const defaultOrigin = lockOriginToHostpricing ? "hostpricing" : "internal"
@@ -86,6 +88,7 @@ export function AdjustmentDialog({
       getAdjustmentFormOptions().then((result) => {
         if ("error" in result && result.error) toast.error(result.error)
         setClients(result.clients)
+        setTypeSettings(result.typeSettings ?? null)
       })
     }
   }, [open, clients])
@@ -302,7 +305,7 @@ export function AdjustmentDialog({
                   <SelectValue placeholder="What changes?" />
                 </SelectTrigger>
                 <SelectContent>
-                  {adjustmentTypeOptions(lockOriginToHostpricing, adjustment?.type).map((t) => (
+                  {adjustmentTypeOptions(lockOriginToHostpricing, adjustment?.type, typeSettings).map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>
