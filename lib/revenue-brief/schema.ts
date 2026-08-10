@@ -58,7 +58,7 @@ export const RevenueBriefSchema = z.object({
   strengths: conciseText("Strengths", 420),
   visibleConstraints: conciseText("Visible constraints", 320),
   executiveSummary: conciseText("Executive summary", 520),
-  bottomLine: conciseText("Bottom line", 420),
+  bottomLine: conciseText("Revenue opportunity", 420),
   ownerTakeaway: conciseText("Owner takeaway", 520),
   demandDrivers: z.array(DemandDriverSchema).min(1).max(6),
   distanceNote: conciseText("Distance note", 240),
@@ -176,7 +176,7 @@ export function createBlankRevenueBrief(): RevenueBriefInput {
     executiveSummary:
       "This listing is already a strong product. The opportunity is to make the pricing calendar more precise across its most important demand windows.",
     bottomLine:
-      "This appears to be a strong RevFactor fit if the current calendar is not already protecting the listing's highest-value dates and booking windows.",
+      "The clearest revenue opportunity is to protect high-value dates and booking windows while using targeted pricing and stay controls to convert softer demand.",
     ownerTakeaway:
       "RevFactor's role is to make the calendar more strategic: protect high-demand dates, avoid underpricing far-out stays, and fill softer gaps without weakening premium nights.",
     demandDrivers: [{ name: "", distance: "", why: "" }],
@@ -216,7 +216,7 @@ export const SYNTHETIC_REVENUE_BRIEF: RevenueBriefInput = {
   executiveSummary:
     "Harbor House is already a high-converting group property. The clearest opportunity is more precise calendar control across sailing events, university weekends, weddings, and peak summer leisure demand.",
   bottomLine:
-    "Harbor House appears to be a strong RevFactor fit if the current calendar is not already protecting peak summer, sailing-event, wedding, and university demand.",
+    "Harbor House's clearest revenue opportunity is stronger calendar control across peak summer, sailing events, weddings, and university weekends. The goal is to protect premium dates while filling softer gaps deliberately.",
   ownerTakeaway:
     "You already have a well-reviewed home that converts. RevFactor's role is to make the calendar more strategic: protect high-demand dates, avoid underpricing far-out stays, and fill softer gaps without weakening premium weekends.",
   demandDrivers: [

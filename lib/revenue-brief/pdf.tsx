@@ -449,7 +449,7 @@ function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
           ))}
         </View>
         <View style={styles.callout}>
-          <Text style={styles.calloutTitle}>Bottom line</Text>
+          <Text style={styles.calloutTitle}>Revenue opportunity</Text>
           <Text style={styles.calloutBody}>{input.bottomLine}</Text>
         </View>
         <Table

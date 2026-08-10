@@ -480,7 +480,7 @@ export function RevenueBriefBuilder() {
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="bottom-line">Bottom line</FieldLabel>
+                    <FieldLabel htmlFor="bottom-line">Revenue opportunity</FieldLabel>
                     <Textarea
                       id="bottom-line"
                       value={brief.bottomLine}
@@ -488,6 +488,9 @@ export function RevenueBriefBuilder() {
                       maxLength={420}
                       rows={3}
                     />
+                    <FieldDescription>
+                      State the actionable upside directly. Avoid conditional fit language or an unsupported forecast.
+                    </FieldDescription>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="owner-takeaway">What this means for the listing</FieldLabel>
