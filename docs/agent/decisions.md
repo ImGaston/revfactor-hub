@@ -4,6 +4,12 @@
 
 The `/roadmap` workspace now presents Projects first and a project-filterable Task board second. Existing `posts` remain the task records so comments, upvotes, tags, categories, ordering, and dates survive; a new required `roadmap_projects` parent provides the missing planning hierarchy. Migration 074 creates a stable General project and gives `posts.project_id` a non-null General default, avoiding orphan tasks and keeping legacy writers safe during deployment. The old `posts.eta` storage name is retained for backward compatibility but is presented as Deadline throughout the UI; projects carry their own optional deadline. Boards remain reusable categories rather than being overloaded as projects.
 
+## 2026-08-10 — Revenue Brief Builder Starts Stateless and Uses the Pipeline Permission
+
+The first Hub version of the RevFactor Client Revenue Opportunity Brief is a structured, authenticated sales tool at `/revenue-briefs`, gated by the existing `pipeline:view` permission. It generates a six-page PDF in a Node route handler and returns it as a private, no-store download. Prospect inputs and generated PDFs are not stored in Supabase in v1; this avoids introducing a speculative proposal-history schema before the team has real usage evidence for statuses, ownership, revision history, or retention.
+
+The input contract requires explicit owner-safe language, verified demand drivers, anonymized managed-period benchmarks, and a final-data boundary. Benchmark lift is labeled as actual managed-period revenue versus estimated market-level revenue using market RevPAR. It must never be presented as a guaranteed property-level projection. A cover image is accepted only as a bounded JPG/PNG data URL and is used for the generated response only.
+
 ## 2026-08-06 — Adjustments Is the HostPricing Ticket Channel (071)
 
 Underperforming-listing reviews from Host Pricing's consolidated report (pace, Airbnb impressions, Rankbreeze, visibility index, conversion, occupancy vs market) move from Google Sheets/email into Adjustments as structured tickets. Design choices, building on the 2026-07-16 decisions rather than adding machinery:

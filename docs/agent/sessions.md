@@ -6,6 +6,12 @@
 - Added and applied migration 074 with permission-scoped `roadmap_projects`, required `posts.project_id`, project deadlines, and a General-project default that preserves every existing roadmap post, vote, comment, tag, category, and task date. The legacy `posts.eta` field remains storage-compatible while the UI presents it as Deadline.
 - Task creation now requires a project, the Kanban switches between all projects and one project, and task detail supports project reassignment and inline deadline editing. Added the route loading skeleton and updated navigation terminology.
 
+## 2026-08-10 — Client Revenue Brief Builder
+
+- Added a Pipeline-gated `/revenue-briefs` workflow with structured Property / Opportunity / Evidence tabs, live narrative preview, bounded cover-photo upload, a synthetic demo, and validation feedback.
+- Added a server-only `@react-pdf/renderer` generator and authenticated POST download route for a branded six-page US Letter brief covering executive fit, property/demand context, revenue levers, first 30 days, anonymized managed benchmarks, evidence boundaries, and the final data request.
+- The v1 workflow is intentionally stateless: no prospect data or PDFs are saved. Added schema/PDF tests, a safe filename helper, sidebar navigation, and durable architecture/decision notes.
+
 ## 2026-08-06 — Managed adjustment-type visibility per creator group
 
 - Migration 073 (applied to prod): `adjustment_type_settings` with `internal_enabled`/`hostpricing_enabled` per type, seeded from the old hardcoded rule (everything on; `setup` off for HostPricing). SELECT via `adjustments:view` OR `settings:edit`, writes via `settings:edit`.
