@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-10 — AirROI Enriches Revenue Brief Drafts but Does Not Author the Recommendation
+
+The Revenue Brief Builder may use AirROI on demand to prefill public listing facts and show an internal TTM modeled-performance snapshot. AirROI is an evidence source, not the decision-maker: its revenue, ADR, occupancy, and RevPAR values are labeled third-party modeled estimates, never owner-reported actuals or guaranteed property projections. Demand-driver research, property constraints, opportunity framing, and the approved RevFactor managed-benchmark section still require human review before PDF generation.
+
+The integration is deliberately stateless and bounded to one `GET /listings` call after a signed-in `pipeline:view` user explicitly requests research. The Hub extracts a numeric listing ID from an `airbnb.com` URL, keeps `AIRROI_API_KEY` server-only, returns private/no-store JSON, and stores neither the intake nor response. Missing configuration disables AirROI enrichment without blocking the manual builder.
+
 ## 2026-08-10 — Roadmap Posts Become Project Tasks Without Losing History
 
 The `/roadmap` workspace now presents Projects first and a project-filterable Task board second. Existing `posts` remain the task records so comments, upvotes, tags, categories, ordering, and dates survive; a new required `roadmap_projects` parent provides the missing planning hierarchy. Migration 074 creates a stable General project and gives `posts.project_id` a non-null General default, avoiding orphan tasks and keeping legacy writers safe during deployment. The old `posts.eta` storage name is retained for backward compatibility but is presented as Deadline throughout the UI; projects carry their own optional deadline. Boards remain reusable categories rather than being overloaded as projects.

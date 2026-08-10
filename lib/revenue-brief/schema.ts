@@ -1,7 +1,8 @@
 import { z } from "zod"
 
-const requiredText = (label: string, max: number) =>
-  z.string().trim().min(2, `${label} is required`).max(max)
+const requiredText = (label: string, max: number) => z.string().trim().min(2, `${label} is required`).max(max)
+
+const requiredValue = (label: string, max: number) => z.string().trim().min(1, `${label} is required`).max(max)
 
 const conciseText = (label: string, max: number) =>
   z.string().trim().min(10, `${label} needs a little more detail`).max(max)
@@ -47,10 +48,10 @@ export const RevenueBriefSchema = z.object({
       "Cover image must be a JPG or PNG"
     ),
   metrics: z.object({
-    rating: requiredText("Rating", 16),
-    reviews: requiredText("Review count", 16),
+    rating: requiredValue("Rating", 16),
+    reviews: requiredValue("Review count", 16),
     layout: requiredText("Layout", 32),
-    guests: requiredText("Guest capacity", 16),
+    guests: requiredValue("Guest capacity", 16),
   }),
   listingDetails: conciseText("Listing details", 240),
   hostSignals: conciseText("Host signals", 240),
@@ -180,8 +181,7 @@ export function createBlankRevenueBrief(): RevenueBriefInput {
     ownerTakeaway:
       "RevFactor's role is to make the calendar more strategic: protect high-demand dates, avoid underpricing far-out stays, and fill softer gaps without weakening premium nights.",
     demandDrivers: [{ name: "", distance: "", why: "" }],
-    distanceNote:
-      "Distances are public estimates and should be verified with drive times before final underwriting.",
+    distanceNote: "Distances are public estimates and should be verified with drive times before final underwriting.",
     revenueLevers: STANDARD_REVENUE_LEVERS.map((item) => ({ ...item })),
     firstMonth: STANDARD_FIRST_MONTH.map((item) => ({ ...item })),
     benchmarks: STANDARD_BENCHMARKS.map((item) => ({ ...item })),
@@ -211,8 +211,7 @@ export const SYNTHETIC_REVENUE_BRIEF: RevenueBriefInput = {
     "Families and groups visiting Newport for sailing, weddings, university weekends, and regional leisure travel.",
   strengths:
     "Strong reviews, group capacity, walkable dining, off-street parking, workspace, updated kitchen, and outdoor gathering space.",
-  visibleConstraints:
-    "No parties, exterior cameras, seasonal outdoor amenities, and a two-car parking limit.",
+  visibleConstraints: "No parties, exterior cameras, seasonal outdoor amenities, and a two-car parking limit.",
   executiveSummary:
     "Harbor House is already a high-converting group property. The clearest opportunity is more precise calendar control across sailing events, university weekends, weddings, and peak summer leisure demand.",
   bottomLine:
