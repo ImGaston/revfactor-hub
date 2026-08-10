@@ -15,6 +15,20 @@ describe("revenue brief builder", () => {
     expect(RevenueBriefSchema.safeParse(SYNTHETIC_REVENUE_BRIEF).success).toBe(true)
   })
 
+  it("accepts zero reviews and a single-digit guest capacity", () => {
+    const result = RevenueBriefSchema.safeParse({
+      ...SYNTHETIC_REVENUE_BRIEF,
+      metrics: {
+        ...SYNTHETIC_REVENUE_BRIEF.metrics,
+        rating: "N/A",
+        reviews: "0",
+        guests: "8",
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it("rejects missing evidence and unsupported cover image formats", () => {
     const result = RevenueBriefSchema.safeParse({
       ...SYNTHETIC_REVENUE_BRIEF,

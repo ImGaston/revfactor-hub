@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-10 — Revenue Brief prospect intake and AirROI draft enrichment
+
+- Added a short prospect intake for prepared-for name, property address, Airbnb URL, owner goals, and known constraints, with a manual apply path that leaves the existing full analyst form intact.
+- Added an optional server-only AirROI listing integration. One explicit import pre-fills public listing facts and owner-safe draft language while showing TTM modeled metrics only in an internal source callout; demand drivers and RevFactor benchmarks remain human-reviewed.
+- Kept the workflow stateless and permission-gated, added missing-key graceful degradation, strict Airbnb ID extraction, response validation, tests, and durable integration/evidence-boundary documentation.
+
 ## 2026-08-10 — Project-based roadmap workspace
 
 - Reworked `/roadmap` into Projects and Task board tabs. Project cards show completion counts, upcoming deadlines, a task preview, and a detail dialog with every attached task; each project can open a pre-filtered Kanban.
