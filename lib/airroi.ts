@@ -137,6 +137,8 @@ const compact = (value: string, max: number) =>
     ? value
     : `${value.slice(0, Math.max(0, max - 3)).trim()}...`
 
+const sentence = (value: string) => value.replace(/[.!?]+$/, "")
+
 const titleCase = (value: string) =>
   value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
 
@@ -229,6 +231,7 @@ export function mapAirRoiListingToRevenueBrief(
     amenities.length > 0 ? ` with ${amenities.join(", ")}` : ""
   }.`
   const performance = listing.performance_metrics
+  const exactListingId = extractAirbnbListingId(intake.listingUrl)
 
   return {
     draft: {
@@ -264,7 +267,7 @@ export function mapAirRoiListingToRevenueBrief(
       strengths: visibleStrengths(listing),
       visibleConstraints: visibleConstraints(listing, intake.knownConstraints),
       executiveSummary: compact(
-        `${propertyName} is an established ${listingType.toLowerCase()} in ${location}. The initial review should test pricing, stay rules, and forward calendar protection against the owner's priority: ${intake.ownerGoals}.`,
+        `${propertyName} is an established ${listingType.toLowerCase()} in ${location}. The initial review should test pricing, stay rules, and forward calendar protection against the owner's priority: ${sentence(intake.ownerGoals)}.`,
         520
       ),
       bottomLine: compact(
@@ -278,7 +281,7 @@ export function mapAirRoiListingToRevenueBrief(
     },
     source: {
       provider: "AirROI",
-      listingId: String(listing.listing_info.listing_id),
+      listingId: exactListingId || String(listing.listing_info.listing_id),
       retrievedAt,
       currency: listing.pricing_info?.currency ?? null,
       modeledTtmRevenue: performance?.ttm_revenue ?? null,

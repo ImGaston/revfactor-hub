@@ -1,8 +1,10 @@
 import { z } from "zod"
 
-const requiredText = (label: string, max: number) => z.string().trim().min(2, `${label} is required`).max(max)
+const requiredText = (label: string, max: number) =>
+  z.string().trim().min(2, `${label} is required`).max(max)
 
-const requiredValue = (label: string, max: number) => z.string().trim().min(1, `${label} is required`).max(max)
+const requiredValue = (label: string, max: number) =>
+  z.string().trim().min(1, `${label} is required`).max(max)
 
 const conciseText = (label: string, max: number) =>
   z.string().trim().min(10, `${label} needs a little more detail`).max(max)
@@ -33,55 +35,103 @@ export const BenchmarkSchema = z.object({
   monthlyLift: requiredText("Monthly lift", 24),
 })
 
-export const RevenueBriefSchema = z.object({
-  preparedFor: requiredText("Prepared for", 100),
-  propertyName: requiredText("Property name", 120),
-  propertyAddress: requiredText("Property address", 180),
-  locationLabel: requiredText("Location", 100),
-  listingUrl: z.union([z.literal(""), z.url().max(500)]),
-  listingStage: z.enum(["existing", "new"]),
-  photoDataUrl: z
-    .string()
-    .max(2_800_000, "Cover image must be smaller than 2 MB")
-    .refine(
-      (value) => value === "" || /^data:image\/(jpeg|png);base64,/.test(value),
-      "Cover image must be a JPG or PNG"
-    ),
-  metrics: z.object({
-    rating: requiredValue("Rating", 16),
-    reviews: requiredValue("Review count", 16),
-    layout: requiredText("Layout", 32),
-    guests: requiredValue("Guest capacity", 16),
-  }),
-  listingDetails: conciseText("Listing details", 240),
-  hostSignals: conciseText("Host signals", 240),
-  currentPositioning: conciseText("Current positioning", 360),
-  strengths: conciseText("Strengths", 420),
-  visibleConstraints: conciseText("Visible constraints", 320),
-  executiveSummary: conciseText("Executive summary", 520),
-  bottomLine: conciseText("Revenue opportunity", 420),
-  ownerTakeaway: conciseText("Owner takeaway", 520),
-  demandDrivers: z.array(DemandDriverSchema).min(1).max(6),
-  distanceNote: conciseText("Distance note", 240),
-  revenueLevers: z.array(RevenueLeverSchema).min(1).max(5),
-  firstMonth: z.array(FirstMonthStepSchema).min(1).max(4),
-  benchmarks: z.array(BenchmarkSchema).min(1).max(5),
-  benchmarkSummary: conciseText("Benchmark summary", 420),
-  finalDataRequest: conciseText("Final data request", 420),
+export const ProjectionScenarioSchema = z.object({
+  revenue: z.number().nonnegative(),
+  adr: z.number().nonnegative(),
+  occupancy: z.number().min(0).max(1),
 })
+
+export const NewPropertyProjectionSchema = z.object({
+  provider: z.literal("AirROI"),
+  retrievedAt: z.iso.datetime(),
+  currency: requiredText("Projection currency", 8),
+  radiusMiles: z.number().min(1).max(10),
+  comparableCount: z.number().int().nonnegative(),
+  conservative: ProjectionScenarioSchema,
+  base: ProjectionScenarioSchema,
+  strong: ProjectionScenarioSchema,
+  monthlyRevenueShares: z.array(z.number().min(0).max(1)).length(12),
+  comparables: z
+    .array(
+      z.object({
+        listingId: requiredValue("Comparable listing ID", 32),
+        name: requiredText("Comparable name", 160),
+        location: requiredText("Comparable location", 120),
+        bedrooms: z.number().nonnegative().nullable(),
+        revenue: z.number().nonnegative().nullable(),
+        adr: z.number().nonnegative().nullable(),
+        occupancy: z.number().min(0).max(1).nullable(),
+      })
+    )
+    .max(5),
+})
+
+export const RevenueBriefSchema = z
+  .object({
+    brandProfileId: z.union([z.literal(""), z.uuid()]).default(""),
+    preparedFor: requiredText("Prepared for", 100),
+    propertyName: requiredText("Property name", 120),
+    propertyAddress: requiredText("Property address", 180),
+    locationLabel: requiredText("Location", 100),
+    listingUrl: z.union([z.literal(""), z.url().max(500)]),
+    listingStage: z.enum(["existing", "new"]),
+    photoDataUrl: z
+      .string()
+      .max(2_800_000, "Cover image must be smaller than 2 MB")
+      .refine(
+        (value) =>
+          value === "" || /^data:image\/(jpeg|png);base64,/.test(value),
+        "Cover image must be a JPG or PNG"
+      ),
+    metrics: z.object({
+      rating: requiredValue("Rating", 16),
+      reviews: requiredValue("Review count", 16),
+      layout: requiredText("Layout", 32),
+      guests: requiredValue("Guest capacity", 16),
+    }),
+    listingDetails: conciseText("Listing details", 240),
+    hostSignals: conciseText("Host signals", 240),
+    currentPositioning: conciseText("Current positioning", 360),
+    strengths: conciseText("Strengths", 420),
+    visibleConstraints: conciseText("Visible constraints", 320),
+    executiveSummary: conciseText("Executive summary", 520),
+    bottomLine: conciseText("Revenue opportunity", 420),
+    ownerTakeaway: conciseText("Owner takeaway", 520),
+    demandDrivers: z.array(DemandDriverSchema).min(1).max(6),
+    distanceNote: conciseText("Distance note", 240),
+    revenueLevers: z.array(RevenueLeverSchema).min(1).max(5),
+    firstMonth: z.array(FirstMonthStepSchema).min(1).max(4),
+    benchmarks: z.array(BenchmarkSchema).min(1).max(5),
+    benchmarkSummary: conciseText("Benchmark summary", 420),
+    finalDataRequest: conciseText("Final data request", 420),
+    projection: NewPropertyProjectionSchema.nullable().default(null),
+  })
+  .superRefine((brief, context) => {
+    if (brief.listingStage === "new" && !brief.projection) {
+      context.addIssue({
+        code: "custom",
+        path: ["projection"],
+        message:
+          "Build the AirROI pre-launch projection before generating the PDF",
+      })
+    }
+  })
 
 export type RevenueBriefInput = z.infer<typeof RevenueBriefSchema>
 
 const STANDARD_REVENUE_LEVERS: RevenueBriefInput["revenueLevers"] = [
   {
     name: "Peak-event protection",
-    review: "University dates, graduations, sports, concerts, and local compression windows.",
+    review:
+      "University dates, graduations, sports, concerts, and local compression windows.",
     benefit: "Avoid selling scarce high-demand dates too cheaply.",
   },
   {
     name: "Length-of-stay rules",
-    review: "Weekend and event minimums, midweek flexibility, and orphan-gap logic.",
-    benefit: "Improve revenue per booking and reduce inefficient calendar holes.",
+    review:
+      "Weekend and event minimums, midweek flexibility, and orphan-gap logic.",
+    benefit:
+      "Improve revenue per booking and reduce inefficient calendar holes.",
   },
   {
     name: "Far-out pricing",
@@ -103,15 +153,18 @@ const STANDARD_REVENUE_LEVERS: RevenueBriefInput["revenueLevers"] = [
 const STANDARD_FIRST_MONTH: RevenueBriefInput["firstMonth"] = [
   {
     label: "Week 1",
-    focus: "Audit the current calendar, rates, stay rules, discounts, and future pacing.",
+    focus:
+      "Audit the current calendar, rates, stay rules, discounts, and future pacing.",
   },
   {
     label: "Week 2",
-    focus: "Build the local event and demand calendar and protect compression windows.",
+    focus:
+      "Build the local event and demand calendar and protect compression windows.",
   },
   {
     label: "Week 3",
-    focus: "Tune weekday and weekend strategy, orphan gaps, and far-out anchors.",
+    focus:
+      "Tune weekday and weekend strategy, orphan gaps, and far-out anchors.",
   },
   {
     label: "Week 4",
@@ -156,6 +209,7 @@ const STANDARD_BENCHMARKS: RevenueBriefInput["benchmarks"] = [
 
 export function createBlankRevenueBrief(): RevenueBriefInput {
   return {
+    brandProfileId: "",
     preparedFor: "",
     propertyName: "",
     propertyAddress: "",
@@ -170,10 +224,14 @@ export function createBlankRevenueBrief(): RevenueBriefInput {
       guests: "",
     },
     listingDetails: "Entire home · bedrooms · beds · baths",
-    hostSignals: "Summarize rating, reviews, hosting tenure, and visible trust signals.",
-    currentPositioning: "Describe the guest segments and occasions the listing currently serves.",
-    strengths: "Summarize the strongest conversion, amenity, location, and capacity advantages.",
-    visibleConstraints: "Note only verified operational or listing constraints that affect positioning.",
+    hostSignals:
+      "Summarize rating, reviews, hosting tenure, and visible trust signals.",
+    currentPositioning:
+      "Describe the guest segments and occasions the listing currently serves.",
+    strengths:
+      "Summarize the strongest conversion, amenity, location, and capacity advantages.",
+    visibleConstraints:
+      "Note only verified operational or listing constraints that affect positioning.",
     executiveSummary:
       "This listing is already a strong product. The opportunity is to make the pricing calendar more precise across its most important demand windows.",
     bottomLine:
@@ -181,7 +239,8 @@ export function createBlankRevenueBrief(): RevenueBriefInput {
     ownerTakeaway:
       "RevFactor's role is to make the calendar more strategic: protect high-demand dates, avoid underpricing far-out stays, and fill softer gaps without weakening premium nights.",
     demandDrivers: [{ name: "", distance: "", why: "" }],
-    distanceNote: "Distances are public estimates and should be verified with drive times before final underwriting.",
+    distanceNote:
+      "Distances are public estimates and should be verified with drive times before final underwriting.",
     revenueLevers: STANDARD_REVENUE_LEVERS.map((item) => ({ ...item })),
     firstMonth: STANDARD_FIRST_MONTH.map((item) => ({ ...item })),
     benchmarks: STANDARD_BENCHMARKS.map((item) => ({ ...item })),
@@ -189,6 +248,7 @@ export function createBlankRevenueBrief(): RevenueBriefInput {
       "Comparable RevFactor-managed homes created a measurable revenue premium versus their markets during the managed months analyzed. This supports a fit assessment, not a guaranteed property-level projection.",
     finalDataRequest:
       "A final recommendation requires the last 12 months of revenue, ADR, occupancy, booking lead time, current pricing calendar, stay rules, and the owner's goals and operating constraints.",
+    projection: null,
   }
 }
 
@@ -206,12 +266,14 @@ export const SYNTHETIC_REVENUE_BRIEF: RevenueBriefInput = {
     guests: "10",
   },
   listingDetails: "Entire home · 10 guests · 4 bedrooms · 6 beds · 3 baths",
-  hostSignals: "Superhost · 5 years hosting · 4.96 rating · 41 reviews · guest-favorite badge",
+  hostSignals:
+    "Superhost · 5 years hosting · 4.96 rating · 41 reviews · guest-favorite badge",
   currentPositioning:
     "Families and groups visiting Newport for sailing, weddings, university weekends, and regional leisure travel.",
   strengths:
     "Strong reviews, group capacity, walkable dining, off-street parking, workspace, updated kitchen, and outdoor gathering space.",
-  visibleConstraints: "No parties, exterior cameras, seasonal outdoor amenities, and a two-car parking limit.",
+  visibleConstraints:
+    "No parties, exterior cameras, seasonal outdoor amenities, and a two-car parking limit.",
   executiveSummary:
     "Harbor House is already a high-converting group property. The clearest opportunity is more precise calendar control across sailing events, university weekends, weddings, and peak summer leisure demand.",
   bottomLine:

@@ -7,6 +7,12 @@ import {
   type AirRoiRevenueBriefDraft,
   type AirRoiRevenueBriefIntake,
 } from "@/lib/airroi"
+import {
+  AirRoiEstimateResponseSchema,
+  mapAirRoiEstimateToRevenueBrief,
+  type AirRoiNewPropertyDraft,
+  type AirRoiNewPropertyIntake,
+} from "@/lib/airroi-estimate"
 
 const AIRROI_BASE_URL = "https://api.airroi.com"
 const FETCH_TIMEOUT = 15_000
@@ -25,7 +31,10 @@ export function isAirRoiConfigured(): boolean {
   return Boolean(process.env.AIRROI_API_KEY)
 }
 
-async function airRoiFetch(path: string, params: Record<string, string>) {
+async function airRoiFetch(
+  path: string,
+  params: Record<string, string>
+): Promise<unknown> {
   const apiKey = process.env.AIRROI_API_KEY
   if (!apiKey) throw new AirRoiApiError("AIRROI_API_KEY is not configured", 503)
 
@@ -53,7 +62,10 @@ async function airRoiFetch(path: string, params: Record<string, string>) {
     )
   }
 
-  const payload: unknown = await response.json()
+  return response.json()
+}
+
+function parseListing(payload: unknown) {
   const parsed = AirRoiListingResponseSchema.safeParse(payload)
   if (!parsed.success) {
     console.error(
@@ -76,10 +88,40 @@ export async function buildAirRoiRevenueBriefDraft(
   if (!listingId)
     throw new AirRoiApiError("The Airbnb listing ID is missing.", 400)
 
-  const listing = await airRoiFetch("/listings", {
-    listing_id: listingId,
+  const listing = parseListing(
+    await airRoiFetch("/listings", {
+      listing_id: listingId,
+      currency: "native",
+    })
+  )
+
+  return mapAirRoiListingToRevenueBrief(listing, intake)
+}
+
+export async function buildAirRoiNewPropertyDraft(
+  intake: AirRoiNewPropertyIntake
+): Promise<AirRoiNewPropertyDraft> {
+  const payload = await airRoiFetch("/calculator/estimate", {
+    address: intake.propertyAddress,
+    radius: String(intake.radiusMiles),
+    room_type: "entire_home",
+    bedrooms: String(intake.bedrooms),
+    baths: String(intake.baths),
+    guests: String(intake.guests),
     currency: "native",
   })
 
-  return mapAirRoiListingToRevenueBrief(listing, intake)
+  const parsed = AirRoiEstimateResponseSchema.safeParse(payload)
+  if (!parsed.success) {
+    console.error(
+      "[AirROI] Revenue estimate response did not match the documented schema",
+      parsed.error
+    )
+    throw new AirRoiApiError(
+      "AirROI returned an unexpected revenue estimate response.",
+      502
+    )
+  }
+
+  return mapAirRoiEstimateToRevenueBrief(parsed.data, intake)
 }

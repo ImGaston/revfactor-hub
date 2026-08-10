@@ -9,6 +9,7 @@ import {
 } from "@react-pdf/renderer"
 
 import type { RevenueBriefInput } from "@/lib/revenue-brief/schema"
+import type { RevenueBriefBrandTheme } from "@/lib/revenue-brief/brand"
 
 const COLORS = {
   cedar: "#95543D",
@@ -53,6 +54,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginBottom: 66,
     textAlign: "center",
+  },
+  coverLogo: {
+    height: 58,
+    marginBottom: 52,
+    objectFit: "contain",
+    width: "100%",
+  },
+  coverBrandLine: {
+    fontSize: 7,
+    letterSpacing: 1,
+    marginBottom: 40,
+    marginTop: -39,
+    textAlign: "center",
+    textTransform: "uppercase",
   },
   eyebrow: {
     color: COLORS.cedar,
@@ -169,6 +184,11 @@ const styles = StyleSheet.create({
     color: COLORS.forest,
     fontFamily: "Times-Italic",
     fontSize: 10,
+  },
+  headerLogo: {
+    height: 16,
+    objectFit: "contain",
+    width: 74,
   },
   headerTitle: {
     color: COLORS.muted,
@@ -296,7 +316,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAF8F4",
   },
   labelCell: {
-    color: COLORS.forest,
+    color: COLORS.ink,
     fontFamily: "Helvetica-Bold",
   },
   note: {
@@ -339,17 +359,54 @@ const styles = StyleSheet.create({
   },
 })
 
-function PageChrome({ input, page }: { input: RevenueBriefInput; page: number }) {
+function formatMoney(value: number, currency: string): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`
+}
+
+function PageChrome({
+  input,
+  page,
+  brand,
+  primaryColor,
+}: {
+  input: RevenueBriefInput
+  page: number
+  brand: RevenueBriefBrandTheme | null
+  primaryColor: string
+}) {
+  const partnerLeads = brand && brand.coBrandingMode !== "revfactor_led"
+  const footerText =
+    brand?.footerText ||
+    (partnerLeads
+      ? `${brand.name} · Revenue strategy powered by RevFactor`
+      : "RevFactor · Short-term rental revenue management")
+
   return (
     <>
       <View style={styles.header} fixed>
-        <Text style={styles.headerBrand}>revfactor</Text>
+        {partnerLeads && brand.logoDataUrl ? (
+          // @react-pdf/renderer Image does not support the HTML alt attribute.
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <Image src={brand.logoDataUrl} style={styles.headerLogo} />
+        ) : (
+          <Text style={[styles.headerBrand, { color: primaryColor }]}>
+            revfactor
+          </Text>
+        )}
         <Text style={styles.headerTitle}>
           Client Revenue Opportunity Brief · {input.propertyName}
         </Text>
       </View>
       <View style={styles.footer} fixed>
-        <Text>RevFactor · Short-term rental revenue management</Text>
+        <Text>{footerText}</Text>
         <Text>Page {page}</Text>
       </View>
     </>
@@ -360,16 +417,24 @@ function Table({
   headers,
   rows,
   widths,
+  headerColor = COLORS.moss,
 }: {
   headers: string[]
   rows: string[][]
   widths: string[]
+  headerColor?: string
 }) {
   return (
     <View style={styles.table}>
       <View style={styles.row} fixed>
         {headers.map((header, index) => (
-          <Text key={header} style={[styles.headerCell, { width: widths[index] }]}>
+          <Text
+            key={header}
+            style={[
+              styles.headerCell,
+              { backgroundColor: headerColor, width: widths[index] },
+            ]}
+          >
             {header}
           </Text>
         ))}
@@ -395,13 +460,42 @@ function Table({
   )
 }
 
-function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
-  const metrics = [
-    [input.metrics.rating, "Airbnb rating"],
-    [input.metrics.reviews, "Reviews"],
-    [input.metrics.layout, "Layout"],
-    [input.metrics.guests, "Guest capacity"],
-  ]
+function RevenueBriefDocument({
+  input,
+  brand,
+}: {
+  input: RevenueBriefInput
+  brand: RevenueBriefBrandTheme | null
+}) {
+  const primaryColor = brand?.primaryColor || COLORS.forest
+  const secondaryColor = brand?.secondaryColor || COLORS.moss
+  const accentColor = brand?.accentColor || COLORS.cedar
+  const projection = input.listingStage === "new" ? input.projection : null
+  const metrics = projection
+    ? [
+        [
+          formatMoney(projection.base.revenue, projection.currency),
+          "Base annual revenue",
+        ],
+        [formatMoney(projection.base.adr, projection.currency), "Base ADR"],
+        [input.metrics.layout, "Layout"],
+        [input.metrics.guests, "Guest capacity"],
+      ]
+    : [
+        [input.metrics.rating, "Airbnb rating"],
+        [input.metrics.reviews, "Reviews"],
+        [input.metrics.layout, "Layout"],
+        [input.metrics.guests, "Guest capacity"],
+      ]
+
+  const partnerLeads = brand && brand.coBrandingMode !== "revfactor_led"
+  const coverBrandLine = brand
+    ? brand.coBrandingMode === "partner_led"
+      ? "Revenue strategy powered by RevFactor"
+      : brand.coBrandingMode === "co_branded"
+        ? "In partnership with RevFactor"
+        : `Prepared with ${brand.name}`
+    : null
 
   return (
     <Document
@@ -409,68 +503,144 @@ function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
       subject={`Revenue opportunity assessment for ${input.propertyName}`}
       title={`RevFactor Client Revenue Opportunity Brief - ${input.propertyName}`}
     >
-      <Page size="LETTER" style={[styles.page, styles.cover]}>
-        <View style={styles.coverFrame}>
-          <Text style={styles.coverBrand}>revfactor</Text>
-          <Text style={styles.coverEyebrow}>Client Revenue Opportunity Brief</Text>
+      <Page
+        size="LETTER"
+        style={[styles.page, styles.cover, { backgroundColor: primaryColor }]}
+      >
+        <View style={[styles.coverFrame, { borderColor: secondaryColor }]}>
+          {partnerLeads && brand?.logoDataUrl ? (
+            // @react-pdf/renderer Image does not support the HTML alt attribute.
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <Image src={brand.logoDataUrl} style={styles.coverLogo} />
+          ) : (
+            <Text style={styles.coverBrand}>revfactor</Text>
+          )}
+          {coverBrandLine && (
+            <Text style={styles.coverBrandLine}>{coverBrandLine}</Text>
+          )}
+          <Text
+            style={[
+              styles.coverEyebrow,
+              { color: brand?.secondaryColor || COLORS.sand },
+            ]}
+          >
+            Client Revenue Opportunity Brief
+          </Text>
           <Text style={styles.coverTitle}>{input.propertyName}</Text>
           <Text style={styles.coverLocation}>{input.locationLabel}</Text>
-          <Text style={styles.coverPrepared}>Prepared for {input.preparedFor}</Text>
+          <Text style={styles.coverPrepared}>
+            Prepared for {input.preparedFor}
+          </Text>
           {input.photoDataUrl ? (
             // @react-pdf/renderer Image does not support the HTML alt attribute.
             // eslint-disable-next-line jsx-a11y/alt-text
             <Image src={input.photoDataUrl} style={styles.coverImage} />
           ) : (
-            <View style={styles.coverImageFallback}>
+            <View
+              style={[
+                styles.coverImageFallback,
+                { backgroundColor: secondaryColor },
+              ]}
+            >
               <View style={styles.coverRingLarge} />
-              <View style={styles.coverRingSmall} />
+              <View
+                style={[styles.coverRingSmall, { borderColor: accentColor }]}
+              />
               <Text style={styles.coverProperty}>{input.propertyName}</Text>
             </View>
           )}
           <Text style={styles.coverPurpose}>
-            A concise review of listing strength, demand drivers, revenue-management opportunity,
-            and relevant RevFactor-managed benchmark performance.
+            {projection
+              ? "A market-informed pre-launch review of comparable performance, demand context, revenue scenarios, and launch strategy."
+              : "A concise review of listing strength, demand drivers, revenue-management opportunity, and relevant RevFactor-managed benchmark performance."}
           </Text>
         </View>
-        <Text style={styles.coverFooter}>Prepared by RevFactor for client review</Text>
+        <Text style={styles.coverFooter}>
+          {brand
+            ? `${brand.name} · ${coverBrandLine || "Prepared with RevFactor"}`
+            : "Prepared by RevFactor for client review"}
+        </Text>
       </Page>
 
       <Page size="LETTER" style={styles.page}>
-        <PageChrome input={input} page={2} />
-        <Text style={styles.eyebrow}>The opportunity</Text>
-        <Text style={styles.title}>Executive summary</Text>
+        <PageChrome
+          input={input}
+          page={2}
+          brand={brand}
+          primaryColor={primaryColor}
+        />
+        <Text style={[styles.eyebrow, { color: accentColor }]}>
+          The opportunity
+        </Text>
+        <Text style={[styles.title, { color: primaryColor }]}>
+          Executive summary
+        </Text>
         <Text style={styles.intro}>{input.executiveSummary}</Text>
         <View style={styles.metricRow}>
           {metrics.map(([value, label]) => (
             <View key={label} style={styles.metricCard}>
-              <Text style={styles.metricValue}>{value}</Text>
+              <Text style={[styles.metricValue, { color: accentColor }]}>
+                {value}
+              </Text>
               <Text style={styles.metricLabel}>{label}</Text>
             </View>
           ))}
         </View>
-        <View style={styles.callout}>
-          <Text style={styles.calloutTitle}>Revenue opportunity</Text>
+        <View style={[styles.callout, { borderLeftColor: accentColor }]}>
+          <Text style={[styles.calloutTitle, { color: accentColor }]}>
+            Revenue opportunity
+          </Text>
           <Text style={styles.calloutBody}>{input.bottomLine}</Text>
         </View>
         <Table
           headers={["Area reviewed", "Current read", "RevFactor angle"]}
           rows={[
-            ["Listing quality", input.strengths, "Protect premium positioning instead of discounting unnecessarily."],
-            ["Demand drivers", input.demandDrivers.map((driver) => driver.name).join(", "), "Build the calendar around compression dates and high-intent demand windows."],
-            ["Revenue-management risk", "Strong listings can still sell peak or far-out dates too cheaply.", "Use pricing, stay, gap, and event rules to hold value where demand is strongest."],
+            [
+              "Listing quality",
+              input.strengths,
+              "Protect premium positioning instead of discounting unnecessarily.",
+            ],
+            [
+              "Demand drivers",
+              input.demandDrivers.map((driver) => driver.name).join(", "),
+              "Build the calendar around compression dates and high-intent demand windows.",
+            ],
+            [
+              "Revenue-management risk",
+              "Strong listings can still sell peak or far-out dates too cheaply.",
+              "Use pricing, stay, gap, and event rules to hold value where demand is strongest.",
+            ],
           ]}
           widths={["22%", "39%", "39%"]}
+          headerColor={secondaryColor}
         />
-        <View style={[styles.callout, styles.calloutMoss]}>
-          <Text style={[styles.calloutTitle, { color: COLORS.moss }]}>What this means for your listing</Text>
+        <View
+          style={[
+            styles.callout,
+            styles.calloutMoss,
+            { backgroundColor: COLORS.bone, borderLeftColor: secondaryColor },
+          ]}
+        >
+          <Text style={[styles.calloutTitle, { color: secondaryColor }]}>
+            What this means for your listing
+          </Text>
           <Text style={styles.calloutBody}>{input.ownerTakeaway}</Text>
         </View>
       </Page>
 
       <Page size="LETTER" style={styles.page}>
-        <PageChrome input={input} page={3} />
-        <Text style={styles.eyebrow}>Property and market context</Text>
-        <Text style={styles.title}>Property snapshot</Text>
+        <PageChrome
+          input={input}
+          page={3}
+          brand={brand}
+          primaryColor={primaryColor}
+        />
+        <Text style={[styles.eyebrow, { color: accentColor }]}>
+          Property and market context
+        </Text>
+        <Text style={[styles.title, { color: primaryColor }]}>
+          Property snapshot
+        </Text>
         <Table
           headers={["Category", "Details"]}
           rows={[
@@ -483,99 +653,263 @@ function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
             ["Visible constraints", input.visibleConstraints],
           ]}
           widths={["25%", "75%"]}
+          headerColor={secondaryColor}
         />
-        <Text style={styles.sectionTitle}>Demand-driver map</Text>
+        <Text style={[styles.sectionTitle, { color: primaryColor }]}>
+          Demand-driver map
+        </Text>
         <Table
           headers={["Demand driver", "Est. distance", "Why it matters"]}
-          rows={input.demandDrivers.map((driver) => [driver.name, driver.distance, driver.why])}
+          rows={input.demandDrivers.map((driver) => [
+            driver.name,
+            driver.distance,
+            driver.why,
+          ])}
           widths={["29%", "18%", "53%"]}
+          headerColor={secondaryColor}
         />
         <Text style={styles.note}>{input.distanceNote}</Text>
       </Page>
 
       <Page size="LETTER" style={styles.page}>
-        <PageChrome input={input} page={4} />
-        <Text style={styles.eyebrow}>How RevFactor would work the calendar</Text>
-        <Text style={styles.title}>Revenue-management opportunity</Text>
+        <PageChrome
+          input={input}
+          page={4}
+          brand={brand}
+          primaryColor={primaryColor}
+        />
+        <Text style={[styles.eyebrow, { color: accentColor }]}>
+          How RevFactor would work the calendar
+        </Text>
+        <Text style={[styles.title, { color: primaryColor }]}>
+          Revenue-management opportunity
+        </Text>
         <Text style={styles.intro}>
-          For a high-quality {input.listingStage === "existing" ? "existing" : "new"} listing,
-          RevFactor should focus on the calendar decisions that change rate, occupancy, and booking quality.
+          For a high-quality{" "}
+          {input.listingStage === "existing" ? "existing" : "new"} listing,
+          RevFactor should focus on the calendar decisions that change rate,
+          occupancy, and booking quality.
         </Text>
         <Table
-          headers={["Revenue lever", "What RevFactor would review", "Owner benefit"]}
-          rows={input.revenueLevers.map((lever) => [lever.name, lever.review, lever.benefit])}
+          headers={[
+            "Revenue lever",
+            "What RevFactor would review",
+            "Owner benefit",
+          ]}
+          rows={input.revenueLevers.map((lever) => [
+            lever.name,
+            lever.review,
+            lever.benefit,
+          ])}
           widths={["24%", "46%", "30%"]}
+          headerColor={secondaryColor}
         />
-        <Text style={styles.sectionTitle}>First 30 days</Text>
+        <Text style={[styles.sectionTitle, { color: primaryColor }]}>
+          First 30 days
+        </Text>
         <Table
           headers={["Timing", "Focus"]}
           rows={input.firstMonth.map((step) => [step.label, step.focus])}
           widths={["22%", "78%"]}
+          headerColor={secondaryColor}
         />
       </Page>
 
       <Page size="LETTER" style={styles.page}>
-        <PageChrome input={input} page={5} />
-        <Text style={styles.eyebrow}>Evidence, with an explicit boundary</Text>
-        <Text style={styles.title}>Revenue lift from RevFactor-managed benchmarks</Text>
-        <Text style={styles.intro}>
-          These anonymized examples show performance during the RevFactor-managed months analyzed.
-          Lift compares actual managed-period rental revenue with estimated market-level revenue using
-          market RevPAR. It is not a lifetime-since-launch measure or a guarantee.
-        </Text>
-        <View style={styles.callout}>
-          <Text style={styles.calloutTitle}>How to interpret this benchmark</Text>
-          <Text style={styles.calloutBody}>
-            Managed months are the months of RevFactor performance data in the benchmark period.
-            Revenue lift is actual rental revenue minus estimated market-level revenue for the same
-            available nights. A same-property before-and-after view can be added separately when available.
-          </Text>
-        </View>
-        <Table
-          headers={["Comparable property profile", "Managed months", "Managed revenue", "Market-level revenue", "Estimated lift", "Monthly lift"]}
-          rows={input.benchmarks.map((benchmark) => [
-            benchmark.profile,
-            benchmark.managedMonths,
-            benchmark.managedRevenue,
-            benchmark.marketRevenue,
-            benchmark.lift,
-            benchmark.monthlyLift,
-          ])}
-          widths={["29%", "11%", "15%", "17%", "13%", "15%"]}
+        <PageChrome
+          input={input}
+          page={5}
+          brand={brand}
+          primaryColor={primaryColor}
         />
-        <Text style={styles.note}>
-          Basis note: market-level revenue is estimated from market RevPAR for the same managed-month
-          window. RevPAR blends both rate and occupancy; owner-specific upside still requires property history.
+        <Text style={[styles.eyebrow, { color: accentColor }]}>
+          Evidence, with an explicit boundary
         </Text>
-        <View style={[styles.twoCol, { marginTop: 13 }]}>
-          <View style={styles.evidenceCard}>
-            <Text style={styles.evidenceTitle}>What the benchmark supports</Text>
-            <Text>{input.benchmarkSummary}</Text>
-          </View>
-          <View style={styles.evidenceCard}>
-            <Text style={styles.evidenceTitle}>Important boundary</Text>
-            <Text>
-              This does not claim that each comparable earned its lift since original Airbnb launch.
-              It is a managed-period benchmark, not a guaranteed forecast for {input.propertyName}.
+        {projection ? (
+          <>
+            <Text style={[styles.title, { color: primaryColor }]}>
+              Pre-launch revenue projection
             </Text>
-          </View>
-        </View>
-        <View style={[styles.callout, styles.calloutMoss, { marginTop: 13 }]}>
-          <Text style={[styles.calloutTitle, { color: COLORS.moss }]}>
-            What this means for {input.propertyName}
-          </Text>
-          <Text style={styles.calloutBody}>
-            Once {input.preparedFor} shares current performance history and calendar access,
-            RevFactor can quantify the gap between the current baseline and a managed-calendar target.
-          </Text>
-        </View>
+            <Text style={styles.intro}>
+              AirROI analyzed {projection.comparableCount} nearby comparable
+              listings within {projection.radiusMiles} miles. These scenarios
+              are market-informed planning ranges, not guaranteed property
+              performance.
+            </Text>
+            <Table
+              headers={[
+                "Scenario",
+                "Annual revenue",
+                "ADR",
+                "Occupancy",
+                "Interpretation",
+              ]}
+              rows={[
+                [
+                  "Conservative (P25)",
+                  formatMoney(
+                    projection.conservative.revenue,
+                    projection.currency
+                  ),
+                  formatMoney(projection.conservative.adr, projection.currency),
+                  formatPercent(projection.conservative.occupancy),
+                  "Lower-quartile market outcome and cautious launch baseline.",
+                ],
+                [
+                  "Base (P50)",
+                  formatMoney(projection.base.revenue, projection.currency),
+                  formatMoney(projection.base.adr, projection.currency),
+                  formatPercent(projection.base.occupancy),
+                  "Median market outcome used for launch planning.",
+                ],
+                [
+                  "Strong execution (P75)",
+                  formatMoney(projection.strong.revenue, projection.currency),
+                  formatMoney(projection.strong.adr, projection.currency),
+                  formatPercent(projection.strong.occupancy),
+                  "Upper-quartile outcome requiring strong execution and guest response.",
+                ],
+              ]}
+              widths={["20%", "16%", "13%", "13%", "38%"]}
+              headerColor={secondaryColor}
+            />
+            <View
+              style={[
+                styles.callout,
+                { borderLeftColor: accentColor, marginTop: 10 },
+              ]}
+            >
+              <Text style={[styles.calloutTitle, { color: accentColor }]}>
+                How to use the range
+              </Text>
+              <Text style={styles.calloutBody}>
+                Underwrite commitments against the conservative scenario, plan
+                operations around the base case, and treat strong execution as
+                earned upside. Launch pricing, review velocity, calendar
+                availability, amenities, and local restrictions can materially
+                change the outcome.
+              </Text>
+            </View>
+            <Text style={[styles.sectionTitle, { color: primaryColor }]}>
+              Selected comparable listings
+            </Text>
+            <Table
+              headers={[
+                "Comparable",
+                "Bedrooms",
+                "Annual revenue",
+                "ADR",
+                "Occupancy",
+              ]}
+              rows={projection.comparables.map((comparable, index) => [
+                comparable.name || `Comparable ${index + 1}`,
+                comparable.bedrooms == null ? "—" : String(comparable.bedrooms),
+                comparable.revenue == null
+                  ? "—"
+                  : formatMoney(comparable.revenue, projection.currency),
+                comparable.adr == null
+                  ? "—"
+                  : formatMoney(comparable.adr, projection.currency),
+                comparable.occupancy == null
+                  ? "—"
+                  : formatPercent(comparable.occupancy),
+              ])}
+              widths={["39%", "13%", "18%", "14%", "16%"]}
+              headerColor={secondaryColor}
+            />
+            <Text style={styles.note}>
+              Source: AirROI market estimate retrieved{" "}
+              {new Date(projection.retrievedAt).toLocaleDateString("en-US")}.
+              Comparable selection and public-market inputs should be refreshed
+              before an owner signs a management agreement.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.title, { color: primaryColor }]}>
+              Revenue lift from RevFactor-managed benchmarks
+            </Text>
+            <Text style={styles.intro}>
+              These anonymized examples show performance during the
+              RevFactor-managed months analyzed. Lift compares actual
+              managed-period rental revenue with estimated market-level revenue
+              using market RevPAR. It is not a lifetime-since-launch measure or
+              a guarantee.
+            </Text>
+            <View style={[styles.callout, { borderLeftColor: accentColor }]}>
+              <Text style={[styles.calloutTitle, { color: accentColor }]}>
+                How to interpret this benchmark
+              </Text>
+              <Text style={styles.calloutBody}>
+                Managed months are the months of RevFactor performance data in
+                the benchmark period. Revenue lift is actual rental revenue
+                minus estimated market-level revenue for the same available
+                nights. A same-property before-and-after view can be added
+                separately when available.
+              </Text>
+            </View>
+            <Table
+              headers={[
+                "Comparable property profile",
+                "Managed months",
+                "Managed revenue",
+                "Market-level revenue",
+                "Estimated lift",
+                "Monthly lift",
+              ]}
+              rows={input.benchmarks.map((benchmark) => [
+                benchmark.profile,
+                benchmark.managedMonths,
+                benchmark.managedRevenue,
+                benchmark.marketRevenue,
+                benchmark.lift,
+                benchmark.monthlyLift,
+              ])}
+              widths={["29%", "11%", "15%", "17%", "13%", "15%"]}
+              headerColor={secondaryColor}
+            />
+            <Text style={styles.note}>
+              Basis note: market-level revenue is estimated from market RevPAR
+              for the same managed-month window. RevPAR blends both rate and
+              occupancy; owner-specific upside still requires property history.
+            </Text>
+            <View style={[styles.twoCol, { marginTop: 13 }]}>
+              <View style={styles.evidenceCard}>
+                <Text style={[styles.evidenceTitle, { color: accentColor }]}>
+                  What the benchmark supports
+                </Text>
+                <Text>{input.benchmarkSummary}</Text>
+              </View>
+              <View style={styles.evidenceCard}>
+                <Text style={[styles.evidenceTitle, { color: accentColor }]}>
+                  Important boundary
+                </Text>
+                <Text>
+                  This is a managed-period benchmark, not a guaranteed forecast
+                  for {input.propertyName}.
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
       </Page>
 
       <Page size="LETTER" style={styles.page}>
-        <PageChrome input={input} page={6} />
-        <Text style={styles.eyebrow}>From fit assessment to final recommendation</Text>
-        <Text style={styles.title}>
-          Why {input.listingStage === "existing" ? "real listing history" : "a conservative launch baseline"} matters
+        <PageChrome
+          input={input}
+          page={6}
+          brand={brand}
+          primaryColor={primaryColor}
+        />
+        <Text style={[styles.eyebrow, { color: accentColor }]}>
+          From fit assessment to final recommendation
+        </Text>
+        <Text style={[styles.title, { color: primaryColor }]}>
+          Why{" "}
+          {input.listingStage === "existing"
+            ? "real listing history"
+            : "a conservative launch baseline"}{" "}
+          matters
         </Text>
         <Text style={styles.intro}>
           {input.listingStage === "existing"
@@ -585,30 +919,96 @@ function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
         <Table
           headers={["Area", "Existing listing", "New listing"]}
           rows={[
-            ["Baseline", "Real revenue, ADR, occupancy, reviews, booking window, and pacing.", "Comp set, launch assumptions, and a conservative ramp curve."],
-            ["Main question", "Are we underpriced, mis-paced, or missing peak-event value?", "What launch price and promotion strategy earns reviews without sacrificing too much ADR?"],
-            ["Best proof", "Current calendar, 12-month history, and comparable managed accounts.", "Public comps, comparable managed accounts, and demand-driver map."],
-            ["First 30 days", "Tune stay rules, gaps, events, base/min/max, and discounts.", "Set launch pricing, promotions, review ramp, and the first event calendar."],
+            [
+              "Baseline",
+              "Real revenue, ADR, occupancy, reviews, booking window, and pacing.",
+              "Comp set, launch assumptions, and a conservative ramp curve.",
+            ],
+            [
+              "Main question",
+              "Are we underpriced, mis-paced, or missing peak-event value?",
+              "What launch price and promotion strategy earns reviews without sacrificing too much ADR?",
+            ],
+            [
+              "Best proof",
+              "Current calendar, 12-month history, and comparable managed accounts.",
+              "Public comps, comparable managed accounts, and demand-driver map.",
+            ],
+            [
+              "First 30 days",
+              "Tune stay rules, gaps, events, base/min/max, and discounts.",
+              "Set launch pricing, promotions, review ramp, and the first event calendar.",
+            ],
           ]}
           widths={["19%", "40.5%", "40.5%"]}
+          headerColor={secondaryColor}
         />
-        <Text style={styles.sectionTitle}>Data needed for the final recommendation</Text>
-        {[
-          ["Performance history", "Last 12 months of revenue, ADR, occupancy, and monthly seasonality."],
-          ["Current calendar rules", "Forward pricing, minimum nights, discounts, and blocked or owner-use dates."],
-          ["Booking behavior", "Lead time, channel mix, length of stay, cancellations, and future pacing."],
-          ["Owner goals and constraints", "Cash-flow, occupancy, turnover, ADR, permit, and operating priorities."],
-        ].map(([title, body]) => (
+        <Text style={[styles.sectionTitle, { color: primaryColor }]}>
+          Data needed for the final recommendation
+        </Text>
+        {(projection
+          ? [
+              [
+                "Final property specification",
+                "Plans, bed configuration, guest capacity, amenity scope, and accessibility details.",
+              ],
+              [
+                "Launch readiness",
+                "Photography, listing content, opening date, promotions, and review-ramp plan.",
+              ],
+              [
+                "Regulatory and operating plan",
+                "Permit status, parking, turnover capacity, fees, owner use, and operating costs.",
+              ],
+              [
+                "Owner goals and constraints",
+                "Cash-flow priorities, target guest, risk tolerance, and management expectations.",
+              ],
+            ]
+          : [
+              [
+                "Performance history",
+                "Last 12 months of revenue, ADR, occupancy, and monthly seasonality.",
+              ],
+              [
+                "Current calendar rules",
+                "Forward pricing, minimum nights, discounts, and blocked or owner-use dates.",
+              ],
+              [
+                "Booking behavior",
+                "Lead time, channel mix, length of stay, cancellations, and future pacing.",
+              ],
+              [
+                "Owner goals and constraints",
+                "Cash-flow, occupancy, turnover, ADR, permit, and operating priorities.",
+              ],
+            ]
+        ).map(([title, body]) => (
           <View key={title} style={styles.dataItem}>
-            <Text style={styles.dataItemTitle}>{title}</Text>
+            <Text style={[styles.dataItemTitle, { color: primaryColor }]}>
+              {title}
+            </Text>
             <Text>{body}</Text>
           </View>
         ))}
-        <View style={[styles.callout, styles.calloutMoss, { marginTop: 16 }]}>
-          <Text style={[styles.calloutTitle, { color: COLORS.moss }]}>Important note</Text>
+        <View
+          style={[
+            styles.callout,
+            styles.calloutMoss,
+            {
+              backgroundColor: COLORS.bone,
+              borderLeftColor: secondaryColor,
+              marginTop: 16,
+            },
+          ]}
+        >
+          <Text style={[styles.calloutTitle, { color: secondaryColor }]}>
+            Important note
+          </Text>
           <Text style={styles.calloutBody}>
-            This brief is a fit assessment based on supplied listing information and anonymized RevFactor
-            benchmark examples. It is not a guaranteed revenue projection. {input.finalDataRequest}
+            {projection
+              ? `This brief is a market-informed fit assessment based on supplied property information and AirROI comparable data. It is not guaranteed income. ${input.finalDataRequest}`
+              : `This brief is a fit assessment based on supplied listing information and anonymized RevFactor benchmark examples. It is not a guaranteed revenue projection. ${input.finalDataRequest}`}
           </Text>
         </View>
       </Page>
@@ -616,6 +1016,9 @@ function RevenueBriefDocument({ input }: { input: RevenueBriefInput }) {
   )
 }
 
-export async function renderRevenueBriefPdf(input: RevenueBriefInput): Promise<Buffer> {
-  return renderToBuffer(<RevenueBriefDocument input={input} />)
+export async function renderRevenueBriefPdf(
+  input: RevenueBriefInput,
+  brand: RevenueBriefBrandTheme | null = null
+): Promise<Buffer> {
+  return renderToBuffer(<RevenueBriefDocument input={input} brand={brand} />)
 }

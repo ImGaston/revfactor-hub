@@ -2,16 +2,17 @@
 
 ## AirROI
 
-AirROI is the optional public-listing enrichment source for the Revenue Brief Builder.
+AirROI is the optional public-listing enrichment and pre-launch underwriting source for the Revenue Brief Builder.
 
 - API base: `https://api.airroi.com`.
 - Auth: `X-API-KEY` from server-only `AIRROI_API_KEY`; never expose the key to the browser.
-- Client: `lib/airroi.server.ts`; pure response validation, Airbnb ID parsing, and brief-draft mapping live in `lib/airroi.ts`.
+- Client: `lib/airroi.server.ts`; pure response validation, Airbnb ID parsing, and deterministic draft mapping live in `lib/airroi.ts` and `lib/airroi-estimate.ts`.
 - Hub route: authenticated `POST /api/revenue-briefs/airroi`, gated by `pipeline:view`, calls `GET /listings?listing_id=...&currency=native` once per explicit user request and returns a private/no-store draft.
+- Pre-launch route: authenticated `POST /api/revenue-briefs/airroi/estimate`, also `pipeline:view`, calls `GET /calculator/estimate` with an address, 1–10 mile radius, `entire_home`, bedrooms, baths, and guests. The adapter accepts both documented AirROI response variants (nested OpenAPI comparables/monthly shares and flat tutorial comparables/monthly currency values) and normalizes them.
 - Inputs: prospect name, exact property address, Airbnb listing URL, owner goals, and optional known constraints. Only `airbnb.com/rooms/<numeric-id>` URLs are accepted; the Hub extracts the ID instead of forwarding a user-controlled URL.
 - Drafted facts: listing name/location, specs, rating/reviews, host/trust signals, visible amenities, booking settings, and owner-safe initial opportunity language. Demand drivers and RevFactor benchmarks remain manual analyst-review fields.
-- Evidence boundary: AirROI TTM revenue, ADR, occupancy, and RevPAR are shown internally as third-party modeled estimates. They are not treated as owner-reported actuals, are not inserted into the client PDF as guaranteed projections, and do not replace the approved RevFactor managed-benchmark section.
-- Persistence: no AirROI payload, intake, or generated PDF is stored in v1. Missing configuration disables the import button while preserving the manual builder.
+- Evidence boundary: existing-listing TTM revenue, ADR, occupancy, and RevPAR are internal third-party modeled estimates. For a not-yet-launched property, the PDF may present AirROI P25 as conservative, P50 as base, and P75 as strong execution, always labeled as market-informed scenarios rather than guaranteed income. AirROI returns up to 25 comps; the PDF shows at most five and requires analyst review.
+- Persistence: no AirROI payload, proposal intake, or generated PDF is stored. Reusable partner brand profiles are the exception: normalized colors/co-brand mode/footer plus private logo and brand-manual assets persist in Supabase. Missing AirROI configuration disables research while preserving the manual existing-listing builder.
 
 ## Assembly CRM
 

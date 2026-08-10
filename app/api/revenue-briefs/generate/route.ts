@@ -1,4 +1,5 @@
 import { hasPermission } from "@/lib/permissions.server"
+import { loadRevenueBriefBrandTheme } from "@/lib/revenue-brief/brand.server"
 import { renderRevenueBriefPdf } from "@/lib/revenue-brief/pdf"
 import {
   RevenueBriefSchema,
@@ -7,14 +8,20 @@ import {
 
 export async function POST(request: Request) {
   if (!(await hasPermission("pipeline", "view"))) {
-    return Response.json({ error: "You do not have access to revenue briefs." }, { status: 403 })
+    return Response.json(
+      { error: "You do not have access to revenue briefs." },
+      { status: 403 }
+    )
   }
 
   let payload: unknown
   try {
     payload = await request.json()
   } catch {
-    return Response.json({ error: "The brief data could not be read." }, { status: 400 })
+    return Response.json(
+      { error: "The brief data could not be read." },
+      { status: 400 }
+    )
   }
 
   const parsed = RevenueBriefSchema.safeParse(payload)
@@ -32,7 +39,17 @@ export async function POST(request: Request) {
   }
 
   try {
-    const pdf = await renderRevenueBriefPdf(parsed.data)
+    const brand = parsed.data.brandProfileId
+      ? await loadRevenueBriefBrandTheme(parsed.data.brandProfileId)
+      : null
+    if (parsed.data.brandProfileId && !brand) {
+      return Response.json(
+        { error: "The selected brand profile is no longer available." },
+        { status: 400 }
+      )
+    }
+
+    const pdf = await renderRevenueBriefPdf(parsed.data, brand)
     const filename = revenueBriefFilename(parsed.data)
 
     return new Response(new Uint8Array(pdf), {

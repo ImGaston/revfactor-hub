@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-10 — PM-partner branded pre-launch Revenue Briefs
+
+- Added a not-yet-launched property intake that calls AirROI's calculator by address/specification, normalizes both documented response shapes, and maps P25/P50/P75 into conservative/base/strong-execution scenarios with a bounded comparable set and explicit no-guarantee language.
+- Added migration 075, `/revenue-briefs/brands`, private logo/manual storage, Hub-client linking, three co-branding modes, approved colors/footer/typography guidance, and a prefilled MintedStay example derived from its supplied brand book.
+- Updated the six-page PDF renderer to apply the selected partner theme server-side and replace the existing-listing benchmark page with pre-launch scenario and comp evidence. Verified strict types, all 83 tests, targeted lint, and visual renders for existing and branded pre-launch PDFs; full-repo lint remains blocked by unrelated pre-existing errors outside this feature.
+
 ## 2026-08-10 — Revenue Brief prospect intake and AirROI draft enrichment
 
 - Added a short prospect intake for prepared-for name, property address, Airbnb URL, owner goals, and known constraints, with a manual apply path that leaves the existing full analyst form intact.

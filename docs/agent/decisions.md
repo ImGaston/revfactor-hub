@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-10 — PM-Partner Proposals Use Reusable Branding and Percentile Scenarios
+
+Property-management clients may use the Revenue Brief Builder for owner prospects whose properties are not yet live and who would become RevFactor revenue-management clients through the PM relationship. The pre-launch path uses AirROI's address/property calculator: P25 is the conservative underwriting case, P50 is the planning base, and P75 is labeled strong execution. P90 is intentionally excluded from client PDFs. Every projection states that comparable quality, launch execution, reviews, availability, regulations, amenities, and operating choices can change the outcome; it is never guaranteed income.
+
+Partner identity is durable while proposal data remains stateless. Migration 075 stores reusable brand profiles and private logo/manual assets behind Pipeline RLS. A PDF can be partner-led (partner logo, RevFactor as revenue-strategy provider), co-branded, or RevFactor-led. The brand manual itself is retained as source evidence, while the renderer consumes explicit approved logo/color/footer fields; typography guidance is recorded but a font is not embedded unless a licensed font asset is separately supplied in a future change.
+
 ## 2026-08-10 — AirROI Enriches Revenue Brief Drafts but Does Not Author the Recommendation
 
 The Revenue Brief Builder may use AirROI on demand to prefill public listing facts and show an internal TTM modeled-performance snapshot. AirROI is an evidence source, not the decision-maker: its revenue, ADR, occupancy, and RevPAR values are labeled third-party modeled estimates, never owner-reported actuals or guaranteed property projections. Demand-driver research, property constraints, opportunity framing, and the approved RevFactor managed-benchmark section still require human review before PDF generation.

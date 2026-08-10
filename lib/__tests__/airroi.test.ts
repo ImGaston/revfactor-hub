@@ -75,6 +75,25 @@ describe("AirROI revenue brief intake", () => {
     ).toBeNull()
   })
 
+  it("preserves Airbnb IDs that exceed JavaScript's safe integer range", () => {
+    const hugeId = "1367587880742720974"
+    const result = mapAirRoiListingToRevenueBrief(
+      {
+        ...listing,
+        listing_info: {
+          ...listing.listing_info,
+          listing_id: 1367587880742721000,
+        },
+      },
+      {
+        ...intake,
+        listingUrl: `https://www.airbnb.com/rooms/${hugeId}`,
+      }
+    )
+
+    expect(result.source.listingId).toBe(hugeId)
+  })
+
   it("maps AirROI listing facts into an analyst-reviewable brief draft", () => {
     const result = mapAirRoiListingToRevenueBrief(
       listing,
