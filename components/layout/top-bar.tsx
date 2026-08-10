@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { usePathname } from "next/navigation"
 import { Search } from "lucide-react"
 import {
@@ -32,10 +32,15 @@ const routeLabels: Record<string, string> = {
   "boards-tags": "Boards & Tags",
   knowledge: "Knowledge",
   "agent-studio": "Agent Studio",
+  "revenue-briefs": "Revenue Briefs",
   new: "New Article",
   edit: "Edit",
   category: "Category",
 }
+
+const subscribeToPlatform = () => () => undefined
+const getPlatformSnapshot = () => /Mac|iPhone|iPad/.test(navigator.platform)
+const getServerPlatformSnapshot = () => true
 
 type TopBarProps = {
   profile: Profile | null
@@ -47,11 +52,11 @@ export function TopBar({ profile, permissionMap }: TopBarProps) {
   const segments = pathname.split("/").filter(Boolean)
   const { overrides } = useBreadcrumbOverrides()
   const [cmdOpen, setCmdOpen] = useState(false)
-  const [isMac, setIsMac] = useState(true)
-
-  useEffect(() => {
-    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform))
-  }, [])
+  const isMac = useSyncExternalStore(
+    subscribeToPlatform,
+    getPlatformSnapshot,
+    getServerPlatformSnapshot
+  )
 
   return (
     <>

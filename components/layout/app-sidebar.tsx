@@ -17,6 +17,7 @@ import {
   LogOut,
   ChevronsUpDown,
   User as UserIcon,
+  FileChartColumnIncreasing,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -63,6 +64,12 @@ const navItems: NavItem[] = [
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },
   { title: "Projects & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
   { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
+  {
+    title: "Revenue Briefs",
+    href: "/revenue-briefs",
+    icon: FileChartColumnIncreasing,
+    resource: "pipeline",
+  },
   { title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
   { title: "Agent Studio", href: "/agent-studio", icon: Bot, resource: "agent_studio" },
   { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true },
