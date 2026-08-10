@@ -2,11 +2,8 @@
 
 import { useState, useEffect, useOptimistic, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import {
-  ChevronUp,
-  Calendar,
-  Trash2,
-} from "lucide-react"
+import { toast } from "sonner"
+import { ChevronUp, Calendar, Trash2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -27,12 +24,14 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { CommentThread } from "./comment-thread"
 import { CommentForm } from "./comment-form"
@@ -40,7 +39,12 @@ import { toggleUpvote, updatePost, deletePost } from "./actions"
 import { createClient } from "@/lib/supabase/client"
 import Markdown from "react-markdown"
 import { cn } from "@/lib/utils"
-import type { Post, Board, Tag, Comment as CommentType } from "@/lib/types"
+import type {
+  Post,
+  Board,
+  RoadmapProject,
+  Comment as CommentType,
+} from "@/lib/types"
 
 const STATUS_OPTIONS = [
   { value: "backlog", label: "Backlog", color: "#E8394D" },
@@ -69,22 +73,26 @@ function relativeTime(dateStr: string): string {
 
 type Props = {
   post: Post
+  projects: RoadmapProject[]
   boards: Board[]
-  tags: Tag[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function PostDetailDialog({
   post,
+  projects,
   boards,
-  tags,
   open,
   onOpenChange,
 }: Props) {
   const router = useRouter()
   const [comments, setComments] = useState<CommentType[]>([])
   const [loadingComments, setLoadingComments] = useState(true)
+  const [currentStatus, setCurrentStatus] = useState(post.status)
+  const [currentProjectId, setCurrentProjectId] = useState(post.project_id)
+  const [deadline, setDeadline] = useState(post.deadline ?? "")
+  const [savedDeadline, setSavedDeadline] = useState(post.deadline ?? "")
   const [, startTransition] = useTransition()
 
   const [optimistic, applyOptimistic] = useOptimistic(
@@ -92,7 +100,7 @@ export function PostDetailDialog({
       upvote_count: post.upvote_count ?? 0,
       has_upvoted: post.has_upvoted ?? false,
     },
-    (state, _action: "toggle") => ({
+    (state) => ({
       upvote_count: state.has_upvoted
         ? state.upvote_count - 1
         : state.upvote_count + 1,
@@ -103,15 +111,12 @@ export function PostDetailDialog({
   // Fetch comments on open
   useEffect(() => {
     if (!open) return
-    setLoadingComments(true)
     const supabase = createClient()
 
     async function fetchComments() {
       const { data } = await supabase
         .from("comments")
-        .select(
-          "*, profiles:author_id(full_name, avatar_url, email)"
-        )
+        .select("*, profiles:author_id(full_name, avatar_url, email)")
         .eq("post_id", post.id)
         .order("created_at", { ascending: true })
 
@@ -141,7 +146,40 @@ export function PostDetailDialog({
   }
 
   async function handleStatusChange(newStatus: string) {
-    await updatePost(post.id, { status: newStatus })
+    const previousStatus = currentStatus
+    setCurrentStatus(newStatus)
+    const result = await updatePost(post.id, { status: newStatus })
+    if (result.error) {
+      setCurrentStatus(previousStatus)
+      toast.error(result.error)
+      return
+    }
+    router.refresh()
+  }
+
+  async function handleProjectChange(projectId: string) {
+    const previousProjectId = currentProjectId
+    setCurrentProjectId(projectId)
+    const result = await updatePost(post.id, { project_id: projectId })
+    if (result.error) {
+      setCurrentProjectId(previousProjectId)
+      toast.error(result.error)
+      return
+    }
+    toast.success("Task moved to project")
+    router.refresh()
+  }
+
+  async function saveDeadline() {
+    if (deadline === savedDeadline) return
+    const result = await updatePost(post.id, { deadline: deadline || null })
+    if (result.error) {
+      setDeadline(savedDeadline)
+      toast.error(result.error)
+      return
+    }
+    setSavedDeadline(deadline)
+    toast.success(deadline ? "Deadline updated" : "Deadline removed")
     router.refresh()
   }
 
@@ -170,13 +208,13 @@ export function PostDetailDialog({
     <>
       {/* Upvote */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Upvotes
         </p>
         <button
           onClick={handleUpvote}
           className={cn(
-            "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors w-full justify-center",
+            "flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
             optimistic.has_upvoted
               ? "border-blue-300 bg-blue-50 text-blue-600 dark:border-blue-700 dark:bg-blue-950/30"
               : "hover:bg-accent"
@@ -191,22 +229,42 @@ export function PostDetailDialog({
 
       {/* Status */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Status
         </p>
-        <Select
-          value={post.status}
-          onValueChange={handleStatusChange}
-        >
+        <Select value={currentStatus} onValueChange={handleStatusChange}>
           <SelectTrigger className="h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Project */}
+      <div className="flex flex-col gap-1.5">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          Project
+        </p>
+        <Select value={currentProjectId} onValueChange={handleProjectChange}>
+          <SelectTrigger className="h-8 w-full text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
@@ -214,8 +272,8 @@ export function PostDetailDialog({
       {/* Board */}
       {board && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Board
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            Category
           </p>
           <Badge variant="secondary" className="text-xs">
             {board.icon} {board.name}
@@ -226,15 +284,12 @@ export function PostDetailDialog({
       {/* Tags */}
       {postTags.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Tags
           </p>
           <div className="flex flex-wrap gap-1.5">
             {postTags.map((t) => (
-              <span
-                key={t.id}
-                className="flex items-center gap-1 text-xs"
-              >
+              <span key={t.id} className="flex items-center gap-1 text-xs">
                 <span
                   className="size-2 rounded-full"
                   style={{ backgroundColor: t.color }}
@@ -246,26 +301,25 @@ export function PostDetailDialog({
         </div>
       )}
 
-      {/* ETA */}
-      {post.eta && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            ETA
-          </p>
-          <span className="flex items-center gap-1 text-xs">
-            <Calendar className="size-3" />
-            {new Date(post.eta).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-        </div>
-      )}
+      {/* Deadline */}
+      <div className="flex flex-col gap-1.5">
+        <p className="flex items-center gap-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <Calendar />
+          Deadline
+        </p>
+        <Input
+          type="date"
+          value={deadline}
+          onChange={(event) => setDeadline(event.target.value)}
+          onBlur={saveDeadline}
+          className="h-8 w-full text-xs"
+          aria-label="Task deadline"
+        />
+      </div>
 
       {/* Date */}
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Created
         </p>
         <span className="text-xs text-muted-foreground">
@@ -281,25 +335,25 @@ export function PostDetailDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full text-destructive hover:text-destructive gap-1.5"
+            className="w-full gap-1.5 text-destructive hover:text-destructive"
           >
             <Trash2 className="size-3.5" />
-            Delete post
+            Delete task
           </Button>
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. All comments and upvotes
-              will also be deleted.
+              This action cannot be undone. All comments and upvotes will also
+              be deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
@@ -311,13 +365,13 @@ export function PostDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="!max-w-4xl !w-[calc(100%-2rem)] sm:!w-full sm:!max-w-4xl !p-0 !gap-0 !h-[90vh] sm:!h-auto sm:!max-h-[85vh] !rounded-2xl sm:!rounded-4xl">
+      <DialogContent className="!h-[90vh] !w-[calc(100%-2rem)] !max-w-4xl !gap-0 !rounded-2xl !p-0 sm:!h-auto sm:!max-h-[85vh] sm:!w-full sm:!max-w-4xl sm:!rounded-4xl">
         {/* Mobile: single column scrollable */}
-        <div className="flex flex-col sm:hidden h-full overflow-y-auto">
+        <div className="flex h-full flex-col overflow-y-auto sm:hidden">
           {/* Title */}
           <div className="p-5 pb-0">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold leading-tight pr-8">
+              <DialogTitle className="pr-8 text-xl leading-tight font-semibold">
                 {post.title}
               </DialogTitle>
             </DialogHeader>
@@ -326,7 +380,7 @@ export function PostDetailDialog({
           {/* Description */}
           <div className="px-5 pt-3">
             {post.description ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
                 <Markdown>{post.description}</Markdown>
               </div>
             ) : (
@@ -337,16 +391,14 @@ export function PostDetailDialog({
           </div>
 
           {/* Metadata section inline */}
-          <div className="px-5 pt-4 space-y-3">
-            {metadataSidebar}
-          </div>
+          <div className="space-y-3 px-5 pt-4">{metadataSidebar}</div>
 
           <div className="px-5 pt-4">
             <Separator />
           </div>
 
           {/* Comments */}
-          <div className="p-5 space-y-3">
+          <div className="space-y-3 p-5">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold">Comments</h3>
               <Badge variant="secondary" className="text-[10px]">
@@ -354,10 +406,7 @@ export function PostDetailDialog({
               </Badge>
             </div>
 
-            <CommentForm
-              postId={post.id}
-              onCommentAdded={handleCommentAdded}
-            />
+            <CommentForm postId={post.id} onCommentAdded={handleCommentAdded} />
 
             {loadingComments ? (
               <p className="text-sm text-muted-foreground">
@@ -384,18 +433,18 @@ export function PostDetailDialog({
         </div>
 
         {/* Desktop: two-panel layout */}
-        <div className="hidden sm:flex h-full max-h-[85vh]">
+        <div className="hidden h-full max-h-[85vh] sm:flex">
           {/* Left panel — content */}
-          <div className="flex-1 min-w-0 overflow-y-auto p-6 space-y-4">
+          <div className="min-w-0 flex-1 space-y-4 overflow-y-auto p-6">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold leading-tight pr-8">
+              <DialogTitle className="pr-8 text-xl leading-tight font-semibold">
                 {post.title}
               </DialogTitle>
             </DialogHeader>
 
             {/* Description */}
             {post.description ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="prose prose-sm max-w-none dark:prose-invert">
                 <Markdown>{post.description}</Markdown>
               </div>
             ) : (
@@ -445,7 +494,7 @@ export function PostDetailDialog({
           </div>
 
           {/* Right panel — metadata sidebar */}
-          <div className="w-72 shrink-0 border-l bg-muted/30 p-5 space-y-4 overflow-y-auto rounded-r-[inherit]">
+          <div className="w-72 shrink-0 space-y-4 overflow-y-auto rounded-r-[inherit] border-l bg-muted/30 p-5">
             {metadataSidebar}
           </div>
         </div>

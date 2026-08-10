@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-10 — Roadmap Posts Become Project Tasks Without Losing History
+
+The `/roadmap` workspace now presents Projects first and a project-filterable Task board second. Existing `posts` remain the task records so comments, upvotes, tags, categories, ordering, and dates survive; a new required `roadmap_projects` parent provides the missing planning hierarchy. Migration 074 creates a stable General project and gives `posts.project_id` a non-null General default, avoiding orphan tasks and keeping legacy writers safe during deployment. The old `posts.eta` storage name is retained for backward compatibility but is presented as Deadline throughout the UI; projects carry their own optional deadline. Boards remain reusable categories rather than being overloaded as projects.
+
 ## 2026-08-06 — Adjustments Is the HostPricing Ticket Channel (071)
 
 Underperforming-listing reviews from Host Pricing's consolidated report (pace, Airbnb impressions, Rankbreeze, visibility index, conversion, occupancy vs market) move from Google Sheets/email into Adjustments as structured tickets. Design choices, building on the 2026-07-16 decisions rather than adding machinery:
