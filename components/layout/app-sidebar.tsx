@@ -61,7 +61,7 @@ const navItems: NavItem[] = [
   { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
   { title: "Adjustments", href: "/adjustments", icon: SlidersHorizontal, resource: "adjustments" },
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },
-  { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
+  { title: "Projects & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
   { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
   { title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
   { title: "Agent Studio", href: "/agent-studio", icon: Bot, resource: "agent_studio" },

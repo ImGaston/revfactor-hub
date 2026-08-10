@@ -71,6 +71,7 @@
 - Priority and tag badges may use custom colors.
 - Drag-and-drop uses `@hello-pangea/dnd` with optimistic UI.
 - Cards support click-to-move menus, archive/complete actions, and optional status indicators.
+- The `/roadmap` Kanban treats `posts` as tasks. Every task must have a `roadmap_projects` parent; the board supports an all-project view and a single-project filter. The legacy `posts.eta` storage field is presented as the task Deadline in the app, while `roadmap_projects.deadline` is the overall project deadline.
 
 ## Listings
 - Listing detail has a PriceLabs-style KPI row: Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked.

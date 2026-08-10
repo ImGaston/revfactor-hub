@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-10 — Project-based roadmap workspace
+
+- Reworked `/roadmap` into Projects and Task board tabs. Project cards show completion counts, upcoming deadlines, a task preview, and a detail dialog with every attached task; each project can open a pre-filtered Kanban.
+- Added and applied migration 074 with permission-scoped `roadmap_projects`, required `posts.project_id`, project deadlines, and a General-project default that preserves every existing roadmap post, vote, comment, tag, category, and task date. The legacy `posts.eta` field remains storage-compatible while the UI presents it as Deadline.
+- Task creation now requires a project, the Kanban switches between all projects and one project, and task detail supports project reassignment and inline deadline editing. Added the route loading skeleton and updated navigation terminology.
+
 ## 2026-08-06 — Managed adjustment-type visibility per creator group
 
 - Migration 073 (applied to prod): `adjustment_type_settings` with `internal_enabled`/`hostpricing_enabled` per type, seeded from the old hardcoded rule (everything on; `setup` off for HostPricing). SELECT via `adjustments:view` OR `settings:edit`, writes via `settings:edit`.

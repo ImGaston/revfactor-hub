@@ -5,7 +5,7 @@ export const RESOURCES = [
   { key: "listings", label: "Listings", description: "Property listings and their links" },
   { key: "tasks", label: "Tasks", description: "Task board and assignments" },
   { key: "pipeline", label: "Pipeline", description: "Sales pipeline and leads" },
-  { key: "roadmap", label: "Roadmap", description: "Ideas and roadmap items" },
+  { key: "roadmap", label: "Roadmap", description: "Projects and roadmap tasks" },
   { key: "onboarding", label: "Onboarding", description: "Client onboarding steps" },
   { key: "users", label: "Users", description: "User management and invitations" },
   { key: "settings", label: "Settings", description: "System settings and configuration" },

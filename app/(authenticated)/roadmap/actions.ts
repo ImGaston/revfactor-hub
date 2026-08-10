@@ -3,17 +3,89 @@
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
+const ROADMAP_STATUSES = new Set([
+  "backlog",
+  "next",
+  "in_progress",
+  "limited_release",
+  "completed",
+])
+
+// ─── Projects ────────────────────────────────────────────
+
+export async function createRoadmapProject(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim()
+  const deadline = String(formData.get("deadline") ?? "").trim()
+
+  if (!name) return { error: "Project name is required" }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: "Not authenticated" }
+
+  const { data: maxOrder } = await supabase
+    .from("roadmap_projects")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { error } = await supabase.from("roadmap_projects").insert({
+    name,
+    description: description || null,
+    deadline: deadline || null,
+    created_by: user.id,
+    sort_order: (maxOrder?.sort_order ?? -1) + 1,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/roadmap")
+  return { success: true }
+}
+
+export async function updateRoadmapProject(
+  projectId: string,
+  data: { name: string; description: string | null; deadline: string | null }
+) {
+  const name = data.name.trim()
+  if (!name) return { error: "Project name is required" }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from("roadmap_projects")
+    .update({
+      name,
+      description: data.description?.trim() || null,
+      deadline: data.deadline || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath("/roadmap")
+  return { success: true }
+}
+
 // ─── Posts ───────────────────────────────────────────────
 
 export async function createPost(formData: FormData) {
   const title = formData.get("title") as string
   const description = formData.get("description") as string
   const status = (formData.get("status") as string) || "backlog"
+  const project_id = formData.get("project_id") as string
   const board_id = formData.get("board_id") as string
-  const eta = formData.get("eta") as string
+  const deadline = formData.get("deadline") as string
   const tagIds = formData.getAll("tag_ids") as string[]
 
   if (!title) return { error: "Title is required" }
+  if (!project_id) return { error: "Project is required" }
+  if (!ROADMAP_STATUSES.has(status)) return { error: "Invalid task status" }
 
   const supabase = await createClient()
 
@@ -25,6 +97,7 @@ export async function createPost(formData: FormData) {
     .from("posts")
     .select("sort_order")
     .eq("status", status)
+    .eq("project_id", project_id)
     .order("sort_order", { ascending: false })
     .limit(1)
     .single()
@@ -37,8 +110,9 @@ export async function createPost(formData: FormData) {
       title,
       description: description || null,
       status,
+      project_id,
       board_id: board_id || null,
-      eta: eta || null,
+      eta: deadline || null,
       author_id: user?.id ?? null,
       sort_order: sortOrder,
     })
@@ -62,15 +136,26 @@ export async function updatePost(
     title?: string
     description?: string | null
     status?: string
+    project_id?: string
     board_id?: string | null
-    eta?: string | null
+    deadline?: string | null
   }
 ) {
+  if (data.status && !ROADMAP_STATUSES.has(data.status)) {
+    return { error: "Invalid task status" }
+  }
+  if (data.project_id === "") return { error: "Project is required" }
+
   const supabase = await createClient()
+  const { deadline, ...postData } = data
 
   const { error } = await supabase
     .from("posts")
-    .update({ ...data, updated_at: new Date().toISOString() })
+    .update({
+      ...postData,
+      ...(deadline !== undefined ? { eta: deadline } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", postId)
 
   if (error) return { error: error.message }
@@ -98,6 +183,9 @@ export async function updatePostStatus(
   newStatus: string,
   newSortOrder: number
 ) {
+  if (!ROADMAP_STATUSES.has(newStatus)) {
+    return { error: "Invalid task status" }
+  }
   const supabase = await createClient()
 
   const { error } = await supabase
@@ -191,10 +279,7 @@ export async function createComment(
 export async function deleteComment(commentId: string) {
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from("comments")
-    .delete()
-    .eq("id", commentId)
+  const { error } = await supabase.from("comments").delete().eq("id", commentId)
 
   if (error) return { error: error.message }
 
@@ -282,10 +367,7 @@ export async function updateBoard(
 ) {
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from("boards")
-    .update(data)
-    .eq("id", boardId)
+  const { error } = await supabase.from("boards").update(data).eq("id", boardId)
 
   if (error) return { error: error.message }
 
@@ -297,10 +379,7 @@ export async function updateBoard(
 export async function deleteBoard(boardId: string) {
   const supabase = await createClient()
 
-  const { error } = await supabase
-    .from("boards")
-    .delete()
-    .eq("id", boardId)
+  const { error } = await supabase.from("boards").delete().eq("id", boardId)
 
   if (error) return { error: error.message }
 
