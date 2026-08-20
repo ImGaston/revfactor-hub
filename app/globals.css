@@ -105,6 +105,13 @@
     --glass-surface: var(--popover);
     --glass-opacity: 72%;
     --glass-brightness: 1.06;
+
+    /* Sidebar y top bar comparten superficie Y opacidad: si usan tokens distintos
+       (--sidebar es gris 0.985, --popover es blanco 1.0) se leen como dos
+       materiales pegados en vez de una sola lamina de vidrio. Bien transparente
+       para que la luz ambiente sea el campo continuo y el chrome flote encima. */
+    --chrome-surface: var(--background);
+    --chrome-opacity: 58%;
     --glass-blur: 20px;
     --glass-saturate: 1.6;
 
@@ -179,6 +186,9 @@
     --glass-surface: var(--popover);
     --glass-opacity: 82%;
     --glass-brightness: 0.6;
+    /* En dark el ambiente es mucho mas tenue y el texto es claro: hace falta mas
+       cuerpo para que el chrome se separe del contenido. */
+    --chrome-opacity: 72%;
 
     --rim:
         inset 0 1px 0 0 oklch(1 0 0 / 0.1),
@@ -214,9 +224,10 @@
     z-index: -10;
     pointer-events: none;
     background-image:
-      radial-gradient(72rem 52rem at 10% -12%, var(--ambient-a), transparent 62%),
-      radial-gradient(62rem 46rem at 98% 2%, var(--ambient-b), transparent 58%),
-      radial-gradient(56rem 42rem at 46% 112%, var(--ambient-c), transparent 60%);
+      radial-gradient(90rem 70rem at 12% -10%, var(--ambient-a), transparent 70%),
+      radial-gradient(80rem 62rem at 92% 6%, var(--ambient-b), transparent 68%),
+      radial-gradient(85rem 65rem at 50% 108%, var(--ambient-c), transparent 70%),
+      linear-gradient(160deg, var(--ambient-a), transparent 55%);
     }
   @media print {
     body::before { display: none; }
@@ -282,8 +293,9 @@
    Estan siempre en pantalla y desenfocan contenido que scrollea, o sea que se
    re-rasterizan por frame; 40px de blur ahi es 3x el costo sin ganar nada. */
 @utility glass-panel {
-    --glass-opacity: 86%;
-    --glass-blur: 12px;
+    --glass-surface: var(--chrome-surface);
+    --glass-opacity: var(--chrome-opacity);
+    --glass-blur: 14px;
 }
 
 /* Springs. Emparejan curva y duracion en una sola clase para que no se

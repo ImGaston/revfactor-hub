@@ -187,7 +187,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="glass-chrome w-(--sidebar-width) p-0 text-sidebar-foreground [--glass-opacity:90%] [--glass-surface:var(--sidebar)] [&>button]:hidden"
+          className="glass-chrome w-(--sidebar-width) p-0 text-sidebar-foreground glass-panel [--glass-opacity:90%] [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -242,7 +242,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="glass-chrome flex size-full flex-col glass-panel [--glass-surface:var(--sidebar)] group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          className="glass-chrome flex size-full flex-col glass-panel group-data-[variant=floating]:rounded-2xl group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
         >
           {children}
         </div>
