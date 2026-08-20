@@ -165,7 +165,16 @@ Added 2026-08-20. All tokens and utilities live in `app/globals.css`.
 
 **Every `var()` inside `glass-chrome` carries a fallback**, and must keep doing so. The failure mode when a token does not resolve is a *transparent* surface — and since the `inverted-translucent` menus paint near-white text, that renders as invisible text, not as a visible glitch. Degrading to an opaque `--popover` is ugly but readable. (Hit in dev on 2026-08-20 via a stale Turbopack CSS cache; `rm -rf .next` clears it.)
 
-**Anchored chrome shares one material.** Sidebar and top bar both use `glass-panel`, which pulls `--chrome-surface` / `--chrome-opacity`. Do not re-tint either one individually: tinting the sidebar with `--sidebar` (0.985 grey) while the top bar used `--popover` (1.0 white) made them read as two adjacent materials with a hard seam, and both were opaque enough to hide the ambient wash — three competing background fields instead of one. The chrome is deliberately transparent (58% light / 72% dark) so the ambient wash is the continuous field and the chrome floats on it.
+**Glass only where something actually passes behind it.** The page background is flat — there is no ambient/gradient layer (tried and removed, see `decisions.md` 2026-08-20). So `backdrop-filter` is only worth its cost where real content moves underneath:
+
+| Surface | Treatment | Why |
+|---|---|---|
+| Top bar | `glass-chrome glass-panel` | Content scrolls under it. This is the one anchored surface where the frost reads. |
+| Sidebar (desktop) | solid `bg-sidebar` + `border-r` | Fixed column; nothing ever passes behind it, so glass would blur flat color and cost GPU for nothing. |
+| Mobile drawer | `glass-chrome` | Covers real content. |
+| Overlays, menus, palette, toasts | `glass-chrome` | Same. |
+
+Do not "unify" the sidebar back into glass for consistency's sake — it looks the same as a solid panel and only costs frames.
 
 **Re-tinting glass.** Callers override `--glass-surface` (e.g. `[--glass-surface:var(--sidebar)]`), never `--glass-opacity` — that one is reserved so `prefers-reduced-transparency` can neutralize it.
 

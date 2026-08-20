@@ -106,12 +106,11 @@
     --glass-opacity: 72%;
     --glass-brightness: 1.06;
 
-    /* Sidebar y top bar comparten superficie Y opacidad: si usan tokens distintos
-       (--sidebar es gris 0.985, --popover es blanco 1.0) se leen como dos
-       materiales pegados en vez de una sola lamina de vidrio. Bien transparente
-       para que la luz ambiente sea el campo continuo y el chrome flote encima. */
+    /* Chrome anclado (hoy solo el top bar). El sidebar quedo solido a proposito:
+       es una columna fija, no scrollea nada por detras, asi que ahi el
+       backdrop-filter solo desenfocaria color plano y cuesta GPU por nada. */
     --chrome-surface: var(--background);
-    --chrome-opacity: 58%;
+    --chrome-opacity: 80%;
     --glass-blur: 20px;
     --glass-saturate: 1.6;
 
@@ -127,14 +126,6 @@
     --elev-3: 0 4px 8px -4px oklch(0.145 0 0 / 0.1), 0 20px 48px -8px oklch(0.145 0 0 / 0.16);
     --elev-4: 0 6px 12px -6px oklch(0.145 0 0 / 0.12), 0 28px 64px -12px oklch(0.145 0 0 / 0.22);
 
-    /* Fondo ambiente: sin esto el backdrop-filter desenfoca color plano y no se ve nada. */
-    --duration-snappy: 320ms;
-    --duration-smooth: 440ms;
-    --duration-bouncy: 560ms;
-
-    --ambient-a: oklch(0.92 0.05 165 / 0.5);
-    --ambient-b: oklch(0.94 0.03 205 / 0.4);
-    --ambient-c: oklch(0.95 0.025 130 / 0.35);
 
 }
 
@@ -186,9 +177,9 @@
     --glass-surface: var(--popover);
     --glass-opacity: 82%;
     --glass-brightness: 0.6;
-    /* En dark el ambiente es mucho mas tenue y el texto es claro: hace falta mas
-       cuerpo para que el chrome se separe del contenido. */
-    --chrome-opacity: 72%;
+    /* En dark el texto es claro y el contenido que pasa por debajo puede ser
+       cualquier cosa: hace falta mas cuerpo para que el bar se separe. */
+    --chrome-opacity: 78%;
 
     --rim:
         inset 0 1px 0 0 oklch(1 0 0 / 0.1),
@@ -200,9 +191,6 @@
     --elev-3: 0 4px 8px -4px oklch(0 0 0 / 0.5), 0 20px 48px -8px oklch(0 0 0 / 0.55);
     --elev-4: 0 6px 12px -6px oklch(0 0 0 / 0.55), 0 28px 64px -12px oklch(0 0 0 / 0.65);
 
-    --ambient-a: oklch(0.5 0.07 165 / 0.16);
-    --ambient-b: oklch(0.45 0.06 210 / 0.13);
-    --ambient-c: oklch(0.42 0.05 145 / 0.11);
 
 }
 
@@ -212,25 +200,6 @@
     }
   body {
     @apply bg-background text-foreground;
-    }
-  /* Luz de ambiente. Sin esto backdrop-filter desenfoca color plano y el vidrio
-     no lee. Va fijo a proposito: es luz de sala, no contenido — se compone una
-     sola vez y no se repinta al scrollear, que es lo que hace que el blur se
-     lea como vidrio y no como un manchon arrastrado. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -10;
-    pointer-events: none;
-    background-image:
-      radial-gradient(90rem 70rem at 12% -10%, var(--ambient-a), transparent 70%),
-      radial-gradient(80rem 62rem at 92% 6%, var(--ambient-b), transparent 68%),
-      radial-gradient(85rem 65rem at 50% 108%, var(--ambient-c), transparent 70%),
-      linear-gradient(160deg, var(--ambient-a), transparent 55%);
-    }
-  @media print {
-    body::before { display: none; }
     }
   html {
     @apply font-sans;
