@@ -14,7 +14,11 @@ import { Button } from "@/components/ui/button"
 type KanbanCardProps = {
   title: string
   description?: string | null
-  badges?: { label: string; variant?: "default" | "secondary" | "outline"; color?: string }[]
+  badges?: {
+    label: string
+    variant?: "default" | "secondary" | "outline"
+    color?: string
+  }[]
   subtitle?: string | null
   meta?: { icon: React.ReactNode; label: string }[]
   accentColor?: string
@@ -50,21 +54,23 @@ export function KanbanCard({
 
   return (
     <div
-      className="group w-full min-w-0 max-w-full overflow-hidden rounded-md border-l-[3px] border border-l-transparent bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/30 cursor-grab active:cursor-grabbing [overflow-wrap:anywhere]"
-      style={{ borderLeftColor: accentColor ?? "hsl(var(--border))" }}
+      className="group w-full max-w-full min-w-0 cursor-grab overflow-hidden rounded-md border border-l-[3px] border-l-transparent bg-card p-3 text-sm [overflow-wrap:anywhere] shadow-sm transition-colors hover:bg-accent/30 active:cursor-grabbing"
+      style={{ borderLeftColor: accentColor ?? "var(--border)" }}
       onClick={onClick}
     >
       <div className="flex items-start justify-between gap-1">
         <div className="flex min-w-0 items-center gap-1.5">
           {statusIndicator}
-          <p className="font-medium leading-tight break-words min-w-0">{title}</p>
+          <p className="min-w-0 leading-tight font-medium break-words">
+            {title}
+          </p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
             >
               <ChevronRight className="size-3.5" />
@@ -93,7 +99,10 @@ export function KanbanCard({
               </DropdownMenuItem>
             )}
             {onDelete && (
-              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
+              >
                 <Trash2 className="mr-2 size-3.5" />
                 Delete
               </DropdownMenuItem>
@@ -102,7 +111,7 @@ export function KanbanCard({
         </DropdownMenu>
       </div>
       {description && (
-        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground break-words">
+        <p className="mt-1 line-clamp-2 text-xs break-words text-muted-foreground">
           {description}
         </p>
       )}
@@ -116,13 +125,24 @@ export function KanbanCard({
               key={b.label}
               variant={b.variant ?? "secondary"}
               className="text-[10px]"
-              style={b.color ? { backgroundColor: b.color, color: "white", borderColor: b.color } : undefined}
+              style={
+                b.color
+                  ? {
+                      backgroundColor: b.color,
+                      color: "white",
+                      borderColor: b.color,
+                    }
+                  : undefined
+              }
             >
               {b.label}
             </Badge>
           ))}
           {meta?.map((m) => (
-            <span key={m.label} className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <span
+              key={m.label}
+              className="flex items-center gap-0.5 text-[10px] text-muted-foreground"
+            >
               {m.icon}
               {m.label}
             </span>

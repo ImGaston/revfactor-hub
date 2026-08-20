@@ -2,7 +2,14 @@
 
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { CalendarRange, Check, ChevronDown, Flame, TrendingUp, Zap } from "lucide-react"
+import {
+  CalendarRange,
+  Check,
+  ChevronDown,
+  Flame,
+  TrendingUp,
+  Zap,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -101,7 +108,9 @@ function PacingTooltip({
                   className="size-2 rounded-[2px]"
                   style={{ backgroundColor: pacingConfig[key].color as string }}
                 />
-                <span className="text-muted-foreground">{BUCKET_LABEL[key]}</span>
+                <span className="text-muted-foreground">
+                  {BUCKET_LABEL[key]}
+                </span>
               </div>
               <span className="font-mono tabular-nums">{value}%</span>
             </div>
@@ -114,7 +123,7 @@ function PacingTooltip({
           {point.occupancy_pct}%
         </span>
       </div>
-      <p className="mt-0.5 text-[10px] italic text-muted-foreground/70">
+      <p className="mt-0.5 text-[10px] text-muted-foreground/70 italic">
         Avg across {totalListings} listings · pickup = booking recency.
       </p>
     </div>
@@ -295,7 +304,11 @@ function InteractiveLegend({
   )
 }
 
-export function MonthlyPacingChart({ source }: { source: MonthlyPacingSource }) {
+export function MonthlyPacingChart({
+  source,
+}: {
+  source: MonthlyPacingSource
+}) {
   const [listingFilter, setListingFilter] = React.useState<string[]>([])
   const [clientFilter, setClientFilter] = React.useState<string[]>([])
   const [cityFilter, setCityFilter] = React.useState<string[]>([])
@@ -310,9 +323,7 @@ export function MonthlyPacingChart({ source }: { source: MonthlyPacingSource }) 
           (l.client_id !== null && clientFilter.includes(l.client_id))
       )
       .filter((l) => cityFilter.length === 0 || cityFilter.includes(l.city))
-      .filter(
-        (l) => listingFilter.length === 0 || listingFilter.includes(l.id)
-      )
+      .filter((l) => listingFilter.length === 0 || listingFilter.includes(l.id))
       .map((l) => l.id)
   }, [source.listings, listingFilter, clientFilter, cityFilter])
 
@@ -459,7 +470,7 @@ export function MonthlyPacingChart({ source }: { source: MonthlyPacingSource }) 
                   className="text-xs"
                 />
                 <ChartTooltip
-                  cursor={{ fill: "hsl(var(--muted) / 0.4)" }}
+                  cursor={{ fill: "color-mix(in oklab, var(--muted) 40%, transparent)" }}
                   content={<PacingTooltip totalListings={totalListings} />}
                 />
                 {/* Stack order: bottom -> top. Darkest (pickup_7d) on top. */}
@@ -501,7 +512,7 @@ export function MonthlyPacingChart({ source }: { source: MonthlyPacingSource }) 
           </>
         )}
       </CardContent>
-      <CardFooter className="text-[11px] italic text-muted-foreground/70">
+      <CardFooter className="text-[11px] text-muted-foreground/70 italic">
         Monthly occupancy split by booking recency. Portfolio = simple average
         across selected listings (not weighted by available nights).
       </CardFooter>

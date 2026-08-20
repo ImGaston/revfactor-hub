@@ -48,7 +48,8 @@
 - Comment threads are the same comments table with `parent_id` set (one level deep, migration 046). On `adjustment_comments`, rows with a parent are **internal**: SELECT/INSERT require `adjustments:control` in RLS — never render or count them for external roles (the stats view and the needs_info auto-reopen already skip them; `/a/<token>` queries filter `.is("parent_id", null)`). Reactions live in `<table>_reactions` `(comment_id, user_id, emoji)`; the hover bar and chips are the shared `components/comments/*` components — reuse them for any new comment surface.
 
 ## UI
-- Phase 1 uses the shadcn default theme; brand theming comes later.
+- The visual system is a "liquid glass" layer on top of the shadcn `radix-luma` style (`components.json`: `style: radix-luma`, `menuColor: inverted-translucent`). Tokens, utilities, and motion live in `app/globals.css`; see the Liquid Glass section below.
+- Glass is for **chrome only** (sidebar, top bar, dialogs, sheets, popovers, dropdowns, command palette, toasts). Content surfaces — `Card`, tables, kanban cards — stay opaque and get elevation (`shadow-e1..e4`) instead. Do not make a data-dense surface translucent.
 - Sidebar navigation uses lucide-react icons.
 - Financial numbers are right-aligned and `font-mono`.
 - Status indicators use shadcn `Badge`.
@@ -150,3 +151,28 @@ Do not commit local hook settings unless the team deliberately decides to versio
 - Structured-output compatibility and reasoning controls are model-specific. Keep the required JSON fields explicit in immutable instructions and smoke-test every selectable Gateway model after model-catalog or AI SDK changes.
 - Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
 - “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.
+
+## Liquid Glass Visual System
+
+Added 2026-08-20. All tokens and utilities live in `app/globals.css`.
+
+**Utilities**
+- `glass-chrome` — translucent surface. Sets `position: relative` + a `::before` at `z-index: -1` carrying the `backdrop-filter`. Three reasons the blur is on the pseudo and not the element: `backdrop-filter` on an element makes it a containing block for `position: fixed` descendants; WebKit bleeds the blur past `border-radius` when an ancestor animates (every Radix content does); and putting the tint on the pseudo's own background paints it *above* the filtered backdrop, which is what lets `brightness()` crush only the backdrop.
+- **Never add `isolation: isolate` to a glass host.** `isolate` creates a *backdrop root*, which limits the blur's sampling to the element itself and silently kills the effect. Verified in the browser.
+- `glass-panel` (86%) — anchored chrome that is always on screen and blurs scrolling content (sidebar, top bar). Lower blur on purpose: those surfaces re-rasterize per frame.
+- `glass-dense` (92%) — surfaces that float over arbitrary content and hold long text (dialogs, sheets, toasts).
+- `motion-snappy` / `motion-smooth` / `motion-bouncy` — pair a spring easing with its matched duration. Always use these instead of `ease-* duration-*` separately: the settle time is baked into each `linear()` curve, so a mismatched duration makes the spring read wrong. They also set `--tw-ease`/`--tw-duration`, which is what `tw-animate-css` reads, so Radix `data-open:animate-in` transitions spring for free.
+
+**Re-tinting glass.** Callers override `--glass-surface` (e.g. `[--glass-surface:var(--sidebar)]`), never `--glass-opacity` — that one is reserved so `prefers-reduced-transparency` can neutralize it.
+
+⚠️ **`--glass-surface` must be re-declared in every theme block that changes `--popover`.** A custom property resolves its `var()` at the element where it is *declared*, then inherits already-substituted. Declared only in `:root`, a subtree that forces `.dark` (the `inverted-translucent` menus over a light page) inherits the *light* popover and renders grey-on-grey. This is why `.dark` re-declares `--glass-surface: var(--popover)`.
+
+**Contrast.** Dark glass over light content needs high opacity — the math (`a*0.205 + (1-a)*L_backdrop <= ~0.28`) puts the floor near 82%, which is why `.dark` uses 82% and not the 62% that reads fine in a fully dark page. Automated contrast tools cannot see through `backdrop-filter` and will report these surfaces as passing; check rendered pixels.
+
+**Springs.** `--ease-snappy/smooth/bouncy` are damped-harmonic step responses sampled to CSS `linear()` at 20 stops, parameterized by (zeta, duration). Regenerate with the sampler documented in `decisions.md`, do not hand-edit the numbers.
+
+**Elevation.** `--shadow-e1..e4` each bundle the specular rim (inset highlights + hairline ring) *with* the shadow, deliberately: `glass-rim` and `elevated` as separate utilities would both write `box-shadow` and silently overwrite each other. One class = border + depth.
+
+**Local deltas to `components/ui/*`.** These files are otherwise stock registry output; a `npx shadcn@latest add <name>` would revert them. Each edit is a single utility token so it is easy to re-apply: `card`, `table`, `tabs`, `skeleton`, `button`, `badge`, `empty`, `tooltip`, `popover`, `dialog`, `sheet`, `alert-dialog`, `command`, `sidebar`, `dropdown-menu`, `select`. `textarea.tsx` also carries the older `wrap-anywhere` fix.
+
+**Known limitation.** `dropdown-menu`, `select`, and `command` put `overflow-y-auto` on the same element that carries the glass `::before`. An absolutely-positioned pseudo inside a scroll container scrolls with the content, so on a menu long enough to scroll the blur drifts out of view. Pre-existing; fixing it means moving the scroll to an inner wrapper.

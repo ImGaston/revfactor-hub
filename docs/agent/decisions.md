@@ -1,5 +1,21 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-20 — Liquid Glass Is Chrome-Only, Built In-House, With No Gooey Filter
+
+The Hub's visual system moves off the stock shadcn theme. Three reference implementations were studied (`samasante/liquid-glass`, `Jakubantalik/liquid-gooey`, `hiaaryan/sileo`) and the transferable ideas were reimplemented in plain CSS. **No new dependencies**: the libraries are young, `sileo` would have forced migrating every `toast()` call off Sonner, and the useful parts are ~150 lines of CSS.
+
+**Glass is chrome-only.** Sidebar, top bar, overlays, command palette, and toasts are translucent; `Card`, tables, and kanban cards stay opaque and get an elevation scale instead. In a data-dense ops tool, translucency under a table costs legibility and GPU for nothing.
+
+**Only the readable subset of liquid-glass was ported.** Frost (blur), the translucent veil, and the specular rim — not the SDF displacement map or chromatic aberration, which distort text and cost far more than they return here.
+
+**The gooey filter was implemented, measured, and removed.** Its merge distance is `~2 * stdDeviation * threshold`, about 5.6px at `stdDeviation=7`. Sidebar nav rows are 38px apart, so the travelling pill and its trailing blob are never close enough to form the liquid bridge; at rest they overlap exactly and the second blob is invisible. Making it bridge would need `stdDeviation` ~20, which deforms the pill into a blob. The filter, its `@utility`, and `svg-defs.tsx` were deleted rather than shipped as decoration. **What did transfer from liquid-gooey is the spring→CSS `linear()` compilation**, which now drives motion app-wide at zero runtime cost.
+
+**Springs are resolved offline.** `--ease-snappy/smooth/bouncy` are damped-harmonic step responses, parameterized by damping ratio and perceptual duration (not stiffness/damping, which are not the controllable quantities), solved by bisection for the natural frequency that lands the settle time, and sampled to 20-stop `linear()` curves. Reproduce with a throwaway node script: integrate `x(t) = e^(-z*w0*t) * (cos(wd*t) + (z*w0/wd)*sin(wd*t))` for the underdamped case, take settle as the first `t` where `|x| < 0.005` and stays there, sample `1 - x` uniformly over `[0, settle]`. Current values: snappy `(z=1.0, 320ms)`, smooth `(z=1.08, 440ms)`, bouncy `(z=0.55, 560ms, 12.6% overshoot)`.
+
+**Rejected: overriding the primitives from `globals.css` via `[data-slot]`.** It survives a registry regeneration, but in Tailwind v4 utilities live in `@layer utilities` and beat `@layer components` regardless of specificity — so winning requires unlayered CSS, which then also beats the `className` each call site passes through `tailwind-merge`. That would remove the per-instance opt-out precisely where it is most wanted. The component files are edited instead, each change a single utility token, and the divergence is recorded in `conventions.md`.
+
+**AlertDialog was kept translucent** (at `glass-dense`, 92%) rather than carved out as an opaque exception. At that opacity the "unpredictable backdrop behind a destructive confirmation" concern is negligible and consistency wins; revisit if a real legibility complaint appears.
+
 ## 2026-08-10 — AirROI Enriches Revenue Brief Drafts but Does Not Author the Recommendation
 
 The Revenue Brief Builder may use AirROI on demand to prefill public listing facts and show an internal TTM modeled-performance snapshot. AirROI is an evidence source, not the decision-maker: its revenue, ADR, occupancy, and RevPAR values are labeled third-party modeled estimates, never owner-reported actuals or guaranteed property projections. Demand-driver research, property constraints, opportunity framing, and the approved RevFactor managed-benchmark section still require human review before PDF generation.

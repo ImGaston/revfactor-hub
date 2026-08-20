@@ -24,7 +24,12 @@ export type KanbanColumn<T> = {
 
 type KanbanBoardProps<T extends { id: string }> = {
   columns: KanbanColumn<T>[]
-  onMove: (itemId: string, fromColumn: string, toColumn: string, newIndex: number) => void
+  onMove: (
+    itemId: string,
+    fromColumn: string,
+    toColumn: string,
+    newIndex: number
+  ) => void
   onReorder: (itemId: string, column: string, newIndex: number) => void
   renderCard: (item: T, columnId: string) => React.ReactNode
   onAdd?: (columnId: string) => void
@@ -55,7 +60,12 @@ export function KanbanBoard<T extends { id: string }>({
         return
 
       if (source.droppableId !== destination.droppableId) {
-        onMove(draggableId, source.droppableId, destination.droppableId, destination.index)
+        onMove(
+          draggableId,
+          source.droppableId,
+          destination.droppableId,
+          destination.index
+        )
       } else {
         onReorder(draggableId, source.droppableId, destination.index)
       }
@@ -73,15 +83,23 @@ export function KanbanBoard<T extends { id: string }>({
             <div
               key={col.id}
               className="flex w-72 shrink-0 flex-col rounded-lg border"
-              style={{ backgroundColor: (isDark ? col.darkBgColor : col.bgColor) ?? "hsl(var(--muted) / 0.3)" }}
+              style={{
+                backgroundColor:
+                  (isDark ? col.darkBgColor : col.bgColor) ??
+                  "color-mix(in oklab, var(--muted) 30%, transparent)",
+              }}
             >
               <div className="flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">{col.label}</h3>
                   <Badge
                     variant="secondary"
-                    className="text-[10px] rounded-full px-1.5 min-w-5 justify-center"
-                    style={col.items.length > 0 ? { backgroundColor: col.color, color: "white" } : undefined}
+                    className="min-w-5 justify-center rounded-full px-1.5 text-[10px]"
+                    style={
+                      col.items.length > 0
+                        ? { backgroundColor: col.color, color: "white" }
+                        : undefined
+                    }
                   >
                     {col.items.length}
                   </Badge>
@@ -99,13 +117,13 @@ export function KanbanBoard<T extends { id: string }>({
               </div>
               <Droppable droppableId={col.id}>
                 {(provided, snapshot) => (
-                  <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                  <div className="flex-1 overflow-x-hidden overflow-y-auto">
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
                         "min-h-[200px] w-full space-y-2 px-2 pb-2",
-                        snapshot.isDraggingOver && "bg-accent/30 rounded-b-lg"
+                        snapshot.isDraggingOver && "rounded-b-lg bg-accent/30"
                       )}
                     >
                       {col.items.map((item, index) => (
@@ -131,7 +149,7 @@ export function KanbanBoard<T extends { id: string }>({
                       ))}
                       {provided.placeholder}
                       {col.items.length === 0 && !snapshot.isDraggingOver && (
-                        <p className="text-center text-xs text-muted-foreground pt-16">
+                        <p className="pt-16 text-center text-xs text-muted-foreground">
                           No items
                         </p>
                       )}

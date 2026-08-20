@@ -48,6 +48,20 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    /* --- Movimiento: springs resueltos offline y compilados a linear(). --- */
+    /* Generados por scripts/gen-springs.mjs a partir de (zeta, duracion); no editar a mano. */
+    --ease-snappy: linear(0, 0.054, 0.171, 0.306, 0.437, 0.554, 0.652, 0.733, 0.797, 0.847, 0.885, 0.915, 0.937, 0.953, 0.966, 0.975, 0.982, 0.987, 0.99, 0.993, 1);
+    --ease-smooth: linear(0, 0.071, 0.213, 0.364, 0.501, 0.615, 0.707, 0.778, 0.833, 0.875, 0.906, 0.93, 0.948, 0.961, 0.971, 0.978, 0.984, 0.988, 0.991, 0.993, 1);
+    --ease-bouncy: linear(0, 0.089, 0.293, 0.531, 0.752, 0.926, 1.042, 1.105, 1.126, 1.118, 1.093, 1.063, 1.035, 1.012, 0.996, 0.987, 0.984, 0.985, 0.988, 0.991, 1);
+
+    /* --- Elevacion. Cada escalon incluye el labio especular (insets + hairline) ---
+       ademas de la sombra, para que una sola clase resuelva borde y profundidad y
+       nunca haya dos utilidades peleando por box-shadow. */
+    --shadow-e1: var(--rim), var(--elev-1);
+    --shadow-e2: var(--rim), var(--elev-2);
+    --shadow-e3: var(--rim), var(--elev-3);
+    --shadow-e4: var(--rim), var(--elev-4);
+
 }
 
 :root {
@@ -83,6 +97,38 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    /* --- Vidrio ---
+       Los llamadores solo sobreescriben --glass-surface (p.ej. var(--sidebar));
+       --glass-opacity queda libre para que prefers-reduced-transparency lo neutralice. */
+    --topbar-h: 3.5rem;
+
+    --glass-surface: var(--popover);
+    --glass-opacity: 72%;
+    --glass-brightness: 1.06;
+    --glass-blur: 20px;
+    --glass-saturate: 1.6;
+
+    /* Labio refractante: el subconjunto legible de liquid-glass. Reflejo especular
+       arriba, sombra de contacto abajo, y un anillo hairline que reemplaza al border. */
+    --rim:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.65),
+        inset 0 -1px 0 0 oklch(0.145 0 0 / 0.05),
+        0 0 0 1px oklch(0.145 0 0 / 0.06);
+
+    --elev-1: 0 1px 2px -1px oklch(0.145 0 0 / 0.06), 0 2px 8px -2px oklch(0.145 0 0 / 0.08);
+    --elev-2: 0 2px 4px -2px oklch(0.145 0 0 / 0.07), 0 8px 20px -4px oklch(0.145 0 0 / 0.1);
+    --elev-3: 0 4px 8px -4px oklch(0.145 0 0 / 0.1), 0 20px 48px -8px oklch(0.145 0 0 / 0.16);
+    --elev-4: 0 6px 12px -6px oklch(0.145 0 0 / 0.12), 0 28px 64px -12px oklch(0.145 0 0 / 0.22);
+
+    /* Fondo ambiente: sin esto el backdrop-filter desenfoca color plano y no se ve nada. */
+    --duration-snappy: 320ms;
+    --duration-smooth: 440ms;
+    --duration-bouncy: 560ms;
+
+    --ambient-a: oklch(0.92 0.05 165 / 0.5);
+    --ambient-b: oklch(0.94 0.03 205 / 0.4);
+    --ambient-c: oklch(0.95 0.025 130 / 0.35);
+
 }
 
 .dark {
@@ -117,6 +163,37 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    /* Los menus inverted-translucent fuerzan la clase .dark, o sea que estos valores
+       tambien rigen para un menu oscuro flotando sobre una pagina CLARA. Ese es el
+       caso limite y manda: con L(popover)=0.205 sobre blanco, para que el texto a
+       L=0.985 llegue a contraste AA hace falta
+           a*0.205 + (1-a)*L_backdrop <= ~0.28
+       que con brightness 0.6 despeja en a >= ~0.82. Medido en el navegador: a 62%
+       el menu quedaba gris sobre gris. El vidrio oscuro sobre contenido claro
+       necesita opacidad alta, no hay vuelta. */
+    /* Hay que RE-declarar --glass-surface aca, no alcanza con heredarla de :root:
+       una custom property resuelve su var() en el elemento donde se declara y
+       despues hereda ya resuelta. Declarada solo en :root, un subarbol que fuerza
+       .dark (los menus inverted-translucent sobre pagina clara) seguia recibiendo
+       el --popover CLARO ya sustituido, y el menu salia gris sobre gris. */
+    --glass-surface: var(--popover);
+    --glass-opacity: 82%;
+    --glass-brightness: 0.6;
+
+    --rim:
+        inset 0 1px 0 0 oklch(1 0 0 / 0.1),
+        inset 0 -1px 0 0 oklch(0 0 0 / 0.35),
+        0 0 0 1px oklch(1 0 0 / 0.1);
+
+    --elev-1: 0 1px 2px -1px oklch(0 0 0 / 0.4), 0 2px 8px -2px oklch(0 0 0 / 0.35);
+    --elev-2: 0 2px 4px -2px oklch(0 0 0 / 0.45), 0 8px 20px -4px oklch(0 0 0 / 0.45);
+    --elev-3: 0 4px 8px -4px oklch(0 0 0 / 0.5), 0 20px 48px -8px oklch(0 0 0 / 0.55);
+    --elev-4: 0 6px 12px -6px oklch(0 0 0 / 0.55), 0 28px 64px -12px oklch(0 0 0 / 0.65);
+
+    --ambient-a: oklch(0.5 0.07 165 / 0.16);
+    --ambient-b: oklch(0.45 0.06 210 / 0.13);
+    --ambient-c: oklch(0.42 0.05 145 / 0.11);
+
 }
 
 @layer base {
@@ -126,7 +203,154 @@
   body {
     @apply bg-background text-foreground;
     }
+  /* Luz de ambiente. Sin esto backdrop-filter desenfoca color plano y el vidrio
+     no lee. Va fijo a proposito: es luz de sala, no contenido — se compone una
+     sola vez y no se repinta al scrollear, que es lo que hace que el blur se
+     lea como vidrio y no como un manchon arrastrado. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    pointer-events: none;
+    background-image:
+      radial-gradient(72rem 52rem at 10% -12%, var(--ambient-a), transparent 62%),
+      radial-gradient(62rem 46rem at 98% 2%, var(--ambient-b), transparent 58%),
+      radial-gradient(56rem 42rem at 46% 112%, var(--ambient-c), transparent 60%);
+    }
+  @media print {
+    body::before { display: none; }
+    }
   html {
     @apply font-sans;
+    }
+}
+
+/* ==========================================================================
+   Utilidades
+   ========================================================================== */
+
+/* Vidrio del chrome. El blur va en un ::before, no en el elemento, por tres
+   razones concretas y verificables:
+     1. backdrop-filter en un elemento lo convierte en containing block de sus
+        descendientes position:fixed.
+     2. En WebKit, backdrop-filter + border-radius con un ancestro animado
+        (todo contenido Radix lo esta: zoom-in-95, slide-in-from-*) sangra el
+        blur 1-2px fuera del radio.
+     3. Con el tinte como background del propio ::before, el tinte se pinta
+        ENCIMA del backdrop ya filtrado, asi brightness() aplasta solo el fondo
+        y no el tinte. Eso es lo que hace que el contraste en dark funcione.
+   No lleva isolation:isolate a proposito: isolate crea un backdrop root, y eso
+   limitaria el muestreo del blur al propio elemento, matando el efecto. */
+@utility glass-chrome {
+    position: relative;
+    background-color: transparent;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        /* fallback sin backdrop-filter: superficie opaca y legible */
+        background-color: var(--glass-surface);
+    }
+
+    @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+        &::before {
+            background-color: color-mix(
+                in oklab,
+                var(--glass-surface) var(--glass-opacity),
+                transparent
+            );
+            -webkit-backdrop-filter: blur(var(--glass-blur))
+                saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+            backdrop-filter: blur(var(--glass-blur))
+                saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+        }
+    }
+}
+
+/* Modificador para chrome anclado (sidebar, top bar): mas tinte y menos blur.
+   Estan siempre en pantalla y desenfocan contenido que scrollea, o sea que se
+   re-rasterizan por frame; 40px de blur ahi es 3x el costo sin ganar nada. */
+@utility glass-panel {
+    --glass-opacity: 86%;
+    --glass-blur: 12px;
+}
+
+/* Springs. Emparejan curva y duracion en una sola clase para que no se
+   desincronicen (el tiempo de asentamiento esta horneado en cada linear()).
+   Ademas setean --tw-ease/--tw-duration, que es lo que lee tw-animate-css,
+   asi que un data-open:animate-in tambien sale con resorte. */
+@utility motion-snappy {
+    transition-timing-function: var(--ease-snappy);
+    transition-duration: var(--duration-snappy);
+    --tw-ease: var(--ease-snappy);
+    --tw-duration: var(--duration-snappy);
+}
+@utility motion-smooth {
+    transition-timing-function: var(--ease-smooth);
+    transition-duration: var(--duration-smooth);
+    --tw-ease: var(--ease-smooth);
+    --tw-duration: var(--duration-smooth);
+}
+@utility motion-bouncy {
+    transition-timing-function: var(--ease-bouncy);
+    transition-duration: var(--duration-bouncy);
+    --tw-ease: var(--ease-bouncy);
+    --tw-duration: var(--duration-bouncy);
+}
+
+@keyframes shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Sonner inyecta su CSS sin capa, asi que una regla en @layer components perderia.
+   Esta va sin capa a proposito. .cn-toast ya la aplica sonner.tsx pero no existia
+   en ningun lado: es un gancho gratis para vestir el toast sin tocar el componente. */
+.cn-toast {
+    box-shadow: var(--shadow-e4);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/* Solo se re-temporiza la fisica que sonner ya implementa (--y/--lift/--scale).
+   Nunca transform ni transition-property: eso es interno suyo y un bump de version
+   lo romperia. */
+@media (prefers-reduced-motion: no-preference) {
+    [data-sonner-toast] {
+        transition-timing-function: var(--ease-bouncy) !important;
+        transition-duration: 400ms !important;
+    }
+}
+
+/* ==========================================================================
+   Accesibilidad
+   ========================================================================== */
+
+/* Sin transparencia: el vidrio pasa a superficie opaca. Se toca --glass-opacity
+   y no --glass-surface justamente para que los llamadores puedan re-tintar
+   (--glass-surface: var(--sidebar)) sin pisar esta preferencia. */
+@media (prefers-reduced-transparency: reduce) {
+    :root,
+    .dark {
+        --glass-opacity: 100%;
+        --glass-blur: 0px;
+        --glass-brightness: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
