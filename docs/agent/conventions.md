@@ -163,6 +163,8 @@ Added 2026-08-20. All tokens and utilities live in `app/globals.css`.
 - `glass-dense` (92%) — surfaces that float over arbitrary content and hold long text (dialogs, sheets, toasts).
 - `motion-snappy` / `motion-smooth` / `motion-bouncy` — pair a spring easing with its matched duration. Always use these instead of `ease-* duration-*` separately: the settle time is baked into each `linear()` curve, so a mismatched duration makes the spring read wrong. They also set `--tw-ease`/`--tw-duration`, which is what `tw-animate-css` reads, so Radix `data-open:animate-in` transitions spring for free.
 
+**Every `var()` inside `glass-chrome` carries a fallback**, and must keep doing so. The failure mode when a token does not resolve is a *transparent* surface — and since the `inverted-translucent` menus paint near-white text, that renders as invisible text, not as a visible glitch. Degrading to an opaque `--popover` is ugly but readable. (Hit in dev on 2026-08-20 via a stale Turbopack CSS cache; `rm -rf .next` clears it.)
+
 **Re-tinting glass.** Callers override `--glass-surface` (e.g. `[--glass-surface:var(--sidebar)]`), never `--glass-opacity` — that one is reserved so `prefers-reduced-transparency` can neutralize it.
 
 ⚠️ **`--glass-surface` must be re-declared in every theme block that changes `--popover`.** A custom property resolves its `var()` at the element where it is *declared*, then inherits already-substituted. Declared only in `:root`, a subtree that forces `.dark` (the `inverted-translucent` menus over a light page) inherits the *light* popover and renders grey-on-grey. This is why `.dark` re-declares `--glass-surface: var(--popover)`.

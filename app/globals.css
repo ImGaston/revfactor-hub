@@ -253,15 +253,21 @@
         z-index: -1;
         border-radius: inherit;
         pointer-events: none;
-        /* fallback sin backdrop-filter: superficie opaca y legible */
-        background-color: var(--glass-surface);
+        /* Fallback sin backdrop-filter: superficie opaca y legible.
+           Los var() llevan fallback a proposito. Si los tokens no cargan (CSS a
+           medio compilar, caché stale, orden de imports roto), sin el fallback
+           esto queda TRANSPARENTE — y como los menus inverted-translucent pintan
+           texto casi blanco, el resultado es texto invisible. Degradar a popover
+           opaco es feo pero legible; invisible no es una opcion. */
+        background-color: var(--glass-surface, var(--popover));
     }
 
     @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
         &::before {
             background-color: color-mix(
                 in oklab,
-                var(--glass-surface) var(--glass-opacity),
+                var(--glass-surface, var(--popover))
+                    var(--glass-opacity, 82%),
                 transparent
             );
             -webkit-backdrop-filter: blur(var(--glass-blur))
