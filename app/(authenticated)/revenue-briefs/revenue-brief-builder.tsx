@@ -1,13 +1,29 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { DatabaseZap, Download, FileCheck2, ImagePlus, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react"
+import {
+  DatabaseZap,
+  Download,
+  FileCheck2,
+  ImagePlus,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
@@ -18,7 +34,14 @@ import {
   FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -50,27 +73,45 @@ const cloneBrief = (brief: RevenueBriefInput): RevenueBriefInput =>
   JSON.parse(JSON.stringify(brief)) as RevenueBriefInput
 
 const compactText = (value: string, max: number) =>
-  value.length <= max ? value : `${value.slice(0, Math.max(0, max - 3)).trim()}...`
+  value.length <= max
+    ? value
+    : `${value.slice(0, Math.max(0, max - 3)).trim()}...`
 
-export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: boolean }) {
-  const [brief, setBrief] = useState<RevenueBriefInput>(() => createBlankRevenueBrief())
+export function RevenueBriefBuilder({
+  airRoiConfigured,
+}: {
+  airRoiConfigured: boolean
+}) {
+  const [brief, setBrief] = useState<RevenueBriefInput>(() =>
+    createBlankRevenueBrief()
+  )
   const [issues, setIssues] = useState<ValidationIssue[]>([])
-  const [intake, setIntake] = useState<AirRoiRevenueBriefIntake>(() => createRevenueBriefIntake())
+  const [intake, setIntake] = useState<AirRoiRevenueBriefIntake>(() =>
+    createRevenueBriefIntake()
+  )
   const [intakeIssues, setIntakeIssues] = useState<ValidationIssue[]>([])
-  const [airRoiSource, setAirRoiSource] = useState<AirRoiRevenueBriefDraft["source"] | null>(null)
+  const [airRoiSource, setAirRoiSource] = useState<
+    AirRoiRevenueBriefDraft["source"] | null
+  >(null)
   const [researching, setResearching] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [photoName, setPhotoName] = useState("")
   const photoInputRef = useRef<HTMLInputElement>(null)
 
-  const issueMap = useMemo(() => new Map(issues.map((issue) => [issue.path, issue.message])), [issues])
+  const issueMap = useMemo(
+    () => new Map(issues.map((issue) => [issue.path, issue.message])),
+    [issues]
+  )
 
   const intakeIssueMap = useMemo(
     () => new Map(intakeIssues.map((issue) => [issue.path, issue.message])),
     [intakeIssues]
   )
 
-  function updateIntake<K extends keyof AirRoiRevenueBriefIntake>(key: K, value: AirRoiRevenueBriefIntake[K]) {
+  function updateIntake<K extends keyof AirRoiRevenueBriefIntake>(
+    key: K,
+    value: AirRoiRevenueBriefIntake[K]
+  ) {
     setIntake((current) => ({ ...current, [key]: value }))
     setIntakeIssues([])
   }
@@ -134,7 +175,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
 
       if (!response.ok || !body || !("draft" in body)) {
         if (body?.issues) setIntakeIssues(body.issues)
-        throw new Error(body?.error || "AirROI listing research could not be completed")
+        throw new Error(
+          body?.error || "AirROI listing research could not be completed"
+        )
       }
 
       setBrief((current) => ({
@@ -146,7 +189,11 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
       setAirRoiSource(body.source)
       toast.success("AirROI listing draft imported for review")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "AirROI listing research could not be completed")
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "AirROI listing research could not be completed"
+      )
     } finally {
       setResearching(false)
     }
@@ -165,12 +212,18 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
     }
   }
 
-  function update<K extends keyof RevenueBriefInput>(key: K, value: RevenueBriefInput[K]) {
+  function update<K extends keyof RevenueBriefInput>(
+    key: K,
+    value: RevenueBriefInput[K]
+  ) {
     setBrief((current) => ({ ...current, [key]: value }))
     setIssues([])
   }
 
-  function updateMetric(key: keyof RevenueBriefInput["metrics"], value: string) {
+  function updateMetric(
+    key: keyof RevenueBriefInput["metrics"],
+    value: string
+  ) {
     setBrief((current) => ({
       ...current,
       metrics: { ...current.metrics, [key]: value },
@@ -178,26 +231,44 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
     setIssues([])
   }
 
-  function updateDemandDriver(index: number, key: keyof RevenueBriefInput["demandDrivers"][number], value: string) {
+  function updateDemandDriver(
+    index: number,
+    key: keyof RevenueBriefInput["demandDrivers"][number],
+    value: string
+  ) {
     const next = brief.demandDrivers.map((driver, itemIndex) =>
       itemIndex === index ? { ...driver, [key]: value } : driver
     )
     update("demandDrivers", next)
   }
 
-  function updateRevenueLever(index: number, key: keyof RevenueBriefInput["revenueLevers"][number], value: string) {
+  function updateRevenueLever(
+    index: number,
+    key: keyof RevenueBriefInput["revenueLevers"][number],
+    value: string
+  ) {
     const next = brief.revenueLevers.map((lever, itemIndex) =>
       itemIndex === index ? { ...lever, [key]: value } : lever
     )
     update("revenueLevers", next)
   }
 
-  function updateFirstMonth(index: number, key: keyof RevenueBriefInput["firstMonth"][number], value: string) {
-    const next = brief.firstMonth.map((step, itemIndex) => (itemIndex === index ? { ...step, [key]: value } : step))
+  function updateFirstMonth(
+    index: number,
+    key: keyof RevenueBriefInput["firstMonth"][number],
+    value: string
+  ) {
+    const next = brief.firstMonth.map((step, itemIndex) =>
+      itemIndex === index ? { ...step, [key]: value } : step
+    )
     update("firstMonth", next)
   }
 
-  function updateBenchmark(index: number, key: keyof RevenueBriefInput["benchmarks"][number], value: string) {
+  function updateBenchmark(
+    index: number,
+    key: keyof RevenueBriefInput["benchmarks"][number],
+    value: string
+  ) {
     const next = brief.benchmarks.map((benchmark, itemIndex) =>
       itemIndex === index ? { ...benchmark, [key]: value } : benchmark
     )
@@ -221,7 +292,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
       preparedFor: SYNTHETIC_REVENUE_BRIEF.preparedFor,
       propertyAddress: SYNTHETIC_REVENUE_BRIEF.propertyAddress,
       listingUrl: SYNTHETIC_REVENUE_BRIEF.listingUrl,
-      ownerGoals: "Protect premium demand while filling softer calendar gaps deliberately.",
+      ownerGoals:
+        "Protect premium demand while filling softer calendar gaps deliberately.",
       knownConstraints: SYNTHETIC_REVENUE_BRIEF.visibleConstraints,
     })
     setIntakeIssues([])
@@ -293,7 +365,11 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
       URL.revokeObjectURL(objectUrl)
       toast.success("Client-ready PDF downloaded")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The PDF could not be generated")
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The PDF could not be generated"
+      )
     } finally {
       setGenerating(false)
     }
@@ -304,12 +380,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Revenue Brief Builder</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Revenue Brief Builder
+            </h1>
             <Badge variant="secondary">Pipeline tool</Badge>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
-            Turn a listing review into a consistent, owner-safe RevFactor opportunity brief. The PDF is generated for
-            download and is not stored in the Hub.
+            Turn a listing review into a consistent, owner-safe RevFactor
+            opportunity brief. The PDF is generated for download and is not
+            stored in the Hub.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -333,7 +412,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               {issues.slice(0, 6).map((issue) => (
                 <li key={`${issue.path}-${issue.message}`}>{issue.message}</li>
               ))}
-              {issues.length > 6 && <li>And {issues.length - 6} more fields.</li>}
+              {issues.length > 6 && (
+                <li>And {issues.length - 6} more fields.</li>
+              )}
             </ul>
           </AlertDescription>
         </Alert>
@@ -345,7 +426,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
             <div className="flex flex-col gap-1">
               <CardTitle>Start with prospect intake</CardTitle>
               <CardDescription>
-                Capture the minimum client context, then import the public listing draft through AirROI.
+                Capture the minimum client context, then import the public
+                listing draft through AirROI.
               </CardDescription>
             </div>
             <Badge variant={airRoiConfigured ? "secondary" : "outline"}>
@@ -357,11 +439,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
           <FieldGroup>
             <div className="grid gap-5 md:grid-cols-2">
               <Field data-invalid={intakeIssueMap.has("preparedFor")}>
-                <FieldLabel htmlFor="intake-prepared-for">Prepared for</FieldLabel>
+                <FieldLabel htmlFor="intake-prepared-for">
+                  Prepared for
+                </FieldLabel>
                 <Input
                   id="intake-prepared-for"
                   value={intake.preparedFor}
-                  onChange={(event) => updateIntake("preparedFor", event.target.value)}
+                  onChange={(event) =>
+                    updateIntake("preparedFor", event.target.value)
+                  }
                   placeholder="Owner or prospect name"
                   maxLength={100}
                   aria-invalid={intakeIssueMap.has("preparedFor")}
@@ -369,11 +455,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                 <FieldError>{intakeIssueMap.get("preparedFor")}</FieldError>
               </Field>
               <Field data-invalid={intakeIssueMap.has("propertyAddress")}>
-                <FieldLabel htmlFor="intake-property-address">Property address</FieldLabel>
+                <FieldLabel htmlFor="intake-property-address">
+                  Property address
+                </FieldLabel>
                 <Input
                   id="intake-property-address"
                   value={intake.propertyAddress}
-                  onChange={(event) => updateIntake("propertyAddress", event.target.value)}
+                  onChange={(event) =>
+                    updateIntake("propertyAddress", event.target.value)
+                  }
                   placeholder="Street, city, state, ZIP"
                   maxLength={180}
                   aria-invalid={intakeIssueMap.has("propertyAddress")}
@@ -382,28 +472,37 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               </Field>
             </div>
             <Field data-invalid={intakeIssueMap.has("listingUrl")}>
-              <FieldLabel htmlFor="intake-listing-url">Airbnb listing URL</FieldLabel>
+              <FieldLabel htmlFor="intake-listing-url">
+                Airbnb listing URL
+              </FieldLabel>
               <Input
                 id="intake-listing-url"
                 type="url"
                 value={intake.listingUrl}
-                onChange={(event) => updateIntake("listingUrl", event.target.value)}
+                onChange={(event) =>
+                  updateIntake("listingUrl", event.target.value)
+                }
                 placeholder="https://www.airbnb.com/rooms/..."
                 maxLength={500}
                 aria-invalid={intakeIssueMap.has("listingUrl")}
               />
               <FieldDescription>
-                AirROI uses the numeric Airbnb listing ID in this URL. The Hub never sends an AirROI key to the browser.
+                AirROI uses the numeric Airbnb listing ID in this URL. The Hub
+                never sends an AirROI key to the browser.
               </FieldDescription>
               <FieldError>{intakeIssueMap.get("listingUrl")}</FieldError>
             </Field>
             <div className="grid gap-5 md:grid-cols-2">
               <Field data-invalid={intakeIssueMap.has("ownerGoals")}>
-                <FieldLabel htmlFor="intake-owner-goals">Owner goals</FieldLabel>
+                <FieldLabel htmlFor="intake-owner-goals">
+                  Owner goals
+                </FieldLabel>
                 <Textarea
                   id="intake-owner-goals"
                   value={intake.ownerGoals}
-                  onChange={(event) => updateIntake("ownerGoals", event.target.value)}
+                  onChange={(event) =>
+                    updateIntake("ownerGoals", event.target.value)
+                  }
                   placeholder="Increase revenue, protect peak dates, reduce calendar gaps..."
                   maxLength={420}
                   rows={3}
@@ -412,18 +511,27 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                 <FieldError>{intakeIssueMap.get("ownerGoals")}</FieldError>
               </Field>
               <Field data-invalid={intakeIssueMap.has("knownConstraints")}>
-                <FieldLabel htmlFor="intake-known-constraints">Known constraints</FieldLabel>
+                <FieldLabel htmlFor="intake-known-constraints">
+                  Known constraints
+                </FieldLabel>
                 <Textarea
                   id="intake-known-constraints"
                   value={intake.knownConstraints}
-                  onChange={(event) => updateIntake("knownConstraints", event.target.value)}
+                  onChange={(event) =>
+                    updateIntake("knownConstraints", event.target.value)
+                  }
                   placeholder="Owner-use dates, permits, parking, turnover, stay rules..."
                   maxLength={320}
                   rows={3}
                   aria-invalid={intakeIssueMap.has("knownConstraints")}
                 />
-                <FieldDescription>Optional, but include anything that changes the recommendation.</FieldDescription>
-                <FieldError>{intakeIssueMap.get("knownConstraints")}</FieldError>
+                <FieldDescription>
+                  Optional, but include anything that changes the
+                  recommendation.
+                </FieldDescription>
+                <FieldError>
+                  {intakeIssueMap.get("knownConstraints")}
+                </FieldError>
               </Field>
             </div>
           </FieldGroup>
@@ -433,8 +541,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               <DatabaseZap />
               <AlertTitle>AirROI connection required</AlertTitle>
               <AlertDescription>
-                Add the server-only AIRROI_API_KEY to enable automated listing research. Until then, apply the intake
-                and complete the analysis fields manually.
+                Add the server-only AIRROI_API_KEY to enable automated listing
+                research. Until then, apply the intake and complete the analysis
+                fields manually.
               </AlertDescription>
             </Alert>
           )}
@@ -446,23 +555,32 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               <AlertDescription>
                 <div className="flex flex-col gap-3">
                   <p>
-                    Listing {airRoiSource.listingId} was used to prefill public facts and an internal performance
-                    snapshot. These figures are modeled estimates, not owner-reported actuals.
+                    Listing {airRoiSource.listingId} was used to prefill public
+                    facts and an internal performance snapshot. These figures
+                    are modeled estimates, not owner-reported actuals.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <Badge variant="outline">TTM revenue {formatAirRoiMoney(airRoiSource.modeledTtmRevenue)}</Badge>
-                    <Badge variant="outline">TTM ADR {formatAirRoiMoney(airRoiSource.modeledTtmAdr)}</Badge>
+                    <Badge variant="outline">
+                      TTM revenue{" "}
+                      {formatAirRoiMoney(airRoiSource.modeledTtmRevenue)}
+                    </Badge>
+                    <Badge variant="outline">
+                      TTM ADR {formatAirRoiMoney(airRoiSource.modeledTtmAdr)}
+                    </Badge>
                     <Badge variant="outline">
                       TTM occupancy{" "}
                       {airRoiSource.modeledTtmOccupancy == null
                         ? "Not available"
                         : `${(airRoiSource.modeledTtmOccupancy * 100).toFixed(1)}%`}
                     </Badge>
-                    <Badge variant="outline">TTM RevPAR {formatAirRoiMoney(airRoiSource.modeledTtmRevpar)}</Badge>
+                    <Badge variant="outline">
+                      TTM RevPAR{" "}
+                      {formatAirRoiMoney(airRoiSource.modeledTtmRevpar)}
+                    </Badge>
                   </div>
                   <p>
-                    Demand drivers, constraints, and RevFactor benchmarks still require analyst review before the PDF is
-                    delivered.
+                    Demand drivers, constraints, and RevFactor benchmarks still
+                    require analyst review before the PDF is delivered.
                   </p>
                 </div>
               </AlertDescription>
@@ -473,8 +591,16 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
           <Button type="button" variant="outline" onClick={applyIntake}>
             Apply intake manually
           </Button>
-          <Button type="button" onClick={researchWithAirRoi} disabled={!airRoiConfigured || researching}>
-            {researching ? <Spinner data-icon="inline-start" /> : <DatabaseZap data-icon="inline-start" />}
+          <Button
+            type="button"
+            onClick={researchWithAirRoi}
+            disabled={!airRoiConfigured || researching}
+          >
+            {researching ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <DatabaseZap data-icon="inline-start" />
+            )}
             {researching ? "Researching listing..." : "Build AirROI draft"}
           </Button>
         </CardFooter>
@@ -485,7 +611,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
           <CardHeader>
             <CardTitle>Brief inputs</CardTitle>
             <CardDescription>
-              Keep the analysis evidence-based. Only include facts that are visible or verified.
+              Keep the analysis evidence-based. Only include facts that are
+              visible or verified.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -500,11 +627,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                 <FieldGroup>
                   <div className="grid gap-5 md:grid-cols-2">
                     <Field data-invalid={issueMap.has("preparedFor")}>
-                      <FieldLabel htmlFor="prepared-for">Prepared for</FieldLabel>
+                      <FieldLabel htmlFor="prepared-for">
+                        Prepared for
+                      </FieldLabel>
                       <Input
                         id="prepared-for"
                         value={brief.preparedFor}
-                        onChange={(event) => update("preparedFor", event.target.value)}
+                        onChange={(event) =>
+                          update("preparedFor", event.target.value)
+                        }
                         placeholder="Owner or prospect name"
                         maxLength={100}
                         aria-invalid={issueMap.has("preparedFor")}
@@ -512,11 +643,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       <FieldError>{issueMap.get("preparedFor")}</FieldError>
                     </Field>
                     <Field data-invalid={issueMap.has("propertyName")}>
-                      <FieldLabel htmlFor="property-name">Property name</FieldLabel>
+                      <FieldLabel htmlFor="property-name">
+                        Property name
+                      </FieldLabel>
                       <Input
                         id="property-name"
                         value={brief.propertyName}
-                        onChange={(event) => update("propertyName", event.target.value)}
+                        onChange={(event) =>
+                          update("propertyName", event.target.value)
+                        }
                         placeholder="Listing or home name"
                         maxLength={120}
                         aria-invalid={issueMap.has("propertyName")}
@@ -527,11 +662,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
 
                   <div className="grid gap-5 md:grid-cols-2">
                     <Field data-invalid={issueMap.has("propertyAddress")}>
-                      <FieldLabel htmlFor="property-address">Property address</FieldLabel>
+                      <FieldLabel htmlFor="property-address">
+                        Property address
+                      </FieldLabel>
                       <Input
                         id="property-address"
                         value={brief.propertyAddress}
-                        onChange={(event) => update("propertyAddress", event.target.value)}
+                        onChange={(event) =>
+                          update("propertyAddress", event.target.value)
+                        }
                         placeholder="Street, city, state, ZIP"
                         maxLength={180}
                         aria-invalid={issueMap.has("propertyAddress")}
@@ -539,11 +678,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       <FieldError>{issueMap.get("propertyAddress")}</FieldError>
                     </Field>
                     <Field data-invalid={issueMap.has("locationLabel")}>
-                      <FieldLabel htmlFor="location-label">Cover location</FieldLabel>
+                      <FieldLabel htmlFor="location-label">
+                        Cover location
+                      </FieldLabel>
                       <Input
                         id="location-label"
                         value={brief.locationLabel}
-                        onChange={(event) => update("locationLabel", event.target.value)}
+                        onChange={(event) =>
+                          update("locationLabel", event.target.value)
+                        }
                         placeholder="City, State"
                         maxLength={100}
                         aria-invalid={issueMap.has("locationLabel")}
@@ -559,7 +702,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                         id="listing-url"
                         type="url"
                         value={brief.listingUrl}
-                        onChange={(event) => update("listingUrl", event.target.value)}
+                        onChange={(event) =>
+                          update("listingUrl", event.target.value)
+                        }
                         placeholder="https://www.airbnb.com/rooms/..."
                         maxLength={500}
                         aria-invalid={issueMap.has("listingUrl")}
@@ -567,17 +712,26 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       <FieldError>{issueMap.get("listingUrl")}</FieldError>
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="listing-stage">Listing stage</FieldLabel>
+                      <FieldLabel htmlFor="listing-stage">
+                        Listing stage
+                      </FieldLabel>
                       <Select
                         value={brief.listingStage}
-                        onValueChange={(value) => update("listingStage", value as RevenueBriefInput["listingStage"])}
+                        onValueChange={(value) =>
+                          update(
+                            "listingStage",
+                            value as RevenueBriefInput["listingStage"]
+                          )
+                        }
                       >
                         <SelectTrigger id="listing-stage" className="w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
-                            <SelectItem value="existing">Existing listing</SelectItem>
+                            <SelectItem value="existing">
+                              Existing listing
+                            </SelectItem>
                             <SelectItem value="new">New listing</SelectItem>
                           </SelectGroup>
                         </SelectContent>
@@ -595,7 +749,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       onChange={(event) => handlePhoto(event.target.files?.[0])}
                     />
                     <FieldDescription>
-                      Optional JPG or PNG, up to 2 MB. {photoName && `Selected: ${photoName}`}
+                      Optional JPG or PNG, up to 2 MB.{" "}
+                      {photoName && `Selected: ${photoName}`}
                     </FieldDescription>
                     {brief.photoDataUrl && (
                       <Button
@@ -605,7 +760,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                         onClick={() => {
                           update("photoDataUrl", "")
                           setPhotoName("")
-                          if (photoInputRef.current) photoInputRef.current.value = ""
+                          if (photoInputRef.current)
+                            photoInputRef.current.value = ""
                         }}
                       >
                         <Trash2 data-icon="inline-start" />
@@ -625,48 +781,69 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                           ["guests", "Guests", "10"],
                         ] as const
                       ).map(([key, label, placeholder]) => (
-                        <Field key={key} data-invalid={issueMap.has(`metrics.${key}`)}>
-                          <FieldLabel htmlFor={`metric-${key}`}>{label}</FieldLabel>
+                        <Field
+                          key={key}
+                          data-invalid={issueMap.has(`metrics.${key}`)}
+                        >
+                          <FieldLabel htmlFor={`metric-${key}`}>
+                            {label}
+                          </FieldLabel>
                           <Input
                             id={`metric-${key}`}
                             value={brief.metrics[key]}
-                            onChange={(event) => updateMetric(key, event.target.value)}
+                            onChange={(event) =>
+                              updateMetric(key, event.target.value)
+                            }
                             placeholder={placeholder}
                             maxLength={32}
                             aria-invalid={issueMap.has(`metrics.${key}`)}
                           />
-                          <FieldError>{issueMap.get(`metrics.${key}`)}</FieldError>
+                          <FieldError>
+                            {issueMap.get(`metrics.${key}`)}
+                          </FieldError>
                         </Field>
                       ))}
                     </div>
                   </FieldSet>
 
                   <Field>
-                    <FieldLabel htmlFor="listing-details">Airbnb specs</FieldLabel>
+                    <FieldLabel htmlFor="listing-details">
+                      Airbnb specs
+                    </FieldLabel>
                     <Textarea
                       id="listing-details"
                       value={brief.listingDetails}
-                      onChange={(event) => update("listingDetails", event.target.value)}
+                      onChange={(event) =>
+                        update("listingDetails", event.target.value)
+                      }
                       maxLength={240}
                       rows={2}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="host-signals">Host and trust signals</FieldLabel>
+                    <FieldLabel htmlFor="host-signals">
+                      Host and trust signals
+                    </FieldLabel>
                     <Textarea
                       id="host-signals"
                       value={brief.hostSignals}
-                      onChange={(event) => update("hostSignals", event.target.value)}
+                      onChange={(event) =>
+                        update("hostSignals", event.target.value)
+                      }
                       maxLength={240}
                       rows={2}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="positioning">Current positioning</FieldLabel>
+                    <FieldLabel htmlFor="positioning">
+                      Current positioning
+                    </FieldLabel>
                     <Textarea
                       id="positioning"
                       value={brief.currentPositioning}
-                      onChange={(event) => update("currentPositioning", event.target.value)}
+                      onChange={(event) =>
+                        update("currentPositioning", event.target.value)
+                      }
                       maxLength={360}
                       rows={3}
                     />
@@ -677,17 +854,23 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       <Textarea
                         id="strengths"
                         value={brief.strengths}
-                        onChange={(event) => update("strengths", event.target.value)}
+                        onChange={(event) =>
+                          update("strengths", event.target.value)
+                        }
                         maxLength={420}
                         rows={4}
                       />
                     </Field>
                     <Field>
-                      <FieldLabel htmlFor="constraints">Visible constraints</FieldLabel>
+                      <FieldLabel htmlFor="constraints">
+                        Visible constraints
+                      </FieldLabel>
                       <Textarea
                         id="constraints"
                         value={brief.visibleConstraints}
-                        onChange={(event) => update("visibleConstraints", event.target.value)}
+                        onChange={(event) =>
+                          update("visibleConstraints", event.target.value)
+                        }
                         maxLength={320}
                         rows={4}
                       />
@@ -699,39 +882,53 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               <TabsContent value="opportunity" className="pt-5">
                 <FieldGroup>
                   <Field>
-                    <FieldLabel htmlFor="executive-summary">Executive summary</FieldLabel>
+                    <FieldLabel htmlFor="executive-summary">
+                      Executive summary
+                    </FieldLabel>
                     <Textarea
                       id="executive-summary"
                       value={brief.executiveSummary}
-                      onChange={(event) => update("executiveSummary", event.target.value)}
+                      onChange={(event) =>
+                        update("executiveSummary", event.target.value)
+                      }
                       maxLength={520}
                       rows={4}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="bottom-line">Revenue opportunity</FieldLabel>
+                    <FieldLabel htmlFor="bottom-line">
+                      Revenue opportunity
+                    </FieldLabel>
                     <Textarea
                       id="bottom-line"
                       value={brief.bottomLine}
-                      onChange={(event) => update("bottomLine", event.target.value)}
+                      onChange={(event) =>
+                        update("bottomLine", event.target.value)
+                      }
                       maxLength={420}
                       rows={3}
                     />
                     <FieldDescription>
-                      State the actionable upside directly. Avoid conditional fit language or an unsupported forecast.
+                      State the actionable upside directly. Avoid conditional
+                      fit language or an unsupported forecast.
                     </FieldDescription>
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="owner-takeaway">What this means for the listing</FieldLabel>
+                    <FieldLabel htmlFor="owner-takeaway">
+                      What this means for the listing
+                    </FieldLabel>
                     <Textarea
                       id="owner-takeaway"
                       value={brief.ownerTakeaway}
-                      onChange={(event) => update("ownerTakeaway", event.target.value)}
+                      onChange={(event) =>
+                        update("ownerTakeaway", event.target.value)
+                      }
                       maxLength={520}
                       rows={4}
                     />
                     <FieldDescription>
-                      Write the takeaway directly. Avoid internal framing labels or a guaranteed outcome.
+                      Write the takeaway directly. Avoid internal framing labels
+                      or a guaranteed outcome.
                     </FieldDescription>
                   </Field>
 
@@ -739,7 +936,10 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <FieldLegend>Demand drivers</FieldLegend>
-                        <FieldDescription>Add only drivers that materially change booking demand.</FieldDescription>
+                        <FieldDescription>
+                          Add only drivers that materially change booking
+                          demand.
+                        </FieldDescription>
                       </div>
                       <Button
                         type="button"
@@ -747,7 +947,10 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                         size="sm"
                         disabled={brief.demandDrivers.length >= 6}
                         onClick={() =>
-                          update("demandDrivers", [...brief.demandDrivers, { name: "", distance: "", why: "" }])
+                          update("demandDrivers", [
+                            ...brief.demandDrivers,
+                            { name: "", distance: "", why: "" },
+                          ])
                         }
                       >
                         <Plus data-icon="inline-start" />
@@ -759,7 +962,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                         <Card key={`driver-${index}`}>
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between gap-3">
-                              <CardTitle className="text-base">Demand driver {index + 1}</CardTitle>
+                              <CardTitle className="text-base">
+                                Demand driver {index + 1}
+                              </CardTitle>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -769,7 +974,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                                 onClick={() =>
                                   update(
                                     "demandDrivers",
-                                    brief.demandDrivers.filter((_, itemIndex) => itemIndex !== index)
+                                    brief.demandDrivers.filter(
+                                      (_, itemIndex) => itemIndex !== index
+                                    )
                                   )
                                 }
                               >
@@ -779,35 +986,79 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                           </CardHeader>
                           <CardContent>
                             <div className="grid gap-4 md:grid-cols-[1fr_0.55fr_1.7fr]">
-                              <Field data-invalid={issueMap.has(`demandDrivers.${index}.name`)}>
-                                <FieldLabel htmlFor={`driver-${index}-name`}>Name</FieldLabel>
+                              <Field
+                                data-invalid={issueMap.has(
+                                  `demandDrivers.${index}.name`
+                                )}
+                              >
+                                <FieldLabel htmlFor={`driver-${index}-name`}>
+                                  Name
+                                </FieldLabel>
                                 <Input
                                   id={`driver-${index}-name`}
                                   value={driver.name}
-                                  onChange={(event) => updateDemandDriver(index, "name", event.target.value)}
+                                  onChange={(event) =>
+                                    updateDemandDriver(
+                                      index,
+                                      "name",
+                                      event.target.value
+                                    )
+                                  }
                                   maxLength={80}
-                                  aria-invalid={issueMap.has(`demandDrivers.${index}.name`)}
+                                  aria-invalid={issueMap.has(
+                                    `demandDrivers.${index}.name`
+                                  )}
                                 />
                               </Field>
-                              <Field data-invalid={issueMap.has(`demandDrivers.${index}.distance`)}>
-                                <FieldLabel htmlFor={`driver-${index}-distance`}>Distance</FieldLabel>
+                              <Field
+                                data-invalid={issueMap.has(
+                                  `demandDrivers.${index}.distance`
+                                )}
+                              >
+                                <FieldLabel
+                                  htmlFor={`driver-${index}-distance`}
+                                >
+                                  Distance
+                                </FieldLabel>
                                 <Input
                                   id={`driver-${index}-distance`}
                                   value={driver.distance}
-                                  onChange={(event) => updateDemandDriver(index, "distance", event.target.value)}
+                                  onChange={(event) =>
+                                    updateDemandDriver(
+                                      index,
+                                      "distance",
+                                      event.target.value
+                                    )
+                                  }
                                   placeholder="~2.4 mi"
                                   maxLength={30}
-                                  aria-invalid={issueMap.has(`demandDrivers.${index}.distance`)}
+                                  aria-invalid={issueMap.has(
+                                    `demandDrivers.${index}.distance`
+                                  )}
                                 />
                               </Field>
-                              <Field data-invalid={issueMap.has(`demandDrivers.${index}.why`)}>
-                                <FieldLabel htmlFor={`driver-${index}-why`}>Why it matters</FieldLabel>
+                              <Field
+                                data-invalid={issueMap.has(
+                                  `demandDrivers.${index}.why`
+                                )}
+                              >
+                                <FieldLabel htmlFor={`driver-${index}-why`}>
+                                  Why it matters
+                                </FieldLabel>
                                 <Input
                                   id={`driver-${index}-why`}
                                   value={driver.why}
-                                  onChange={(event) => updateDemandDriver(index, "why", event.target.value)}
+                                  onChange={(event) =>
+                                    updateDemandDriver(
+                                      index,
+                                      "why",
+                                      event.target.value
+                                    )
+                                  }
                                   maxLength={180}
-                                  aria-invalid={issueMap.has(`demandDrivers.${index}.why`)}
+                                  aria-invalid={issueMap.has(
+                                    `demandDrivers.${index}.why`
+                                  )}
                                 />
                               </Field>
                             </div>
@@ -818,11 +1069,15 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                   </FieldSet>
 
                   <Field>
-                    <FieldLabel htmlFor="distance-note">Distance note</FieldLabel>
+                    <FieldLabel htmlFor="distance-note">
+                      Distance note
+                    </FieldLabel>
                     <Textarea
                       id="distance-note"
                       value={brief.distanceNote}
-                      onChange={(event) => update("distanceNote", event.target.value)}
+                      onChange={(event) =>
+                        update("distanceNote", event.target.value)
+                      }
                       maxLength={240}
                       rows={2}
                     />
@@ -831,7 +1086,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                   <FieldSet>
                     <FieldLegend>Revenue levers</FieldLegend>
                     <FieldDescription>
-                      The standard five levers are prefilled. Tailor the review and benefit to this property.
+                      The standard five levers are prefilled. Tailor the review
+                      and benefit to this property.
                     </FieldDescription>
                     <div className="flex flex-col gap-3">
                       {brief.revenueLevers.map((lever, index) => (
@@ -839,30 +1095,54 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                           <CardContent className="pt-6">
                             <div className="grid gap-4 md:grid-cols-[0.8fr_1.4fr_1fr]">
                               <Field>
-                                <FieldLabel htmlFor={`lever-${index}-name`}>Lever</FieldLabel>
+                                <FieldLabel htmlFor={`lever-${index}-name`}>
+                                  Lever
+                                </FieldLabel>
                                 <Input
                                   id={`lever-${index}-name`}
                                   value={lever.name}
-                                  onChange={(event) => updateRevenueLever(index, "name", event.target.value)}
+                                  onChange={(event) =>
+                                    updateRevenueLever(
+                                      index,
+                                      "name",
+                                      event.target.value
+                                    )
+                                  }
                                   maxLength={80}
                                 />
                               </Field>
                               <Field>
-                                <FieldLabel htmlFor={`lever-${index}-review`}>What to review</FieldLabel>
+                                <FieldLabel htmlFor={`lever-${index}-review`}>
+                                  What to review
+                                </FieldLabel>
                                 <Textarea
                                   id={`lever-${index}-review`}
                                   value={lever.review}
-                                  onChange={(event) => updateRevenueLever(index, "review", event.target.value)}
+                                  onChange={(event) =>
+                                    updateRevenueLever(
+                                      index,
+                                      "review",
+                                      event.target.value
+                                    )
+                                  }
                                   maxLength={220}
                                   rows={2}
                                 />
                               </Field>
                               <Field>
-                                <FieldLabel htmlFor={`lever-${index}-benefit`}>Owner benefit</FieldLabel>
+                                <FieldLabel htmlFor={`lever-${index}-benefit`}>
+                                  Owner benefit
+                                </FieldLabel>
                                 <Textarea
                                   id={`lever-${index}-benefit`}
                                   value={lever.benefit}
-                                  onChange={(event) => updateRevenueLever(index, "benefit", event.target.value)}
+                                  onChange={(event) =>
+                                    updateRevenueLever(
+                                      index,
+                                      "benefit",
+                                      event.target.value
+                                    )
+                                  }
                                   maxLength={180}
                                   rows={2}
                                 />
@@ -878,22 +1158,41 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                     <FieldLegend>First 30 days</FieldLegend>
                     <div className="flex flex-col gap-3">
                       {brief.firstMonth.map((step, index) => (
-                        <div key={`step-${index}`} className="grid gap-4 md:grid-cols-[0.35fr_1.65fr]">
+                        <div
+                          key={`step-${index}`}
+                          className="grid gap-4 md:grid-cols-[0.35fr_1.65fr]"
+                        >
                           <Field>
-                            <FieldLabel htmlFor={`step-${index}-label`}>Timing</FieldLabel>
+                            <FieldLabel htmlFor={`step-${index}-label`}>
+                              Timing
+                            </FieldLabel>
                             <Input
                               id={`step-${index}-label`}
                               value={step.label}
-                              onChange={(event) => updateFirstMonth(index, "label", event.target.value)}
+                              onChange={(event) =>
+                                updateFirstMonth(
+                                  index,
+                                  "label",
+                                  event.target.value
+                                )
+                              }
                               maxLength={40}
                             />
                           </Field>
                           <Field>
-                            <FieldLabel htmlFor={`step-${index}-focus`}>Focus</FieldLabel>
+                            <FieldLabel htmlFor={`step-${index}-focus`}>
+                              Focus
+                            </FieldLabel>
                             <Input
                               id={`step-${index}-focus`}
                               value={step.focus}
-                              onChange={(event) => updateFirstMonth(index, "focus", event.target.value)}
+                              onChange={(event) =>
+                                updateFirstMonth(
+                                  index,
+                                  "focus",
+                                  event.target.value
+                                )
+                              }
                               maxLength={220}
                             />
                           </Field>
@@ -910,8 +1209,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                     <ShieldCheck />
                     <AlertTitle>Benchmark guardrail</AlertTitle>
                     <AlertDescription>
-                      Keep comparables anonymized. Managed-period lift is evidence of fit, not a guaranteed projection
-                      for this property.
+                      Keep comparables anonymized. Managed-period lift is
+                      evidence of fit, not a guaranteed projection for this
+                      property.
                     </AlertDescription>
                   </Alert>
 
@@ -920,7 +1220,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                       <div>
                         <FieldLegend>Managed benchmarks</FieldLegend>
                         <FieldDescription>
-                          Confirm every value against the current approved RevFactor benchmark set.
+                          Confirm every value against the current approved
+                          RevFactor benchmark set.
                         </FieldDescription>
                       </div>
                       <Button
@@ -951,7 +1252,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                         <Card key={`benchmark-${index}`}>
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between gap-3">
-                              <CardTitle className="text-base">Comparable {index + 1}</CardTitle>
+                              <CardTitle className="text-base">
+                                Comparable {index + 1}
+                              </CardTitle>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -961,7 +1264,9 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                                 onClick={() =>
                                   update(
                                     "benchmarks",
-                                    brief.benchmarks.filter((_, itemIndex) => itemIndex !== index)
+                                    brief.benchmarks.filter(
+                                      (_, itemIndex) => itemIndex !== index
+                                    )
                                   )
                                 }
                               >
@@ -981,14 +1286,31 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                                   ["monthlyLift", "Monthly lift vs. market"],
                                 ] as const
                               ).map(([key, label]) => (
-                                <Field key={key} data-invalid={issueMap.has(`benchmarks.${index}.${key}`)}>
-                                  <FieldLabel htmlFor={`benchmark-${index}-${key}`}>{label}</FieldLabel>
+                                <Field
+                                  key={key}
+                                  data-invalid={issueMap.has(
+                                    `benchmarks.${index}.${key}`
+                                  )}
+                                >
+                                  <FieldLabel
+                                    htmlFor={`benchmark-${index}-${key}`}
+                                  >
+                                    {label}
+                                  </FieldLabel>
                                   <Input
                                     id={`benchmark-${index}-${key}`}
                                     value={benchmark[key]}
-                                    onChange={(event) => updateBenchmark(index, key, event.target.value)}
+                                    onChange={(event) =>
+                                      updateBenchmark(
+                                        index,
+                                        key,
+                                        event.target.value
+                                      )
+                                    }
                                     maxLength={key === "profile" ? 120 : 24}
-                                    aria-invalid={issueMap.has(`benchmarks.${index}.${key}`)}
+                                    aria-invalid={issueMap.has(
+                                      `benchmarks.${index}.${key}`
+                                    )}
                                   />
                                 </Field>
                               ))}
@@ -1000,21 +1322,29 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                   </FieldSet>
 
                   <Field>
-                    <FieldLabel htmlFor="benchmark-summary">What the benchmark supports</FieldLabel>
+                    <FieldLabel htmlFor="benchmark-summary">
+                      What the benchmark supports
+                    </FieldLabel>
                     <Textarea
                       id="benchmark-summary"
                       value={brief.benchmarkSummary}
-                      onChange={(event) => update("benchmarkSummary", event.target.value)}
+                      onChange={(event) =>
+                        update("benchmarkSummary", event.target.value)
+                      }
                       maxLength={420}
                       rows={4}
                     />
                   </Field>
                   <Field>
-                    <FieldLabel htmlFor="final-data-request">Data needed for the final recommendation</FieldLabel>
+                    <FieldLabel htmlFor="final-data-request">
+                      Data needed for the final recommendation
+                    </FieldLabel>
                     <Textarea
                       id="final-data-request"
                       value={brief.finalDataRequest}
-                      onChange={(event) => update("finalDataRequest", event.target.value)}
+                      onChange={(event) =>
+                        update("finalDataRequest", event.target.value)
+                      }
                       maxLength={420}
                       rows={4}
                     />
@@ -1025,13 +1355,17 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
           </CardContent>
           <CardFooter className="justify-end">
             <Button type="button" onClick={generatePdf} disabled={generating}>
-              {generating ? <Spinner data-icon="inline-start" /> : <Download data-icon="inline-start" />}
+              {generating ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <Download data-icon="inline-start" />
+              )}
               {generating ? "Generating PDF..." : "Generate client PDF"}
             </Button>
           </CardFooter>
         </Card>
 
-        <div className="xl:sticky xl:top-5 xl:self-start">
+        <div className="xl:sticky xl:top-[calc(var(--topbar-h)+--spacing(5))] xl:self-start">
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1039,7 +1373,8 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                 <Badge variant="outline">6-page PDF</Badge>
               </div>
               <CardDescription>
-                This preview checks the narrative. The downloaded PDF uses the full RevFactor layout.
+                This preview checks the narrative. The downloaded PDF uses the
+                full RevFactor layout.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-5">
@@ -1047,12 +1382,20 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
                 <p className="text-xs font-medium tracking-widest uppercase opacity-75">
                   Client Revenue Opportunity Brief
                 </p>
-                <h2 className="mt-5 text-2xl font-semibold">{brief.propertyName || "Property name"}</h2>
-                <p className="mt-1 text-sm opacity-80">{brief.locationLabel || "City, State"}</p>
-                <p className="mt-5 text-sm">Prepared for {brief.preparedFor || "owner or prospect"}</p>
+                <h2 className="mt-5 text-2xl font-semibold">
+                  {brief.propertyName || "Property name"}
+                </h2>
+                <p className="mt-1 text-sm opacity-80">
+                  {brief.locationLabel || "City, State"}
+                </p>
+                <p className="mt-5 text-sm">
+                  Prepared for {brief.preparedFor || "owner or prospect"}
+                </p>
                 <div className="mt-6 flex items-center gap-2 text-xs opacity-80">
                   <ImagePlus />
-                  {brief.photoDataUrl ? "Cover photo included" : "Branded cover treatment"}
+                  {brief.photoDataUrl
+                    ? "Cover photo included"
+                    : "Branded cover treatment"}
                 </div>
               </div>
 
@@ -1074,21 +1417,34 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
 
               <div className="flex flex-col gap-2">
                 <p className="text-sm font-medium">Executive read</p>
-                <p className="text-sm leading-relaxed text-muted-foreground">{brief.executiveSummary}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {brief.executiveSummary}
+                </p>
               </div>
               <Separator />
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium">Demand drivers</p>
-                  <Badge variant="secondary">{brief.demandDrivers.length}</Badge>
+                  <Badge variant="secondary">
+                    {brief.demandDrivers.length}
+                  </Badge>
                 </div>
                 {brief.demandDrivers.slice(0, 4).map((driver, index) => (
-                  <div key={`preview-driver-${index}`} className="flex items-start justify-between gap-4">
+                  <div
+                    key={`preview-driver-${index}`}
+                    className="flex items-start justify-between gap-4"
+                  >
                     <div>
-                      <p className="text-sm">{driver.name || `Demand driver ${index + 1}`}</p>
-                      <p className="text-xs text-muted-foreground">{driver.why || "Why it matters"}</p>
+                      <p className="text-sm">
+                        {driver.name || `Demand driver ${index + 1}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {driver.why || "Why it matters"}
+                      </p>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">{driver.distance || "—"}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {driver.distance || "—"}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -1096,18 +1452,22 @@ export function RevenueBriefBuilder({ airRoiConfigured }: { airRoiConfigured: bo
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <ShieldCheck />
-                  <p className="text-sm font-medium">Client-safe evidence boundary</p>
+                  <p className="text-sm font-medium">
+                    Client-safe evidence boundary
+                  </p>
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  Managed-period benchmark lift is presented as supporting evidence, never as a guaranteed revenue
-                  projection for this property.
+                  Managed-period benchmark lift is presented as supporting
+                  evidence, never as a guaranteed revenue projection for this
+                  property.
                 </p>
               </div>
             </CardContent>
             <CardFooter>
               <p className="text-xs text-muted-foreground">
-                The output includes the cover, executive summary, property snapshot, demand map, revenue plan,
-                benchmarks, and final data request.
+                The output includes the cover, executive summary, property
+                snapshot, demand map, revenue plan, benchmarks, and final data
+                request.
               </p>
             </CardFooter>
           </Card>

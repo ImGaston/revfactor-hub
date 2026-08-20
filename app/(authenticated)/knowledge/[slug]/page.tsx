@@ -13,7 +13,11 @@ import { ArticleHeader } from "../_components/article-header"
 import { ArticleRenderer } from "../_components/article-renderer"
 import { ArticleTableOfContents } from "../_components/article-toc"
 import { ArticleMetadataSidebar } from "../_components/article-metadata-sidebar"
-import type { KnowledgeArticle, KnowledgeCategory, KnowledgeTag } from "../_lib/types"
+import type {
+  KnowledgeArticle,
+  KnowledgeCategory,
+  KnowledgeTag,
+} from "../_lib/types"
 
 type Props = {
   params: Promise<{ slug: string }>
@@ -114,7 +118,7 @@ export default async function ArticleDetailPage({ params }: Props) {
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {article.approved_answer ? (
-                <p className="whitespace-pre-wrap text-sm leading-6">
+                <p className="text-sm leading-6 whitespace-pre-wrap">
                   {article.approved_answer}
                 </p>
               ) : (
@@ -125,7 +129,7 @@ export default async function ArticleDetailPage({ params }: Props) {
               {article.escalation_guidance && (
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-medium">Escalate when</p>
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground">
                     {article.escalation_guidance}
                   </p>
                 </div>
@@ -139,7 +143,7 @@ export default async function ArticleDetailPage({ params }: Props) {
 
       {/* Sidebar */}
       <aside className="hidden lg:block">
-        <div className="sticky top-6 space-y-6">
+        <div className="sticky top-[calc(var(--topbar-h)+--spacing(6))] space-y-6">
           <ArticleTableOfContents html={article.content_html} />
           <Separator />
           <ArticleMetadataSidebar

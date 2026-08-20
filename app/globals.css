@@ -203,6 +203,8 @@
     }
   html {
     @apply font-sans;
+    /* los anchors internos (TOC de Knowledge) tienen que aterrizar debajo del bar */
+    scroll-padding-top: calc(var(--topbar-h) + 1rem);
     }
 }
 

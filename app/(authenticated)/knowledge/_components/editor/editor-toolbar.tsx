@@ -82,7 +82,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
 
   return (
     <>
-      <div className="tiptap-toolbar sticky top-0 z-10 flex items-center gap-0.5 overflow-x-auto border-b bg-background p-1.5 rounded-t-lg">
+      <div className="tiptap-toolbar sticky top-(--topbar-h) z-10 flex items-center gap-0.5 overflow-x-auto rounded-t-lg border-b bg-background p-1.5">
         {/* Undo / Redo */}
         <ToolbarButton
           icon={Undo2}
@@ -108,7 +108,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="gap-1 px-2 text-xs h-8"
+                  className="h-8 gap-1 px-2 text-xs"
                   aria-label="Heading level"
                 >
                   <Pilcrow className="size-4" />
@@ -120,11 +120,9 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
           </Tooltip>
           <DropdownMenuContent align="start">
             <DropdownMenuItem
-              onClick={() =>
-                editor.chain().focus().setParagraph().run()
-              }
+              onClick={() => editor.chain().focus().setParagraph().run()}
             >
-              <Pilcrow className="size-4 mr-2" />
+              <Pilcrow className="mr-2 size-4" />
               Paragraph
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -132,7 +130,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
                 editor.chain().focus().toggleHeading({ level: 1 }).run()
               }
             >
-              <Heading1 className="size-4 mr-2" />
+              <Heading1 className="mr-2 size-4" />
               Heading 1
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -140,7 +138,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
                 editor.chain().focus().toggleHeading({ level: 2 }).run()
               }
             >
-              <Heading2 className="size-4 mr-2" />
+              <Heading2 className="mr-2 size-4" />
               Heading 2
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -148,7 +146,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
                 editor.chain().focus().toggleHeading({ level: 3 }).run()
               }
             >
-              <Heading3 className="size-4 mr-2" />
+              <Heading3 className="mr-2 size-4" />
               Heading 3
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -260,7 +258,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
               }
               disabled={editor.isActive("table")}
             >
-              <Plus className="size-4 mr-2" />
+              <Plus className="mr-2 size-4" />
               Insert table
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -291,7 +289,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
               onClick={() => editor.chain().focus().deleteTable().run()}
               disabled={!editor.isActive("table")}
             >
-              <Trash2 className="size-4 mr-2" />
+              <Trash2 className="mr-2 size-4" />
               Delete table
             </DropdownMenuItem>
           </DropdownMenuContent>
