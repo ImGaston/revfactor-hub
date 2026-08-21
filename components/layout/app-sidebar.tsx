@@ -18,6 +18,7 @@ import {
   ChevronsUpDown,
   User as UserIcon,
   FileChartColumnIncreasing,
+  Trophy,
 } from "lucide-react"
 import * as React from "react"
 import Image from "next/image"
@@ -77,6 +78,7 @@ const navItems: NavItem[] = [
     icon: SlidersHorizontal,
     resource: "adjustments",
   },
+  { title: "Wins", href: "/wins", icon: Trophy, resource: "wins" },
   {
     title: "Onboarding",
     href: "/onboarding",

@@ -14,6 +14,7 @@ export const RESOURCES = [
   { key: "adjustments", label: "Adjustments", description: "Change requests, triage queue, and control" },
   { key: "agent_studio", label: "Agent Studio", description: "Test and configure the client service AI sandbox" },
   { key: "reservations", label: "Reservations", description: "PriceLabs booking data (read-only, synced from BigQuery)" },
+  { key: "wins", label: "Wins", description: "Positive-performance detection and client message drafts" },
   { key: "team_credentials", label: "Team Credentials", description: "Shared logins for team apps (PriceLabs, OTA extranets, ...)" },
 ] as const
 

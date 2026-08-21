@@ -1,5 +1,16 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-20 — Wins Dashboard Built and Verified Against Production Data
+
+Planned and implemented `/wins` end to end. Phase 0 resolved every open question against the live database rather than assuming: `report_metrics` covers calendar 2026 (not a rolling window); STLY equals LY for closed months but diverges for future ones, confirming STLY is same-time-last-year *pace*; reservations carry CAD/EUR as well as USD, though every Hub-mapped reservation is USD; 177 reservation keys fan out across 3 PriceLabs listings; `source_fetched_at` gives real freshness instead of a proxy.
+
+Reconciled the pickup maths against the reference workbook **to the cent** (`Rabbit Run`: W2 $5,335.97, W3 $36,794.12, Δ $31,458.15, median lead 70.5d) and confirmed the ±15% trend cuts empirically across its 239 rows.
+
+Shipped: migration 075 (5 tables, 14 policies, 1 RPC, permission seeds), `lib/wins.ts` / `lib/wins-message.ts` (pure, fully unit-tested), `lib/wins-detection.server.ts`, `lib/wins-queries.ts`, the `/wins` route with queue + evidence drawer + message composer, and `lib/clipboard.ts` extracted from the one existing copy path that degraded properly. 193 tests pass.
+
+Three real defects surfaced only by running it: the candidate unique key collided on fanned-out listings; delete-then-insert orphaned already-copied drafts; and the in-function permission guard used a bare `NOT` against a function that returns NULL for unidentified sessions. All three are fixed, documented in `conventions.md`, and covered by regression tests. Negative RLS probes as the `authenticated` role confirm zero rows visible, the RPC raising `42501`, and the append-only tables refusing UPDATE/DELETE.
+
+
 ## 2026-08-20 — Liquid Glass visual refresh (foundation, shell, primitives)
 
 - Added the visual foundation in `app/globals.css`: glass tokens, a four-step elevation scale that bundles the specular rim, spring easings compiled to CSS `linear()`, and the first `prefers-reduced-motion` / `prefers-reduced-transparency` guards in the repo.

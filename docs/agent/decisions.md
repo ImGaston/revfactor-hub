@@ -1,5 +1,20 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-20 — Wins Dashboard: Deterministic Templates, Frozen Evidence, and No Assembly Write Path
+
+`/wins` replaces the manual "Wins YoY x Pickup" Excel with an auditable detection run (migration `075_wins.sql`). Key decisions:
+
+1. **Hybrid compute, not read-time.** A SECURITY INVOKER RPC (`wins_pickup_windows`) aggregates 31-day booked-date pickup in Postgres — PostgREST is capped at `db-max-rows = 1000` and the window spans ~93 days of portfolio reservations — and each run persists candidates plus a frozen `evidence` JSONB. Read-time computation could not satisfy "a recompute must not silently overwrite the evidence behind an already-copied message". Full run: 242 listings in ~2s.
+2. **Deterministic templates, no model.** The MVP composes messages from typed templates so the same evidence yields the same bytes, which is what makes "the message contains only figures present in the evidence" a testable property. AI, if ever added, would receive structured evidence and still never send.
+3. **Percentages are suppressed rather than approximated.** STLY = 0 (106 of 242 listings), STLY under $5,000 (22 listings), or |pct| > 300% all drop the percentage and show the absolute delta. The source workbook shipped "+18,013% vs STLY" on a $249 base; that class of number must never reach a client.
+4. **`copied` / `assembly_opened` are intent, never delivery.** The Hub cannot observe Assembly. Only `marked_shared` records a human assertion. Enforced by the action layer, the migration's CHECK list, and structural tests in `lib/__tests__/wins-boundaries.test.ts` that also assert the feature never imports the Assembly client.
+5. **The permission is the rollout flag.** No feature-flag mechanism exists in this repo, so `wins:view|edit|control` seeds every grant FALSE and rollout is a checkbox in Settings → Roles — reversible without a deploy.
+6. **Candidate grain is the hub listing, and reruns upsert.** 242 hub listings map from 239 PriceLabs ids because the reservations matview fans some reservations across listings. Keying on `pricelabs_listing_id` collided; delete-then-insert orphaned already-copied drafts through `ON DELETE SET NULL`. Both were caught by running the real thing, not by review.
+7. **`IS NOT TRUE`, never a bare `NOT`, when gating on `has_permission` inside a function.** It returns NULL for a session with no profile row, and `IF NOT NULL THEN` skips its branch — the original guard let an unidentified session through. RLS policies were never affected. Found by probing the deployed function as the `authenticated` role.
+
+Deferred with reasons: no cron (the PriceLabs cron already uses 52s of a 60s budget), no portfolio-level client messages, no owner/account-manager filter (the column does not exist), and no hardening of the `USING (true)` policies on `report_*` — that is a wider blast radius and belongs in its own migration.
+
+
 ## 2026-08-20 — Liquid Glass Is Chrome-Only, Built In-House, With No Gooey Filter
 
 The Hub's visual system moves off the stock shadcn theme. Three reference implementations were studied (`samasante/liquid-glass`, `Jakubantalik/liquid-gooey`, `hiaaryan/sileo`) and the transferable ideas were reimplemented in plain CSS. **No new dependencies**: the libraries are young, `sileo` would have forced migrating every `toast()` call off Sonner, and the useful parts are ~150 lines of CSS.

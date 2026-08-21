@@ -4,50 +4,9 @@ import { useEffect, useState } from "react"
 import { Check, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { copyToClipboard } from "@/lib/clipboard"
 
 type CopyState = "idle" | "copied" | "error"
-
-function copyWithLegacyFallback(value: string) {
-  const textarea = document.createElement("textarea")
-  const activeElement =
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
-
-  textarea.value = value
-  textarea.setAttribute("readonly", "")
-  textarea.style.position = "fixed"
-  textarea.style.inset = "0 auto auto 0"
-  textarea.style.opacity = "0"
-  textarea.style.pointerEvents = "none"
-
-  document.body.appendChild(textarea)
-  textarea.focus()
-  textarea.select()
-  textarea.setSelectionRange(0, textarea.value.length)
-
-  try {
-    return document.execCommand("copy")
-  } catch {
-    return false
-  } finally {
-    document.body.removeChild(textarea)
-    activeElement?.focus()
-  }
-}
-
-async function copyToClipboard(value: string) {
-  if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(value)
-      return true
-    } catch {
-      // Fall through for browsers that expose the API but reject the request.
-    }
-  }
-
-  return copyWithLegacyFallback(value)
-}
 
 export function PricingDashboardButton({
   dashboardUrl,

@@ -32,6 +32,7 @@ const routeLabels: Record<string, string> = {
   pipeline: "Pipeline",
   adjustments: "Adjustments",
   reservations: "Reservations",
+  wins: "Wins",
   financials: "Financials",
   subscriptions: "Subscriptions",
   "adjustment-types": "Adjustment Types",
