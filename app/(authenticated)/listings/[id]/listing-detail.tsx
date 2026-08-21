@@ -171,9 +171,11 @@ export function ListingDetail({
   subscriptionOptions = [],
   clientCustomerIds = [],
   reservationsCard = null,
+  canViewClient = false,
 }: {
   listing: ListingWithMetrics
   client: ClientData
+  canViewClient?: boolean
   report?: ListingReport | null
   rankbreezeId?: string | null
   canManageSubscription?: boolean
@@ -182,6 +184,14 @@ export function ListingDetail({
   clientCustomerIds?: string[]
   reservationsCard?: React.ReactNode
 }) {
+  // A listing is reached through its client, so back returns there rather than
+  // to the flat listings table. Falls back when there is no client, or when the
+  // viewer cannot open the client page (the link would 404 on notFound()).
+  const backTo =
+    client && canViewClient
+      ? { href: `/clients/${client.id}`, label: `Back to ${client.name}` }
+      : { href: "/listings", label: "Back to listings" }
+
   const hasPLData = listing.pl_synced_at != null
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
@@ -195,7 +205,11 @@ export function ListingDetail({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="mt-0.5">
-            <Link href="/listings">
+            <Link
+              href={backTo.href}
+              aria-label={backTo.label}
+              title={backTo.label}
+            >
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
@@ -210,15 +224,23 @@ export function ListingDetail({
                   {[listing.city, listing.state].filter(Boolean).join(", ")}
                 </span>
               )}
-              {client && (
-                <Link
-                  href={`/clients/${client.id}`}
-                  className="flex items-center gap-1 hover:text-foreground transition-colors"
-                >
-                  <Building2 className="size-3.5" />
-                  {client.name}
-                </Link>
-              )}
+              {client &&
+                (canViewClient ? (
+                  <Link
+                    href={`/clients/${client.id}`}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    <Building2 className="size-3.5" />
+                    {client.name}
+                  </Link>
+                ) : (
+                  // Same information, no dead link: the name comes from
+                  // clients_basic, but the client page needs clients:view.
+                  <span className="flex items-center gap-1">
+                    <Building2 className="size-3.5" />
+                    {client.name}
+                  </span>
+                ))}
               {listing.listing_id && (
                 <span className="font-mono text-xs">
                   ID: {listing.listing_id}
@@ -461,9 +483,6 @@ export function ListingDetail({
         />
       </div>
 
-      {/* ─── Recent Reservations (server-rendered slot) ──── */}
-      {reservationsCard}
-
       {/* ─── Tabs ────────────────────────────────────────── */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
@@ -493,6 +512,12 @@ export function ListingDetail({
           <ReportPacing report={report} />
         </TabsContent>
       </Tabs>
+
+      {/* ─── Recent Reservations (server-rendered slot) ────
+          Below the tabs on purpose: the KPI row and the report tabs are the
+          analysis, and the reservation list is the supporting detail you scroll
+          to afterwards. */}
+      {reservationsCard}
     </div>
   )
 }

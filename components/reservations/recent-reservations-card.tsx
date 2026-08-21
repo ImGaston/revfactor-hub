@@ -40,6 +40,22 @@ function formatCurrency(amount: number | null, currency: string | null): string 
   })
 }
 
+/**
+ * Per-reservation ADR: rental revenue over nights stayed.
+ *
+ * Same rule as `computeKpis` in lib/reservations-export.ts — rental revenue
+ * (never total cost, which includes cleaning fees) divided by nights, and null
+ * rather than a division by zero when the night count is missing or zero. The
+ * per-client Excel export and this table must not disagree.
+ */
+function reservationAdr(
+  rentalRevenue: number | null,
+  nights: number | null
+): number | null {
+  if (rentalRevenue == null || nights == null || nights <= 0) return null
+  return rentalRevenue / nights
+}
+
 export function RecentReservationsCard({
   reservations,
   context,
@@ -47,6 +63,12 @@ export function RecentReservationsCard({
   reservations: Reservation[]
   context: "client" | "listing"
 }) {
+  // On a client we list which listing each booking belongs to. On a listing
+  // that is already known, and the only per-row identity left is the guest —
+  // which the upstream source always redacts to "Hidden", so the column carried
+  // no information. Drop it rather than show a wall of placeholders.
+  const showListingColumn = context === "client"
+
   return (
     <Card>
       <CardHeader>
@@ -69,10 +91,9 @@ export function RecentReservationsCard({
                   <TableHead>Check Out</TableHead>
                   <TableHead className="text-right">Nights</TableHead>
                   <TableHead className="text-right">Bkg Window</TableHead>
-                  <TableHead>
-                    {context === "client" ? "Listing" : "Guest"}
-                  </TableHead>
+                  {showListingColumn ? <TableHead>Listing</TableHead> : null}
                   <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">ADR</TableHead>
                   <TableHead>Channel</TableHead>
                 </TableRow>
               </TableHeader>
@@ -96,9 +117,9 @@ export function RecentReservationsCard({
                         ? `${r.booking_window_days}d`
                         : "—"}
                     </TableCell>
-                    <TableCell className="max-w-[220px] truncate">
-                      {context === "client" ? (
-                        r.hub_listing_id ? (
+                    {showListingColumn ? (
+                      <TableCell className="max-w-[220px] truncate">
+                        {r.hub_listing_id ? (
                           <Link
                             href={`/listings/${r.hub_listing_id}`}
                             className="hover:underline"
@@ -107,13 +128,17 @@ export function RecentReservationsCard({
                           </Link>
                         ) : (
                           (r.listing_name ?? "—")
-                        )
-                      ) : (
-                        (r.guest_name ?? "—")
-                      )}
-                    </TableCell>
+                        )}
+                      </TableCell>
+                    ) : null}
                     <TableCell className="text-right tabular-nums">
                       {formatCurrency(r.rental_revenue, r.currency)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatCurrency(
+                        reservationAdr(r.rental_revenue, r.number_of_days),
+                        r.currency
+                      )}
                     </TableCell>
                     <TableCell className="capitalize text-muted-foreground">
                       {r.booking_channel ?? "—"}
