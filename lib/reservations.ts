@@ -68,6 +68,12 @@ export const RESERVATION_SORT_FIELDS = [
 
 export type ReservationSortField = (typeof RESERVATION_SORT_FIELDS)[number]
 
+// Which date column a from/to range filters on: the day the guest booked
+// (booked_date) or the stay's check_in.
+export const RESERVATION_DATE_FIELDS = ["booked", "checkin"] as const
+
+export type ReservationDateField = (typeof RESERVATION_DATE_FIELDS)[number]
+
 export async function getRecentReservationsByClient(
   supabase: SupabaseClient,
   clientId: string,
@@ -126,8 +132,9 @@ export async function getAllReservationsByClient(
 export type ReservationsPageParams = {
   clientId?: string
   listingId?: string // hub listing UUID (listings.id)
-  from?: string // check_in >= from (YYYY-MM-DD)
-  to?: string // check_in <= to (YYYY-MM-DD)
+  dateField?: ReservationDateField // which column from/to apply to; default checkin
+  from?: string // dateField >= from (YYYY-MM-DD)
+  to?: string // dateField <= to (YYYY-MM-DD)
   search?: string
   sort?: ReservationSortField
   dir?: "asc" | "desc"
@@ -135,34 +142,54 @@ export type ReservationsPageParams = {
   pageSize: number
 }
 
-export async function getReservationsPage(
-  supabase: SupabaseClient,
-  params: ReservationsPageParams
-): Promise<{ rows: Reservation[]; count: number }> {
+// Shared filter chain for the /reservations browser and its CSV export —
+// keep both reading the same population. PostgREST builders mutate in place
+// and return `this`, so this applies filters by side effect; the loose
+// structural param type avoids TS2589 from the builder's deep generics.
+function applyReservationFilters(
+  query: {
+    eq: (column: string, value: string) => unknown
+    gte: (column: string, value: string) => unknown
+    lte: (column: string, value: string) => unknown
+    or: (filters: string) => unknown
+  },
+  params: Omit<ReservationsPageParams, "page" | "pageSize">
+): void {
+  query.eq("booking_status", "booked")
+  if (params.clientId) query.eq("client_id", params.clientId)
+  if (params.listingId) query.eq("hub_listing_id", params.listingId)
+  const dateColumn = params.dateField === "booked" ? "booked_date" : "check_in"
+  if (params.from) query.gte(dateColumn, params.from)
+  if (params.to) query.lte(dateColumn, params.to)
+
+  // PostgREST's or= syntax breaks on , ( ) " — strip them before interpolating
+  const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
+  if (q) {
+    query.or(
+      `guest_name.ilike.%${q}%,listing_name.ilike.%${q}%,channel_confirmation_code.ilike.%${q}%`
+    )
+  }
+}
+
+function resolveSort(params: { sort?: ReservationSortField; dir?: "asc" | "desc" }) {
   const sort: ReservationSortField = RESERVATION_SORT_FIELDS.includes(
     params.sort as ReservationSortField
   )
     ? (params.sort as ReservationSortField)
     : "booked_at"
-  const ascending = params.dir === "asc"
+  return { sort, ascending: params.dir === "asc" }
+}
 
-  let query = supabase
+export async function getReservationsPage(
+  supabase: SupabaseClient,
+  params: ReservationsPageParams
+): Promise<{ rows: Reservation[]; count: number }> {
+  const { sort, ascending } = resolveSort(params)
+
+  const query = supabase
     .from(RESERVATIONS_TABLE)
     .select(RESERVATION_SELECT, { count: "exact" })
-    .eq("booking_status", "booked")
-
-  if (params.clientId) query = query.eq("client_id", params.clientId)
-  if (params.listingId) query = query.eq("hub_listing_id", params.listingId)
-  if (params.from) query = query.gte("check_in", params.from)
-  if (params.to) query = query.lte("check_in", params.to)
-
-  // PostgREST's or= syntax breaks on , ( ) " — strip them before interpolating
-  const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
-  if (q) {
-    query = query.or(
-      `guest_name.ilike.%${q}%,listing_name.ilike.%${q}%,channel_confirmation_code.ilike.%${q}%`
-    )
-  }
+  applyReservationFilters(query, params)
 
   const fromIdx = (params.page - 1) * params.pageSize
   const { data, count } = await query
@@ -172,4 +199,105 @@ export async function getReservationsPage(
     .range(fromIdx, fromIdx + params.pageSize - 1)
 
   return { rows: (data ?? []) as Reservation[], count: count ?? 0 }
+}
+
+export class ExportTooLargeError extends Error {
+  constructor(cap: number) {
+    super(`Export exceeds the ${cap.toLocaleString("en-US")}-row cap`)
+    this.name = "ExportTooLargeError"
+  }
+}
+
+const EXPORT_ROW_CAP = 50_000
+
+// Every reservation matching the browser's filters, in the browser's sort
+// order, paged past PostgREST's per-request row cap. Feeds the CSV export.
+export async function getAllReservationsFiltered(
+  supabase: SupabaseClient,
+  params: Omit<ReservationsPageParams, "page" | "pageSize">
+): Promise<Reservation[]> {
+  const { sort, ascending } = resolveSort(params)
+  const CHUNK = 1000
+  const rows: Reservation[] = []
+  for (let offset = 0; ; offset += CHUNK) {
+    if (rows.length > EXPORT_ROW_CAP) throw new ExportTooLargeError(EXPORT_ROW_CAP)
+    const query = supabase.from(RESERVATIONS_TABLE).select(RESERVATION_SELECT)
+    applyReservationFilters(query, params)
+    const { data, error } = await query
+      .order(sort, { ascending, nullsFirst: false })
+      .order("row_key", { ascending: true })
+      .range(offset, offset + CHUNK - 1)
+    if (error) throw new Error(`Failed to fetch reservations: ${error.message}`)
+    rows.push(...((data ?? []) as Reservation[]))
+    if ((data ?? []).length < CHUNK) break
+  }
+  return rows
+}
+
+// Default stats window start for /reservations when no explicit range is
+// set: 30 days back, as a YYYY-MM-DD date (UTC).
+export function statsDefaultFrom(): string {
+  const d = new Date()
+  d.setUTCDate(d.getUTCDate() - 30)
+  return d.toISOString().slice(0, 10)
+}
+
+export type ReservationStatsParams = {
+  clientId?: string
+  listingId?: string
+  dateField: ReservationDateField
+  from?: string // YYYY-MM-DD
+  to?: string // YYYY-MM-DD
+  search?: string
+}
+
+export type ReservationStats = {
+  reservationCount: number
+  totalNights: number
+  avgBookingWindowDays: number | null
+  rentalRevenueUsd: number
+  adrUsd: number | null // nights-weighted: sum(revenue) / sum(nights)
+  nonUsdCount: number // reservations excluded from the USD money figures
+}
+
+// Header aggregates for /reservations, computed DB-side by the
+// reservation_page_stats function (migration 077) — same filters as
+// getReservationsPage, one round trip instead of paging 28k rows.
+export async function getReservationsStats(
+  supabase: SupabaseClient,
+  params: ReservationStatsParams
+): Promise<ReservationStats> {
+  // Match getReservationsPage's search sanitization so header and table
+  // always describe the same population.
+  const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
+  const { data, error } = await supabase
+    .rpc("reservation_page_stats", {
+      p_client_id: params.clientId ?? null,
+      p_listing_id: params.listingId ?? null,
+      p_date_field: params.dateField,
+      p_from: params.from ?? null,
+      p_to: params.to ?? null,
+      p_search: q || null,
+    })
+    .single()
+  if (error) throw new Error(`Failed to fetch reservation stats: ${error.message}`)
+  const row = data as {
+    reservation_count: number
+    total_nights: number
+    avg_booking_window_days: number | null
+    rental_revenue_usd: number
+    adr_usd: number | null
+    non_usd_count: number
+  }
+  return {
+    reservationCount: Number(row.reservation_count ?? 0),
+    totalNights: Number(row.total_nights ?? 0),
+    avgBookingWindowDays:
+      row.avg_booking_window_days == null
+        ? null
+        : Number(row.avg_booking_window_days),
+    rentalRevenueUsd: Number(row.rental_revenue_usd ?? 0),
+    adrUsd: row.adr_usd == null ? null : Number(row.adr_usd),
+    nonUsdCount: Number(row.non_usd_count ?? 0),
+  }
 }
