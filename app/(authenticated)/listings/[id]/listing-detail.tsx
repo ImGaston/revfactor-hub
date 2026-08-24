@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
+import { extractAirbnbId } from "@/components/listings/listing-form-fields"
 import type { ListingReport, ListingWithMetrics } from "@/lib/types"
 import {
   ReportOverview,
@@ -195,12 +197,20 @@ export function ListingDetail({
   const hasPLData = listing.pl_synced_at != null
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
+  // Numeric Airbnb ID for the host-side calendar/editor deep links. Note that
+  // listing_id is the PriceLabs ID; the Airbnb ID only lives in airbnb_link.
+  const airbnbIdCandidate = listing.airbnb_link
+    ? extractAirbnbId(listing.airbnb_link)
+    : ""
+  const airbnbId = /^\d+$/.test(airbnbIdCandidate) ? airbnbIdCandidate : null
+
   const currentSubscription = currentSubscriptionId
     ? subscriptionOptions.find((s) => s.id === currentSubscriptionId) ?? null
     : null
 
   return (
     <div className="space-y-6">
+      <BreadcrumbSetter segment={listing.id} label={listing.name} />
       {/* ─── Header ──────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
@@ -249,7 +259,7 @@ export function ListingDetail({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {listing.airbnb_link && (
             <Button variant="outline" size="sm" asChild>
               <a
@@ -259,6 +269,30 @@ export function ListingDetail({
               >
                 <ExternalLink className="size-3.5 mr-1.5" />
                 Airbnb
+              </a>
+            </Button>
+          )}
+          {airbnbId && (
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`https://www.airbnb.com/multicalendar/${airbnbId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="size-3.5 mr-1.5" />
+                Calendar
+              </a>
+            </Button>
+          )}
+          {airbnbId && (
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`https://www.airbnb.com/hosting/listings/editor/${airbnbId}/details/photo-tour`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="size-3.5 mr-1.5" />
+                Editor
               </a>
             </Button>
           )}

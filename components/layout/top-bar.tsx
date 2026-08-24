@@ -45,6 +45,12 @@ const routeLabels: Record<string, string> = {
   category: "Category",
 }
 
+// Detail routes use UUID segments; pages override them with a readable label
+// (BreadcrumbSetter). A UUID with no override means nothing to the user — hide
+// it instead of rendering the raw ID.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const subscribeToPlatform = () => () => undefined
 const getPlatformSnapshot = () => /Mac|iPhone|iPad/.test(navigator.platform)
 const getServerPlatformSnapshot = () => true
@@ -77,25 +83,34 @@ export function TopBar({ profile, permissionMap }: TopBarProps) {
                 <BreadcrumbPage>Dashboard</BreadcrumbPage>
               </BreadcrumbItem>
             ) : (
-              segments.map((segment, index) => {
-                const href = "/" + segments.slice(0, index + 1).join("/")
-                const isLast = index === segments.length - 1
-                const label =
-                  overrides[segment] ?? routeLabels[segment] ?? segment
-
-                return (
-                  <span key={href} className="contents">
-                    {index > 0 && <BreadcrumbSeparator />}
-                    <BreadcrumbItem>
-                      {isLast ? (
-                        <BreadcrumbPage>{label}</BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink href={href}>{label}</BreadcrumbLink>
-                      )}
-                    </BreadcrumbItem>
-                  </span>
+              segments
+                .map((segment, index) => ({
+                  segment,
+                  href: "/" + segments.slice(0, index + 1).join("/"),
+                  label: overrides[segment] ?? routeLabels[segment] ?? segment,
+                }))
+                .filter(
+                  (crumb) =>
+                    !UUID_RE.test(crumb.segment) || overrides[crumb.segment]
                 )
-              })
+                .map((crumb, index, crumbs) => {
+                  const isLast = index === crumbs.length - 1
+
+                  return (
+                    <span key={crumb.href} className="contents">
+                      {index > 0 && <BreadcrumbSeparator />}
+                      <BreadcrumbItem>
+                        {isLast ? (
+                          <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink href={crumb.href}>
+                            {crumb.label}
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </span>
+                  )
+                })
             )}
           </BreadcrumbList>
         </Breadcrumb>
