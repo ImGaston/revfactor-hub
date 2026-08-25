@@ -12,6 +12,8 @@ import {
   DollarSign,
   BookOpen,
   Bot,
+  TrendingUp,
+  Radar,
   SlidersHorizontal,
   Settings,
   LogOut,
@@ -61,10 +63,12 @@ const navItems: NavItem[] = [
   { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
   { title: "Adjustments", href: "/adjustments", icon: SlidersHorizontal, resource: "adjustments" },
   { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },
-  { title: "Ideas & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
+  { title: "Projects & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
   { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
   { title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
   { title: "Agent Studio", href: "/agent-studio", icon: Bot, resource: "agent_studio" },
+  { title: "Revenue Manager", href: "/revenue-manager", icon: TrendingUp, resource: "revenue" },
+  { title: "Market Signals", href: "/market-signals", icon: Radar, resource: "market_signals" },
   { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true },
 ]
 

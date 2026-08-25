@@ -88,6 +88,11 @@ type CheckoutLineItem = {
   quantity: number
 }
 
+export type OnboardingCheckoutLineItem = {
+  price: string
+  quantity: number
+}
+
 // --- Helpers ---
 
 function centsToDollars(cents: number): number {
@@ -376,6 +381,122 @@ export async function createSubscriptionCheckoutSession(input: {
     },
     metadata,
   })
+
+  if (!session.url) {
+    throw new Error("Stripe did not return a Checkout URL")
+  }
+
+  return { id: session.id, url: session.url }
+}
+
+export function buildOnboardingCheckoutLineItems(input: {
+  primaryPriceId: string
+  primaryQuantity: number
+  childPriceId: string
+  childQuantity: number
+  onboardingPriceId: string
+  includeOnboardingFee: boolean
+}): OnboardingCheckoutLineItem[] {
+  const lineItems: OnboardingCheckoutLineItem[] = [
+    {
+      price: input.primaryPriceId,
+      quantity: input.primaryQuantity,
+    },
+  ]
+
+  if (input.childQuantity > 0) {
+    lineItems.push({
+      price: input.childPriceId,
+      quantity: input.childQuantity,
+    })
+  }
+
+  if (input.includeOnboardingFee) {
+    lineItems.push({
+      price: input.onboardingPriceId,
+      quantity: 1,
+    })
+  }
+
+  return lineItems
+}
+
+export async function findOrCreateOnboardingCustomer(input: {
+  email: string
+  name: string | null
+  highLevelContactId: string
+}): Promise<StripeCustomerSummary> {
+  const existing = await searchCustomerByEmail(input.email)
+  if (existing) return existing
+
+  const stripe = getStripeClient()
+  const customer = await stripe.customers.create({
+    email: input.email,
+    name: input.name ?? undefined,
+    metadata: {
+      highlevel_contact_id: input.highLevelContactId,
+    },
+  })
+
+  return {
+    id: customer.id,
+    email: customer.email ?? null,
+    name: customer.name ?? null,
+    created: customer.created,
+  }
+}
+
+export async function createOnboardingCheckoutSession(input: {
+  customerId: string
+  highLevelContactId: string
+  documentId: string
+  primaryPriceId: string
+  primaryQuantity: number
+  childPriceId: string
+  childQuantity: number
+  onboardingPriceId: string
+  includeOnboardingFee: boolean
+  serviceStartMode: "immediate" | "scheduled"
+  serviceStartDate: string | null
+  trialEnd?: number
+  successUrl: string
+  cancelUrl: string
+  idempotencyKey: string
+}): Promise<{ id: string; url: string }> {
+  const stripe = getStripeClient()
+  const metadata: Stripe.MetadataParam = {
+    highlevel_contact_id: input.highLevelContactId,
+    highlevel_document_id: input.documentId,
+    revfactor_primary_listings: String(input.primaryQuantity),
+    revfactor_child_listings: String(input.childQuantity),
+    include_onboarding_fee: input.includeOnboardingFee ? "true" : "false",
+    onboarding_fee_amount: input.includeOnboardingFee ? "150.00" : "0.00",
+    onboarding_fee_source: "ghl_standard_onboarding",
+    revfactor_service_start_mode: input.serviceStartMode,
+    revfactor_service_start_date: input.serviceStartDate ?? "",
+  }
+  const lineItems = buildOnboardingCheckoutLineItems(input)
+  const subscriptionData: {
+    metadata: Stripe.MetadataParam
+    trial_end?: number
+  } = {
+    metadata,
+  }
+  if (input.trialEnd) subscriptionData.trial_end = input.trialEnd
+
+  const session = await stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: input.customerId,
+      client_reference_id: input.highLevelContactId,
+      line_items: lineItems,
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+      metadata,
+      subscription_data: subscriptionData,
+    },
+    { idempotencyKey: input.idempotencyKey },
+  )
 
   if (!session.url) {
     throw new Error("Stripe did not return a Checkout URL")

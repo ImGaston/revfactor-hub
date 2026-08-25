@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { RoadmapTabs } from "./roadmap-tabs"
-import type { Post, Board, Tag } from "@/lib/types"
+import type { Post, Board, Tag, RoadmapProject } from "@/lib/types"
 
 export default async function RoadmapPage() {
   const supabase = await createClient()
@@ -21,11 +21,16 @@ export default async function RoadmapPage() {
     .select("*")
     .order("sort_order")
 
+  const { data: projects } = await supabase
+    .from("roadmap_projects")
+    .select(
+      "id, name, description, deadline, created_by, sort_order, created_at, updated_at"
+    )
+    .order("sort_order")
+    .order("created_at")
+
   // Fetch tags
-  const { data: tags } = await supabase
-    .from("tags")
-    .select("*")
-    .order("name")
+  const { data: tags } = await supabase.from("tags").select("*").order("name")
 
   // Fetch post_tags junction to attach tags to posts
   const { data: postTagRows } = await supabase
@@ -48,10 +53,14 @@ export default async function RoadmapPage() {
   const boardMap = new Map(
     (boardRows ?? []).map((b) => [b.id, { name: b.name, icon: b.icon }])
   )
-  const tagMap = new Map((tags ?? []).map((t) => [t.id, t]))
-  const upvotedPostIds = new Set(
-    (userUpvotes ?? []).map((u) => u.post_id)
+  const projectMap = new Map(
+    (projects ?? []).map((project) => [
+      project.id,
+      { name: project.name, deadline: project.deadline },
+    ])
   )
+  const tagMap = new Map((tags ?? []).map((t) => [t.id, t]))
+  const upvotedPostIds = new Set((userUpvotes ?? []).map((u) => u.post_id))
 
   // Build post_tags per post
   const postTagsMap = new Map<string, Tag[]>()
@@ -66,23 +75,26 @@ export default async function RoadmapPage() {
   // Enrich posts
   const posts: Post[] = (postsRaw ?? []).map((p) => ({
     ...p,
-    boards: p.board_id ? boardMap.get(p.board_id) ?? null : null,
+    deadline: p.eta,
+    boards: p.board_id ? (boardMap.get(p.board_id) ?? null) : null,
+    roadmap_projects: projectMap.get(p.project_id) ?? null,
     post_tags: (postTagsMap.get(p.id) ?? []).map((t) => ({ tags: t })),
     has_upvoted: upvotedPostIds.has(p.id),
   }))
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Ideas & Roadmap
+          Projects & Roadmap
         </h1>
         <p className="text-sm text-muted-foreground">
-          Share ideas, vote on features, and track the product roadmap.
+          Plan projects, organize their tasks, and keep every deadline visible.
         </p>
       </div>
       <RoadmapTabs
         posts={posts}
+        projects={(projects ?? []) as RoadmapProject[]}
         boards={(boards ?? []) as Board[]}
         tags={(tags ?? []) as Tag[]}
       />

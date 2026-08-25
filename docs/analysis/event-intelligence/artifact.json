@@ -1,0 +1,299 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "Market Signals for RevFactor",
+    "description": "A build-vs-buy recommendation and five-market PredictHQ case study for event-driven revenue management.",
+    "generatedAt": "2026-08-21T18:00:00Z",
+    "filters": [],
+    "cards": [
+      {
+        "id": "portfolio_card",
+        "description": "Active, syncing PriceLabs listings in the August 21 portfolio snapshot.",
+        "dataset": "headline",
+        "sourceId": "portfolio_snapshot",
+        "metrics": [
+          { "label": "Portfolio listings", "field": "listings", "format": "number" },
+          { "label": "Raw city/state labels", "field": "raw_city_state_pairs", "format": "number" }
+        ]
+      },
+      {
+        "id": "property_cost_card",
+        "description": "Annual PredictHQ per-property sticker cost before any volume discount.",
+        "dataset": "headline",
+        "sourceId": "case_study_notebook",
+        "metrics": [
+          { "label": "Per-property sticker", "field": "property_sticker_cost", "format": "currency" },
+          { "label": "Share of stated fee base", "field": "property_sticker_fee_share", "format": "percent" }
+        ]
+      },
+      {
+        "id": "cluster_card",
+        "description": "Coordinate-based sensitivity, not final operating markets or vendor billing units.",
+        "dataset": "headline",
+        "sourceId": "portfolio_snapshot",
+        "metrics": [
+          { "label": "15-mile clusters", "field": "clusters_15mi", "format": "number" },
+          { "label": "30-mile sensitivity", "field": "clusters_30mi", "format": "number" }
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "portfolio_density_chart",
+        "title": "Listings by raw city-density bucket",
+        "subtitle": "351 active listings; 227 are in city/state labels containing four or fewer RevFactor listings.",
+        "headerMarkdown": "The raw location distribution explains why a one-city-per-license approach scales poorly and why reviewed coordinate clusters are needed.",
+        "type": "bar",
+        "dataset": "portfolio_density",
+        "sourceId": "portfolio_snapshot",
+        "valueFormat": "number",
+        "encodings": {
+          "x": { "field": "bucket", "type": "nominal", "label": "Listings sharing a city/state label" },
+          "y": { "field": "listings", "type": "quantitative", "label": "Portfolio listings", "format": "number" },
+          "tooltip": [
+            { "field": "cities", "type": "quantitative", "label": "City/state labels", "format": "number" },
+            { "field": "listing_share", "type": "quantitative", "label": "Portfolio share", "format": "percent" }
+          ]
+        },
+        "yAxisTitle": "Portfolio listings"
+      },
+      {
+        "id": "threshold_noise_chart",
+        "title": "Events surviving a naive local-rank threshold",
+        "subtitle": "Share of all returned events with local rank at least 50, August 21–November 19, 2026.",
+        "headerMarkdown": "A single threshold filters DC but leaves 92%–99% of events in the four destination markets, so production scoring must include category, baseline, novelty, accommodation impact, and booking vulnerability.",
+        "type": "bar",
+        "dataset": "case_markets",
+        "sourceId": "predicthq_case",
+        "valueFormat": "percent",
+        "encodings": {
+          "x": { "field": "market", "type": "nominal", "label": "Pilot market" },
+          "y": { "field": "local_rank_50_share", "type": "quantitative", "label": "Share of events", "format": "percent" },
+          "tooltip": [
+            { "field": "event_count", "type": "quantitative", "label": "All events", "format": "number" },
+            { "field": "local_rank_50_plus_count", "type": "quantitative", "label": "Local rank 50+", "format": "number" },
+            { "field": "surge_count", "type": "quantitative", "label": "Surge dates", "format": "number" }
+          ]
+        },
+        "yAxisTitle": "Share of returned events"
+      }
+    ],
+    "tables": [
+      {
+        "id": "commercial_scenarios_table",
+        "title": "Commercial sensitivity",
+        "subtitle": "Annualized call-note pricing before volume discount; RevFactor fee-base comparison uses $300 per listing per month.",
+        "dataset": "commercial_scenarios",
+        "sourceId": "case_study_notebook",
+        "defaultSort": { "field": "annual_cost_usd", "direction": "desc" },
+        "columns": [
+          { "field": "scenario", "label": "Scenario", "type": "text" },
+          { "field": "scope", "label": "Scope", "type": "text" },
+          { "field": "annual_cost_usd", "label": "Annual cost", "format": "currency" },
+          { "field": "share_of_fee_base", "label": "Share of full fee base", "format": "percent" }
+        ]
+      },
+      {
+        "id": "case_markets_table",
+        "title": "Five-market PredictHQ sample",
+        "subtitle": "Live API snapshot using each market's accommodation Suggested Radius over the 90-day trial window.",
+        "dataset": "case_markets",
+        "sourceId": "predicthq_case",
+        "defaultSort": { "field": "event_count", "direction": "desc" },
+        "columns": [
+          { "field": "market", "label": "Market", "type": "text" },
+          { "field": "portfolio_listings", "label": "Listings", "format": "number" },
+          { "field": "suggested_radius_miles", "label": "Radius (mi)", "format": "number" },
+          { "field": "event_count", "label": "Events", "format": "number" },
+          { "field": "surge_count", "label": "Surge dates", "format": "number" },
+          { "field": "example_event", "label": "Long-lead example", "type": "text" },
+          { "field": "example_first_seen", "label": "First seen", "type": "date" }
+        ]
+      },
+      {
+        "id": "source_stack_table",
+        "title": "Recommended source stack",
+        "subtitle": "Each adapter has one explicit job; no single provider is treated as the truth for every market and horizon.",
+        "dataset": "source_stack",
+        "sourceId": "architecture_proposal",
+        "defaultSort": { "field": "source", "direction": "asc" },
+        "columns": [
+          { "field": "source", "label": "Source", "type": "text" },
+          { "field": "job", "label": "Primary job", "type": "text" },
+          { "field": "horizon", "label": "Horizon", "type": "text" },
+          { "field": "cadence", "label": "Initial cadence", "type": "text" },
+          { "field": "limit", "label": "Important limit", "type": "text" }
+        ]
+      }
+    ],
+    "sources": [
+      { "id": "portfolio_snapshot", "label": "PriceLabs portfolio aggregate", "path": "docs/analysis/event-intelligence/case-study-input.json" },
+      { "id": "predicthq_case", "label": "PredictHQ five-market live API sample", "path": "docs/analysis/event-intelligence/case-study-input.json" },
+      { "id": "case_study_notebook", "label": "Event-intelligence case-study notebook", "path": "docs/analysis/event-intelligence/event-intelligence-case-study.ipynb" },
+      { "id": "architecture_proposal", "label": "Event-intelligence product proposal", "path": "docs/event-intelligence-design.md" }
+    ],
+    "blocks": [
+      { "id": "title", "type": "markdown", "body": "# Market Signals for RevFactor" },
+      {
+        "id": "executive_summary",
+        "type": "markdown",
+        "body": "## Executive Summary\n\n- **Build the RevFactor decision layer; do not buy full-portfolio PredictHQ coverage yet.** PredictHQ is valuable enrichment, but the portfolio is too dispersed and the sticker economics are too material to commit before measuring incremental value.\n- **Treat this as two detection products.** Near-term event impact and 12–24 month host-city/date announcements require different sources and scoring. The NFL Draft failure belongs to the announcement horizon, which a 90-day trial cannot validate.\n- **Use a hybrid source stack.** Official sources and targeted news find early announcements; Ticketmaster finds ticketed events; NWS detects disruption; PredictHQ can normalize and enrich; PriceLabs and reservations determine whether a date is vulnerable.\n- **Keep humans in control.** The first release should create a reviewable market signal and optionally link an Adjustment. It should not write rates, minimum stays, or restrictions to PriceLabs/PMS/OTA systems."
+      },
+      { "id": "headline_metrics", "type": "metric-strip", "cardIds": ["portfolio_card", "property_cost_card", "cluster_card"] },
+      {
+        "id": "portfolio_finding",
+        "type": "markdown",
+        "sourceId": "case_study_notebook",
+        "body": "## Full-portfolio buying is the wrong first commitment\n\n**The 351-listing footprint spans 162 raw city/state labels, and 64.7% of listings sit in labels containing four or fewer properties.** At the discovery-call sticker price, per-property coverage is $210.6k per year before discount—16.7% of the stated annual RevFactor fee base. Treating every raw label as a small city starts at $405k before major-city uplift.\n\nThe implication is not that event intelligence is too expensive. It is that RevFactor should first prove which market clusters and signals create decision-changing lead time, then negotiate coverage around that evidence."
+      },
+      { "id": "portfolio_density", "type": "chart", "chartId": "portfolio_density_chart" },
+      {
+        "id": "commercial_explanation",
+        "type": "markdown",
+        "body": "The cost comparison is a sensitivity view, not a quote. The call notes say volume discounts apply, but no discount, minimum commitment, international treatment, or cluster-based option is known. That uncertainty strengthens the case for a narrow benchmark before procurement."
+      },
+      { "id": "commercial_scenarios", "type": "table", "tableId": "commercial_scenarios_table", "layout": "full" },
+      {
+        "id": "predicthq_finding",
+        "type": "markdown",
+        "sourceId": "predicthq_case",
+        "body": "## PredictHQ is useful evidence, but Surge is not the product\n\n**The live sample shows real normalization value:** market-specific suggested radii, long-lead `first_seen` dates, attendance, local rank, and structured impact fields. Some example events were first seen many months before the 90-day active window.\n\n**It also shows the blind spot:** Demand Surge returned zero dates for Park City and the Smokies, even though the Events feed contained material destination events. Surge identifies statistical outlier days relative to a local baseline; a large recurring or multi-day destination event may still require action without looking unusual by that measure.\n\nA production gate must therefore combine raw events, new/change detection, market type, accommodation impact, and live booking vulnerability."
+      },
+      { "id": "threshold_noise", "type": "chart", "chartId": "threshold_noise_chart" },
+      {
+        "id": "case_table_explanation",
+        "type": "markdown",
+        "body": "The exact market comparison below is the benchmark starting point. It should become a reviewed golden-calendar test: which material events were found, when each source first found them, whether the alert was actionable, and whether it beat PriceLabs pickup."
+      },
+      { "id": "case_markets", "type": "table", "tableId": "case_markets_table", "layout": "full" },
+      {
+        "id": "product_recommendation",
+        "type": "markdown",
+        "body": "## Build a source-agnostic signal-to-action layer\n\nThe proposed product maintains a governed market registry, normalizes provider records into canonical events, records immutable changes, corroborates evidence, and scores materiality separately from booking vulnerability. A verified signal can become a watch item, an immediate review, or a cancellation/weather unwind.\n\nThe reviewer should see what changed, first-seen time, evidence links, affected dates/listings, current price and pace evidence, freshness, and a bounded action hypothesis. The reviewer can dismiss, watch, escalate, or create/link an Adjustment. An LLM may extract and summarize evidence, but deterministic gates and humans own every pricing decision."
+      },
+      { "id": "source_stack", "type": "table", "tableId": "source_stack_table", "layout": "full" },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "body": "## Recommended Next Steps\n\n1. **Normalize five pilot markets:** Washington, DC; Tucson; Myrtle Beach; Park City; and Gatlinburg/Smokies. Use PriceLabs coordinates, reviewed cluster membership, country codes, timezones, and source-specific radii.\n2. **Create a golden calendar:** record the major events and announcements RevFactor believes should be caught in each market, including cancellations and date changes.\n3. **Run 30 days of read-only shadow monitoring:** benchmark PredictHQ Events and Surge against official sources, Ticketmaster, NWS, targeted news, and the first PriceLabs/booking-pickup signal.\n4. **Build the Hub review surface:** Needs Review, New Announcements, Changed/Canceled, and Watchlist. Link to Adjustments; create no external write path.\n5. **Make the procurement decision from pilot evidence:** buy PredictHQ only for clusters where it improves verified recall/lead time or saves enough analyst effort to justify the negotiated price."
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further Questions\n\n- What five-market or cluster-based price, volume discount, and minimum commitment will PredictHQ offer?\n- Which official sources and venues define the reviewed golden calendar in each market?\n- What current source can reliably expose date-grain minimum-stay and check-in/check-out restrictions?\n- Which alert channel should be first: Hub, email, Slack, or an Assembly/WhatsApp action after human review?\n- What evidence and counterfactual are sufficient to label captured ADR/revenue rather than only revenue at risk?"
+      },
+      {
+        "id": "caveats",
+        "type": "markdown",
+        "body": "## Caveats and Assumptions\n\n- Commercial figures come from the supplied discovery-call summary and are not a binding quote; volume discounts are unknown.\n- The 90-day trial cannot validate the 2027 NFL Draft or other 12–24 month announcement coverage.\n- Geographic cluster counts are sensitivity checks, not final markets or vendor billing units. One state label conflicts with its coordinates, three records have no state, and country labels require normalization.\n- The sample measures source coverage and noise, not causal revenue uplift. Booking counterfactuals and actual stay-rule state were unavailable.\n- Ticketmaster does not cover all events; NWS is US-only; news discovery must be corroborated; source retention/display rights require contract review.\n- Assembly conversation history was unavailable locally because no Assembly API key is configured."
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-08-21T18:00:00Z",
+    "status": "ready",
+    "datasets": {
+      "headline": [
+        {
+          "listings": 351,
+          "raw_city_state_pairs": 162,
+          "property_sticker_cost": 210600,
+          "property_sticker_fee_share": 0.1666667,
+          "clusters_15mi": 119,
+          "clusters_30mi": 96
+        }
+      ],
+      "portfolio_density": [
+        { "bucket": "1 listing", "cities": 100, "listings": 100, "listing_share": 0.2849003 },
+        { "bucket": "2–4 listings", "cities": 48, "listings": 127, "listing_share": 0.3618234 },
+        { "bucket": "5–9 listings", "cities": 11, "listings": 68, "listing_share": 0.1937322 },
+        { "bucket": "10+ listings", "cities": 3, "listings": 56, "listing_share": 0.1595442 }
+      ],
+      "commercial_scenarios": [
+        { "scenario": "Raw small-city floor", "scope": "162 labels × $2,500", "annual_cost_usd": 405000, "share_of_fee_base": 0.3205128 },
+        { "scenario": "Per-property sticker", "scope": "351 listings × $600", "annual_cost_usd": 210600, "share_of_fee_base": 0.1666667 },
+        { "scenario": "Five-market per-property sticker", "scope": "79 listings × $600", "annual_cost_usd": 47400, "share_of_fee_base": 0.0375119 }
+      ],
+      "case_markets": [
+        { "market": "Washington, DC", "portfolio_listings": 3, "suggested_radius_miles": 2.95, "event_count": 2407, "local_rank_50_plus_count": 996, "local_rank_50_share": 0.4137939, "surge_count": 3, "example_event": "Army Ten-Miler", "example_attendance": 60000, "example_first_seen": "2025-05-18" },
+        { "market": "Tucson, AZ", "portfolio_listings": 8, "suggested_radius_miles": 4.62, "event_count": 602, "local_rank_50_plus_count": 555, "local_rank_50_share": 0.9219269, "surge_count": 2, "example_event": "Tucson Comic Con", "example_attendance": 20000, "example_first_seen": "2025-11-30" },
+        { "market": "Myrtle Beach, SC", "portfolio_listings": 18, "suggested_radius_miles": 7.33, "event_count": 276, "local_rank_50_plus_count": 267, "local_rank_50_share": 0.9673913, "surge_count": 2, "example_event": "Dickens Christmas Show & Festivals", "example_attendance": 20000, "example_first_seen": "2025-02-16" },
+        { "market": "Park City, UT", "portfolio_listings": 3, "suggested_radius_miles": 7.97, "event_count": 144, "local_rank_50_plus_count": 143, "local_rank_50_share": 0.9930556, "surge_count": 0, "example_event": "ProcessTechnologyXchange", "example_attendance": 20000, "example_first_seen": "2025-11-18" },
+        { "market": "Gatlinburg / Smokies, TN", "portfolio_listings": 47, "suggested_radius_miles": 7.87, "event_count": 145, "local_rank_50_plus_count": 137, "local_rank_50_share": 0.9448276, "surge_count": 0, "example_event": "Dollywood Harvest Festival & Great Pumpkin LumiNights", "example_attendance": 500000, "example_first_seen": "2026-07-20" }
+      ],
+      "source_stack": [
+        { "priority": 1, "source": "Official press/RSS/Atom", "job": "Verified host-city, date, venue, and schedule announcements", "horizon": "3–24 months", "cadence": "30–60 min", "limit": "Requires curated market registries" },
+        { "priority": 2, "source": "GDELT / targeted news", "job": "Discover announcement candidates before structured feeds", "horizon": "3–24 months", "cadence": "30–60 min", "limit": "Must corroborate with authoritative evidence" },
+        { "priority": 3, "source": "Ticketmaster Discovery", "job": "Ticketed concerts, sports, theatre, and festivals", "horizon": "0–12 months", "cadence": "2–6 hr", "limit": "Ticketmaster ecosystem; quota applies" },
+        { "priority": 4, "source": "PredictHQ (optional)", "job": "Normalize events, ranks, attendance, radii, and impact days", "horizon": "0–12 months", "cadence": "30–60 min", "limit": "Commercial coverage; Surge is not sufficient alone" },
+        { "priority": 5, "source": "NWS Alerts", "job": "Weather watches, warnings, advisories, and unwind signals", "horizon": "0–7 days", "cadence": "5–15 min", "limit": "United States only" },
+        { "priority": 6, "source": "PriceLabs + Hub evidence", "job": "Decide which listings and dates are vulnerable now", "horizon": "0–120 days", "cadence": "Existing syncs", "limit": "May confirm demand after the earliest opportunity" }
+      ]
+    },
+    "accessIssues": []
+  },
+  "sources": [
+    {
+      "id": "portfolio_snapshot",
+      "query": {
+        "engine": "duckdb",
+        "description": "Aggregates active, syncing, non-hidden PriceLabs listings into coordinate completeness, raw city density, and geographic-cluster sensitivity. Listing names, IDs, notes, and credentials are excluded from the artifact.",
+        "sql": "SELECT 351 AS listings, 162 AS raw_city_state_pairs, 119 AS clusters_15mi, 96 AS clusters_30mi; SELECT * FROM (VALUES ('1 listing', 100, 100, 0.2849003), ('2–4 listings', 48, 127, 0.3618234), ('5–9 listings', 11, 68, 0.1937322), ('10+ listings', 3, 56, 0.1595442)) AS portfolio_density(bucket, cities, listings, listing_share);",
+        "url": "https://api.pricelabs.co/v1/listings",
+        "executed_at": "2026-08-21T17:59:52Z",
+        "language": "SQL",
+        "filters": ["only_syncing_listings=true", "skip_hidden=true", "aggregate output only"],
+        "metric_definitions": {
+          "raw_city_state_pairs": "Distinct normalized lowercase city and state label pairs in the active PriceLabs response.",
+          "geographic_clusters": "Connected coordinate groups within the stated straight-line radius; sensitivity only, not operating markets."
+        }
+      }
+    },
+    {
+      "id": "predicthq_case",
+      "query": {
+        "engine": "duckdb",
+        "description": "PredictHQ Events, Suggested Radius, and Demand Surge API sample for five portfolio markets over the 90-day trial window.",
+        "sql": "SELECT * FROM (VALUES ('Washington, DC', 3, 2.95, 2407, 996, 0.4137939, 3, 'Army Ten-Miler', DATE '2025-05-18'), ('Tucson, AZ', 8, 4.62, 602, 555, 0.9219269, 2, 'Tucson Comic Con', DATE '2025-11-30'), ('Myrtle Beach, SC', 18, 7.33, 276, 267, 0.9673913, 2, 'Dickens Christmas Show & Festivals', DATE '2025-02-16'), ('Park City, UT', 3, 7.97, 144, 143, 0.9930556, 0, 'ProcessTechnologyXchange', DATE '2025-11-18'), ('Gatlinburg / Smokies, TN', 47, 7.87, 145, 137, 0.9448276, 0, 'Dollywood Harvest Festival & Great Pumpkin LumiNights', DATE '2026-07-20')) AS case_markets(market, portfolio_listings, suggested_radius_miles, event_count, local_rank_50_plus_count, local_rank_50_share, surge_count, example_event, example_first_seen);",
+        "url": "https://api.predicthq.com/v1/events/",
+        "executed_at": "2026-08-21T17:56:00Z",
+        "language": "SQL",
+        "filters": ["active dates 2026-08-21 through 2026-11-19", "accommodation Suggested Radius per market", "attended categories plus public holidays and severe weather", "aggregate output only"],
+        "metric_definitions": {
+          "event_count": "All events returned within the market Suggested Radius and active-date window for the selected categories.",
+          "local_rank_50_share": "Events with PredictHQ local rank at least 50 divided by all returned events in the same market query.",
+          "surge_count": "Moderate-or-higher Demand Surge dates returned for the same market and date window."
+        }
+      }
+    },
+    {
+      "id": "case_study_notebook",
+      "query": {
+        "engine": "duckdb",
+        "description": "Executed notebook that validates the aggregate inputs and calculates portfolio distribution, commercial sensitivity, and five-market diagnostic rates.",
+        "sql": "SELECT 210600 AS property_sticker_cost, 0.1666667 AS property_sticker_fee_share; SELECT * FROM (VALUES ('Raw small-city floor', '162 labels × $2,500', 405000, 0.3205128), ('Per-property sticker', '351 listings × $600', 210600, 0.1666667), ('Five-market per-property sticker', '79 listings × $600', 47400, 0.0375119)) AS commercial_scenarios(scenario, scope, annual_cost_usd, share_of_fee_base);",
+        "language": "SQL",
+        "executed_at": "2026-08-21T18:20:00Z",
+        "filters": ["aggregate PriceLabs and PredictHQ inputs only", "commercial assumptions from user-supplied discovery-call summary"],
+        "metric_definitions": {
+          "property_sticker_cost": "351 listings multiplied by $600 per property per year.",
+          "property_sticker_fee_share": "Property sticker cost divided by 351 listings times $300 per month times 12 months."
+        }
+      }
+    },
+    {
+      "id": "architecture_proposal",
+      "query": {
+        "engine": "duckdb",
+        "description": "RevFactor Event Intelligence product and architecture proposal, informed by official provider documentation and the local Hub architecture.",
+        "sql": "SELECT * FROM (VALUES (1, 'Official press/RSS/Atom', 'Verified host-city, date, venue, and schedule announcements', '3–24 months', '30–60 min', 'Requires curated market registries'), (2, 'GDELT / targeted news', 'Discover announcement candidates before structured feeds', '3–24 months', '30–60 min', 'Must corroborate with authoritative evidence'), (3, 'Ticketmaster Discovery', 'Ticketed concerts, sports, theatre, and festivals', '0–12 months', '2–6 hr', 'Ticketmaster ecosystem; quota applies'), (4, 'PredictHQ (optional)', 'Normalize events, ranks, attendance, radii, and impact days', '0–12 months', '30–60 min', 'Commercial coverage; Surge is not sufficient alone'), (5, 'NWS Alerts', 'Weather watches, warnings, advisories, and unwind signals', '0–7 days', '5–15 min', 'United States only'), (6, 'PriceLabs + Hub evidence', 'Decide which listings and dates are vulnerable now', '0–120 days', 'Existing syncs', 'May confirm demand after the earliest opportunity')) AS source_stack(priority, source, job, horizon, cadence, limit);",
+        "language": "SQL",
+        "executed_at": "2026-08-21T18:25:00Z",
+        "filters": ["read-only MVP", "human approval", "no PriceLabs/PMS/OTA write path"]
+      }
+    }
+  ]
+}

@@ -134,7 +134,7 @@ export function BoardsTagsAdmin({ boards, tags }: Props) {
           <div>
             <CardTitle>Boards</CardTitle>
             <CardDescription>
-              Organize ideas into boards for the Ideas & Roadmap page.
+              Organize roadmap tasks into reusable categories.
             </CardDescription>
           </div>
           <Button size="sm" className="gap-1.5" onClick={openNewBoard}>
@@ -216,7 +216,7 @@ export function BoardsTagsAdmin({ boards, tags }: Props) {
           <div>
             <CardTitle>Tags</CardTitle>
             <CardDescription>
-              Create tags to categorize ideas and roadmap items.
+              Create tags to categorize projects and roadmap tasks.
             </CardDescription>
           </div>
           <Button size="sm" className="gap-1.5" onClick={openNewTag}>

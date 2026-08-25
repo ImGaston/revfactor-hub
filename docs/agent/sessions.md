@@ -1,5 +1,91 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-21 — GHL-native onboarding draft wired through payment
+
+- Rebuilt the client-facing GHL funnel shell and form as a saved, unpublished RevFactor experience: official text wordmark treatment, Cormorant Garamond/Inter typography, accessible warm-stone-on-forest contrast, compact responsive spacing, progress cue, desktop two-column/mobile one-column inputs, checkbox cards, branded focus/button states, and security reassurance. A fresh preview with `rf_primary_listing_quantity=1&rf_child_listing_quantity=0` confirmed the visible defaults, conditional child/date fields, no save-progress modal, and no horizontal overflow; no form was submitted.
+- Created the GHL Conversation AI agent `RevFactor Onboarding Guide` as the inactive primary agent with status Off. Added and trained the dedicated `RevFactor Onboarding Bible` knowledge base and a 9,364-character canonical guide covering process, pricing, listing types, contracts, Stripe, Assembly, Airbnb/PMS/PriceLabs access, security, corrections, troubleshooting, and escalation. Added the agent personality/goal/guardrails, enabled conversation summaries, and attached the KB trigger. Knowledge retrieval and the internal bot trial passed the intentional `Hospitabel` typo plus Airbnb host/editor URL normalization case. Human-handover ownership and any live channel activation remain explicit review gates.
+- Inspected the existing six-step GHL `Revfactor` funnel and extracted its actual page CSS, fonts, and palette. Applied the same Cormorant Garamond/Inter typography and forest/stone/sage/rust system to the unpublished onboarding funnel and embedded form, including the form surface, labels, checkbox cards, help text, focus treatment, and uppercase forest CTA. Verified the saved public form CSS and parent preview styling; nothing was published.
+- Refined the native signup form so listing count is labeled `Number of listings`, prefills to 1 through the funnel URL, and is rejected below 1 by a saved native form rule. Child listings now begin at zero behind an `Add child listing` checkbox with explanatory help; service starts immediately unless `Start service at a later date` is checked, which reveals the date picker. Public-preview behavior was verified without submitting the form.
+- Updated and saved the Draft signup workflow to map the new service-start controls into the existing mode/date fields and branch between scheduled and immediate starts. Both branches retain the internal notification and send the same GHL agreement. The workflow remains Draft; no funnel, form, workflow, document, payment, or production URL was published or executed.
+- Fixed the native GHL form order so every quantity/legal/start field precedes the submit button. Added and saved the agreement's GHL product list with required editable primary quantity (1–5), optional/default-off editable child quantity (1–5), required $150 onboarding fee, monthly first-at-signing invoicing, direct payment, invoice email, autopay, and no stop date.
+- Removed the obsolete pilot-tag trigger from `RF NATIVE | Signup → GHL Agreement`; the Draft workflow now enrolls only from the native form. Added the protected `Provision Assembly onboarding` custom-webhook action to the Draft payment workflow before its paid tag and internal notification. No workflow, funnel, or document was published or sent.
+- Deployed the payment receiver to Vercel Preview with Preview-only bearer authentication and a protection-bypass header. The receiver now treats the paid first-invoice total as authoritative and uniquely derives 1–5 primary plus 0–5 child listings from the approved $350/$50 monthly prices and fixed $150 onboarding fee. Seven focused tests, TypeScript, local production build, Vercel build, and preview auth/invalid-payload checks pass; no client, Hub run, Assembly identity/invite, or charge was created.
+
+## 2026-08-21 — Isolated GHL onboarding pilot preview
+
+- Added a separate `/start/ghl-pilot` signup path in the onboarding app; the production `/start` route and `onboarding.revfactor.io` were not changed.
+- Added Preview-only GHL signup and completed-document callbacks. Signup freezes standard pricing, prepares an uninvited Assembly identity, stores the Hub signup intent, and upserts GHL. Checkout requires a matching signup/email plus a per-signup HMAC token and refuses non-test Stripe keys.
+- Created the GHL pilot signup ID, signup token, and derived webhook-token fields plus `rf-ghl-pilot`. Renamed and isolated the two workflows as `RF PILOT | Signup → GHL Contract` and `RF PILOT | Contract Signed → Stripe Test Checkout`; both remain Draft pending the final browser confirmation to publish and send an internal test agreement.
+- Deployed only to Vercel Preview and verified the non-secret readiness gate reports Stripe test mode, configured GHL/Assembly, and `productionSignupChanged: false`. The complete onboarding app check passes: lint, typecheck, 63 tests, and production build.
+
+## 2026-08-21 — GHL agreement and Stripe checkout draft chain
+
+- Uploaded the revised agreement as `RevFactor_Service_Agreement`, configured required client and RevFactor signature/date fields, and added sender-completed pricing fields for the primary/child quantities, rates, monthly service fee, onboarding fee, and initial checkout total. The native product-list block was removed because it conflicted with the fixed PDF layout and dynamic-quantity requirements.
+- Built and saved two inactive GHL workflows: `RF Standard | Signup → Contract → Stripe` creates the agreement as an internally reviewed draft after the `rf-standard-contract-ready` tag; `RF Standard | Contract Signed → Stripe Checkout` listens for that template's completed status, calls the Hub checkout endpoint, and emails the returned Stripe link. The second workflow still contains a deliberately invalid key-vault placeholder and uses a premium custom-webhook action.
+- Kept the polished `onboarding.revfactor.io/start` experience as the planned signup UI instead of recreating it as a native GHL form. Added the authenticated Hub signup bridge, GHL legal-name/pricing/service-start fields, standard pricing calculation, contact upsert without tag loss, and the contract-ready trigger. The separate onboarding app has not been cut over from its Assembly endpoint yet.
+- Added the authenticated `POST /api/webhooks/highlevel/onboarding-checkout` route, quantity-aware Stripe Checkout/customer helpers, HighLevel v3 contact updates, checkout URL/session custom fields, and the `rf-standard-checkout-ready` tag. Scheduled service starts preserve the current behavior: onboarding is charged at checkout and Stripe delays recurring billing to the agreed date. The full test suite (121 tests), TypeScript, and diff checks pass. No workflow was activated, document sent, checkout published, customer charged, deployment changed, or external migration applied.
+
+## 2026-08-21 — GoHighLevel standard onboarding pricing foundation
+
+- Configured the non-referral GHL product catalog for standard onboarding: renamed the existing $350/month product to `RevFactor - Primary Listing`, added `RevFactor - Child Listing` at $50/month, and added the one-time `RevFactor - Onboarding Fee` at $150. The products are excluded from the online store; no document was sent, workflow activated, payment link published, or customer charged.
+- Created the `RevFactor Standard Onboarding` contact-field folder with separate Number fields for primary quantity, child quantity, final onboarding-fee amount, calculated monthly service fee, and calculated initial checkout total. Listing quantities remain signup data; GHL's `Available QTY` inventory field is not used.
+- Kept referral pricing outside this flow for a separate future form, contract, products, and pipeline. The revised service-agreement PDF is ready locally, but Chrome blocked the GHL file chooser until the ChatGPT browser extension receives file-URL access.
+
+## 2026-08-21 — Onboarding date order and PMS typo confirmation
+
+- Reordered live launch, planned launch, and one-off event capture so the guided chat asks year before month without changing the migration-042 payload shape.
+- Added conservative PMS-name interpretation: exact known names are normalized to canonical capitalization, close unique spellings such as `Hospitabel` produce a client confirmation for `Hospitable`, and unknown/niche PMS names remain valid if the client keeps the original response.
+- Nine focused onboarding tests, TypeScript, targeted ESLint, and diff checks pass. Signed-in browser verification covered the exact year-before-month and `Hospitabel → Hospitable` confirmation paths. The onboarding behavior passed; the shared application shell still emitted its pre-existing Radix ID hydration warning during the development-browser run. No database, Assembly, PriceLabs, PMS, OTA, email, invitation, deployment, or other external change occurred.
+
+## 2026-08-20 — Zero-write conversational onboarding study
+
+- Added the authenticated `/agent-studio/onboarding-study` prototype with a method choice between the unchanged Assembly form and a guided conversation. The chat asks one contract-bound question at a time, explains access steps, tracks progress, supports backward navigation plus direct edits to any saved response, and previews the normalized onboarding payload.
+- Added a pure shared question/payload module with conditional branch cleanup, credential-pattern rejection, URL/year/numeric validation, deterministic property-name correction detection, canonical Airbnb public-link extraction from hosting/editor URLs, migration-042 listing/software/task/pricing/event/comp/readiness/knowledge keys, and JSON plus transcript exports. URL and correction interpretations require client confirmation; submission is explicitly simulated in browser state.
+- Added eight focused deterministic tests plus a route-shaped loading skeleton. Targeted tests, TypeScript, ESLint, the production build, and diff checks pass. Signed-in browser verification covered method selection, the credential guard, property-name correction while answering the URL question, the exact Airbnb hosting-to-public URL confirmation path, in-place answer editing, a complete conditional conversation, ready-state controls, and the simulated-submission boundary with no console errors. No migration, Supabase mutation, Assembly/PriceLabs call, email, invitation, deployment, or other external change occurred. The separate Assembly app's exact question copy is not present in this repository and remains a required pre-client-study parity review.
+
+## 2026-08-20 — Revenue Manager read-only Ashwood workspace
+
+- Documented the six migration-075 choices as conservative local defaults only: existing publish/control mapping, super-admin approval/control, all nine tables, no deletes, one active strategy/recommendation, and manual-only execution. The migration remains unapplied and still requires human approval.
+- Added contract-validated Ashwood evidence/profile adapters, deterministic review orchestration, typed recommendation persistence serialization/hydration, and a server-only read repository for the future applied schema. The review correctly ends `data_blocked` with no commercial action while adjusted-occupancy and forward-inventory semantics remain unresolved.
+- Added the permission-gated `/revenue-manager` internal preview with Today, Profile, Decisions, and Evidence views, read-only fixture labeling, disabled action state, loading UI, sidebar/command navigation, and responsive behavior.
+- Validation: all 93 tests across 15 files, TypeScript, targeted ESLint for the new Revenue Manager and navigation code, and the production build pass. Signed-in browser verification covered all four tabs, desktop and mobile layouts, and found no console errors. The existing `top-bar.tsx` synchronous-effect lint finding remains unchanged and is unrelated to its route-label addition. No database migration, seed, deployment, PriceLabs/PMS/OTA mutation, credential change, or external communication occurred.
+
+## 2026-08-20 — Revenue Manager Phase 1 persistence draft
+
+- Generated review-only migration 075 with all nine Revenue Manager tables, targeted indexes, JSON/date/status constraints, actor-preserving foreign keys, explicit permission seeds, permission-based RLS, and no delete policies or external write path. The migration was not applied.
+- Reused the existing permission action catalog: admin receives `revenue:view/create/edit`; `publish` (approval) and `control` (manual execution verification/outcomes) remain fail-closed to super_admin until the Ashwood approver decision is confirmed.
+- Added security-definer integrity triggers with fixed search paths and revoked execution for version immutability, frozen evidence, append-only decisions, atomic recommendation decisions, listing-chain validation, approved-only execution, Adjustment verification gating, and outcome completion. Added a static migration regression suite and `docs/revenue-manager-persistence-review.md` for pre-application review.
+
+## 2026-08-20 — Revenue Manager Phase 0 domain contracts
+
+- Implemented the first `REVFACTOR_AI_SPEC.md` work package: versioned Zod contracts for profiles, metric evidence, diagnostic candidates, and recommendations, plus deterministic inventory, minimum-price exposure, revenue-goal compatibility, source-precedence, reservation-reconciliation, and protected-date helpers.
+- Added the aggregate sanitized `ashwood.v1` fixture without address, external listing IDs, guest data, reservation codes, contacts, or credentials. It preserves the pilot's source counts, incompatible revenue measures, direct/cache base-price conflict, permit blocks, protected dates, and a synthetic duplicate fingerprint case.
+- Added 13 focused tests covering Ashwood acceptance scenarios C–F, strict contract presence checks, and two additional Phase 0 guardrails. `pnpm vitest run lib/__tests__/revenue-manager-domain.test.ts` and `pnpm typecheck` pass. No database migration, UI, external write, or live pricing change was included.
+
+## 2026-08-19 — RevFactor AI Ashwood pilot handoff
+
+- Added the canonical `REVFACTOR_AI_SPEC.md` product and implementation handoff for the internal, read-only first release of the RevFactor AI Revenue Manager.
+- Grounded the spec in current Hub primitives (Agent Studio, onboarding runs, PriceLabs/report snapshots, reservations, permissions, audits, and Adjustments) and the supplied Ashwood pilot evidence rather than designing a greenfield system.
+- Defined evidence and metric contracts, smart onboarding, human approval boundaries, data-quality gates, proposed persistence, Ashwood acceptance scenarios, evaluation criteria, phased implementation work packages, and explicit prerequisites for any future PriceLabs write path.
+- Recorded Ashwood owner strategy inputs as test-fixture constraints while keeping historical costs non-audited and leaving unresolved revenue, inventory, policy, and source-semantics questions visible. No application code, database schema, external system state, or live pricing was changed.
+
+## 2026-08-18 — Chief of Staff business and operating brief
+
+- Added `docs/revfactor-chief-of-staff-brief.md`, a comprehensive internal orientation document synthesizing the current Hub architecture with the private Flight Deck RevFactor business record and executive-dashboard metric definitions.
+- Covered the managed-service model, target customer, pricing discrepancies, revenue-management doctrine, service lifecycle, roles, systems of record, explicitly estimated business baseline, scale constraints, recommended scorecard and cadence, 30/60/90-day mandate, open questions, AI authority boundaries, glossary, and source register.
+- Kept implemented facts, recorded decisions, historical estimates, and recommendations visibly separate; no secrets, credentials, account details, or raw client conversations were copied into the repository.
+
+## 2026-08-10 — GHL post-call onboarding email
+
+- Created the branded GoHighLevel template `Sales - Post-call - Start onboarding` for qualified leads after a completed sales call. The template personalizes the greeting, links to the production onboarding start flow with campaign UTMs, and explains the agreement, payment, portal, and future service-start path.
+- Verified the template through the GHL v3 API and its hosted HTML preview. Recorded the template ID and manual-send decision in `docs/agent/integrations.md` so it can be wired into a later sales workflow without sending to every completed-call outcome.
+
+## 2026-08-10 — Project-based roadmap workspace
+
+- Reworked `/roadmap` into Projects and Task board tabs. Project cards show completion counts, upcoming deadlines, a task preview, and a detail dialog with every attached task; each project can open a pre-filtered Kanban.
+- Added and applied migration 074 with permission-scoped `roadmap_projects`, required `posts.project_id`, project deadlines, and a General-project default that preserves every existing roadmap post, vote, comment, tag, category, and task date. The legacy `posts.eta` field remains storage-compatible while the UI presents it as Deadline.
+- Task creation now requires a project, the Kanban switches between all projects and one project, and task detail supports project reassignment and inline deadline editing. Added the route loading skeleton and updated navigation terminology.
+
 ## 2026-08-05 — Knowledge redesign: Team/Agent tabs and Team Credentials
 
 - Restructured the Knowledge root tabs into Team / Agent / Credentials / Insights / Agent Flows with `?tab=` URL sync (legacy `published|drafts` map to Team); Insights and Agent Flows content unchanged.
@@ -34,12 +120,26 @@
 - Added client-ready wording, live rate/discount/payout verification steps, approved longer-stay exceptions, ranking and MPI wording boundaries, and escalation rules.
 - Added five synthetic Agent Studio regression cases; no raw client message, client identity, live rate, or production playbook behavior is included.
 
+## 2026-08-01 — Knowledge Agent Flow builder
+
+- Added a Knowledge → Agent Flows workspace and `/knowledge/flows/[id]` n8n-style editor using a controlled React Flow canvas with a safe step palette, draggable/connectable nodes, branch labels, node/edge inspector, minimap, validation, explicit saves, and audit activity.
+- Added and applied migration 061 for permission-scoped flow identities, immutable version snapshots, compiled observable instructions, database-enforced draft/testing/approved/production lifecycle, one-production uniqueness, atomic promotion, and trigger-written audit events.
+- Added pure graph normalization/validation/compilation with tests and a project-local `revfactor-agent-flow-builder` skill. Installed the external `react-flow-architecture` and `react-flow-node-ts` Codex skills for future turns.
+- Verified direct TypeScript, targeted ESLint, all 38 tests, the custom skill validator, a full Next.js production build, production schema-cache visibility, and the Vercel production deployment. PR #25 merged to `main` as `7882092`; the Agent Flow tables and RLS are live.
+
 ## 2026-07-31 — Governed hybrid Knowledge retrieval
 
 - Added and applied migration 060 for pgvector-backed, version-bound Knowledge chunks, full-text/vector indexes, indexing audit events, run-level retrieval usage/cost, permission-based RLS, stale-on-edit behavior, and a security-invoker hybrid search RPC.
 - Added section-aware chunking and `openai/text-embedding-3-small` indexing through AI Gateway. Article approval attempts indexing automatically; Knowledge detail/Insights show readiness, passage previews, failures, and manual re-indexing.
 - Added Playground keyword/hybrid/compare controls and Inspector diagnostics for exact passages, keyword/semantic/hybrid ranks, fallback behavior, embedding model/tokens/latency/cost, and generation-versus-retrieval cost. Hybrid failures preserve availability through the governed keyword fallback.
 - Verified the implementation with direct TypeScript checking, targeted ESLint, a pure retrieval smoke test, and a full Next.js production build. The repository's Vitest install was blocked by the configured minimum-release-age policy for a newly published transitive package, so that policy was not relaxed.
+
+## 2026-08-01 — GoHighLevel sales setup started
+
+- Reviewed the scheduler-to-Hub flow and decided GHL should replace the scheduler as the owner of lead capture, booking, reminders, nurture, and sales pipeline movement.
+- Created RevFactor contact custom fields in GHL for Hub lead ID, legacy scheduler booking ID, property/listing details, attribution/referral, scheduled call time, host rep, Meet link, and prep notes.
+- Created a dedicated `RevFactor Sales` GHL pipeline with stages from new lead through booked/completed call, proposal, negotiation, won, and lost/not-fit. Left the existing `Marketing Pipeline` untouched.
+- Captured the GHL field keys, stage plan, and next Hub webhook direction in `docs/agent/integrations.md`. Calendar replacement is still pending GHL user/rep setup and connected Google calendars.
 
 ## 2026-07-31 — Negative-performance framing workflow
 
@@ -79,7 +179,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 
 ## 2026-07-31 — Per-client Grant-style reservations report
 
-- Evolved the client export into a Grant-style report replicating the manual Google-Sheet reporting: Summary dashboard (title band, KPIs, per-listing and per-channel breakdowns with booking-window segment cells `count (revenue%)`, two embedded stacked-bar PNG charts, monthly pickup matrix listing × check-in month with 12-month cap + Later column, occupancy blocks, revenue and reservations current-vs-previous tables with green/red deltas), Reservations/Previous Period/Last Year detail sheets as real Excel tables with autofilters (Last Year hidden), Comparison sheet, hidden Occupancy and _ChartData sheets. Grant visual language (Arial, #13342D/#073763/#0B5394 bands, zebra rows, #CCCCCC totals, white→#C9DAF8 occupancy color scale, hidden gridlines, frozen headers).
+- Evolved the client export into a Grant-style report replicating the manual Google-Sheet reporting: Summary dashboard (title band, KPIs, per-listing and per-channel breakdowns with booking-window segment cells `count (revenue%)`, two embedded stacked-bar PNG charts, monthly pickup matrix listing × check-in month with 12-month cap + Later column, occupancy blocks, revenue and reservations current-vs-previous tables with green/red deltas), Reservations/Previous Period/Last Year detail sheets as real Excel tables with autofilters (Last Year hidden), Comparison sheet, hidden Occupancy and \_ChartData sheets. Grant visual language (Arial, #13342D/#073763/#0B5394 bands, zebra rows, #CCCCCC totals, white→#C9DAF8 occupancy color scale, hidden gridlines, frozen headers).
 - Period semantics: default date field `booked_date`; previous period = previous month aligned by day of month (Jul 1-28 → Jun 1-28, clamped month ends, Feb 29 safe); `asOf` drives occupancy horizons and pickup cutoff. Occupancy from `report_metrics` (latest completed run, monthly; property vs market; no daily nights source exists — documented in decisions.md).
 - Architecture: `lib/reservations-export.ts` (pure period/median/bucket/aggregation helpers) → `lib/reservations-report-model.ts` (GrantStyleReportModel with built-in reconciliation warnings) → `lib/reservations-report.service.ts` (fetch + occupancy provider + charts + workbook; 50k-reservation cap; shared by route and future cron) → `lib/reservations-workbook.server.ts` (ExcelJS layout; formulas only for totals/changes, always with cached results) + `lib/reservations-chart.server.ts` (SVG→PNG via sharp). Route `GET /clients/[id]/export` validates from/to/asOf/dateField.
 - Added vitest (first test runner): 26 tests over period math (month-end clamp, Feb 29), KPI rules (null revenue, negative booking windows), channel normalization, pickup, full-outer-join listing comparisons (new listing → previous 0 + empty pct) and model reconciliation (listing/channel/comparison sums = KPIs). Validated a real Grant workbook programmatically (sheet order/hidden states, tables, freeze panes, formula cache, no formula errors, 2 embedded images, conditional formatting, XML well-formedness of all 25 package parts).
@@ -159,6 +259,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Added Assembly attachment metadata and a submission-notification delivery outbox to migration 042. Files remain in Assembly Files; notification delivery is tracked per internal recipient and can fail/retry without changing the submitted run.
 - Added a service-role-only internal verification RPC. It records the Assembly internal reviewer, verifies only client-submitted tasks, and atomically advances run status to `in_review` or `ready_for_launch` when all tasks are complete.
 - The migration was authored and type-checked but not applied to a Supabase project; the current Hub onboarding UI remains on the legacy checklist tables.
+
 ## 2026-07-10 — Leads Read API + Full-Funnel Attribution (migration 043)
 
 - Marketing asked for a read endpoint to tie lead source → booked call → closed deal. The blocker was data, not the endpoint: no UTMs, no stage history, no conversion timestamp. Migration 043 adds nine attribution columns + `attribution_extra` jsonb, `converted_at`, `lead_stage_events` (written by a `SECURITY DEFINER` trigger so admin-client writes are captured), the first `updated_at` trigger on `leads`, and the `api_keys` table. Won = `assembly_client_id IS NOT NULL`.
@@ -253,7 +354,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Fixed the sync (`lib/stripe-sync.ts`) to mirror canceled subs, excluding `canceled`/`incomplete_expired` from the single-subscription payout-attribution fallback maps so reconciliation is unchanged.
 - Added `setListingSubscription(listingId, subscriptionId|null)` action (only touches that listing; does not clear sub-mates like `linkSubscriptionToListings`).
 - Listing detail page (`listings/[id]`) now shows a `super_admin`-only Subscription card + `change-listing-subscription-dialog.tsx` to view/reassign/clear the listing's subscription (current sub shown even if canceled/orphaned).
-- `link-subscription-dialog.tsx` now names the *other* subscription a listing is attached to (customer + status) instead of a generic note; `subscriptions` array passed from the table and new-subscriptions section.
+- `link-subscription-dialog.tsx` now names the _other_ subscription a listing is attached to (customer + status) instead of a generic note; `subscriptions` array passed from the table and new-subscriptions section.
 - Verified end-to-end in the running app: typecheck clean; the orphaned canceled link rendered as "Not found in Stripe / canceled"; reassigned the real case (Beach Rd | FL | Trey → `sub_1TjiRc…` K Properties) and confirmed in DB; Financials dialog showed "linked to Jane Ng · active".
 
 ## 2026-06-15 — Quick-add Listing inside Link-Subscription Dialog
@@ -339,6 +440,12 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Added Knowledge agent-readiness governance and applied migration 051. Added FAQ intake, approved-answer/escalation/source/review fields, publisher approval, readiness counts/badges, and agent-safe retrieval filters.
 - Connected Studio “Knowledge change” feedback to disabled FAQ drafts. Classified the existing OTA Markup Policy under Pricing Strategy with FAQ/Policy tags and left its factual answer unapproved.
 
+## 2026-08-02 — Agent Studio terminology and PriceLabs health simplification
+
+- Clarified throughout Agent Studio that a playbook is a saved agent instruction set and that the future live agent will use one default production playbook; focused playbooks remain test variants rather than an automatic routing system.
+- Reworded Evaluations as a three-step workflow for non-technical operators while preserving the four-model comparison and manual review requirement.
+- Changed PriceLabs health to show the integration as connected when a fresh portfolio sync exists, with plain-language named notes for missing-ID, never-synced, and individually stale listings. Added pure health summarization tests.
+
 ## 2026-07-29 — Production Agent Studio and First Assembly FAQ Batch
 
 - Deployed Agent Studio and Knowledge governance to `hub.revfactor.io` through PR #12 and verified the authenticated production route, model picker, governance tabs, audit ledger, and integration-health UI.
@@ -352,3 +459,126 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Established lazy dialog lookup data loading for listing dialogs.
 - Added or documented loading skeleton expectations for authenticated list/detail routes.
 - Captured rejected caching and streaming approaches for current scale.
+
+## 2026-08-21 - Highland Trace performance opportunity brief
+
+- Created an eight-page, client-ready RevFactor PDF for 1343 Highland Trace in Blairsville, Georgia.
+- Framed the evidence as a conversion constraint rather than a visibility problem: strong RankBreeze discovery signals, PriceLabs ADR above market but occupancy and RevPAR below market, and a 2025 result slightly above the capacity-matched AirROI median.
+- Used a 10-listing AirROI comp set restricted to 3 bedrooms, 6-8 guests, and 2-3.5 bathrooms; excluded the subject and rejected the broader $85.6k subject estimate as the planning anchor.
+- Set gross planning bands at $33k-$36k stabilized, $38k-$43k realistic managed target, and $45k-$50k strong; included booking-window strategy, 30/60/90-day actions, questions for the stakeholder, and visible evidence limitations.
+- Final artifact: `output/pdf/RevFactor_Highland_Trace_Performance_Opportunity_Brief.pdf`; builder and source notes are under `tmp/pdf_build/highland_trace/`.
+- Correction: this property brief is unrelated to Tim or Corzly and must not be used for that portfolio discussion.
+
+## 2026-08-21 - Corzly portfolio booking intelligence brief
+
+- Reused the validated Corzly OwnerRez analysis and corrected the seven booking-code model: SLI, LLS, LLL, EBL, GLL, FLT1, and FLT2 are not seven physical properties.
+- Created an eight-page Tim-facing PDF that frames Corzly as a long-lead, large-group, quote-and-negotiation business rather than a standard instant-book STR portfolio.
+- Highlighted $4.61M across 238 analyzable bookings, 98.0% value concentration in SLI plus the Long Lake Shores family, 61.1% of gross value booked 181+ days out, and 45.6% of gross value from 40+ guest bookings.
+- Recorded the operating hierarchy: LLS is the Long Lake Shores parent, while LLL and GLL are its children. FLT1 is a temporary discount and assignment code whose reservations must be reattributed to the final occupied property; FLT2 remains operationally unconfirmed.
+- Clearly separated what the booking export proves from what requires the next data layer: inquiries, quote versions, discounts, itemized extras, won/lost reasons, seller touchpoints, booking-code transfer history, final occupied property, and collected cash.
+- Added a dedicated commercial-questions page covering premium bookings versus useful fillers, OTA displacement, long-lead fixed pricing, Balsam Lake opportunity cost, child-to-parent upgrades, FLT1 routing economics, concessions, amenity attach rates, corporate retreats, and codifying the owner's sales playbook.
+- Final artifact: `output/pdf/Corzly_Luxury_Portfolio_Booking_Intelligence_Brief_for_Tim.pdf`; builder and source notes are under `tmp/pdf_build/corzly/`.
+
+## 2026-08-21 — Event Intelligence discovery and PredictHQ case study
+
+- Reviewed the supplied PredictHQ discovery-call notes, official provider documentation, the Hub's current PriceLabs/Revenue Manager/Adjustments architecture, and a live 90-day PredictHQ API sample. No token or raw provider payload was committed.
+- Aggregated the live active PriceLabs footprint to 351 coordinate-complete listings across 162 raw city/state labels. A geographic sensitivity check produced 119 connected clusters at 15 miles and 96 at 30 miles; raw labels include three missing states, duplicate United States naming, and at least one coordinate/state contradiction.
+- Sampled Washington, DC; Tucson; Myrtle Beach; Park City; and Gatlinburg/Smokies with PredictHQ's accommodation Suggested Radius. Demand Surge returned 3, 2, 2, 0, and 0 dates respectively; destination feeds still contained material events, so Surge cannot be the sole gate. A naive `local_rank >= 50` retained 92%–99% of events in four destination markets, demonstrating the need for market-specific materiality and booking-vulnerability scoring.
+- Calculated commercial sensitivity from call-note sticker prices: $210,600/year for all 351 properties before volume discount (16.7% of the stated $300/listing/month fee base), while treating every raw label as a small city starts at $405,000/year. These are assumptions, not a quote or ROI result.
+- Created `docs/event-intelligence-design.md` with the proposed source stack, two detection horizons, governed market registry, event/evidence/version lifecycle, human approval gates, provisional data model, `/market-signals` placement, scheduling options, five-market pilot, metrics, and phased delivery.
+- Created and executed `docs/analysis/event-intelligence/event-intelligence-case-study.ipynb` (8/8 code cells, zero errors), wrote a validation note assessed “Share with caveats,” and generated `report.html` from the canonical artifact. Packaging verification passed for two charts, three metric cards, three tables, source interaction, and desktop/390px viewports.
+- Updated `project-map.md`, `integrations.md`, and `decisions.md`. No production route, migration, cron, ingestion, or external write path was added.
+
+# 2026-08-21 — Market Signals production foundation
+
+- Reviewed the Grok `revfactor-event-pricing` prototype and retained its strongest concepts: two detection clocks, market-specific radii, an operator queue, and learning from property outcomes.
+- Added migration 076 with permission-based RLS for governed markets/listing membership/source health, canonical events/provider records, immutable versions/evidence, event-market impacts, and append-only human review decisions. Seeded the five pilot markets as drafts requiring explicit activation; migration was not applied.
+- Added `lib/market-signals/` contracts/domain/repository with source-independent fingerprints, title-specific recurring families, cancellation/date-change detection, evidence-gated review/unwind decisions, and bounded proposals that never invent ADR percentages.
+- Added the authenticated `/market-signals` route, loading skeleton, sidebar/command/breadcrumb registration, readiness/staleness visibility, and Needs Review/Announcements/Changed/Watchlist/Markets views. The route fails closed before migration 076.
+- Verification: all 116 repository tests passed, including 14 new Market Signals tests; `pnpm typecheck` and `pnpm build` passed. New Market Signals files lint clean. A pre-existing `react-hooks/set-state-in-effect` error remains in `components/layout/top-bar.tsx` and was not changed by this work.
+
+# 2026-08-21 — PredictHQ pilot ingestion slice
+
+- Extended unapplied migration 076 with one disabled, bounded PredictHQ Events source definition per draft pilot market; no token or automatic activation is stored in SQL.
+- Added the PredictHQ response/query adapter, accommodation impact-window normalization, materiality scoring, update/cancellation polling, source-host pagination validation, and idempotent canonical event/provider/version/evidence/impact persistence with visible source health.
+- Added Market Signals editor actions to propose active PriceLabs Report Builder listings by reviewed radius, approve/activate a pilot, and sync it manually. Added a `CRON_SECRET`-protected all-active-market route but left `vercel.json` unchanged because its two existing cron slots and the deployment plan need confirmation.
+- Updated the Markets UI with runtime readiness, source status, prepare/activate/sync controls, Sonner feedback, and no PriceLabs/PMS/OTA mutation. The shared token from discovery was not reused; `PREDICTHQ_ACCESS_TOKEN` requires a rotated server-side value.
+- Verification: all 126 tests pass, `pnpm typecheck` passes, and targeted Market Signals lint passes after adding adapter/security/materiality coverage.
+
+# 2026-08-21 — Market Signals schema activation
+
+- Applied migration 076 directly to the linked `revfactorHub` Supabase project and recorded version `076` as applied without touching pending Revenue Manager migration 075.
+- Verified all nine Market Signals tables have RLS, five draft markets and five disabled PredictHQ sources were seeded, and no market or source was activated.
+- Prepared 36 coordinate-matched listing memberships as `proposed` across the five draft markets. The authenticated preview now reads the live records; ingestion remains blocked until a rotated PredictHQ token and server-side Supabase credential are configured in the actual Hub deployment.
+
+# 2026-08-21 — Washington and Smokies pilot activation
+
+- Separated authenticated market/listing approval from credential-gated source activation. Market approval now runs through the signed-in editor's RLS-scoped Supabase session and records the reviewer; PredictHQ remains disabled without its rotated token.
+- Activated Washington, DC with 3 approved listings.
+- Corrected the Smokies pilot to a 10-mile corridor centered between Sevierville, Pigeon Forge, and Gatlinburg. The revised footprint retains all 24 prior matches and adds 16, for 40 approved listings with none outside the reviewed radius. Added migration 077 to preserve the registry correction.
+- Verified both markets are active, both reviewer timestamps are present, and both PredictHQ sources remain disabled. `pnpm typecheck` and targeted Market Signals lint pass; the authenticated preview shows 2 active markets.
+
+# 2026-08-21 — Agent-managed market monitoring
+
+- Removed the manual prepare/activate controls from Market Signals. The UI now states “AI monitors · humans approve actions,” labels all configured markets as AI managed, and shows credential readiness instead of asking operators to approve setup.
+- Added and applied migration 078: `management_mode` on markets, `approval_mode` on memberships, agent-compatible activation constraints, automatic approval of remaining coordinate matches, and activation of all five pilots.
+- Updated ingestion so the scheduled/manual sync automatically enables registered PredictHQ sources for active agent-managed markets once both server credentials are configured. No token fallback was added and no source is enabled while credentials are absent.
+- Verified the authenticated preview shows 5 active AI-managed markets with 52 approved listings and no activation buttons. Targeted tests (13), `pnpm typecheck`, and targeted lint pass.
+
+# 2026-08-21 — First live PredictHQ beta ingestion
+
+- Loaded the existing PredictHQ trial token and a Supabase secret key only into the local dev-process environment; neither credential was written to the repository.
+- Completed first 90-day baselines for Myrtle Beach (111 events), Park City (51), the Smokies corridor (82), Tucson (329), and Washington, DC (300 capped). All five sources report `ok`; 873 provider records deduplicate into 847 active market impacts.
+- The first Myrtle pass exposed 83 false action-queue items because unknown booking vulnerability was treated as vulnerable. Migration 079 moved those records to Watchlist and the domain gate now requires a non-null vulnerability score of at least 45; cancellations/postponements still unwind immediately.
+- Added six-event persistence batching and migration 080's 300-candidate beta cap after Tucson's sequential first pass took four minutes. Washington completed through the optimized/capped path. This bounds recovery runs while retaining idempotent high-water polling.
+
+# 2026-08-21 — PriceLabs booking-vulnerability layer
+
+- Added and applied migration 081 with permission-gated `market_event_listing_exposures`; no credential or provider payload was written to the repository and pending Revenue Manager migration 075 remained untouched.
+- Added deterministic listing scoring from remaining inventory, market occupancy gap, STLY pace gap, and booking-window urgency. Fresh rolling 7/30-day snapshots serve near-term events; event-month Report Builder metrics serve farther-out events. At least half of each market's active approved listings must have evidence no older than 72 hours.
+- Integrated scoring into every managed PredictHQ sync and added `scripts/backfill-market-vulnerability.ts` for derived-data recovery. The UI now shows exposed-listing counts, top property names, property/market occupancy, and the evidence horizon.
+- The raw first backfill produced 326 eligible items, so bounded prioritization now selects at most five highest-priority distinct event families per market and leaves overflow on Watchlist. The calibrated live result is 18 Needs Review items: Myrtle Beach 5, Park City 3, Smokies 5, Tucson 5, and Washington 0.
+- Market Signals still makes no LLM call. Agent Studio's existing Vercel AI SDK `ToolLoopAgent`/AI Gateway stack can later explain stored evidence, while deterministic code continues to own scoring and gates.
+- Verification: all 133 repository tests pass, TypeScript passes, targeted Market Signals lint passes, and the authenticated browser preview shows the 18-item queue with live listing exposure details and no activation workflow.
+
+# 2026-08-21 — Governed Signal Brief and reviewer-action workflow
+
+- Added and applied migration 082 without touching pending migration 075. It adds permission-gated, cached/audited Signal Briefs; binds append-only human decisions to a completed brief version; and adds transactional SECURITY INVOKER RPCs to create a bounded internal recommendation Adjustment or link a related open Adjustment.
+- Added a no-tool Vercel AI SDK `ToolLoopAgent` through AI Gateway using `openai/gpt-5.6-luna`. Deterministic code still owns scoring, review eligibility, action areas, and missing evidence. Snapshots are fingerprinted and cache-keyed by input hash, prompt version, and model; output is schema-validated and passes deterministic date/commercial-safety grounding checks with one repair attempt.
+- Added Signal Brief rendering and Watch, Escalate, Dismiss, Create Adjustment, Link Existing, Retry, and Reviewed UX. A changed snapshot produces a new brief and reopens review. No model or reviewer path writes PriceLabs, a PMS, an OTA, rates, minimum stays, or channel restrictions.
+- Backfilled 18 current `signal-brief-v2` records: Myrtle Beach 5, Park City 3, Smokies 5, Tucson 5, Washington 0; all 18 completed and passed a second grounding audit. Browser verification confirmed the generated brief and all three guarded dialogs; every dialog was canceled, leaving zero review rows and zero Market Signals-created Adjustments.
+- Verification: 139 repository tests across 22 files pass, `pnpm typecheck` passes, targeted Market Signals lint passes, and the authenticated `/market-signals` route returns 200 with 18 live Needs Review briefs.
+- Simplified each queue card for rapid triage: five decision KPIs and one Signal Brief headline now render by default, while the evidence narrative, property exposure, operator note, and model disclosure remain available under an explicit “View full brief” disclosure. Action controls remain visible without expanding the narrative.
+
+# 2026-08-21 — GHL-native onboarding draft
+
+- Built and saved a separate, unpublished GHL client-onboarding funnel and native form; the existing affiliate funnel and production onboarding URL were not changed.
+- Connected native form submission to the existing GHL agreement template in a renamed Draft workflow, and replaced the generic form confirmation with agreement/payment/Assembly guidance.
+- Saved agreement billing as recurring monthly with invoice-at-signing, direct payment, invoice email, and autopay. Removed the duplicate $150 setup fee from the $350 primary-listing price; kept the separate $150 onboarding product.
+- Added a second Draft workflow for successful primary-product payments, client tagging, and an internal Assembly-handoff alert. Nothing was published or sent.
+- Added an undeployed authenticated GHL payment webhook to the onboarding app, plus idempotent Hub/Assembly provisioning and tests. Typecheck and the three targeted webhook tests pass.
+- Remaining launch blockers: move the form submit button below the custom fields and place/configure the GHL native product-list block in the agreement. Then deploy only to preview, configure the secret/payload mapping, and complete an end-to-end test before any cutover.
+
+# 2026-08-21 — Market Signals 1,000-listing scale pass
+
+- Audited the live five-market pipeline and found 6,537 stored listing-exposure rows for only 52 approved listings, driven by exhaustive impact × listing persistence and request-scoped all-market orchestration.
+- Added and applied migrations 083–084 without applying pending migration 075. `market_signal_jobs` now provides per-market deduplication, priorities, atomic leases, expired-lease recovery, bounded retries, terminal errors/results/durations, and service-role-only worker RPCs; scheduled enqueue honors each source's cadence.
+- Replaced the all-market cron loop with a once-per-minute Vercel queue worker. Manual refreshes enqueue high-priority jobs, and the PriceLabs cron enqueues provider-independent inventory refreshes. The Market cards show current job status, attempts, duration, and error; terminal failures surface in a page alert.
+- Reworked vulnerability reads with pagination/chunking and materiality prefiltering, retained complete-cohort deterministic math, bounded stored evidence to 25 listings for each selected signal, and atomically replaced derived state through one set-based RPC.
+- Live backfill reduced exposure storage from 6,537 to 101 rows (98.45%) while preserving 18 Needs Review signals. Five inventory-only jobs all succeeded without a PredictHQ token, averaging 1.079 seconds, with no active jobs left behind.
+- Added `pnpm benchmark:market-signals`; the 1,000-listing × 300-impact harness completed 300,000 calculations in 49 ms with 52.9 MB heap and persisted 125 rows (99.96% fewer than the Cartesian product). Added cadence/worker/security migration contracts and bounded-exposure coverage.
+- Verification: TypeScript, targeted lint, all 148 tests across 23 files, the 1,000-listing benchmark, and the Next.js production build passed. Local HTTP checks confirmed the authenticated route redirects sessionless traffic and the worker returns 401 without cron authorization. Browser automation could not reload localhost because of the browser URL policy; the local server remains available on port 3001 for a normal user refresh.
+- Hardened the older PriceLabs, Stripe, and on-demand Report Builder cron routes to fail closed when `CRON_SECRET` is missing, and added a contract test covering all four privileged cron endpoints.
+
+# 2026-08-22 — GHL same-tab agreement preview
+
+- Added and deployed an isolated staging Worker that upserts the GHL contact/onboarding fields, creates or reuses the existing RevFactor agreement template, obtains a link-only signer reference, and returns a `links.revfactor.io` document URL. The API key is stored only as a Worker secret and browser access is origin-restricted.
+- Replaced the unpublished funnel's client-visible native form with a branded GHL Custom HTML/Javascript element, hid the legacy native form/confirmation section, and kept the saved funnel draft unpublished. The form includes primary listing minimum/default 1, optional child listings, optional scheduled start date, live pricing summary, validation, honeypot, and same-tab top navigation.
+- Verified an internal repeated submit opened the existing contact-specific GHL agreement in the same tab. The signer page showed primary `$350/month`, child `$50/month` optional/default-off, onboarding `$150` one time, and amount due `$500`; no signature or payment was completed. Remaining release validation is the internal-signer effect on payment, one Stripe Test transaction, and the idempotent Assembly handoff.
+
+# 2026-08-22 — Conditional GHL agreement products
+
+- Created and published a dedicated child-listing agreement template while converting the standard template to primary + onboarding only. The staging Worker now chooses between them from `childListingQuantity`; fresh signer-link QA confirmed `$500` with no child row when unchecked and `$550` with a required child row when checked.
+- Repaired the cloned template's incomplete recurring schedule so GHL would accept publication, deployed staging Worker version `239bd9d7-42fc-4cc2-865e-d9b157ce93af`, and added the child-template settings to local/example Worker configuration.
+- Added `contact.rf_agreement_effective_date` population and its GHL contact custom field. The page-one agreement boxes are not yet linked because GHL requires precise drag placement in its PDF canvas. Fresh page-four QA showed the signature/name/date overlays aligned correctly. No agreement was signed and no payment was attempted.
+- Verification: the targeted HighLevel tests (3) and `pnpm typecheck` pass. Fresh standard and child documents were generated through the staging Worker and inspected without completing their required fields.

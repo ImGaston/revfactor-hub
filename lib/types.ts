@@ -152,13 +152,25 @@ export type Tag = {
   color: string
 }
 
+export type RoadmapProject = {
+  id: string
+  name: string
+  description: string | null
+  deadline: string | null
+  created_by: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export type Post = {
   id: string
   title: string
   description: string | null
   status: string
   board_id: string | null
-  eta: string | null
+  project_id: string
+  deadline: string | null
   author_id: string | null
   sort_order: number
   created_at: string
@@ -167,6 +179,7 @@ export type Post = {
   upvote_count?: number
   comment_count?: number
   boards?: { name: string; icon: string } | null
+  roadmap_projects?: { name: string; deadline: string | null } | null
   post_tags?: { tags: Tag }[]
   has_upvoted?: boolean
 }

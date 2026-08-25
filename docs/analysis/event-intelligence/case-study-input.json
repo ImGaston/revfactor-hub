@@ -1,0 +1,112 @@
+{
+  "as_of": "2026-08-21T18:00:00Z",
+  "analysis_window": {
+    "from": "2026-08-21",
+    "to": "2026-11-19",
+    "days": 90
+  },
+  "portfolio": {
+    "listings": 351,
+    "unique_listing_ids": 351,
+    "listings_with_coordinates": 351,
+    "raw_city_state_pairs": 162,
+    "missing_city": 0,
+    "missing_state": 3,
+    "country_counts": [
+      { "country": "United States", "listings": 279 },
+      { "country": "United States of America", "listings": 69 },
+      { "country": "Argentina", "listings": 1 },
+      { "country": "Canada", "listings": 1 },
+      { "country": "Spain", "listings": 1 }
+    ],
+    "city_density_buckets": [
+      { "bucket": "1 listing", "cities": 100, "listings": 100 },
+      { "bucket": "2–4 listings", "cities": 48, "listings": 127 },
+      { "bucket": "5–9 listings", "cities": 11, "listings": 68 },
+      { "bucket": "10+ listings", "cities": 3, "listings": 56 }
+    ],
+    "geographic_cluster_sensitivity": [
+      { "radius_miles": 15, "clusters": 119 },
+      { "radius_miles": 30, "clusters": 96 }
+    ],
+    "known_metadata_issues": [
+      {
+        "severity": "medium",
+        "issue": "At least one city/state label conflicts with its coordinates",
+        "example": "A Sevierville coordinate in Tennessee is labeled Colorado",
+        "impact": "Raw city/state counts should not define billing markets or alert radii"
+      },
+      {
+        "severity": "medium",
+        "issue": "Country labels are not normalized",
+        "example": "United States and United States of America are both present",
+        "impact": "Source routing and geographic coverage checks require normalized country codes"
+      }
+    ]
+  },
+  "commercial_assumptions": {
+    "predicthq_property_sticker_annual_usd": 600,
+    "predicthq_small_city_annual_usd": 2500,
+    "predicthq_major_city_annual_usd": 7500,
+    "revfactor_monthly_fee_per_listing_usd": 300,
+    "volume_discount": null,
+    "source": "PredictHQ discovery-call summary supplied by the user"
+  },
+  "case_study_markets": [
+    {
+      "market": "Washington, DC",
+      "portfolio_listings": 3,
+      "suggested_radius_miles": 2.95,
+      "event_count": 2407,
+      "local_rank_50_plus_count": 996,
+      "surge_count": 3,
+      "example_event": "Army Ten-Miler",
+      "example_attendance": 60000,
+      "example_first_seen": "2025-05-18"
+    },
+    {
+      "market": "Tucson, AZ",
+      "portfolio_listings": 8,
+      "suggested_radius_miles": 4.62,
+      "event_count": 602,
+      "local_rank_50_plus_count": 555,
+      "surge_count": 2,
+      "example_event": "Tucson Comic Con",
+      "example_attendance": 20000,
+      "example_first_seen": "2025-11-30"
+    },
+    {
+      "market": "Myrtle Beach, SC",
+      "portfolio_listings": 18,
+      "suggested_radius_miles": 7.33,
+      "event_count": 276,
+      "local_rank_50_plus_count": 267,
+      "surge_count": 2,
+      "example_event": "Dickens Christmas Show & Festivals",
+      "example_attendance": 20000,
+      "example_first_seen": "2025-02-16"
+    },
+    {
+      "market": "Park City, UT",
+      "portfolio_listings": 3,
+      "suggested_radius_miles": 7.97,
+      "event_count": 144,
+      "local_rank_50_plus_count": 143,
+      "surge_count": 0,
+      "example_event": "ProcessTechnologyXchange",
+      "example_attendance": 20000,
+      "example_first_seen": "2025-11-18"
+    },
+    {
+      "market": "Gatlinburg / Smokies, TN",
+      "portfolio_listings": 47,
+      "suggested_radius_miles": 7.87,
+      "event_count": 145,
+      "local_rank_50_plus_count": 137,
+      "surge_count": 0,
+      "example_event": "Dollywood Harvest Festival & Great Pumpkin LumiNights",
+      "example_attendance": 500000,
+      "example_first_seen": "2026-07-20"
+    }
+  ]
+}
