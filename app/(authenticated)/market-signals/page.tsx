@@ -7,6 +7,8 @@ import { getMarketSignalsWorkspace } from "@/lib/market-signals/repository.serve
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 
+export const maxDuration = 300
+
 export default async function MarketSignalsPage() {
   const [canView, canEdit] = await Promise.all([
     hasPermission("market_signals", "view"),

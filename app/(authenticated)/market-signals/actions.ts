@@ -9,7 +9,10 @@ import {
   getMarketSignalBriefRuntimeStatus,
 } from "@/lib/market-signals/briefs.server"
 import { getMarketSignalsRuntimeStatus } from "@/lib/market-signals/ingest.server"
-import { enqueueMarketSignalJobs } from "@/lib/market-signals/jobs.server"
+import {
+  enqueueMarketSignalJobs,
+  processMarketSignalJobs,
+} from "@/lib/market-signals/jobs.server"
 import { hasPermission } from "@/lib/permissions.server"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { getProfile } from "@/lib/supabase/profile"
@@ -470,16 +473,31 @@ export async function syncMarketSignalsAction(marketIdValue: string) {
         message: null,
       }
     }
-    await enqueueMarketSignalJobs(createAdminClient(), {
+    const admin = createAdminClient()
+    await enqueueMarketSignalJobs(admin, {
       reason: "manual",
       marketId,
       priority: 90,
     })
+    const result = await processMarketSignalJobs(admin, {
+      maximumJobs: 1,
+      timeBudgetMs: 270_000,
+      leaseSeconds: 330,
+    })
     revalidatePath("/market-signals")
+    const completed = result.results[0]
+    if (completed?.status === "failed") {
+      return {
+        error: completed.error ?? "Market refresh failed",
+        message: null,
+      }
+    }
     return {
       error: null,
       message:
-        "Market refresh queued. The agent worker will process it with retry protection.",
+        completed?.status === "queued"
+          ? "The agent started the refresh and queued a protected retry."
+          : "Market refresh completed.",
     }
   } catch (error) {
     return {

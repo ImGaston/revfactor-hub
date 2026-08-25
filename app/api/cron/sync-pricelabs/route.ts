@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     try {
       marketSignalJobs = await enqueueMarketSignalJobs(supabase, {
         reason: "inventory_refresh",
-        priority: 70,
+        priority: 40,
       })
     } catch (err) {
       console.error("Market Signals queue error:", err)

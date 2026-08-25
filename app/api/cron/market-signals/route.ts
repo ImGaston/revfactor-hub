@@ -31,12 +31,13 @@ export async function GET(request: Request) {
 
   try {
     const supabase = createAdminClient()
-    const enqueued = runtime.predictHQConfigured
-      ? await enqueueMarketSignalJobs(supabase, {
-          reason: "scheduled",
-          priority: 50,
-        })
-      : 0
+    const enqueued =
+      runtime.configuredSources > 0
+        ? await enqueueMarketSignalJobs(supabase, {
+            reason: "scheduled",
+            priority: 50,
+          })
+        : 0
     const maximumJobs = Math.min(
       10,
       Math.max(1, Number(process.env.MARKET_SIGNALS_JOBS_PER_RUN ?? 1))
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     })
     return NextResponse.json({
       ok: result.failed === 0,
-      providerConnected: runtime.predictHQConfigured,
+      configuredProviders: runtime.configuredSources,
       enqueued,
       ...result,
     })

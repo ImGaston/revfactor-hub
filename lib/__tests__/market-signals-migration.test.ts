@@ -49,6 +49,11 @@ const workerRoute = readFileSync(
   "utf8"
 )
 
+const stripeCronRoute = readFileSync(
+  join(process.cwd(), "app/api/cron/sync-stripe/route.ts"),
+  "utf8"
+)
+
 const vercelConfiguration = readFileSync(
   join(process.cwd(), "vercel.json"),
   "utf8"
@@ -228,13 +233,14 @@ describe("Market Signals persistence migration", () => {
     expect(cadenceMigration).not.toMatch(/USING\s*\(\s*true\s*\)/i)
   })
 
-  it("drains durable work frequently without requiring the beta provider", () => {
+  it("keeps the protected worker callable and drains work through an existing cron", () => {
     expect(workerRoute).toContain("export const maxDuration = 300")
-    expect(workerRoute).toContain("runtime.predictHQConfigured")
+    expect(workerRoute).toContain("runtime.configuredSources")
     expect(workerRoute).toContain("processMarketSignalJobs")
     expect(workerRoute).toContain("MARKET_SIGNALS_JOBS_PER_RUN")
     expect(workerRoute).toContain("Bearer ${cronSecret}")
-    expect(vercelConfiguration).toContain('"/api/cron/market-signals"')
-    expect(vercelConfiguration).toContain('"* * * * *"')
+    expect(stripeCronRoute).toContain("processMarketSignalJobs")
+    expect(stripeCronRoute).toContain("maximumJobs: 5")
+    expect(vercelConfiguration).not.toContain('"/api/cron/market-signals"')
   })
 })
