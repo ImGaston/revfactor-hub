@@ -4,6 +4,7 @@ import { useState } from "react"
 import {
   Copy,
   MessageSquareText,
+  Send,
   SmilePlus,
   SquareCheckBig,
   Trash2,
@@ -26,6 +27,7 @@ export function CommentActionBar({
   onReply,
   onCreateTask,
   onCopy,
+  onCopyForWhatsapp,
   onDelete,
 }: {
   onReact: (emoji: string) => void
@@ -35,6 +37,9 @@ export function CommentActionBar({
   onReply?: () => void
   onCreateTask?: () => void
   onCopy: () => void
+  // Copies the comment with ticket context for pasting into the WhatsApp
+  // group (adjustments: internal top-level notes only)
+  onCopyForWhatsapp?: () => void
   onDelete?: () => void
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -118,6 +123,17 @@ export function CommentActionBar({
       >
         <Copy className="size-3.5" />
       </Button>
+      {onCopyForWhatsapp && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 rounded-full"
+          onClick={onCopyForWhatsapp}
+          title="Copy for WhatsApp"
+        >
+          <Send className="size-3.5" />
+        </Button>
+      )}
       {onDelete && (
         <Button
           variant="ghost"

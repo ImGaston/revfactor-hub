@@ -79,12 +79,79 @@
 
 - Created the branded GoHighLevel template `Sales - Post-call - Start onboarding` for qualified leads after a completed sales call. The template personalizes the greeting, links to the production onboarding start flow with campaign UTMs, and explains the agreement, payment, portal, and future service-start path.
 - Verified the template through the GHL v3 API and its hosted HTML preview. Recorded the template ID and manual-send decision in `docs/agent/integrations.md` so it can be wired into a later sales workflow without sending to every completed-call outcome.
+## 2026-08-21 — Reservations Header Stats and Booked/Check-in Date Filter
 
+Added a 4-card stats header to `/reservations` (USD rental revenue sum, nights-weighted ADR, average booking window, nights sum) computed DB-side by the new `reservation_page_stats` RPC (migration 077, applied to prod; SECURITY INVOKER with the `IS NOT TRUE` permission gate from the wins pattern). With no date range chosen, stats default to the **last 30 days by booked date** while the table still shows everything; with a range chosen, stats follow the table's filters exactly. Money figures are USD-only by product decision (the cache carries 103 CAD + 32 EUR rows) and the caption discloses the excluded count. The date-range filter gained a Check-in/Booked field selector (`df` URL param, check-in remains the default and keeps old URLs stable). Verified the RPC end-to-end with simulated authenticated sessions (gate rejects no-profile sessions with 42501; all filter paths return correct aggregates — last 30d: 2,154 reservations, $3.46M, ADR $482.69). Typecheck and lint clean; in-browser visual check pending a login session.
+
+Follow-ups same day: compacted the stat cards (`py-0` on `Card` — its base `py-6` made them tall — content `px-4 py-3`, value `text-xl`). Added CSV export: `GET /reservations/export` route handler with the page's exact searchParams contract, `getAllReservationsFiltered` (chunked fetch-all, 50k cap) sharing `applyReservationFilters` with the browser query, and pure `lib/reservations-csv.ts` (BOM + CRLF, table columns + currency, ADR rounded to cents) with unit tests. 229 tests pass. Moved the Export CSV button up next to the page title. Replaced the paired native `type="date"` inputs with the new shared `components/date-range-picker.tsx` (shadcn `calendar.tsx` added via CLI — declined the `button.tsx` overwrite prompt to keep the liquid-glass delta; deps `react-day-picker` v10 + `date-fns` added). Mobile pass: filter controls go full-width under `sm`, and the picker popover flips at `md`/768px (matching `useIsMobile`) to one calendar month with presets as a wrap row on top, `max-w-[calc(100vw-1rem)]` so it never overflows a phone viewport.
+
+Saved views (product decisions: team-shared, relative ranges): extended the URL contract with `?range=<preset>` resolved server-side (`lib/date-range-presets.ts`, shared with the DateRangePicker so a saved "Last 30 days" always re-resolves), migration 078 `reservation_views` (RLS probed live: creator inserts, another admin sees it, non-creator delete affects 0 rows), pure `lib/reservation-views.ts` (sanitize/canonicalize/match, unit-tested), server actions, and a chip bar UI with save popover + AlertDialog delete. 241 tests pass.
+
+## 2026-08-20 — Wins Dashboard Built and Verified Against Production Data
+
+Planned and implemented `/wins` end to end. Phase 0 resolved every open question against the live database rather than assuming: `report_metrics` covers calendar 2026 (not a rolling window); STLY equals LY for closed months but diverges for future ones, confirming STLY is same-time-last-year *pace*; reservations carry CAD/EUR as well as USD, though every Hub-mapped reservation is USD; 177 reservation keys fan out across 3 PriceLabs listings; `source_fetched_at` gives real freshness instead of a proxy.
+
+Reconciled the pickup maths against the reference workbook **to the cent** (`Rabbit Run`: W2 $5,335.97, W3 $36,794.12, Δ $31,458.15, median lead 70.5d) and confirmed the ±15% trend cuts empirically across its 239 rows.
+
+Shipped: migration 075 (5 tables, 14 policies, 1 RPC, permission seeds), `lib/wins.ts` / `lib/wins-message.ts` (pure, fully unit-tested), `lib/wins-detection.server.ts`, `lib/wins-queries.ts`, the `/wins` route with queue + evidence drawer + message composer, and `lib/clipboard.ts` extracted from the one existing copy path that degraded properly. 193 tests pass.
+
+Three real defects surfaced only by running it: the candidate unique key collided on fanned-out listings; delete-then-insert orphaned already-copied drafts; and the in-function permission guard used a bare `NOT` against a function that returns NULL for unidentified sessions. All three are fixed, documented in `conventions.md`, and covered by regression tests. Negative RLS probes as the `authenticated` role confirm zero rows visible, the RPC raising `42501`, and the append-only tables refusing UPDATE/DELETE.
+
+
+## 2026-08-20 — Liquid Glass visual refresh (foundation, shell, primitives)
+
+- Added the visual foundation in `app/globals.css`: glass tokens, a four-step elevation scale that bundles the specular rim, spring easings compiled to CSS `linear()`, and the first `prefers-reduced-motion` / `prefers-reduced-transparency` guards in the repo.
+- Glassed the chrome: sticky top bar, mobile drawer, popover, dialog, sheet, alert-dialog, command palette, and toasts via the previously-dead `.cn-toast` hook. Deduplicated the hardcoded glass recipe from `dropdown-menu`/`select` into the shared `glass-chrome` utility.
+- An ambient gradient wash was added and then removed at the user's request (they wanted a neutral background). Consequence: the desktop sidebar reverted to solid `bg-sidebar` — with a flat page background there is nothing behind it to blur, so glass there was pure cost. Kept the default sidebar variant throughout (`floating` costs usable width on dense tables).
+- Content surfaces stayed opaque and moved to the elevation scale; added a shimmer skeleton, spring press feedback on buttons, and a travelling spring-animated sidebar nav pill positioned from the item index (rows are a uniform 38px, so no measurement is needed).
+- Implemented the liquid-gooey filter, measured it in the browser, and removed it — merge distance ~5.6px against a 38px row pitch, so it never bridged. See `decisions.md`.
+- Fixed several pre-existing bugs found on the way: four dead `hsl(var(--token))` fallbacks (the tokens are bare `oklch()`, so those declarations were being discarded entirely) in `kanban-board`, `kanban-card`, `sidebar`, and `monthly-pacing-chart`; an invisible dashed border in `empty.tsx`; and missing `routeLabels` entries that made the breadcrumb render lowercase route slugs.
+- Caught and fixed a token-inheritance bug of my own: `--glass-surface: var(--popover)` declared only in `:root` inherits already-substituted, so the forced-`dark` menus over a light page rendered grey-on-grey. `.dark` now re-declares it. Dark-glass opacity also had to rise from 62% to 82% to hold AA contrast over light content.
+
+## 2026-08-10 — Revenue Brief prospect intake and AirROI draft enrichment
+
+- Added a short prospect intake for prepared-for name, property address, Airbnb URL, owner goals, and known constraints, with a manual apply path that leaves the existing full analyst form intact.
+- Added an optional server-only AirROI listing integration. One explicit import pre-fills public listing facts and owner-safe draft language while showing TTM modeled metrics only in an internal source callout; demand drivers and RevFactor benchmarks remain human-reviewed.
+- Kept the workflow stateless and permission-gated, added missing-key graceful degradation, strict Airbnb ID extraction, response validation, tests, and durable integration/evidence-boundary documentation.
 ## 2026-08-10 — Project-based roadmap workspace
 
 - Reworked `/roadmap` into Projects and Task board tabs. Project cards show completion counts, upcoming deadlines, a task preview, and a detail dialog with every attached task; each project can open a pre-filtered Kanban.
 - Added and applied migration 074 with permission-scoped `roadmap_projects`, required `posts.project_id`, project deadlines, and a General-project default that preserves every existing roadmap post, vote, comment, tag, category, and task date. The legacy `posts.eta` field remains storage-compatible while the UI presents it as Deadline.
 - Task creation now requires a project, the Kanban switches between all projects and one project, and task detail supports project reassignment and inline deadline editing. Added the route loading skeleton and updated navigation terminology.
+
+## 2026-08-10 — Client Revenue Brief Builder
+
+- Added a Pipeline-gated `/revenue-briefs` workflow with structured Property / Opportunity / Evidence tabs, live narrative preview, bounded cover-photo upload, a synthetic demo, and validation feedback.
+- Added a server-only `@react-pdf/renderer` generator and authenticated POST download route for a branded six-page US Letter brief covering executive fit, property/demand context, revenue levers, first 30 days, anonymized managed benchmarks, evidence boundaries, and the final data request.
+- The v1 workflow is intentionally stateless: no prospect data or PDFs are saved. Added schema/PDF tests, a safe filename helper, sidebar navigation, and durable architecture/decision notes.
+
+## 2026-08-06 — Managed adjustment-type visibility per creator group
+
+- Migration 073 (applied to prod): `adjustment_type_settings` with `internal_enabled`/`hostpricing_enabled` per type, seeded from the old hardcoded rule (everything on; `setup` off for HostPricing). SELECT via `adjustments:view` OR `settings:edit`, writes via `settings:edit`.
+- New Settings → Adjustment Types tab (`settings:edit`): two-column checkbox grid (RevFactor / HostPricing) with optimistic toggles and a "Hidden for everyone" warning badge when both are off.
+- `adjustmentTypeOptions()` now takes the fetched settings (via `getAdjustmentFormOptions`, which the dialog already lazy-loads) and filters by creator group (`lockOriginToHostpricing`); falls back to `INTERNAL_ONLY_TYPES` when unloaded. Edit mode keeps the current type selectable; server still accepts any valid type.
+
+## 2026-08-06 — Minimal hostpricing role scope
+
+- hostpricing now has only `adjustments` view/create/edit + `listings:view`; revoked `clients:view` and `reservations:view` directly in prod (`role_permissions` is UI-managed data, no migration). Sidebar shows just Adjustments and Listings for them.
+- `getAdjustmentFormOptions` (create-dialog client/listing picker) no longer queries `clients` — it reads `clients_basic` + `listings` flat and groups in JS, so roles without `clients:view` can still pick a client.
+- Listings list/detail/export embeds switched from `clients(...)` to `clients:clients_basic(...)` (same `id, name, status` fields) so client names render without `clients:view`. Verified PostgREST resolves the view relationship and `clients_basic` is granted to `authenticated`.
+
+## 2026-08-06 — Roles & Permissions fix: broken checkboxes and stale grid
+
+- Root cause of "checkboxes don't save": `togglePermission`/`bulkToggleResource` used `update`, which no-ops on missing rows. Roles created before newer resources/actions existed had gaps (`admin` 63/84 rows, `hostpricing` and `marketing` 10/84).
+- Migration 072 (applied to prod): backfilled every role × resource × action row (super_admin `allowed=true`, others `false`) and deleted stale `calendar`/`notes` rows. All 5 roles now have 84 rows.
+- Server actions now `upsert` on `(role_name, resource, action)` and validate resource/action against the canonical lists.
+- `roles-manager.tsx` redesign: grid template was hardcoded for 4 actions while `ACTIONS` has 6 — `publish`/`control` columns rendered unlabeled and misaligned. Added labels/colors for both, a shared 6+All column template with horizontal scroll on narrow widths, optimistic checkbox state (instant flip, revert + toast on error), and counts derived from `RESOURCES × ACTIONS` instead of raw DB rows.
+
+## 2026-08-06 — Adjustments as the bidirectional HostPricing ticket channel
+
+- Applied migration 071: type CHECK widened to 16 values (+`visibility`, `blocked_dates`, `pricing_flexibility`), new `adjustments.signals` JSONB (report metrics as free-form strings) and `suggested_actions` TEXT[] (slugs + free text). No RLS changes.
+- `lib/adjustments.ts`: `ADJUSTMENT_TYPE_CONFIG` gained `showsSignals`/`showsSuggestions` (also enabled on `review`), `ADJUSTMENT_SIGNAL_FIELDS` (7 metrics), `ADJUSTMENT_SUGGESTED_ACTIONS`, `adjustmentTypeOptions()` (hides `setup` from hostpricing creators, UI-only), `isPendingApproval()` (derived: hostpricing + open), `buildWhatsappCommentUpdate()`. `validateAdjustmentInput` normalizes both new fields.
+- Queue: pending HostPricing proposals join "Waiting on us" and leave Triage (exclusive, like `needs_info`). Dialog: signals grid + suggestion checkboxes/free-text for review types, serialized as JSON form fields. Shared render: `components/adjustments/adjustment-signals.tsx` (internal detail + authed `/a` card; excluded from the public shell projection). Per-note "Copy for WhatsApp" (`Send` icon) on top-level internal notes via a new optional `onCopyForWhatsapp` prop on `CommentActionBar`.
+- Edit-wipe guard: added `signals, suggested_actions` to `ADJUSTMENT_SELECT` (list), `DETAIL_SELECT` (detail — it is an explicit projection, not `select("*")`), and the `duplicateAdjustment` source select.
+- Verified end-to-end against the live DB: created a visibility ticket with signals/suggestions (normalization confirmed in SQL), edit round-trip preserved both fields, unauthenticated `/a/<token>` HTML contains none of the values, then deleted the test ticket. `pnpm typecheck` passes.
+- Pending operational step (no code): switch Host Pricing accounts from `contractor` to the `hostpricing` role in Settings → Users so they can create tickets.
 
 ## 2026-08-05 — Knowledge redesign: Team/Agent tabs and Team Credentials
 

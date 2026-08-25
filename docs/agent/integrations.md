@@ -1,5 +1,18 @@
 # Integrations — RevFactor Hub
 
+## AirROI
+
+AirROI is the optional public-listing enrichment source for the Revenue Brief Builder.
+
+- API base: `https://api.airroi.com`.
+- Auth: `X-API-KEY` from server-only `AIRROI_API_KEY`; never expose the key to the browser.
+- Client: `lib/airroi.server.ts`; pure response validation, Airbnb ID parsing, and brief-draft mapping live in `lib/airroi.ts`.
+- Hub route: authenticated `POST /api/revenue-briefs/airroi`, gated by `pipeline:view`, calls `GET /listings?listing_id=...&currency=native` once per explicit user request and returns a private/no-store draft.
+- Inputs: prospect name, exact property address, Airbnb listing URL, owner goals, and optional known constraints. Only `airbnb.com/rooms/<numeric-id>` URLs are accepted; the Hub extracts the ID instead of forwarding a user-controlled URL.
+- Drafted facts: listing name/location, specs, rating/reviews, host/trust signals, visible amenities, booking settings, and owner-safe initial opportunity language. Demand drivers and RevFactor benchmarks remain manual analyst-review fields.
+- Evidence boundary: AirROI TTM revenue, ADR, occupancy, and RevPAR are shown internally as third-party modeled estimates. They are not treated as owner-reported actuals, are not inserted into the client PDF as guaranteed projections, and do not replace the approved RevFactor managed-benchmark section.
+- Persistence: no AirROI payload, intake, or generated PDF is stored in v1. Missing configuration disables the import button while preserving the manual builder.
+
 ## Assembly CRM
 
 Assembly is the client communication platform for CRM, messaging, and contracts.
@@ -120,6 +133,16 @@ Net-new integration (migration `035_report_builder.sql`, `lib/report-builder/`) 
 - Retention: `raw_envelope` kept only for the last 30 completed runs (pruned in `ingest.ts`); metadata of all runs is retained.
 - Display: `listings/[id]` Overview "Monthly Revenue" uses real `rental_revenue` (with YoY) when a completed run exists; a new **Year Review** tab shows the monthly table (Revenue/STLY/YoY, RevPAR vs market, RevPAR Index, occupancy, booking window). Degrades to the mock/empty state when there's no matching run (`getListingReport` returns null; queries swallow missing-table errors).
 - Snapshots (future): `report_runs.raw_envelope` of the last 30 runs is the intended source; not built yet.
+
+## Wins Detection (PriceLabs, read-only)
+
+`/wins` is a pure consumer of two existing PriceLabs pipelines; it adds no new external call and no new credential.
+
+- **Pickup** comes from the `pricelabs_reservations_cache` matview via the `wins_pickup_windows(as_of)` RPC. Freshness is bounded by the BigQuery source (daily ~02:20 UTC), not by the hourly pg_cron refresh — the UI reads `source_fetched_at` and the newest complete `booked_date` rather than claiming an accuracy it cannot prove.
+- **Period revenue, occupancy, ADR, RevPAR Index and market context** come from the latest **completed** `report_runs` only; mixing runs would double-count because every run is a full snapshot.
+- **Assembly is read-only, and no Assembly API call happens at all.** The chat deep link is rebuilt from the stored `clients.assembly_company_id` / `assembly_client_id` by a pure helper in `lib/wins.ts`, so the queue renders without a network round-trip. `lib/assembly.ts` is deliberately never imported by this feature; `lib/__tests__/wins-boundaries.test.ts` fails the build if it ever is.
+- The link is only sent to the browser for users holding `wins:control`; everyone else receives `null`. Opening it records `assembly_opened`, which is **not** a delivery signal.
+- 57 of 112 clients have no Assembly chat linked, so the disabled-with-reason state is the common case, not an edge case.
 
 ## Stripe and Financials
 

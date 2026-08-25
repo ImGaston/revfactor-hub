@@ -3,6 +3,8 @@
 import type {
   Adjustment,
   AdjustmentOrigin,
+  AdjustmentSignalKey,
+  AdjustmentSignals,
   AdjustmentStatus,
   AdjustmentType,
   AdjustmentUrgency,
@@ -21,8 +23,47 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
   { value: "availability", label: "Availability" },
   { value: "review", label: "Review / Underperformance" },
   { value: "recommendation", label: "Recommendation" },
+  { value: "visibility", label: "Visibility / Ranking" },
+  { value: "blocked_dates", label: "Blocked Dates" },
+  { value: "pricing_flexibility", label: "Pricing Flexibility" },
   { value: "other", label: "Other" },
 ]
+
+// Internal-ops types HostPricing users don't file (onboarding lives with the
+// internal team). Fallback for when adjustment_type_settings hasn't loaded —
+// the DB table (Settings > Adjustment Types) is the managed source of truth.
+// UI-level filter only — the server accepts any valid type.
+export const INTERNAL_ONLY_TYPES: AdjustmentType[] = ["setup"]
+
+// Row shape of adjustment_type_settings (migration 073)
+export type AdjustmentTypeSetting = {
+  type: string
+  internal_enabled: boolean
+  hostpricing_enabled: boolean
+}
+
+// `currentType` keeps the edit-mode Select from rendering blank if a
+// now-hidden type ends up on an editable ticket. Types without a settings
+// row default to visible for both groups (matches the table's defaults).
+export function adjustmentTypeOptions(
+  isHostpricing: boolean,
+  currentType?: string,
+  settings?: AdjustmentTypeSetting[] | null
+): { value: AdjustmentType; label: string }[] {
+  if (settings && settings.length > 0) {
+    const byType = new Map(settings.map((s) => [s.type, s]))
+    return ADJUSTMENT_TYPES.filter((t) => {
+      if (t.value === currentType) return true
+      const row = byType.get(t.value)
+      if (!row) return true
+      return isHostpricing ? row.hostpricing_enabled : row.internal_enabled
+    })
+  }
+  if (!isHostpricing) return ADJUSTMENT_TYPES
+  return ADJUSTMENT_TYPES.filter(
+    (t) => !INTERNAL_ONLY_TYPES.includes(t.value) || t.value === currentType
+  )
+}
 
 export const ADJUSTMENT_ORIGINS: { value: AdjustmentOrigin; label: string }[] = [
   { value: "internal", label: "Internal" },
@@ -63,12 +104,20 @@ export function adjustmentStatusLabel(status: string): string {
   return ADJUSTMENT_STATUSES.find((s) => s.value === status)?.label ?? status
 }
 
+// A HostPricing-filed ticket sitting in `open` is a proposal awaiting our
+// approval — assigned to the internal team by definition. Derived from origin
+// + status, never stored (see decisions.md 2026-07-16 "computed, not stored").
+export function isPendingApproval(
+  adjustment: Pick<Adjustment, "status" | "origin">
+): boolean {
+  return adjustment.origin === "hostpricing" && adjustment.status === "open"
+}
+
 // HostPricing proposals sit in `open` until an internal user approves or denies them
 export function adjustmentStatusLabelFor(
   adjustment: Pick<Adjustment, "status" | "origin">
 ): string {
-  if (adjustment.origin === "hostpricing" && adjustment.status === "open")
-    return "Pending approval"
+  if (isPendingApproval(adjustment)) return "Pending approval"
   return adjustmentStatusLabel(adjustment.status)
 }
 
@@ -119,6 +168,9 @@ export type AdjustmentTypeConfig = {
   showsDates: boolean
   requiresDateFrom: boolean
   showsBookingWindow: boolean
+  // Report signals + suggested pricing actions (HostPricing review context)
+  showsSignals: boolean
+  showsSuggestions: boolean
   targetPlaceholder: string
 }
 
@@ -129,6 +181,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: false,
     requiresDateFrom: false,
     showsBookingWindow: false,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "",
   },
   min_stay: {
@@ -137,6 +191,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ 3 nights",
   },
   price: {
@@ -145,6 +201,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ $189",
   },
   min_price: {
@@ -153,6 +211,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ $135",
   },
   max_price: {
@@ -161,6 +221,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ $400",
   },
   target_payout: {
@@ -169,6 +231,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ $5000/month net",
   },
   checkin_checkout: {
@@ -177,6 +241,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "no check-in Sat",
   },
   discount: {
@@ -185,6 +251,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ 15% off",
   },
   markup_fees: {
@@ -193,6 +261,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: false,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "→ 12% markup",
   },
   availability: {
@@ -201,6 +271,8 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: true,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "block Dec 24–26",
   },
   review: {
@@ -209,6 +281,10 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: false,
     showsBookingWindow: true,
+    // The existing underperformance ticket — benefits from the same report
+    // context as the HostPricing review types
+    showsSignals: true,
+    showsSuggestions: true,
     targetPlaceholder: "expected outcome (optional)",
   },
   // Strategic pricing suggestion (e.g. composite listing setup, splitting a
@@ -219,7 +295,42 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: false,
     showsBookingWindow: false,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "suggested change (optional)",
+  },
+  // HostPricing review types: filed from their consolidated report when a
+  // listing underperforms — signals carry the report context
+  visibility: {
+    showsTarget: true,
+    requiresTarget: false,
+    showsDates: true,
+    requiresDateFrom: false,
+    showsBookingWindow: false,
+    showsSignals: true,
+    showsSuggestions: true,
+    targetPlaceholder: "e.g. impressions down 40% vs market",
+  },
+  blocked_dates: {
+    showsTarget: true,
+    requiresTarget: false,
+    showsDates: true,
+    // The blocked range IS the ticket — reuses date_from/date_to
+    requiresDateFrom: true,
+    showsBookingWindow: false,
+    showsSignals: true,
+    showsSuggestions: false,
+    targetPlaceholder: "what's blocked / why it matters",
+  },
+  pricing_flexibility: {
+    showsTarget: true,
+    requiresTarget: false,
+    showsDates: true,
+    requiresDateFrom: false,
+    showsBookingWindow: true,
+    showsSignals: true,
+    showsSuggestions: true,
+    targetPlaceholder: "e.g. allow deeper last-minute discounting",
   },
   other: {
     showsTarget: true,
@@ -227,8 +338,47 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsDates: true,
     requiresDateFrom: false,
     showsBookingWindow: true,
+    showsSignals: false,
+    showsSuggestions: false,
     targetPlaceholder: "optional",
   },
+}
+
+// Report metrics HostPricing can attach to a review ticket — free-form
+// strings copied from their consolidated report (Airbnb, Rankbreeze, market)
+export const ADJUSTMENT_SIGNAL_FIELDS: {
+  key: AdjustmentSignalKey
+  label: string
+  placeholder: string
+}[] = [
+  { key: "airbnb_impressions", label: "Airbnb impressions", placeholder: "e.g. 1,240 (30d)" },
+  {
+    key: "rankbreeze_avg_impressions_3m",
+    label: "Rankbreeze avg impressions (3 mo)",
+    placeholder: "e.g. 980",
+  },
+  { key: "visibility_index", label: "Visibility index", placeholder: "e.g. 42 / low" },
+  { key: "conversion", label: "Conversion", placeholder: "e.g. 0.8%" },
+  { key: "pace", label: "Pace", placeholder: "e.g. behind 15% vs LY" },
+  { key: "occupancy", label: "Occupancy", placeholder: "e.g. 55% next 30d" },
+  { key: "market_occupancy", label: "Market occupancy", placeholder: "e.g. 71% next 30d" },
+]
+
+const SIGNAL_KEYS = new Set<string>(ADJUSTMENT_SIGNAL_FIELDS.map((f) => f.key))
+const SIGNAL_VALUE_MAX_LENGTH = 120
+
+// Known pricing suggestions from HostPricing's review tab; free-text entries
+// are stored verbatim alongside these slugs
+export const ADJUSTMENT_SUGGESTED_ACTIONS = [
+  { value: "top15_discount", label: "Top 15% discount" },
+  { value: "mobile_discount", label: "Mobile discount (2–3%)" },
+  { value: "flexible_cancellation", label: "Flexible cancellation" },
+] as const
+
+export function suggestedActionLabel(value: string): string {
+  return (
+    ADJUSTMENT_SUGGESTED_ACTIONS.find((a) => a.value === value)?.label ?? value
+  )
 }
 
 export type AdjustmentFieldInput = {
@@ -241,6 +391,8 @@ export type AdjustmentFieldInput = {
   dateTo: string | null
   bookingWindow: string | null
   origin: string
+  signals: Record<string, string>
+  suggestedActions: string[]
 }
 
 export type NormalizedAdjustmentInput = {
@@ -253,6 +405,8 @@ export type NormalizedAdjustmentInput = {
   date_to: string | null
   booking_window: string | null
   origin: AdjustmentOrigin
+  signals: AdjustmentSignals
+  suggested_actions: string[]
 }
 
 // Shared by the dialog's canSave and the server actions so validation can't drift.
@@ -285,6 +439,25 @@ export function validateAdjustmentInput(
   if (config.requiresDateFrom && !input.dateFrom)
     return { error: "A start date is required for this type" }
 
+  // Signals/suggestions are always optional; unknown keys and empties dropped
+  const signals: AdjustmentSignals = {}
+  if (config.showsSignals) {
+    for (const [key, raw] of Object.entries(input.signals ?? {})) {
+      const value = typeof raw === "string" ? raw.trim() : ""
+      if (!value || !SIGNAL_KEYS.has(key)) continue
+      signals[key as AdjustmentSignalKey] = value.slice(0, SIGNAL_VALUE_MAX_LENGTH)
+    }
+  }
+  const suggested_actions = config.showsSuggestions
+    ? [
+        ...new Set(
+          (input.suggestedActions ?? [])
+            .map((a) => (typeof a === "string" ? a.trim() : ""))
+            .filter(Boolean)
+        ),
+      ]
+    : []
+
   return {
     value: {
       scope,
@@ -296,6 +469,8 @@ export function validateAdjustmentInput(
       date_to: config.showsDates ? input.dateTo || null : null,
       booking_window: config.showsBookingWindow ? input.bookingWindow || null : null,
       origin,
+      signals,
+      suggested_actions,
     },
   }
 }
@@ -399,4 +574,13 @@ export function adjustmentSummary(adjustment: AdjustmentSummaryFields): string {
 // Closing-the-loop message pasted back into the WhatsApp group
 export function buildWhatsappUpdate(adjustment: AdjustmentSummaryFields): string {
   return `✅ Done: ${adjustmentSummary(adjustment)}`
+}
+
+// Mid-ticket response pasted back to the HostPricing group: an internal note
+// with enough ticket context to stand alone in the chat
+export function buildWhatsappCommentUpdate(
+  adjustment: AdjustmentSummaryFields,
+  commentContent: string
+): string {
+  return `💬 ${adjustmentSummary(adjustment)}\n${commentContent}`
 }

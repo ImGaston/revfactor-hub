@@ -19,7 +19,10 @@ import {
   LogOut,
   ChevronsUpDown,
   User as UserIcon,
+  FileChartColumnIncreasing,
+  Trophy,
 } from "lucide-react"
+import * as React from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -58,19 +61,79 @@ type NavItem = {
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Clients", href: "/clients", icon: Users, resource: "clients" },
-  { title: "Listings", href: "/listings", icon: Building2, resource: "listings" },
-  { title: "Reservations", href: "/reservations", icon: CalendarCheck, resource: "reservations" },
+  {
+    title: "Listings",
+    href: "/listings",
+    icon: Building2,
+    resource: "listings",
+  },
+  {
+    title: "Reservations",
+    href: "/reservations",
+    icon: CalendarCheck,
+    resource: "reservations",
+  },
   { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
-  { title: "Adjustments", href: "/adjustments", icon: SlidersHorizontal, resource: "adjustments" },
-  { title: "Onboarding", href: "/onboarding", icon: ClipboardList, resource: "onboarding" },
-  { title: "Projects & Roadmap", href: "/roadmap", icon: Lightbulb, resource: "roadmap" },
+  {
+    title: "Adjustments",
+    href: "/adjustments",
+    icon: SlidersHorizontal,
+    resource: "adjustments",
+  },
+  { title: "Wins", href: "/wins", icon: Trophy, resource: "wins" },
+  {
+    title: "Onboarding",
+    href: "/onboarding",
+    icon: ClipboardList,
+    resource: "onboarding",
+  },
+  {
+    title: "Projects & Roadmap",
+    href: "/roadmap",
+    icon: Lightbulb,
+    resource: "roadmap",
+  },
   { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
-  { title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
-  { title: "Agent Studio", href: "/agent-studio", icon: Bot, resource: "agent_studio" },
-  { title: "Revenue Manager", href: "/revenue-manager", icon: TrendingUp, resource: "revenue" },
-  { title: "Market Signals", href: "/market-signals", icon: Radar, resource: "market_signals" },
-  { title: "Financials", href: "/financials", icon: DollarSign, superAdminOnly: true },
+  {
+    title: "Revenue Briefs",
+    href: "/revenue-briefs",
+    icon: FileChartColumnIncreasing,
+    resource: "pipeline",
+  },
+  {
+    title: "Knowledge",
+    href: "/knowledge",
+    icon: BookOpen,
+    resource: "knowledge",
+  },
+  {
+    title: "Agent Studio",
+    href: "/agent-studio",
+    icon: Bot,
+    resource: "agent_studio",
+  },
+  {
+    title: "Revenue Manager",
+    href: "/revenue-manager",
+    icon: TrendingUp,
+    resource: "revenue",
+  },
+  {
+    title: "Market Signals",
+    href: "/market-signals",
+    icon: Radar,
+    resource: "market_signals",
+  },
+  {
+    title: "Financials",
+    href: "/financials",
+    icon: DollarSign,
+    superAdminOnly: true,
+  },
 ]
+
+const NAV_BUTTON =
+  "relative z-1 rounded-xl transition-colors duration-150 ease-(--ease-snappy) data-active:bg-transparent group-data-[collapsible=icon]:rounded-full"
 
 export function AppSidebar({
   profile,
@@ -105,6 +168,18 @@ export function AppSidebar({
     if (!item.resource) return true
     return isSuperAdmin || permissionMap[`${item.resource}:view`] === true
   })
+
+  // El indice basta para posicionar la pill: cada fila es h-9 con gap-0.5, o sea
+  // un paso constante. Nada de getBoundingClientRect ni ResizeObserver.
+  // OJO: si alguna vez se agrega un SidebarMenuBadge, un submenu o una fila de
+  // otra altura, el paso deja de ser uniforme y esto hay que medirlo de verdad.
+  const activeIndex = React.useMemo(() => {
+    const i = visibleNavItems.findIndex((item) =>
+      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+    )
+    if (i !== -1) return i
+    return pathname.startsWith("/settings") ? visibleNavItems.length : -1
+  }, [visibleNavItems, pathname])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -150,7 +225,14 @@ export function AppSidebar({
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="relative [--nav-step:2.375rem] group-data-[collapsible=icon]:[--nav-step:2.125rem]">
+              {activeIndex >= 0 && (
+                <span
+                  aria-hidden
+                  style={{ "--nav-i": activeIndex } as React.CSSProperties}
+                  className="pointer-events-none absolute inset-x-0 top-0 z-0 h-9 translate-y-[calc(var(--nav-i)*var(--nav-step))] rounded-xl bg-sidebar-accent shadow-e1 transition-transform duration-[560ms] ease-(--ease-bouncy) group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-full motion-reduce:transition-none"
+                />
+              )}
               {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
@@ -161,6 +243,7 @@ export function AppSidebar({
                         : pathname.startsWith(item.href)
                     }
                     tooltip={item.title}
+                    className={NAV_BUTTON}
                   >
                     <Link href={item.href} onClick={closeMobileSidebar}>
                       <item.icon />
@@ -174,6 +257,7 @@ export function AppSidebar({
                   asChild
                   isActive={pathname.startsWith("/settings")}
                   tooltip="Settings"
+                  className={NAV_BUTTON}
                 >
                   <Link href="/settings/account" onClick={closeMobileSidebar}>
                     <Settings />

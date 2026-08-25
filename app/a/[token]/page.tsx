@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button"
 import { AdjustmentShell, AdjustmentCard } from "./adjustment-card"
 
 // Non-sensitive fields only: this shape is served without auth (WhatsApp's OG
-// scraper and anyone with the link). No origin message, no requester, no people.
+// scraper and anyone with the link). No origin message, no requester, no
+// people, no report signals or suggested actions (client-performance data).
 type PublicAdjustment = AdjustmentSummaryFields & {
   id: string
   public_token: string

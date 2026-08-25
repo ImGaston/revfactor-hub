@@ -9,7 +9,7 @@ export default async function ListingsPage() {
     supabase
       .from("listings")
       .select(
-        "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients(id, name, status)"
+        "id, name, listing_id, pricelabs_link, airbnb_link, city, state, client_id, clients:clients_basic(id, name, status)"
       )
       .order("name"),
     hasPermission("listings", "edit"),

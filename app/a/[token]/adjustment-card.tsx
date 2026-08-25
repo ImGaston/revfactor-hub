@@ -43,6 +43,7 @@ import {
   pricelabsUrl,
 } from "@/lib/adjustments"
 import { resolveProfile } from "@/lib/types"
+import { AdjustmentSignals } from "@/components/adjustments/adjustment-signals"
 import {
   addAdjustmentComment,
   updateAdjustmentStatus,
@@ -249,6 +250,12 @@ export function AdjustmentCard({
             </blockquote>
           )}
         </div>
+
+        {/* Authed card only — the unauthenticated shell never shows these */}
+        <AdjustmentSignals
+          signals={adjustment.signals}
+          suggestedActions={adjustment.suggested_actions}
+        />
 
         {(resolver || reviewer) && (
           <div className="space-y-1 text-sm text-muted-foreground">

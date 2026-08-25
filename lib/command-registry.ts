@@ -14,6 +14,8 @@ import {
   Radar,
   Settings,
   Plus,
+  FileChartColumnIncreasing,
+  Trophy,
 } from "lucide-react"
 import type { Resource, Action } from "@/lib/permissions"
 
@@ -44,6 +46,8 @@ export const commands: CommandDef[] = [
   { id: "nav-onboarding", label: "Go to Onboarding", icon: ClipboardList, category: "pages", href: "/onboarding", permission: { resource: "onboarding", action: "view" }, contextRoutes: ["/onboarding"] },
   { id: "nav-roadmap", label: "Go to Projects & Roadmap", icon: Lightbulb, category: "pages", href: "/roadmap", permission: { resource: "roadmap", action: "view" }, contextRoutes: ["/roadmap"] },
   { id: "nav-pipeline", label: "Go to Pipeline", icon: Funnel, category: "pages", href: "/pipeline", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/pipeline"] },
+  { id: "nav-revenue-briefs", label: "Go to Revenue Briefs", icon: FileChartColumnIncreasing, category: "pages", href: "/revenue-briefs", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/revenue-briefs"], keywords: ["proposal", "pdf", "listing analysis", "owner brief"] },
+  { id: "nav-wins", label: "Go to Wins", icon: Trophy, category: "pages", href: "/wins", permission: { resource: "wins", action: "view" }, contextRoutes: ["/wins"], keywords: ["performance", "pickup", "yoy", "double win", "client update"] },
   { id: "nav-financials", label: "Go to Financials", icon: DollarSign, category: "pages", href: "/financials", superAdminOnly: true, contextRoutes: ["/financials"] },
   { id: "nav-agent-studio", label: "Go to Agent Studio", icon: Bot, category: "pages", href: "/agent-studio", permission: { resource: "agent_studio", action: "view" }, contextRoutes: ["/agent-studio"], keywords: ["ai", "assistant", "sandbox", "agent"] },
   { id: "nav-knowledge", label: "Go to Knowledge", icon: BookOpen, category: "pages", href: "/knowledge", permission: { resource: "knowledge", action: "view" }, contextRoutes: ["/knowledge"], keywords: ["kb", "sop", "articles", "credentials"] },

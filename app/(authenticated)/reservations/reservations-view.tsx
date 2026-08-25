@@ -5,15 +5,19 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowUpDown,
+  BookmarkPlus,
   Building2,
   Check,
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
+  Download,
   Filter,
   Home,
   Search,
+  X,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -37,12 +41,53 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { DateRangePicker } from "@/components/date-range-picker"
+import {
+  dateRangePresetLabel,
+  type DateRangePresetKey,
+} from "@/lib/date-range-presets"
+import {
+  currentViewParams,
+  sanitizeViewParams,
+  viewMatchesParams,
+  VIEW_NAME_MAX,
+  type ReservationView,
+} from "@/lib/reservation-views"
+import {
+  createReservationView,
+  deleteReservationView,
+} from "./actions"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import type { Reservation, ReservationSortField } from "@/lib/reservations"
+import type {
+  Reservation,
+  ReservationDateField,
+  ReservationSortField,
+  ReservationStats,
+} from "@/lib/reservations"
 
 type Filters = {
   clientId?: string
   listingId?: string
+  dateField: ReservationDateField
+  range?: DateRangePresetKey // relative preset; when set, from/to are derived
   from?: string
   to?: string
   q?: string
@@ -77,22 +122,41 @@ function formatCurrency(amount: number | null, currency: string | null): string 
   })
 }
 
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="py-0">
+      <CardContent className="px-4 py-3">
+        <div className="text-xl font-semibold tabular-nums">{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function ReservationsView({
   rows,
   count,
   page,
   pageSize,
+  stats,
+  statsScope,
   filters,
   clients,
   listings,
+  views,
+  currentUserId,
 }: {
   rows: Reservation[]
   count: number
   page: number
   pageSize: number
+  stats: ReservationStats
+  statsScope: "range" | "last30"
   filters: Filters
   clients: { id: string; name: string }[]
   listings: { id: string; name: string; client_id: string }[]
+  views: ReservationView[]
+  currentUserId: string | null
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -102,6 +166,13 @@ export function ReservationsView({
   const [searchInput, setSearchInput] = useState(filters.q ?? "")
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
   const [listingPopoverOpen, setListingPopoverOpen] = useState(false)
+
+  // Saved views
+  const [savePopoverOpen, setSavePopoverOpen] = useState(false)
+  const [viewName, setViewName] = useState("")
+  const [savingView, setSavingView] = useState(false)
+  const [viewToDelete, setViewToDelete] = useState<ReservationView | null>(null)
+  const [deletingView, setDeletingView] = useState(false)
 
   function setParams(patch: Record<string, string | null>, resetPage = true) {
     const params = new URLSearchParams(searchParams.toString())
@@ -131,6 +202,15 @@ export function ReservationsView({
     }, 350)
   }
 
+  // CSV of the full filtered set (not just the current page) — same
+  // searchParams contract, handled by /reservations/export.
+  const exportHref = useMemo(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("page")
+    const qs = params.toString()
+    return qs ? `/reservations/export?${qs}` : "/reservations/export"
+  }, [searchParams])
+
   const listingOptions = useMemo(
     () =>
       filters.clientId
@@ -145,9 +225,50 @@ export function ReservationsView({
   const activeFilters =
     (filters.clientId ? 1 : 0) +
     (filters.listingId ? 1 : 0) +
-    (filters.from ? 1 : 0) +
-    (filters.to ? 1 : 0) +
+    (filters.range || filters.from || filters.to ? 1 : 0) +
     (filters.q ? 1 : 0)
+
+  const activeParams = currentViewParams(filters)
+  const activeView = views.find((v) => viewMatchesParams(v, activeParams))
+
+  function applyView(view: ReservationView) {
+    const p = sanitizeViewParams(view.params) ?? {}
+    setSearchInput(p.q ?? "")
+    setParams({
+      client: p.client ?? null,
+      listing: p.listing ?? null,
+      df: p.df ?? null,
+      range: p.range ?? null,
+      from: p.from ?? null,
+      to: p.to ?? null,
+      q: p.q ?? null,
+      sort: p.sort ?? null,
+      dir: p.dir ?? null,
+    })
+  }
+
+  async function handleSaveView(event: React.FormEvent) {
+    event.preventDefault()
+    setSavingView(true)
+    const result = await createReservationView(viewName, activeParams)
+    setSavingView(false)
+    if (result?.error) {
+      toast.error(result.error)
+      return
+    }
+    toast.success(`View "${viewName.trim()}" saved`)
+    setViewName("")
+    setSavePopoverOpen(false)
+  }
+
+  async function handleDeleteView() {
+    if (!viewToDelete) return
+    setDeletingView(true)
+    const result = await deleteReservationView(viewToDelete.id)
+    setDeletingView(false)
+    setViewToDelete(null)
+    if (result?.error) toast.error(result.error)
+  }
 
   function toggleSort(field: ReservationSortField) {
     if (filters.sort === field) {
@@ -195,16 +316,142 @@ export function ReservationsView({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reservations</h1>
-        <p className="text-sm text-muted-foreground">
-          {count.toLocaleString("en-US")} reservations
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Reservations</h1>
+          <p className="text-sm text-muted-foreground">
+            {count.toLocaleString("en-US")} reservations
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {activeFilters > 0 && !activeView && (
+            <Popover open={savePopoverOpen} onOpenChange={setSavePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <BookmarkPlus className="size-3.5" />
+                  Save view
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3" align="end">
+                <form onSubmit={handleSaveView} className="space-y-2">
+                  <p className="text-xs font-medium">
+                    Save current filters as a shared view
+                  </p>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={viewName}
+                      onChange={(e) => setViewName(e.target.value)}
+                      placeholder="View name"
+                      maxLength={VIEW_NAME_MAX}
+                      autoFocus
+                      className="h-8"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={savingView || !viewName.trim()}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </form>
+              </PopoverContent>
+            </Popover>
+          )}
+          <Button variant="outline" asChild>
+            <a href={exportHref} download>
+              <Download className="size-3.5" />
+              Export CSV
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats header */}
+      <div
+        className={cn(
+          "space-y-1.5 transition-opacity",
+          isPending && "opacity-60"
+        )}
+      >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard
+            label="Rental Revenue"
+            value={formatCurrency(stats.rentalRevenueUsd, "USD")}
+          />
+          <StatCard
+            label="ADR"
+            value={
+              stats.adrUsd != null ? formatCurrency(stats.adrUsd, "USD") : "—"
+            }
+          />
+          <StatCard
+            label="Avg Booking Window"
+            value={
+              stats.avgBookingWindowDays != null
+                ? `${Math.round(stats.avgBookingWindowDays)}d`
+                : "—"
+            }
+          />
+          <StatCard
+            label="Nights"
+            value={stats.totalNights.toLocaleString("en-US")}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {stats.reservationCount.toLocaleString("en-US")} reservations ·{" "}
+          {statsScope === "last30"
+            ? "last 30 days by booked date"
+            : `${
+                filters.range
+                  ? dateRangePresetLabel(filters.range).toLowerCase()
+                  : `${filters.from ? formatDateOnly(filters.from) : "…"} – ${
+                      filters.to ? formatDateOnly(filters.to) : "today"
+                    }`
+              } by ${filters.dateField === "booked" ? "booked date" : "check-in"}`}
+          {stats.nonUsdCount > 0 &&
+            ` · revenue & ADR exclude ${stats.nonUsdCount.toLocaleString("en-US")} non-USD reservation${stats.nonUsdCount === 1 ? "" : "s"}`}
         </p>
       </div>
 
+      {/* Saved views */}
+      {views.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {views.map((view) => {
+            const isActive = activeView?.id === view.id
+            const canDelete =
+              currentUserId != null && view.created_by === currentUserId
+            return (
+              <div key={view.id} className="group/view relative">
+                <Button
+                  variant={isActive ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "h-7 rounded-full px-3 text-xs font-normal",
+                    canDelete && "group-hover/view:pr-7"
+                  )}
+                  onClick={() => applyView(view)}
+                >
+                  {view.name}
+                </Button>
+                {canDelete && (
+                  <button
+                    onClick={() => setViewToDelete(view)}
+                    aria-label={`Delete view ${view.name}`}
+                    className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 items-center justify-center rounded-full p-0.5 text-muted-foreground transition-colors hover:text-destructive group-hover/view:flex"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Search + Filters row */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="relative w-full sm:flex-1 sm:w-auto sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
             placeholder="Search guest, listing, confirmation..."
@@ -221,7 +468,7 @@ export function ReservationsView({
               variant="outline"
               role="combobox"
               aria-expanded={clientPopoverOpen}
-              className="w-[220px] justify-between font-normal"
+              className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
                 <Building2 className="size-3.5 text-muted-foreground shrink-0" />
@@ -287,7 +534,7 @@ export function ReservationsView({
               variant="outline"
               role="combobox"
               aria-expanded={listingPopoverOpen}
-              className="w-[220px] justify-between font-normal"
+              className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
                 <Home className="size-3.5 text-muted-foreground shrink-0" />
@@ -345,22 +592,33 @@ export function ReservationsView({
           </PopoverContent>
         </Popover>
 
-        {/* Check-in date range */}
-        <div className="flex items-center gap-1.5">
-          <Input
-            type="date"
-            value={filters.from ?? ""}
-            onChange={(e) => setParams({ from: e.target.value || null })}
-            className="w-[150px]"
-            aria-label="Check-in from"
-          />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input
-            type="date"
-            value={filters.to ?? ""}
-            onChange={(e) => setParams({ to: e.target.value || null })}
-            className="w-[150px]"
-            aria-label="Check-in to"
+        {/* Date range, anchored on check-in or booked date */}
+        <div className="flex w-full items-center gap-1.5 sm:w-auto">
+          <Select
+            value={filters.dateField}
+            onValueChange={(value) =>
+              setParams({ df: value === "checkin" ? null : value })
+            }
+          >
+            <SelectTrigger
+              className="w-[120px]"
+              aria-label="Date range field"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="checkin">Check-in</SelectItem>
+              <SelectItem value="booked">Booked</SelectItem>
+            </SelectContent>
+          </Select>
+          <DateRangePicker
+            preset={filters.range}
+            from={filters.from}
+            to={filters.to}
+            onChange={({ preset, from, to }) =>
+              setParams({ range: preset, from, to })
+            }
+            className="min-w-0 flex-1 sm:flex-initial sm:min-w-[210px]"
           />
         </div>
 
@@ -371,6 +629,8 @@ export function ReservationsView({
               setParams({
                 client: null,
                 listing: null,
+                df: null,
+                range: null,
                 from: null,
                 to: null,
                 q: null,
@@ -382,6 +642,7 @@ export function ReservationsView({
             Clear filters ({activeFilters})
           </button>
         )}
+
       </div>
 
       {/* Table */}
@@ -525,6 +786,31 @@ export function ReservationsView({
           </Button>
         </div>
       </div>
+
+      <AlertDialog
+        open={viewToDelete != null}
+        onOpenChange={(open) => {
+          if (!open) setViewToDelete(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete view “{viewToDelete?.name}”?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Saved views are shared with the whole team. This cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteView} disabled={deletingView}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

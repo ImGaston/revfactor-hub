@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildWinMessage > produces a Double Win message naming the period and both windows 1`] = `"Hi Grant, quick performance update: Rabbit Run is at $216,136 in rental revenue for Aug–Oct 2026, up $45,125 (+26.4%) versus the comparable period last year. Recent booking pace also strengthened — $36,794 booked in the latest 31-day window versus $5,336 in the prior one. Good momentum — we will keep monitoring pacing and market conditions."`;
+
+exports[`buildWinMessage > produces a Steady message that says the pace held 1`] = `"Hi Grant, quick performance update: Rabbit Run is at $67,306 in rental revenue for Aug–Oct 2026, up $15,405 (+29.7%) versus the comparable period last year. Recent booking pace held steady — $7,843 booked in the latest 31-day window versus $6,843 in the prior one. Good momentum — we will keep monitoring pacing and market conditions."`;
+
+exports[`buildWinMessage > produces a cautious Market Compass message with no percentage at all 1`] = `"Hi Grant, quick performance update on The Lansing Haus. It is currently running at a RevPAR Index of 180 versus its comp set, with occupancy 10 points above the market. Since the property does not yet have a comparable prior-year period, we are using current market performance as context rather than a year-over-year comparison. We will keep monitoring pacing and market conditions."`;

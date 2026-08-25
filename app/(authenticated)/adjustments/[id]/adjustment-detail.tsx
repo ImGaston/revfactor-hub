@@ -46,6 +46,7 @@ import {
   adjustmentStatusLabelFor,
   adjustmentTypeLabel,
   airbnbMulticalendarUrl,
+  buildWhatsappCommentUpdate,
   buildWhatsappUpdate,
   isEscalated,
   pricelabsUrl,
@@ -67,6 +68,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { AdjustmentSignals } from "@/components/adjustments/adjustment-signals"
 import { CommentActionBar } from "@/components/comments/comment-action-bar"
 import { ReactionChips } from "@/components/comments/reaction-chips"
 
@@ -204,6 +206,14 @@ export function AdjustmentDetail({
     toast.success("Copied")
   }
 
+  // Internal note + ticket context, ready to paste in the HostPricing group
+  async function copyCommentForWhatsapp(content: string) {
+    await navigator.clipboard.writeText(
+      buildWhatsappCommentUpdate(adjustment, content)
+    )
+    toast.success("Copied — paste it in the HostPricing group")
+  }
+
   async function confirmDeleteComment() {
     if (!deleteTarget) return
     const result = await deleteAdjustmentComment(deleteTarget.id)
@@ -309,6 +319,11 @@ export function AdjustmentDetail({
             {adjustment.origin_message}
           </blockquote>
         )}
+
+        <AdjustmentSignals
+          signals={adjustment.signals}
+          suggestedActions={adjustment.suggested_actions}
+        />
 
         <div className="flex flex-wrap gap-2">
           {plUrl && (
@@ -452,6 +467,11 @@ export function AdjustmentDetail({
                       : undefined
                   }
                   onCopy={() => copyCommentText(c.content)}
+                  onCopyForWhatsapp={
+                    c.origin === "internal"
+                      ? () => copyCommentForWhatsapp(c.content)
+                      : undefined
+                  }
                   onDelete={
                     canDeleteAnyComment || c.author_id === currentUserId
                       ? () => setDeleteTarget(c)
@@ -613,6 +633,7 @@ function CommentRow({
   onReply,
   onCreateTask,
   onCopy,
+  onCopyForWhatsapp,
   onDelete,
 }: {
   comment: AdjustmentComment
@@ -622,6 +643,7 @@ function CommentRow({
   onReply?: () => void
   onCreateTask?: () => void
   onCopy: () => void
+  onCopyForWhatsapp?: () => void
   onDelete?: () => void
 }) {
   const author = comment.profiles
@@ -637,6 +659,7 @@ function CommentRow({
         onReply={onReply}
         onCreateTask={onCreateTask}
         onCopy={onCopy}
+        onCopyForWhatsapp={onCopyForWhatsapp}
         onDelete={onDelete}
       />
       <Avatar className={compact ? "size-6" : "size-7"}>

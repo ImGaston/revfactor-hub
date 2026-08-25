@@ -8,11 +8,26 @@ export default function Loading() {
         <Skeleton className="h-4 w-32 rounded-md" />
       </div>
 
+      <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[68px] rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-4 w-72 rounded-md" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-7 w-24 rounded-full" />
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <Skeleton className="h-9 flex-1 min-w-[200px] max-w-sm rounded-md" />
         <Skeleton className="h-9 w-[220px] rounded-md" />
         <Skeleton className="h-9 w-[220px] rounded-md" />
-        <Skeleton className="h-9 w-[320px] rounded-md" />
+        <Skeleton className="h-9 w-[340px] rounded-md" />
       </div>
 
       <div className="rounded-md border w-full overflow-hidden">

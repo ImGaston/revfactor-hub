@@ -35,8 +35,20 @@ async function commentOriginForUser(
   return data?.role === "hostpricing" ? "hostpricing" : "internal"
 }
 
+// Signals/suggested actions ride as JSON strings in the form data
+function safeParseJson(raw: FormDataEntryValue | null): unknown {
+  if (typeof raw !== "string" || !raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 // Conditional per-type validation + hidden-field clearing lives in the shared normalizer
 function parseAdjustmentForm(formData: FormData) {
+  const signals = safeParseJson(formData.get("signals"))
+  const suggestedActions = safeParseJson(formData.get("suggested_actions"))
   return validateAdjustmentInput({
     scope: formData.get("scope") as string,
     clientId: formData.get("client_id") as string,
@@ -47,6 +59,11 @@ function parseAdjustmentForm(formData: FormData) {
     dateTo: (formData.get("date_to") as string) || null,
     bookingWindow: (formData.get("booking_window") as string) || null,
     origin: (formData.get("origin") as string) || "internal",
+    signals:
+      signals && typeof signals === "object" && !Array.isArray(signals)
+        ? (signals as Record<string, string>)
+        : {},
+    suggestedActions: Array.isArray(suggestedActions) ? suggestedActions : [],
   })
 }
 
@@ -136,7 +153,7 @@ export async function duplicateAdjustment(adjustmentId: string) {
   const { data: source, error: fetchError } = await supabase
     .from("adjustments")
     .select(
-      "scope, client_id, listing_id, type, target_value, date_from, date_to, booking_window, urgency, origin, requested_by, origin_message"
+      "scope, client_id, listing_id, type, target_value, date_from, date_to, booking_window, urgency, origin, requested_by, origin_message, signals, suggested_actions"
     )
     .eq("id", adjustmentId)
     .single()
@@ -447,23 +464,39 @@ export async function deleteAdjustmentComment(commentId: string) {
   return { success: true }
 }
 
-// Lazy lookup data for the create dialog (fetched when the dialog opens)
+// Lazy lookup data for the create dialog (fetched when the dialog opens).
+// Uses clients_basic (not clients) so roles without clients:view — e.g.
+// hostpricing — can still pick a client; listings SELECT already allows
+// adjustments:view.
 export async function getAdjustmentFormOptions() {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from("clients")
-    .select("id, name, listings(id, name, status)")
-    .order("name")
+  const [{ data: clientRows, error }, { data: listingRows }, { data: typeSettings }] =
+    await Promise.all([
+      supabase.from("clients_basic").select("id, name").order("name"),
+      supabase
+        .from("listings")
+        .select("id, name, status, client_id")
+        .neq("status", "inactive")
+        .order("name"),
+      supabase
+        .from("adjustment_type_settings")
+        .select("type, internal_enabled, hostpricing_enabled"),
+    ])
 
-  if (error) return { error: error.message, clients: [] }
+  if (error) return { error: error.message, clients: [], typeSettings: [] }
 
-  const clients = (data ?? []).map((client) => ({
+  const listingsByClient = new Map<string, { id: string; name: string }[]>()
+  for (const l of listingRows ?? []) {
+    const list = listingsByClient.get(l.client_id) ?? []
+    list.push({ id: l.id, name: l.name })
+    listingsByClient.set(l.client_id, list)
+  }
+
+  const clients = (clientRows ?? []).map((client) => ({
     id: client.id,
     name: client.name,
-    listings: (client.listings ?? [])
-      .filter((l) => l.status !== "inactive")
-      .map((l) => ({ id: l.id, name: l.name })),
+    listings: listingsByClient.get(client.id) ?? [],
   }))
 
-  return { clients }
+  return { clients, typeSettings: typeSettings ?? [] }
 }

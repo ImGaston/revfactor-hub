@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { getProfile } from "@/lib/supabase/profile"
 import { getRolePermissions } from "@/lib/permissions.server"
-import { buildPermissionMap } from "@/lib/permissions"
+import { ACTIONS, RESOURCES, buildPermissionMap } from "@/lib/permissions"
 import { SettingsNav } from "./settings-nav"
 
 export default async function SettingsLayout({
@@ -18,11 +18,12 @@ export default async function SettingsLayout({
   // Build permission map for the nav tabs
   let permissions: Record<string, boolean> = {}
   if (isSuperAdmin) {
-    // super_admin has all permissions
+    // super_admin has all permissions. Derived from the canonical
+    // RESOURCES × ACTIONS grid rather than a hand-written list: the previous
+    // hardcoded array silently hid any tab whose permission nobody remembered
+    // to add to it.
     permissions = Object.fromEntries(
-      ["users:view", "users:edit", "clients:edit", "listings:edit", "settings:edit", "onboarding:edit"].map(
-        (k) => [k, true]
-      )
+      RESOURCES.flatMap((r) => ACTIONS.map((a) => [`${r.key}:${a}`, true]))
     )
   } else {
     const rolePerms = await getRolePermissions(profile.role)

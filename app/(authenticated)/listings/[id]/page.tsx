@@ -29,7 +29,7 @@ export default async function ListingPage({
        pl_mpi_next_30, pl_mpi_next_60, pl_last_booked_date,
        pl_wknd_occupancy_next_30, pl_market_wknd_occupancy_next_30,
        pl_push_enabled, pl_last_refreshed_at, pl_synced_at,
-       clients(id, name, status)`
+       clients:clients_basic(id, name, status)`
       )
       .eq("id", id)
       .single(),
@@ -49,7 +49,14 @@ export default async function ListingPage({
     (listing.airbnb_link as string | null)?.match(/\/rooms\/(\d+)/)?.[1],
   ].filter((v): v is string => !!v)
 
-  const canViewReservations = await hasPermission("reservations", "view")
+  // clients_basic hands every authenticated session the client's name, but
+  // /clients/[id] reads the real `clients` table and calls notFound() when RLS
+  // filters it out. So linking there is only safe with clients:view -- without
+  // it (hostpricing, for one) the link would 404.
+  const [canViewReservations, canViewClient] = await Promise.all([
+    hasPermission("reservations", "view"),
+    hasPermission("clients", "view"),
+  ])
 
   const [report, rankbreezeResult, recentReservations] = await Promise.all([
     getListingReport(supabase, listing.listing_id),
@@ -150,6 +157,7 @@ export default async function ListingPage({
         pl_synced_at: listing.pl_synced_at,
       }}
       client={client}
+      canViewClient={canViewClient}
       report={report}
       rankbreezeId={rankbreezeId}
       canManageSubscription={canManageSubscription}
