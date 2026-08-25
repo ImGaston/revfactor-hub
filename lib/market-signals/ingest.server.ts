@@ -35,6 +35,7 @@ import {
   parseNWSQueryConfig,
 } from "@/lib/market-signals/nws"
 import {
+  batchProviderCandidates,
   MarketSignalProviderRequestError,
   type MarketSignalMarket,
   type MarketSignalProviderCandidate,
@@ -543,24 +544,18 @@ async function syncProviderSource(
     let dedupeCount = 0
     let retainedCount = 0
 
-    const persistenceConcurrency = 6
-    for (
-      let offset = 0;
-      offset < response.candidates.length;
-      offset += persistenceConcurrency
-    ) {
+    const persistenceBatches = batchProviderCandidates(response.candidates, 6)
+    for (const batch of persistenceBatches) {
       const results = await Promise.all(
-        response.candidates
-          .slice(offset, offset + persistenceConcurrency)
-          .map((candidate) =>
-            persistCandidate({
-              supabase,
-              sourceId: source.id,
-              market,
-              candidate,
-              observedAt: startedAt,
-            })
-          )
+        batch.map((candidate) =>
+          persistCandidate({
+            supabase,
+            sourceId: source.id,
+            market,
+            candidate,
+            observedAt: startedAt,
+          })
+        )
       )
       for (const result of results) {
         if (result.changed) rowsChanged += 1

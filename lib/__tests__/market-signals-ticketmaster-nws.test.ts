@@ -6,7 +6,10 @@ import {
   parseNWSQueryConfig,
   type NWSRawAlert,
 } from "@/lib/market-signals/nws"
-import type { MarketSignalMarket } from "@/lib/market-signals/provider"
+import {
+  batchProviderCandidates,
+  type MarketSignalMarket,
+} from "@/lib/market-signals/provider"
 import {
   fetchTicketmasterEvents,
   normalizeTicketmasterEvent,
@@ -137,6 +140,27 @@ describe("Ticketmaster Market Signals adapter", () => {
         fetchImpl: failedFetch as typeof fetch,
       })
     ).rejects.not.toThrow(key)
+  })
+
+  it("separates duplicate canonical events across persistence batches", () => {
+    const first = normalizeTicketmasterEvent(ticketmasterEvent, market)
+    const duplicate = normalizeTicketmasterEvent(
+      { ...ticketmasterEvent, id: "tm-nfl-draft-resale" },
+      market
+    )
+    const distinct = normalizeTicketmasterEvent(
+      {
+        ...ticketmasterEvent,
+        id: "tm-concert",
+        name: "National Mall Concert",
+      },
+      market
+    )
+
+    const batches = batchProviderCandidates([first, duplicate, distinct], 6)
+    expect(batches).toHaveLength(2)
+    expect(batches[0]).toHaveLength(2)
+    expect(batches[1]).toEqual([duplicate])
   })
 })
 

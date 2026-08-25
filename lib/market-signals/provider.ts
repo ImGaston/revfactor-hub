@@ -1,4 +1,5 @@
 import type { NormalizedProviderEvent } from "@/lib/market-signals/contracts"
+import { canonicalEventFingerprint } from "@/lib/market-signals/domain"
 
 export type MarketSignalMarket = {
   id: string
@@ -42,4 +43,33 @@ export class MarketSignalProviderRequestError extends Error {
     this.provider = provider
     this.status = status
   }
+}
+
+export function batchProviderCandidates(
+  candidates: MarketSignalProviderCandidate[],
+  batchSize: number
+) {
+  let pending = [...candidates]
+  const batches: MarketSignalProviderCandidate[][] = []
+
+  while (pending.length > 0) {
+    const fingerprints = new Set<string>()
+    const selected: MarketSignalProviderCandidate[] = []
+    const deferred: MarketSignalProviderCandidate[] = []
+
+    for (const candidate of pending) {
+      const fingerprint = canonicalEventFingerprint(candidate.normalized)
+      if (selected.length < batchSize && !fingerprints.has(fingerprint)) {
+        fingerprints.add(fingerprint)
+        selected.push(candidate)
+      } else {
+        deferred.push(candidate)
+      }
+    }
+
+    batches.push(selected)
+    pending = deferred
+  }
+
+  return batches
 }
