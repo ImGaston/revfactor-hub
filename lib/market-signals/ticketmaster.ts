@@ -124,6 +124,10 @@ function localDateFallback(date: string, time?: string | null) {
   return `${date}T${normalizedTime.length === 5 ? `${normalizedTime}:00` : normalizedTime}Z`
 }
 
+function ticketmasterDateTime(value: Date) {
+  return value.toISOString().replace(/\.\d{3}Z$/, "Z")
+}
+
 function categoryFor(event: TicketmasterRawEvent) {
   const classification = event.classifications[0]
   return (
@@ -228,8 +232,8 @@ export async function fetchTicketmasterEvents(input: {
     url.searchParams.set("radius", String(input.market.radiusMiles))
     url.searchParams.set("unit", "miles")
     url.searchParams.set("countryCode", input.market.countryCode)
-    url.searchParams.set("startDateTime", now.toISOString())
-    url.searchParams.set("endDateTime", end.toISOString())
+    url.searchParams.set("startDateTime", ticketmasterDateTime(now))
+    url.searchParams.set("endDateTime", ticketmasterDateTime(end))
     url.searchParams.set("includeTBA", "no")
     url.searchParams.set("sort", "date,asc")
     url.searchParams.set("size", String(pageSize))

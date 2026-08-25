@@ -108,6 +108,8 @@ describe("Ticketmaster Market Signals adapter", () => {
       expect(url.origin).toBe("https://app.ticketmaster.com")
       expect(url.searchParams.get("apikey")).toBe(key)
       expect(url.searchParams.get("latlong")).toBe("38.9072,-77.0369")
+      expect(url.searchParams.get("startDateTime")).toBe("2026-08-25T12:00:00Z")
+      expect(url.searchParams.get("endDateTime")).toBe("2027-02-21T12:00:00Z")
       return new Response(
         JSON.stringify({
           _embedded: { events: [ticketmasterEvent] },
