@@ -30,6 +30,8 @@ Client linking:
 - Store `assembly_client_id` always and `assembly_company_id` if the client belongs to a company.
 - Generate `assembly_link` based on company vs individual context.
 - Server actions: `linkAssemblyClientAction`, `unlinkAssemblyClientAction` in settings clients actions.
+- Settings → Clients also exposes `Import from Assembly` for legacy/referral exceptions that already exist in Assembly but missed the normal provisioning path. It requires both `clients:create` and `onboarding:create`, resolves an existing Hub record by Assembly client ID, company ID, then email, and creates a non-archived initial `onboarding_run` only when none exists. The operator enters the expected primary/child subscription quantities; these are provisional until Stripe reconciles them, so they must match the eventual subscription.
+- The manual import is intentionally non-communicative: it does not invite the client, send an email or contract, create a Stripe customer/subscription, or collect payment. Repeating it is safe; it reuses the existing client mapping and onboarding run.
 
 Pipeline integration:
 
@@ -54,7 +56,7 @@ Client onboarding Custom App contract:
 - The client-facing app validates Assembly's encrypted session token on its own server with `@assembly-js/node-sdk`; never send `ASSEMBLY_API_KEY` to the browser.
 - Resolve the Hub client by `assembly_company_id` first, then `assembly_client_id`. An internal Assembly identity may open the client surface, but `/internal` requires `internalUserId`.
 - Migration `042_client_onboarding_runs.sql` is additive and run-based. It preserves the existing client-level checklist while supporting initial and additional-property runs, child listings, per-listing pricing, shared events/comps, knowledge notes, client/team task states, and Assembly file IDs.
-- Stripe is authoritative for the run's primary/child listing entitlements. The app must not let clients edit those counts. After migration 042 is applied, enable the guarded daily entitlement provisioner with `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`.
+- Stripe is authoritative for the run's primary/child listing entitlements. The app must not let clients edit those counts. A staff-created Assembly import may provision a draft with expected counts before payment only as a recovery path; the later Stripe subscription must match those counts or the entitlement sync reports the discrepancy for manual review. After migration 042 is applied, enable the guarded daily entitlement provisioner with `ONBOARDING_ENTITLEMENT_SYNC_ENABLED=true`.
 - Entitlement metadata is explicit, never inferred from price names. Either set subscription metadata `revfactor_primary_listings` and `revfactor_child_listings`, or set `revfactor_entitlement=primary_listing|child_listing` on each Stripe Price/Product and use line-item quantity. The sync aggregates every active subscription linked through `client_stripe_customers`.
 - First payment creates one deterministic initial run. Later increases create an additional-property run only after prior runs are submitted. Decreases, child-only additions, and changes while a draft is active are reported for manual review instead of silently resizing client data.
 - Upsert retries are idempotent through `onboarding_runs (client_id, external_key)`. Use optimistic concurrency through `revision`; a save updates only when the submitted revision matches, then increments it.

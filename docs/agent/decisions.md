@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-22 — Existing Assembly Clients Can Be Recovered Without Sending Anything
+
+Legacy, referral, and exception clients sometimes already exist in Assembly but never receive a Hub `onboarding_run`, leaving the client-facing app unable to start. Settings → Clients now provides a permissioned recovery action that searches Assembly by email, reuses or creates the Hub client mapping, and initializes exactly one non-archived run. It deliberately performs no client communication, contract, invitation, Stripe customer/subscription, or payment action.
+
+The operator supplies the expected primary/child listing counts so the client can begin before billing is repaired. Those counts are provisional rather than a second billing authority: Stripe remains authoritative, and a later mismatch is routed to the existing manual entitlement-review behavior instead of silently resizing a draft. The recovery action requires both `clients:create` and `onboarding:create` and is idempotent for already-mapped clients and runs.
+
 ## 2026-08-20 — Wins Dashboard: Deterministic Templates, Frozen Evidence, and No Assembly Write Path
 
 `/wins` replaces the manual "Wins YoY x Pickup" Excel with an auditable detection run (migration `075_wins.sql`). Key decisions:

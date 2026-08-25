@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-22 — Self-service Assembly onboarding recovery
+
+- Added Settings → Clients → Import from Assembly for existing Assembly clients that missed Hub/run provisioning. The permissioned server action resolves by Assembly client/company/email, reuses or creates the Hub onboarding client, and creates one initial run with operator-confirmed listing counts.
+- The recovery path is idempotent and intentionally sends nothing: no Assembly invite, email, contract, Stripe object, subscription, or payment. Stripe remains authoritative; future count mismatches stay in the existing manual-review path.
+- Targeted ESLint, TypeScript, and the production Next.js build pass.
+
 ## 2026-08-21 — Reservations Header Stats and Booked/Check-in Date Filter
 
 Added a 4-card stats header to `/reservations` (USD rental revenue sum, nights-weighted ADR, average booking window, nights sum) computed DB-side by the new `reservation_page_stats` RPC (migration 077, applied to prod; SECURITY INVOKER with the `IS NOT TRUE` permission gate from the wins pattern). With no date range chosen, stats default to the **last 30 days by booked date** while the table still shows everything; with a range chosen, stats follow the table's filters exactly. Money figures are USD-only by product decision (the cache carries 103 CAD + 32 EUR rows) and the caption discloses the excluded count. The date-range filter gained a Check-in/Booked field selector (`df` URL param, check-in remains the default and keeps old URLs stable). Verified the RPC end-to-end with simulated authenticated sessions (gate rejects no-profile sessions with 42501; all filter paths return correct aggregates — last 30d: 2,154 reservations, $3.46M, ADR $482.69). Typecheck and lint clean; in-browser visual check pending a login session.

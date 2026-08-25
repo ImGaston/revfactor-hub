@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
+import { hasPermission } from "@/lib/permissions.server"
 import {
   isAssemblyConfigured,
   searchAssemblyClientByEmail,
@@ -22,6 +23,169 @@ type ClientInput = {
   stripe_dashboard: string | null
   ending_reason_tags?: string[]
   ending_note?: string | null
+}
+
+type AssemblyOnboardingImportInput = {
+  email: string
+  primaryListings: number
+  childListings: number
+}
+
+function validListingCount(value: number, minimum: number) {
+  return Number.isInteger(value) && value >= minimum && value <= 5
+}
+
+export async function importAssemblyClientForOnboardingAction(
+  input: AssemblyOnboardingImportInput
+) {
+  const email = input.email.trim().toLowerCase()
+  if (!email || !email.includes("@")) {
+    return { error: "Enter a valid Assembly client email" }
+  }
+  if (!validListingCount(input.primaryListings, 1)) {
+    return { error: "Primary listings must be between 1 and 5" }
+  }
+  if (!validListingCount(input.childListings, 0)) {
+    return { error: "Child listings must be between 0 and 5" }
+  }
+  if (!isAssemblyConfigured()) {
+    return { error: "Assembly API key is not configured" }
+  }
+
+  const [canCreateClient, canCreateOnboarding] = await Promise.all([
+    hasPermission("clients", "create"),
+    hasPermission("onboarding", "create"),
+  ])
+  if (!canCreateClient || !canCreateOnboarding) {
+    return { error: "You do not have permission to import onboarding clients" }
+  }
+
+  const assemblyClient = await searchAssemblyClientByEmail(email)
+  if (!assemblyClient) {
+    return { error: `No Assembly client found with email ${email}` }
+  }
+
+  const assemblyCompanyId = assemblyClient.companyIds?.[0] ?? null
+  const assemblyLink = assemblyCompanyId
+    ? assemblyCompanyMessagesUrl(assemblyCompanyId)
+    : assemblyClientMessagesUrl(assemblyClient.id)
+  const displayName =
+    [assemblyClient.givenName, assemblyClient.familyName]
+      .filter(Boolean)
+      .join(" ") || email
+  const supabase = await createClient()
+
+  const clientFields =
+    "id, name, email, status, assembly_client_id, assembly_company_id"
+  let existingClient = null
+
+  const { data: clientByAssembly, error: assemblyLookupError } = await supabase
+    .from("clients")
+    .select(clientFields)
+    .eq("assembly_client_id", assemblyClient.id)
+    .maybeSingle()
+  if (assemblyLookupError) return { error: assemblyLookupError.message }
+  existingClient = clientByAssembly
+
+  if (!existingClient && assemblyCompanyId) {
+    const { data, error } = await supabase
+      .from("clients")
+      .select(clientFields)
+      .eq("assembly_company_id", assemblyCompanyId)
+      .maybeSingle()
+    if (error) return { error: error.message }
+    existingClient = data
+  }
+
+  if (!existingClient) {
+    const { data, error } = await supabase
+      .from("clients")
+      .select(clientFields)
+      .eq("email", email)
+      .maybeSingle()
+    if (error) return { error: error.message }
+    existingClient = data
+  }
+
+  let client = existingClient
+  let createdClient = false
+  if (client) {
+    const { data, error } = await supabase
+      .from("clients")
+      .update({
+        email,
+        assembly_client_id: assemblyClient.id,
+        assembly_company_id: assemblyCompanyId,
+        assembly_link: assemblyLink,
+        status: client.status === "active" ? "active" : "onboarding",
+      })
+      .eq("id", client.id)
+      .select(clientFields)
+      .single()
+    if (error) return { error: error.message }
+    client = data
+  } else {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        name: displayName,
+        email,
+        status: "onboarding",
+        onboarding_date: new Date().toISOString().slice(0, 10),
+        assembly_client_id: assemblyClient.id,
+        assembly_company_id: assemblyCompanyId,
+        assembly_link: assemblyLink,
+      })
+      .select(clientFields)
+      .single()
+    if (error) return { error: error.message }
+    client = data
+    createdClient = true
+  }
+
+  const { data: existingRun, error: runLookupError } = await supabase
+    .from("onboarding_runs")
+    .select("id, external_key, status")
+    .eq("client_id", client.id)
+    .neq("status", "archived")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (runLookupError) return { error: runLookupError.message }
+
+  let run = existingRun
+  let createdRun = false
+  if (!run) {
+    const { data, error } = await supabase
+      .from("onboarding_runs")
+      .insert({
+        client_id: client.id,
+        external_key: `assembly-manual:${assemblyClient.id}`,
+        run_type: "initial",
+        assembly_company_id: assemblyCompanyId,
+        assembly_client_id: assemblyClient.id,
+        primary_listing_entitlement: input.primaryListings,
+        child_listing_entitlement: input.childListings,
+      })
+      .select("id, external_key, status")
+      .single()
+    if (error) return { error: error.message }
+    run = data
+    createdRun = true
+  }
+
+  revalidatePath("/settings/clients")
+  revalidatePath("/clients")
+  revalidatePath("/onboarding")
+
+  return {
+    error: null,
+    clientId: client.id,
+    clientName: client.name,
+    runId: run.id,
+    createdClient,
+    createdRun,
+  }
 }
 
 export async function createClientAction(input: ClientInput) {
