@@ -4,6 +4,10 @@ import {
   normalizedProviderEventSchema,
   type NormalizedProviderEvent,
 } from "@/lib/market-signals/contracts"
+import type {
+  MarketSignalMarket,
+  MarketSignalProviderCandidate,
+} from "@/lib/market-signals/provider"
 
 const predictHQImpactSchema = z.object({
   date_local: z.string().min(10),
@@ -93,24 +97,10 @@ const predictHQQueryConfigSchema = z.object({
 export type PredictHQRawEvent = z.infer<typeof predictHQEventSchema>
 export type PredictHQQueryConfig = z.infer<typeof predictHQQueryConfigSchema>
 
-export type PredictHQMarket = {
-  id: string
-  name: string
-  countryCode: string
-  timezone: string
-  centerLat: number
-  centerLon: number
-  radiusMiles: number
-  kind: "urban" | "destination" | "cabin" | "coastal" | "mixed"
-}
+export type PredictHQMarket = MarketSignalMarket
 
-export type PredictHQCandidate = {
+export type PredictHQCandidate = MarketSignalProviderCandidate & {
   normalized: NormalizedProviderEvent
-  providerState: string
-  rank: number | null
-  accommodationSpend: number | null
-  impactStart: string
-  impactEnd: string
 }
 
 export type PredictHQFetchResult = {
@@ -206,6 +196,10 @@ export function normalizePredictHQEvent(
       event.predicted_event_spend_industries?.accommodation ?? null,
     impactStart: window.start,
     impactEnd: window.end,
+    publisher: "PredictHQ",
+    authorityTier: 2,
+    verificationState: event.state === "active" ? "verified" : "unverified",
+    evidenceSummary: `${event.title} is ${providerStatus(event)} in the PredictHQ Events feed.`,
   }
 }
 

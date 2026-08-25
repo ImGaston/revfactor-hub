@@ -625,15 +625,24 @@ function SignalList({
 }
 
 function sourceStatusLabel(market: MarketSignalsMarketSummary) {
-  const source = market.sources.find((item) => item.type === "predicthq")
-  if (!source) return "Source not registered"
-  if (!source.isActive) return "Agent waiting for secure PredictHQ connection"
-  if (source.lastStatus === "ok" && source.lastSuccessAt) {
-    return `Last sync ${formatDate(source.lastSuccessAt)}`
+  if (market.sources.length === 0) return "Sources not registered"
+  const active = market.sources.filter((item) => item.isActive)
+  if (active.length === 0) return "Agent waiting for secure source connections"
+  const failed = active.filter((item) => item.lastStatus === "error")
+  const rateLimited = active.filter(
+    (item) => item.lastStatus === "rate_limited"
+  )
+  if (failed.length > 0) return `${failed.length} source sync failed`
+  if (rateLimited.length > 0) return `${rateLimited.length} source rate limited`
+  const latestSuccess = active
+    .map((item) => item.lastSuccessAt)
+    .filter((value): value is string => value != null)
+    .sort()
+    .at(-1)
+  if (latestSuccess) {
+    return `${active.length} sources · last sync ${formatDate(latestSuccess)}`
   }
-  if (source.lastStatus === "rate_limited") return "PredictHQ rate limited"
-  if (source.lastStatus === "error") return "PredictHQ sync failed"
-  return "Ready for first sync"
+  return `${active.length} sources ready for first sync`
 }
 
 function jobStatusLabel(market: MarketSignalsMarketSummary) {
@@ -660,12 +669,17 @@ function MarketCard({
   runtime: {
     serviceRoleConfigured: boolean
     predictHQConfigured: boolean
+    ticketmasterConfigured: boolean
+    nwsConfigured: boolean
+    configuredSources: number
     ready: boolean
   }
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const source = market.sources.find((item) => item.type === "predicthq")
+  const source =
+    market.sources.find((item) => item.isActive && item.lastStatus !== "ok") ??
+    market.sources.find((item) => item.isActive)
   const action =
     market.status === "active"
       ? {
@@ -792,6 +806,9 @@ export function MarketSignalsView({
   runtime: {
     serviceRoleConfigured: boolean
     predictHQConfigured: boolean
+    ticketmasterConfigured: boolean
+    nwsConfigured: boolean
+    configuredSources: number
     ready: boolean
   }
   briefRuntime: BriefRuntime
@@ -871,9 +888,9 @@ export function MarketSignalsView({
           <Database />
           <AlertTitle>Runtime credentials required</AlertTitle>
           <AlertDescription>
-            Add the server-side Supabase service role and a rotated PredictHQ
-            access token so the agent can begin monitoring automatically. No
-            credential is exposed to the browser.
+            Add the server-side Supabase service role and at least one event
+            source connection (Ticketmaster, NWS, or PredictHQ) so the agent can
+            monitor automatically. No credential is exposed to the browser.
           </AlertDescription>
         </Alert>
       )}

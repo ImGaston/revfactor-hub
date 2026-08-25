@@ -113,7 +113,9 @@ export async function processMarketSignalJobs(
       const sourceResults =
         job.reason === "inventory_refresh"
           ? []
-          : await syncMarketSignalsForMarket(supabase, job.market_id)
+          : await syncMarketSignalsForMarket(supabase, job.market_id, {
+              dueOnly: job.reason === "scheduled",
+            })
       const derivedOnly =
         job.reason === "inventory_refresh"
           ? await scoreMarketVulnerability(supabase, job.market_id, new Date())

@@ -58,6 +58,7 @@ Other performance work should get its own migration. Known candidates from `docs
 ## Market Signals Ingestion
 
 - PredictHQ beta reads are bounded to 300 candidates per market and a 90-day horizon. Do not restore the earlier 1,000-event cap without measuring function duration and queue value.
+- Ticketmaster reads are bounded to 300 candidates per market over 180 days and run at most every 180 minutes; NWS reads are bounded to 200 active alerts at the market point and run every 15 minutes. A scheduled market job fetches only sources whose own cadence is due. Manual/recovery jobs may force all configured sources.
 - Generate Signal Briefs only after deterministic scoring selects `review_now`. Cache on the stable snapshot hash, prompt version, and model so route renders never invoke the model. Generate at concurrency 3 after sync/backfill; a failed brief does not mark the event provider unhealthy.
 - The authenticated route reads the latest brief per impact in the repository query. Do not add page-level ISR; new evidence and reviewer actions use normal server revalidation.
 - Persist event candidates in small concurrent batches (currently six), while retaining idempotent provider IDs, canonical fingerprints, immutable versions/evidence, and source high-water marks.
@@ -68,7 +69,7 @@ Other performance work should get its own migration. Known candidates from `docs
 - The 1,000-listing scale harness (`pnpm benchmark:market-signals`) evaluates 300 impacts / 300,000 listing-event pairs, then persists at most 125 rows. The 2026-08-21 baseline completed in 49 ms with 52.9 MB heap and a 99.96% row reduction. Treat this as a regression harness, not a production latency SLA.
 - The live five-market compaction reduced listing-exposure rows from 6,537 to 101 (98.45%) while preserving 18 Needs Review signals. Recheck this ratio when review-family or per-impact evidence caps change.
 - The operator queue is capped at five distinct event families per market per scoring pass; the repository loads review/unwind rows before watch rows and the UI renders only the first 60 watch items. This is an operator attention budget, while immutable event/version/evidence history and aggregate scoring facts remain available.
-- The Vercel scheduler wakes once per minute to drain one leased market job by default; source-level `cadence_minutes` (currently 60) prevents extra provider calls. Increase `MARKET_SIGNALS_JOBS_PER_RUN` only after measuring worst-case provider duration inside the 300-second route budget. Inventory refresh jobs do not require PredictHQ and averaged 1.079 seconds across the five live pilot markets.
+- The Vercel scheduler wakes once per minute to drain one leased market job by default; source-level `cadence_minutes` (PredictHQ 60, Ticketmaster 180, NWS 15) prevents extra provider calls. Provider persistence runs sequentially to avoid cross-source canonical-fingerprint races; row persistence remains batched at six. Vulnerability and Signal Brief derivation run once after all healthy sources, not once per source. Increase `MARKET_SIGNALS_JOBS_PER_RUN` only after measuring worst-case provider duration inside the 300-second route budget. Inventory refresh jobs do not require an event provider and averaged 1.079 seconds across the five live pilot markets.
 
 ## Verification Checklist
 

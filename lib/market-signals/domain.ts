@@ -129,16 +129,18 @@ export function calculateMaterialityScore(input: {
 export function shouldRetainProviderCandidate(input: {
   providerStatus: string
   materialityScore: number
+  retentionFloor?: number
 }) {
   const status = input.providerStatus.toLowerCase()
   if (/cancel|postpon/.test(status)) {
     return true
   }
   if (/deleted|duplicate|spam/.test(status)) return false
+  const floor = input.retentionFloor ?? 40
   if (/predicted/.test(status)) {
-    return input.materialityScore >= 60
+    return input.materialityScore >= Math.max(60, floor)
   }
-  return input.materialityScore >= 40
+  return input.materialityScore >= floor
 }
 
 export function classifyEventChange(

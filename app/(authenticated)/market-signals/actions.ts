@@ -447,7 +447,7 @@ export async function activateMarketPilotAction(marketIdValue: string) {
     revalidatePath("/market-signals")
     return {
       error: null,
-      message: `${proposed.length} listings approved. The market is active; PredictHQ remains disabled until its rotated token is configured.`,
+      message: `${proposed.length} listings approved. The market is active; the agent will enable every securely configured source.`,
     }
   } catch (error) {
     return {
@@ -466,7 +466,7 @@ export async function syncMarketSignalsAction(marketIdValue: string) {
     if (!runtime.ready) {
       return {
         error:
-          "Market Signals requires SUPABASE_SERVICE_ROLE_KEY and PREDICTHQ_ACCESS_TOKEN",
+          "Market Signals requires SUPABASE_SERVICE_ROLE_KEY and at least one configured provider (Ticketmaster, NWS, or PredictHQ)",
         message: null,
       }
     }

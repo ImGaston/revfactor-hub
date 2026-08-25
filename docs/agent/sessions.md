@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-08-25 — Ticketmaster and NWS Market Signals adapters
+
+- Synced the working branch with the latest Hub `main`, preserving the Revenue Manager/Market Signals work while integrating Reservations, Wins, Revenue Briefs, Adjustments, and the liquid-glass system. The pre-merge work was checkpointed locally before conflict resolution.
+- Added source-neutral provider contracts plus live Ticketmaster Discovery and National Weather Service adapters. Ticketmaster uses a bounded coordinate/radius event query without inventing attendance; NWS uses its required identifying User-Agent and maps official severity into an auditable materiality floor. Both live endpoints returned HTTP 200 in a secret-free smoke test.
+- Generalized ingestion to activate configured sources independently, isolate provider failures, respect each source cadence, persist providers sequentially to avoid canonical-event races, and run vulnerability/brief derivation only once per market refresh. Applied and recorded migration 085 in the linked Supabase project: five Ticketmaster and five NWS rows exist disabled until the deployment runtime enables them; the environment example contains names/placeholders only.
+- Added adapter normalization, header/auth, pagination-bound, severity, and key-leak regression tests. TypeScript, targeted lint, all 328 tests, and the Next.js production build pass; deployment verification follows.
+
 ## 2026-08-21 — GHL-native onboarding draft wired through payment
 
 - Rebuilt the client-facing GHL funnel shell and form as a saved, unpublished RevFactor experience: official text wordmark treatment, Cormorant Garamond/Inter typography, accessible warm-stone-on-forest contrast, compact responsive spacing, progress cue, desktop two-column/mobile one-column inputs, checkbox cards, branded focus/button states, and security reassurance. A fresh preview with `rf_primary_listing_quantity=1&rf_child_listing_quantity=0` confirmed the visible defaults, conditional child/date fields, no save-progress modal, and no horizontal overflow; no form was submitted.

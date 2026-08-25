@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   normalizedProviderEventSchema,
   type MarketEventState,
+  type MarketSignalSourceType,
 } from "@/lib/market-signals/contracts"
 import {
   calculateMaterialityScore,
@@ -22,18 +23,33 @@ import {
   normalizePredictHQEvent,
   parsePredictHQQueryConfig,
   PredictHQRequestError,
-  type PredictHQCandidate,
-  type PredictHQMarket,
 } from "@/lib/market-signals/predicthq"
+import {
+  fetchTicketmasterEvents,
+  normalizeTicketmasterEvent,
+  parseTicketmasterQueryConfig,
+} from "@/lib/market-signals/ticketmaster"
+import {
+  fetchNWSAlerts,
+  normalizeNWSAlert,
+  parseNWSQueryConfig,
+} from "@/lib/market-signals/nws"
+import {
+  MarketSignalProviderRequestError,
+  type MarketSignalMarket,
+  type MarketSignalProviderCandidate,
+} from "@/lib/market-signals/provider"
 import { generateMarketSignalBriefsForMarket } from "@/lib/market-signals/briefs.server"
 import { scoreMarketVulnerability } from "@/lib/market-signals/vulnerability.server"
 
 type SourceRow = {
   id: string
   market_id: string
-  source_type: "predicthq"
+  source_type: MarketSignalSourceType
   query_config: unknown
   high_water_mark: string | null
+  cadence_minutes: number
+  last_attempt_at: string | null
   market: MarketRow | MarketRow[]
 }
 
@@ -45,7 +61,7 @@ type MarketRow = {
   center_lat: number | string
   center_lon: number | string
   radius_miles: number | string
-  market_kind: PredictHQMarket["kind"]
+  market_kind: MarketSignalMarket["kind"]
   status: "draft" | "active" | "inactive"
 }
 
@@ -83,6 +99,9 @@ export type MarketSignalSyncResult = {
 export type MarketSignalsRuntimeStatus = {
   serviceRoleConfigured: boolean
   predictHQConfigured: boolean
+  ticketmasterConfigured: boolean
+  nwsConfigured: boolean
+  configuredSources: number
   ready: boolean
 }
 
@@ -103,10 +122,22 @@ export function getMarketSignalsRuntimeStatus(): MarketSignalsRuntimeStatus {
   const predictHQConfigured = Boolean(
     process.env.PREDICTHQ_ACCESS_TOKEN?.trim()
   )
+  const ticketmasterConfigured = Boolean(
+    process.env.TICKETMASTER_API_KEY?.trim()
+  )
+  const nwsConfigured = Boolean(process.env.NWS_USER_AGENT?.trim())
+  const configuredSources = [
+    predictHQConfigured,
+    ticketmasterConfigured,
+    nwsConfigured,
+  ].filter(Boolean).length
   return {
     serviceRoleConfigured,
     predictHQConfigured,
-    ready: serviceRoleConfigured && predictHQConfigured,
+    ticketmasterConfigured,
+    nwsConfigured,
+    configuredSources,
+    ready: serviceRoleConfigured && configuredSources > 0,
   }
 }
 
@@ -114,7 +145,7 @@ function contentHash(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex")
 }
 
-function marketFromRow(row: MarketRow): PredictHQMarket {
+function marketFromRow(row: MarketRow): MarketSignalMarket {
   return {
     id: row.id,
     name: row.name,
@@ -127,7 +158,9 @@ function marketFromRow(row: MarketRow): PredictHQMarket {
   }
 }
 
-function providerState(candidate: PredictHQCandidate): MarketEventState {
+function providerState(
+  candidate: MarketSignalProviderCandidate
+): MarketEventState {
   const status = candidate.providerState.toLowerCase()
   if (/cancel/.test(status)) return "canceled"
   if (/postpon/.test(status)) return "postponed"
@@ -136,16 +169,7 @@ function providerState(candidate: PredictHQCandidate): MarketEventState {
   return "verified"
 }
 
-function verificationState(candidate: PredictHQCandidate) {
-  const state = providerState(candidate)
-  if (state === "verified") return "verified" as const
-  if (state === "canceled" || state === "postponed") {
-    return "corroborating" as const
-  }
-  return "unverified" as const
-}
-
-function normalizedSnapshot(candidate: PredictHQCandidate) {
+function normalizedSnapshot(candidate: MarketSignalProviderCandidate) {
   return {
     ...candidate.normalized,
     providerState: candidate.providerState,
@@ -196,8 +220,8 @@ async function findEvent(
 async function persistCandidate(input: {
   supabase: SupabaseClient
   sourceId: string
-  market: PredictHQMarket
-  candidate: PredictHQCandidate
+  market: MarketSignalMarket
+  candidate: MarketSignalProviderCandidate
   observedAt: string
 }) {
   const { supabase, sourceId, market, candidate, observedAt } = input
@@ -342,13 +366,13 @@ async function persistCandidate(input: {
         event_id: event.id,
         source_id: sourceId,
         evidence_url: normalized.sourceUrl,
-        publisher: "PredictHQ",
+        publisher: candidate.publisher,
         published_at: normalized.updatedAt,
         observed_at: observedAt,
-        authority_tier: 2,
+        authority_tier: candidate.authorityTier,
         extraction_confidence: 1,
-        verification_state: verificationState(candidate),
-        evidence_summary: `${normalized.title} is ${candidate.providerState} in the PredictHQ Events feed.`,
+        verification_state: candidate.verificationState,
+        evidence_summary: candidate.evidenceSummary,
         content_hash: hash,
       },
       { onConflict: "event_id,evidence_url,content_hash" }
@@ -364,21 +388,25 @@ async function persistCandidate(input: {
           { latitude: market.centerLat, longitude: market.centerLon },
           { latitude: normalized.latitude, longitude: normalized.longitude }
         )
-  const materialityScore = calculateMaterialityScore({
-    attendance: normalized.attendance,
-    localRank: normalized.localRank,
-    rank: candidate.rank,
-    accommodationSpend: candidate.accommodationSpend,
-    category: normalized.category,
-    marketKind: market.kind,
-    distanceMiles: eventDistance,
-    radiusMiles: market.radiusMiles,
-  })
+  const materialityScore = Math.max(
+    candidate.materialityFloor ?? 0,
+    calculateMaterialityScore({
+      attendance: normalized.attendance,
+      localRank: normalized.localRank,
+      rank: candidate.rank,
+      accommodationSpend: candidate.accommodationSpend,
+      category: normalized.category,
+      marketKind: market.kind,
+      distanceMiles: eventDistance,
+      radiusMiles: market.radiusMiles,
+    })
+  )
 
   if (
     !shouldRetainProviderCandidate({
       providerStatus: candidate.providerState,
       materialityScore,
+      retentionFloor: candidate.retentionFloor,
     })
   ) {
     const { error } = await supabase
@@ -398,8 +426,8 @@ async function persistCandidate(input: {
   const state = providerState(candidate)
   const gate = determineActionGate({
     state,
-    verificationState: verificationState(candidate),
-    authorityTier: 2,
+    verificationState: candidate.verificationState,
+    authorityTier: candidate.authorityTier,
     corroborationCount: 1,
     materialityScore,
     vulnerabilityScore: null,
@@ -426,6 +454,8 @@ async function persistCandidate(input: {
           rank: candidate.rank,
           accommodationSpend: candidate.accommodationSpend,
           marketKind: market.kind,
+          materialityFloor: candidate.materialityFloor ?? null,
+          provider: normalized.sourceType,
         },
         evidence_freshness: "current",
         status: "active",
@@ -439,7 +469,59 @@ async function persistCandidate(input: {
   return { changed: created || !unchanged, retained: true, deduped: !created }
 }
 
-async function syncPredictHQSource(
+async function fetchSourceCandidates(
+  source: SourceRow,
+  market: MarketSignalMarket
+) {
+  if (source.source_type === "predicthq") {
+    const response = await fetchPredictHQEvents({
+      token: requiredEnvironment("PREDICTHQ_ACCESS_TOKEN"),
+      market,
+      queryConfig: parsePredictHQQueryConfig(source.query_config),
+      highWaterMark: source.high_water_mark,
+    })
+    return {
+      candidates: response.events.map((event) =>
+        normalizePredictHQEvent(event, market)
+      ),
+      overflow: response.overflow,
+    }
+  }
+
+  if (source.source_type === "ticketmaster") {
+    const response = await fetchTicketmasterEvents({
+      apiKey: requiredEnvironment("TICKETMASTER_API_KEY"),
+      market,
+      queryConfig: parseTicketmasterQueryConfig(source.query_config),
+    })
+    return {
+      candidates: response.events.map((event) =>
+        normalizeTicketmasterEvent(event, market)
+      ),
+      overflow: response.overflow,
+    }
+  }
+
+  if (source.source_type === "nws") {
+    const response = await fetchNWSAlerts({
+      userAgent: requiredEnvironment("NWS_USER_AGENT"),
+      market,
+      queryConfig: parseNWSQueryConfig(source.query_config),
+    })
+    return {
+      candidates: response.events.map((alert) =>
+        normalizeNWSAlert(alert, market)
+      ),
+      overflow: response.overflow,
+    }
+  }
+
+  throw new Error(
+    `Market Signals source ${source.source_type} has no provider adapter`
+  )
+}
+
+async function syncProviderSource(
   supabase: SupabaseClient,
   source: SourceRow
 ): Promise<MarketSignalSyncResult> {
@@ -447,7 +529,6 @@ async function syncPredictHQSource(
   if (!marketRow || marketRow.status !== "active") {
     throw new Error("Market Signals only syncs active managed markets")
   }
-  const token = requiredEnvironment("PREDICTHQ_ACCESS_TOKEN")
   const market = marketFromRow(marketRow)
   const startedAt = new Date().toISOString()
 
@@ -457,12 +538,7 @@ async function syncPredictHQSource(
     .eq("id", source.id)
 
   try {
-    const response = await fetchPredictHQEvents({
-      token,
-      market,
-      queryConfig: parsePredictHQQueryConfig(source.query_config),
-      highWaterMark: source.high_water_mark,
-    })
+    const response = await fetchSourceCandidates(source, market)
     let rowsChanged = 0
     let dedupeCount = 0
     let retainedCount = 0
@@ -470,18 +546,18 @@ async function syncPredictHQSource(
     const persistenceConcurrency = 6
     for (
       let offset = 0;
-      offset < response.events.length;
+      offset < response.candidates.length;
       offset += persistenceConcurrency
     ) {
       const results = await Promise.all(
-        response.events
+        response.candidates
           .slice(offset, offset + persistenceConcurrency)
-          .map((rawEvent) =>
+          .map((candidate) =>
             persistCandidate({
               supabase,
               sourceId: source.id,
               market,
-              candidate: normalizePredictHQEvent(rawEvent, market),
+              candidate,
               observedAt: startedAt,
             })
           )
@@ -493,21 +569,6 @@ async function syncPredictHQSource(
       }
     }
 
-    const vulnerability = await scoreMarketVulnerability(
-      supabase,
-      market.id,
-      new Date()
-    )
-    let briefError: string | null = null
-    const briefs = await generateMarketSignalBriefsForMarket(
-      supabase,
-      market.id
-    ).catch((error) => {
-      briefError =
-        error instanceof Error ? error.message : "Unknown brief error"
-      return []
-    })
-
     const { error } = await supabase
       .from("revenue_market_sources")
       .update({
@@ -515,9 +576,9 @@ async function syncPredictHQSource(
         last_success_at: new Date().toISOString(),
         last_status: "ok",
         last_error: response.overflow
-          ? "PredictHQ reported subscription overflow; narrow the market query if material events appear truncated."
+          ? `${source.source_type} returned more rows than this source's configured cap; narrow its market query if material events appear truncated.`
           : null,
-        last_rows_read: response.events.length,
+        last_rows_read: response.candidates.length,
         last_rows_changed: rowsChanged,
         last_dedupe_count: dedupeCount,
       })
@@ -529,23 +590,24 @@ async function syncPredictHQSource(
       sourceId: source.id,
       marketId: market.id,
       marketName: market.name,
-      rowsRead: response.events.length,
+      rowsRead: response.candidates.length,
       rowsChanged,
       dedupeCount,
       retainedCount,
       overflow: response.overflow,
-      impactsScored: vulnerability.impactsScored,
-      listingExposuresScored: vulnerability.listingExposuresScored,
-      needsReview: vulnerability.needsReview,
-      briefsGenerated: briefs.filter((brief) => brief.status === "generated")
-        .length,
-      briefsCached: briefs.filter((brief) => brief.status === "cached").length,
-      briefsFailed: briefs.filter((brief) => brief.status === "failed").length,
-      briefError,
+      impactsScored: 0,
+      listingExposuresScored: 0,
+      needsReview: 0,
+      briefsGenerated: 0,
+      briefsCached: 0,
+      briefsFailed: 0,
+      briefError: null,
     }
   } catch (error) {
     const status =
-      error instanceof PredictHQRequestError && error.status === 429
+      (error instanceof PredictHQRequestError ||
+        error instanceof MarketSignalProviderRequestError) &&
+      error.status === 429
         ? "rate_limited"
         : "error"
     await supabase
@@ -562,32 +624,43 @@ async function syncPredictHQSource(
   }
 }
 
-async function readActiveSources(supabase: SupabaseClient, marketId?: string) {
+async function readActiveSources(
+  supabase: SupabaseClient,
+  marketId?: string,
+  dueOnly = false
+) {
   let query = supabase
     .from("revenue_market_sources")
     .select(
       `
         id, market_id, source_type, query_config, high_water_mark,
+        cadence_minutes, last_attempt_at,
         market:revenue_markets!inner(
           id, name, country_code, timezone, center_lat, center_lon,
           radius_miles, market_kind, status
         )
       `
     )
-    .eq("source_type", "predicthq")
     .eq("is_active", true)
     .eq("market.status", "active")
   if (marketId) query = query.eq("market_id", marketId)
   const { data, error } = await query
   if (error) throw new Error(`Failed to read active sources: ${error.message}`)
-  return (data ?? []) as unknown as SourceRow[]
+  const sources = (data ?? []) as unknown as SourceRow[]
+  if (!dueOnly) return sources
+  const now = Date.now()
+  return sources.filter(
+    (source) =>
+      source.last_attempt_at == null ||
+      now - new Date(source.last_attempt_at).getTime() >=
+        source.cadence_minutes * 60_000
+  )
 }
 
 async function enableAgentManagedSources(
   supabase: SupabaseClient,
   marketId?: string
 ) {
-  requiredEnvironment("PREDICTHQ_ACCESS_TOKEN")
   let marketQuery = supabase
     .from("revenue_markets")
     .select("id")
@@ -603,27 +676,79 @@ async function enableAgentManagedSources(
   const marketIds = (markets ?? []).map((market) => market.id as string)
   if (marketIds.length === 0) return
 
-  const { error } = await supabase
-    .from("revenue_market_sources")
-    .update({ is_active: true })
-    .eq("source_type", "predicthq")
-    .in("market_id", marketIds)
-  if (error) {
-    throw new Error(`Failed to enable managed sources: ${error.message}`)
+  const runtime = getMarketSignalsRuntimeStatus()
+  const availability: Array<[MarketSignalSourceType, boolean]> = [
+    ["predicthq", runtime.predictHQConfigured],
+    ["ticketmaster", runtime.ticketmasterConfigured],
+    ["nws", runtime.nwsConfigured],
+  ]
+  for (const [sourceType, isActive] of availability) {
+    const { error } = await supabase
+      .from("revenue_market_sources")
+      .update({ is_active: isActive })
+      .eq("source_type", sourceType)
+      .in("market_id", marketIds)
+    if (error) {
+      throw new Error(
+        `Failed to configure managed ${sourceType} sources: ${error.message}`
+      )
+    }
   }
 }
 
 export async function syncMarketSignalsForMarket(
   supabase: SupabaseClient,
-  marketId: string
+  marketId: string,
+  options?: { dueOnly?: boolean }
 ) {
   requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY")
   await enableAgentManagedSources(supabase, marketId)
-  const sources = await readActiveSources(supabase, marketId)
-  if (sources.length === 0) {
-    throw new Error("This market has no active PredictHQ source")
-  }
-  return Promise.all(
-    sources.map((source) => syncPredictHQSource(supabase, source))
+  const sources = await readActiveSources(
+    supabase,
+    marketId,
+    options?.dueOnly ?? false
   )
+  if (sources.length === 0) {
+    return []
+  }
+  const results: MarketSignalSyncResult[] = []
+  const failures: string[] = []
+  for (const source of sources) {
+    try {
+      results.push(await syncProviderSource(supabase, source))
+    } catch (error) {
+      failures.push(
+        `${source.source_type}: ${error instanceof Error ? error.message : "unknown error"}`
+      )
+    }
+  }
+  if (results.length === 0) {
+    throw new Error(`All configured sources failed: ${failures.join("; ")}`)
+  }
+
+  const vulnerability = await scoreMarketVulnerability(
+    supabase,
+    marketId,
+    new Date()
+  )
+  let briefError: string | null = null
+  const briefs = await generateMarketSignalBriefsForMarket(
+    supabase,
+    marketId
+  ).catch((error) => {
+    briefError = error instanceof Error ? error.message : "Unknown brief error"
+    return []
+  })
+  results[0] = {
+    ...results[0],
+    impactsScored: vulnerability.impactsScored,
+    listingExposuresScored: vulnerability.listingExposuresScored,
+    needsReview: vulnerability.needsReview,
+    briefsGenerated: briefs.filter((brief) => brief.status === "generated")
+      .length,
+    briefsCached: briefs.filter((brief) => brief.status === "cached").length,
+    briefsFailed: briefs.filter((brief) => brief.status === "failed").length,
+    briefError,
+  }
+  return results
 }

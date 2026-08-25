@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-25 — Provider Failure Is Isolated and Commercial Authority Stays Deterministic
+
+Market Signals now treats PredictHQ, Ticketmaster, and NWS as independent evidence adapters behind one normalized contract. The agent enables a registered source only while its server-side configuration exists; one expired, rate-limited, or failed provider records its own health failure but does not prevent healthy providers from completing the market refresh. Scheduled work fetches only sources whose own cadence is due, then computes listing vulnerability and Signal Briefs once for the market. This keeps the 90-day PredictHQ beta replaceable instead of operationally central.
+
+Ticketmaster is ticketed-event evidence, not an attendance oracle: Discovery results never receive invented attendance or popularity values and normally remain Watchlist evidence until the shared deterministic gates have stronger materiality and current PriceLabs vulnerability. NWS is US authority-tier-1 evidence; its published severity maps to an explicit materiality floor (Extreme 85, Severe 70, Moderate 50, Minor 25). These provider facts may open or unwind review, but the model still cannot choose a numeric commercial action and no provider adapter can mutate an Adjustment, PriceLabs, PMS, or OTA.
+
 ## 2026-08-21 — GoHighLevel Onboarding Is Proved in Parallel Before Cutover
 
 The replacement onboarding path must be demonstrated end to end on an isolated Vercel Preview before `onboarding.revfactor.io/start` changes. The pilot uses its own `/start/ghl-pilot` entry, explicit `RF PILOT` GHL workflows, the `rf-ghl-pilot` tag, a pilot signup-ID trigger filter, Stripe test mode, and an HMAC-derived per-signup callback token. It may prepare the eventual Assembly identity but sends the Assembly invitation only after the existing Stripe webhook completes provisioning. Referral pricing is excluded from this pilot. Production signup, live Stripe keys, and real client contacts remain outside the test boundary; URL cutover requires a complete signed-agreement/payment/portal-invite pass and a separate approval.
