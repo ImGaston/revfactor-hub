@@ -55,6 +55,22 @@ Other performance work should get its own migration. Known candidates from `docs
 - `tasks(sort_order, created_at DESC)` for task board ordering.
 - `onboarding_progress.client_id` and `onboarding_progress.template_id`.
 
+## Market Signals Ingestion
+
+- PredictHQ beta reads are bounded to 300 candidates per market and a 90-day horizon. Do not restore the earlier 1,000-event cap without measuring function duration and queue value.
+- Ticketmaster reads are bounded to 300 candidates per market over 180 days and are eligible at most every 180 minutes; NWS reads are bounded to 200 active alerts at the market point and are eligible every 15 minutes. A scheduled market job fetches only sources whose own cadence is due. Manual/recovery jobs may force all configured sources. Eligibility does not imply wake frequency: the current deployment drains daily plus on-demand until a compatible higher-frequency scheduler exists.
+- Generate Signal Briefs only after deterministic scoring selects `review_now`. Cache on the stable snapshot hash, prompt version, and model so route renders never invoke the model. Generate at concurrency 3 after sync/backfill; a failed brief does not mark the event provider unhealthy.
+- The authenticated route reads the latest brief per impact in the repository query. Do not add page-level ISR; new evidence and reviewer actions use normal server revalidation.
+- Persist event candidates in small concurrent batches (currently six), while retaining idempotent provider IDs, canonical fingerprints, immutable versions/evidence, and source high-water marks.
+- The first Tucson sequential baseline took four minutes for 329 events; scheduled ingestion must use the batched path and incremental high-water polling.
+- Unknown PriceLabs booking vulnerability fails closed to Watchlist. Do not fill the human Needs Review queue from materiality alone.
+- The PriceLabs vulnerability pass pages approved membership in 500-row windows and chunks listing/report lookups to 100 IDs. It reads at most 1,000 active future impacts per market, but performs the expensive listing join only for verified materiality-65+ candidates. Full-market coverage and scores remain deterministic in memory; stale non-candidates are reset to Watch.
+- Persist only the top 25 exposed listings for each of the at-most-five selected review signals. `replace_market_signal_scoring` atomically replaces derived exposure rows and impact summaries in one set-based RPC. The full evaluated/exposed counts and top-three evidence snapshot remain on the impact; do not restore the event × listing evidence table as an exhaustive calculation log.
+- The 1,000-listing scale harness (`pnpm benchmark:market-signals`) evaluates 300 impacts / 300,000 listing-event pairs, then persists at most 125 rows. The 2026-08-21 baseline completed in 49 ms with 52.9 MB heap and a 99.96% row reduction. Treat this as a regression harness, not a production latency SLA.
+- The live five-market compaction reduced listing-exposure rows from 6,537 to 101 (98.45%) while preserving 18 Needs Review signals. Recheck this ratio when review-family or per-impact evidence caps change.
+- The operator queue is capped at five distinct event families per market per scoring pass; the repository loads review/unwind rows before watch rows and the UI renders only the first 60 watch items. This is an operator attention budget, while immutable event/version/evidence history and aggregate scoring facts remain available.
+- Source-level `cadence_minutes` (PredictHQ 60, Ticketmaster 180, NWS 15) prevents extra provider calls. Under the current Vercel cron allowance, the existing daily Stripe cron drains up to five leased market jobs; editor refresh drains one immediately. Provider persistence runs sequentially to avoid cross-source canonical-fingerprint races; row persistence remains batched at six. Vulnerability and Signal Brief derivation run once after all healthy sources, not once per source. Inventory refresh jobs do not require an event provider and averaged 1.079 seconds across the five live pilot markets.
+
 ## Verification Checklist
 
 When touching authenticated list/detail routes:

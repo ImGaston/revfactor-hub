@@ -199,14 +199,24 @@ export function ProjectsView({
                     )}
                   </div>
                 </CardContent>
-                <CardFooter className="justify-between gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDetailProject(project)}
-                  >
-                    View all tasks
-                  </Button>
+                <CardFooter className="flex-wrap justify-between gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditProject(project)}
+                    >
+                      <Pencil data-icon="inline-start" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDetailProject(project)}
+                    >
+                      View all tasks
+                    </Button>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"

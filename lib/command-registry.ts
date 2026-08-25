@@ -10,6 +10,8 @@ import {
   DollarSign,
   Bot,
   BookOpen,
+  TrendingUp,
+  Radar,
   Settings,
   Plus,
   FileChartColumnIncreasing,
@@ -49,6 +51,8 @@ export const commands: CommandDef[] = [
   { id: "nav-financials", label: "Go to Financials", icon: DollarSign, category: "pages", href: "/financials", superAdminOnly: true, contextRoutes: ["/financials"] },
   { id: "nav-agent-studio", label: "Go to Agent Studio", icon: Bot, category: "pages", href: "/agent-studio", permission: { resource: "agent_studio", action: "view" }, contextRoutes: ["/agent-studio"], keywords: ["ai", "assistant", "sandbox", "agent"] },
   { id: "nav-knowledge", label: "Go to Knowledge", icon: BookOpen, category: "pages", href: "/knowledge", permission: { resource: "knowledge", action: "view" }, contextRoutes: ["/knowledge"], keywords: ["kb", "sop", "articles", "credentials"] },
+  { id: "nav-revenue-manager", label: "Go to Revenue Manager", icon: TrendingUp, category: "pages", href: "/revenue-manager", permission: { resource: "revenue", action: "view" }, contextRoutes: ["/revenue-manager"], keywords: ["revenue", "pricing", "pace", "ashwood"] },
+  { id: "nav-market-signals", label: "Go to Market Signals", icon: Radar, category: "pages", href: "/market-signals", permission: { resource: "market_signals", action: "view" }, contextRoutes: ["/market-signals"], keywords: ["events", "demand", "weather", "announcements", "pricing"] },
 
   // --- Actions ---
   { id: "action-new-client", label: "New Client", icon: Plus, category: "actions", href: "/settings/clients", keywords: ["create", "add", "client"], permission: { resource: "clients", action: "create" }, contextRoutes: ["/clients"] },

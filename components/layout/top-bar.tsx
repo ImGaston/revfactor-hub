@@ -39,6 +39,8 @@ const routeLabels: Record<string, string> = {
   "boards-tags": "Boards & Tags",
   knowledge: "Knowledge",
   "agent-studio": "Agent Studio",
+  "revenue-manager": "Revenue Manager",
+  "market-signals": "Market Signals",
   "revenue-briefs": "Revenue Briefs",
   new: "New Article",
   edit: "Edit",

@@ -1,0 +1,181 @@
+{
+  "fixtureVersion": "ashwood-sanitized.v1",
+  "sanitizedAt": "2026-08-20T00:00:00-04:00",
+  "property": {
+    "propertyKey": "ashwood-pilot",
+    "displayName": "Ashwood",
+    "market": "Grand Prairie, Texas",
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "sleeps": 8,
+    "lifecycleMode": "existing_managed"
+  },
+  "sourceSnapshots": {
+    "hospitable": {
+      "snapshotId": "ashwood-hospitable-2026-08-19",
+      "observedAt": "2026-08-19T23:00:00-04:00",
+      "periodStart": "2024-08-20",
+      "periodEnd": "2026-08-19",
+      "reservationCounts": {
+        "total": 172,
+        "accepted": 154,
+        "cancelled": 16,
+        "other": 2
+      },
+      "acceptedReservationNights": 516,
+      "hostRevenue": 173040.93,
+      "revenueMeasure": "host_revenue"
+    },
+    "pricelabs": {
+      "snapshotId": "ashwood-pricelabs-direct-2026-08-19",
+      "observedAt": "2026-08-19T10:02:05-04:00",
+      "periodStart": "2024-08-20",
+      "periodEnd": "2026-08-19",
+      "reservationCounts": {
+        "total": 174,
+        "booked": 154,
+        "cancelled": 20
+      },
+      "rentalRevenue": 133287.22,
+      "revenueMeasure": "rental_revenue",
+      "pricing": {
+        "basePrice": 285,
+        "recommendedBasePrice": 250,
+        "minimumPrice": 125,
+        "configuredMaximumPrice": null,
+        "systemDefaultMaximumPrice": 2850,
+        "lastMinuteDiscountPercent": 25,
+        "lastMinuteWindowDays": 20,
+        "farOutPremiumPercent": 15,
+        "farOutStartDays": 90,
+        "dayOfWeekAdjustmentEnabled": false,
+        "poolSeasonProfileEnabled": false
+      },
+      "minimumPriceExposure": {
+        "next15Days": 0.667,
+        "next30Days": 0.375,
+        "sourceDefinitionStatus": "unresolved"
+      },
+      "adjustedOccupancy": {
+        "definitionStatus": "unresolved",
+        "benchmarkScope": "PriceLabs aggregate market cohort; exact cohort unresolved",
+        "next7Days": {
+          "property": 1,
+          "market": 0.27
+        },
+        "next15Days": {
+          "property": 0.9,
+          "market": 0.22
+        },
+        "next30Days": {
+          "property": 0.56,
+          "market": 0.21
+        },
+        "next90Days": {
+          "property": 0.22,
+          "market": 0.14
+        }
+      }
+    },
+    "hubCache": {
+      "snapshotId": "ashwood-hub-cache-2026-08-19",
+      "observedAt": "2026-08-19T04:53:00-04:00",
+      "basePrice": 250,
+      "freshness": "stale"
+    }
+  },
+  "historicalInventory": {
+    "periodStart": "2024-08-20",
+    "periodEnd": "2026-08-19",
+    "calendarNights": 730,
+    "bookedNights": 516,
+    "blockedNights": 91,
+    "expectedOpenNights": 123,
+    "expectedCalendarUtilization": 0.7068493151,
+    "expectedSellableOccupancy": 0.8075117371
+  },
+  "forwardInventory": {
+    "periodStart": "2026-08-20",
+    "periodEnd": "2027-08-19",
+    "calendarNights": 365,
+    "bookedStatusNights": 16,
+    "blockedNights": 150,
+    "availableNights": 199,
+    "statusSemanticsResolved": false,
+    "knownPermitBlocks": [
+      {
+        "start": "2026-08-23",
+        "end": "2026-08-27",
+        "nights": 5,
+        "classification": "temporary",
+        "reason": "permit_renewal"
+      },
+      {
+        "start": "2026-11-09",
+        "end": "2027-04-02",
+        "nights": 145,
+        "classification": "temporary",
+        "reason": "permit_renewal_test_constraint"
+      }
+    ]
+  },
+  "objective": {
+    "target": 95000,
+    "currency": "USD",
+    "revenueMeasure": null,
+    "periodStart": null,
+    "periodEnd": null,
+    "status": "unresolved"
+  },
+  "constraints": {
+    "protectedDates": [
+      {
+        "date": "2026-12-31",
+        "action": "discount_prohibited",
+        "policyReference": "ashwood-owner-policy-v1"
+      },
+      {
+        "date": "2027-07-04",
+        "action": "discount_prohibited",
+        "policyReference": "ashwood-owner-policy-v1"
+      }
+    ],
+    "sameDayTurnsAllowed": true,
+    "airbnbMarkupPercent": 44,
+    "airbnbMarkupIntentional": true,
+    "directFinalGuestPriceBelowAirbnbPercent": 5,
+    "historicalGuestCountExceptionsConfirmed": true
+  },
+  "duplicateReservationSample": [
+    {
+      "source": "pricelabs",
+      "sourceRecordId": "sanitized-cancelled-row-a",
+      "rawStatus": "cancelled",
+      "canonicalStatus": "cancelled",
+      "bookedDate": "1970-01-01",
+      "checkIn": "2025-01-10",
+      "checkOut": "2025-01-12",
+      "nights": 2,
+      "rentalRevenue": 0
+    },
+    {
+      "source": "pricelabs",
+      "sourceRecordId": "sanitized-cancelled-row-b",
+      "rawStatus": "cancelled",
+      "canonicalStatus": "cancelled",
+      "bookedDate": "1970-01-01",
+      "checkIn": "2025-01-10",
+      "checkOut": "2025-01-12",
+      "nights": 2,
+      "rentalRevenue": 0
+    }
+  ],
+  "knownDataIssues": [
+    "reservation_count_mismatch",
+    "revenue_definition_conflict",
+    "direct_vs_cached_base_price",
+    "duplicate_cancelled_pricelabs_row",
+    "forward_inventory_status_semantics",
+    "goal_measure_and_period_unresolved"
+  ]
+}

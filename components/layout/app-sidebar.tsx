@@ -12,6 +12,8 @@ import {
   DollarSign,
   BookOpen,
   Bot,
+  TrendingUp,
+  Radar,
   SlidersHorizontal,
   Settings,
   LogOut,
@@ -109,6 +111,18 @@ const navItems: NavItem[] = [
     href: "/agent-studio",
     icon: Bot,
     resource: "agent_studio",
+  },
+  {
+    title: "Revenue Manager",
+    href: "/revenue-manager",
+    icon: TrendingUp,
+    resource: "revenue",
+  },
+  {
+    title: "Market Signals",
+    href: "/market-signals",
+    icon: Radar,
+    resource: "market_signals",
   },
   {
     title: "Financials",

@@ -1,0 +1,217 @@
+<div id="rf-inline-onboarding" aria-live="polite"></div>
+<script>
+  ;(() => {
+    const endpoint =
+      "https://revfactor-ghl-inline-onboarding-staging.federico-241.workers.dev"
+    const nativeFormId = "k9ViLjaX5lbxJe38KxuV"
+
+    function dateValue(date) {
+      return date.toISOString().slice(0, 10)
+    }
+
+    function mount() {
+      const existingRoot = document.getElementById("rf-inline-onboarding")
+      if (existingRoot?.dataset.rfMounted === "true") return true
+      const frame =
+        document.querySelector(`iframe[id^="${nativeFormId}form-"]`) ||
+        document.querySelector(`iframe[src*="/widget/form/${nativeFormId}"]`)
+      if (!existingRoot && !frame) return false
+
+      const minimumDate = new Date()
+      minimumDate.setDate(minimumDate.getDate() + 3)
+      const maximumDate = new Date()
+      maximumDate.setDate(maximumDate.getDate() + 120)
+
+      const root = existingRoot || document.createElement("div")
+      if (!existingRoot) root.id = "rf-inline-onboarding"
+      root.innerHTML = `
+        <style>
+          #rf-inline-onboarding { width: 100%; padding: 36px 20px 46px; box-sizing: border-box; }
+          #rf-inline-onboarding * { box-sizing: border-box; }
+          #rf-inline-onboarding .rf-card { max-width: 800px; margin: 0 auto; padding: 38px; border: 1px solid rgba(20,45,38,.13); border-radius: 18px; background: #f5f2eb; box-shadow: 0 24px 60px rgba(15,41,35,.12); font-family: Inter, Arial, sans-serif; color: #142d26; }
+          #rf-inline-onboarding .rf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 20px; }
+          #rf-inline-onboarding .rf-full { grid-column: 1 / -1; }
+          #rf-inline-onboarding label { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 700; line-height: 1.35; color: #142d26; }
+          #rf-inline-onboarding input[type="text"], #rf-inline-onboarding input[type="email"], #rf-inline-onboarding input[type="tel"], #rf-inline-onboarding input[type="number"], #rf-inline-onboarding input[type="date"] { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #c9c8c2; border-radius: 8px; background: #fff; color: #161910; font: 500 16px/1.35 Inter, Arial, sans-serif; outline: none; transition: border-color .18s, box-shadow .18s; }
+          #rf-inline-onboarding input:focus { border-color: #5d6d59; box-shadow: 0 0 0 3px rgba(93,109,89,.16); }
+          #rf-inline-onboarding .rf-choice { display: flex; align-items: flex-start; gap: 12px; padding: 17px 18px; border: 1px solid #cfccc5; border-radius: 10px; background: #ebe8e1; cursor: pointer; }
+          #rf-inline-onboarding .rf-choice input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #142d26; flex: 0 0 auto; }
+          #rf-inline-onboarding .rf-choice strong { display: block; font-size: 15px; line-height: 1.4; }
+          #rf-inline-onboarding .rf-help { margin: 7px 0 0; color: #5d625e; font-size: 13px; line-height: 1.5; }
+          #rf-inline-onboarding .rf-reveal { margin-top: 14px; }
+          #rf-inline-onboarding .rf-summary { padding: 14px 16px; border-left: 3px solid #76574c; border-radius: 7px; background: #e8e6e1; color: #3e4944; font-size: 14px; line-height: 1.5; }
+          #rf-inline-onboarding .rf-submit { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; border: 0; border-radius: 8px; background: #142d26; color: #fff; font: 700 14px/1 Inter, Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: transform .18s, background .18s, opacity .18s; }
+          #rf-inline-onboarding .rf-submit:hover { background: #0f2923; transform: translateY(-1px); }
+          #rf-inline-onboarding .rf-submit:disabled { cursor: wait; opacity: .72; transform: none; }
+          #rf-inline-onboarding .rf-error { display: none; margin: 0 0 16px; padding: 12px 14px; border: 1px solid #b68072; border-radius: 8px; background: #fff6f2; color: #6f3327; font-size: 14px; line-height: 1.45; }
+          #rf-inline-onboarding .rf-secure { margin: 13px 0 0; text-align: center; color: #5d625e; font-size: 12px; line-height: 1.5; }
+          #rf-inline-onboarding .rf-honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; overflow: hidden !important; }
+          @media (max-width: 680px) { #rf-inline-onboarding { padding: 24px 14px 34px; } #rf-inline-onboarding .rf-card { padding: 24px 20px; border-radius: 14px; } #rf-inline-onboarding .rf-grid { grid-template-columns: 1fr; gap: 20px; } #rf-inline-onboarding .rf-full { grid-column: auto; } }
+        </style>
+        <form class="rf-card" novalidate>
+          <div class="rf-error" role="alert" aria-live="polite"></div>
+          <div class="rf-grid">
+            <div><label for="rf-first-name">First name *</label><input id="rf-first-name" name="firstName" type="text" autocomplete="given-name" placeholder="Enter your first name" required></div>
+            <div><label for="rf-last-name">Last name *</label><input id="rf-last-name" name="lastName" type="text" autocomplete="family-name" placeholder="Enter your last name" required></div>
+            <div><label for="rf-phone">Phone</label><input id="rf-phone" name="phone" type="tel" autocomplete="tel" placeholder="+1 (555) 000-0000"></div>
+            <div><label for="rf-email">Email *</label><input id="rf-email" name="email" type="email" autocomplete="email" placeholder="your@email.com" required></div>
+            <div class="rf-full"><label for="rf-primary">Number of listings *</label><input id="rf-primary" name="primaryListingQuantity" type="number" inputmode="numeric" min="1" max="5" step="1" value="1" required></div>
+            <div class="rf-full">
+              <label class="rf-choice"><input id="rf-add-child" type="checkbox" aria-controls="rf-child-fields" aria-expanded="false"><span><strong>Add child listing</strong><span class="rf-help">A linked version of the same property, such as a lock-off or alternate bedroom configuration.</span></span></label>
+              <div id="rf-child-fields" class="rf-reveal" hidden><label for="rf-child">Number of child listings</label><input id="rf-child" name="childListingQuantity" type="number" inputmode="numeric" min="1" max="5" step="1" value="1"></div>
+            </div>
+            <div class="rf-full">
+              <label class="rf-choice"><input id="rf-later" type="checkbox" aria-controls="rf-date-fields" aria-expanded="false"><span><strong>Start service at a later date</strong><span class="rf-help">Leave this unchecked and service starts immediately after signup.</span></span></label>
+              <div id="rf-date-fields" class="rf-reveal" hidden><label for="rf-date">Preferred service start date *</label><input id="rf-date" name="serviceStartDate" type="date" min="${dateValue(minimumDate)}" max="${dateValue(maximumDate)}"></div>
+            </div>
+            <div class="rf-full"><label for="rf-legal">Legal business or client name *</label><input id="rf-legal" name="legalName" type="text" autocomplete="organization" required></div>
+            <div class="rf-full rf-summary" aria-live="polite"></div>
+            <div class="rf-honeypot" aria-hidden="true"><label for="rf-website">Website</label><input id="rf-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+            <div class="rf-full"><button class="rf-submit" type="button">Continue to agreement</button><p class="rf-secure">Secure signup · Your agreement opens here in the same tab · Never enter passwords or access codes</p></div>
+          </div>
+        </form>`
+
+      if (!existingRoot) frame.insertAdjacentElement("beforebegin", root)
+      if (frame) frame.style.display = "none"
+      root.dataset.rfMounted = "true"
+
+      const form = root.querySelector("form")
+      const childToggle = root.querySelector("#rf-add-child")
+      const childFields = root.querySelector("#rf-child-fields")
+      const childInput = root.querySelector("#rf-child")
+      const laterToggle = root.querySelector("#rf-later")
+      const dateFields = root.querySelector("#rf-date-fields")
+      const dateInput = root.querySelector("#rf-date")
+      const primaryInput = root.querySelector("#rf-primary")
+      const summary = root.querySelector(".rf-summary")
+      const errorBox = root.querySelector(".rf-error")
+      const submit = root.querySelector(".rf-submit")
+
+      // GHL's native form wrapper delegates button clicks to its legacy
+      // post-submit panel. Keep this replacement form isolated so only the
+      // signer-link response controls navigation.
+      root.addEventListener(
+        "click",
+        (event) => {
+          event.stopPropagation()
+        },
+        true,
+      )
+
+      function updateSummary() {
+        const primary = Math.min(5, Math.max(1, Number(primaryInput.value) || 1))
+        const child = childToggle.checked
+          ? Math.min(5, Math.max(1, Number(childInput.value) || 1))
+          : 0
+        summary.textContent = `${primary} primary listing${primary === 1 ? "" : "s"}${child ? ` + ${child} child listing${child === 1 ? "" : "s"}` : ""} · $${primary * 350 + child * 50}/month + $150 one-time onboarding fee`
+      }
+
+      childToggle.addEventListener("change", () => {
+        childFields.hidden = !childToggle.checked
+        childToggle.setAttribute("aria-expanded", String(childToggle.checked))
+        updateSummary()
+      })
+      laterToggle.addEventListener("change", () => {
+        dateFields.hidden = !laterToggle.checked
+        dateInput.required = laterToggle.checked
+        laterToggle.setAttribute("aria-expanded", String(laterToggle.checked))
+      })
+      primaryInput.addEventListener("input", updateSummary)
+      childInput.addEventListener("input", updateSummary)
+      updateSummary()
+
+      async function openAgreement() {
+        errorBox.style.display = "none"
+        if (!form.reportValidity()) return
+
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 30000)
+        const originalLabel = submit.textContent
+        submit.disabled = true
+        submit.textContent = "Preparing your agreement…"
+
+        try {
+          const firstName = root.querySelector("#rf-first-name").value.trim()
+          const lastName = root.querySelector("#rf-last-name").value.trim()
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+              legalName: root.querySelector("#rf-legal").value.trim(),
+              contactName: `${firstName} ${lastName}`.trim(),
+              email: root.querySelector("#rf-email").value.trim(),
+              phone: root.querySelector("#rf-phone").value.trim(),
+              primaryListingQuantity: Number(primaryInput.value),
+              childListingQuantity: childToggle.checked ? Number(childInput.value) : 0,
+              serviceStartMode: laterToggle.checked ? "scheduled" : "immediate",
+              serviceStartDate: laterToggle.checked ? dateInput.value : null,
+              website: root.querySelector("#rf-website").value,
+            }),
+          })
+          const data = await response.json()
+          if (!response.ok || !data.signingUrl) {
+            throw new Error(data.error || "We could not prepare the agreement.")
+          }
+          submit.textContent = "Opening your agreement…"
+          window.location.assign(data.signingUrl)
+        } catch (error) {
+          errorBox.textContent =
+            error.name === "AbortError"
+              ? "This is taking longer than expected. Please try again."
+              : error.message || "We could not prepare the agreement. Please try again."
+          errorBox.style.display = "block"
+          errorBox.scrollIntoView({ behavior: "smooth", block: "center" })
+          submit.disabled = false
+          submit.textContent = originalLabel
+        } finally {
+          clearTimeout(timeout)
+        }
+      }
+
+      // Capture the CTA before GHL's delegated native-form listener can swap
+      // this section to its legacy "check your email" confirmation panel.
+      document.addEventListener(
+        "click",
+        (event) => {
+          if (!event.target.closest?.("#rf-inline-onboarding .rf-submit")) return
+          event.preventDefault()
+          event.stopPropagation()
+          event.stopImmediatePropagation()
+          void openAgreement()
+        },
+        true,
+      )
+
+      form.addEventListener(
+        "submit",
+        (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          event.stopImmediatePropagation()
+          void openAgreement()
+        },
+        true,
+      )
+      return true
+    }
+
+    function initialize() {
+      if (mount()) return
+      const observer = new MutationObserver(() => {
+        if (mount()) observer.disconnect()
+      })
+      observer.observe(document.documentElement, { childList: true, subtree: true })
+      setTimeout(() => observer.disconnect(), 15000)
+    }
+
+    // HighLevel re-hydrates funnel previews after custom-code elements load.
+    // Re-run after that official event so the native form exists before mount.
+    document.addEventListener("hydrationDone", initialize, { once: true })
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initialize, { once: true })
+    } else {
+      initialize()
+    }
+  })()
+</script>

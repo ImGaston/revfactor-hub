@@ -10,6 +10,7 @@
 - Flow instructions must describe observable operating behavior and evidence boundaries, never private chain-of-thought.
 
 ## Coding
+
 - Use TypeScript strict mode.
 - Use `@/` imports from the project root.
 - Use shadcn/ui components; install missing primitives with `npx shadcn@latest add [component]`.
@@ -22,11 +23,13 @@
 - Prefer React 19 `useOptimistic` for instant mutation feedback, especially kanban drag-and-drop.
 
 ## Auth and Permissions
+
 - Auth methods are password and magic link via Supabase Auth.
 - Roles are dynamic rows in `roles`; `profiles.role` references `roles.name`.
 - Permissions live in `role_permissions` with resource/action pairs.
 - Server permission checks use `lib/permissions.server.ts`; client-safe checks use `lib/permissions.ts`.
 - Settings tabs are permission-gated by resource/action, not role names.
+- Revenue Manager reuses the global action catalog: `revenue:view` is read, `create`/`edit` are draft management, `publish` is profile/strategy/recommendation approval, and `control` is manual execution verification/outcome control. Migration 075 defaults `admin` to view/create/edit only and leaves publish/control fail-closed for the pilot.
 - `settings/layout.tsx` builds super_admin's permission map from the canonical `RESOURCES × ACTIONS` grid, **not** a hand-written array. It used to hardcode six keys, which silently hid any tab whose permission nobody remembered to add — Wins Rules was invisible to super_admin until this was fixed (2026-08-20).
 - Sidebar nav items carry a `resource` key and are filtered by `permissionMap["{resource}:view"]` (super_admin sees all; Financials keeps its explicit super_admin flag). When adding a module, add its resource to `RESOURCES` in `lib/permissions.ts`, seed `role_permissions` in the migration, and confirm existing roles have the `view` row — the live table is UI-managed and can drift from migration seeds (knowledge was missing for admin until 2026-07-03).
 - `role_permissions` writes from `/settings/roles` must use `upsert` with `onConflict: "role_name,resource,action"`, never plain `update` — an update on a missing row silently no-ops and the checkbox appears broken (fixed 2026-08-06, migration 072 backfilled all role × resource × action gaps and removed stale `calendar`/`notes` rows). The roles UI derives counts and checkbox state from the canonical `RESOURCES × ACTIONS` grid, not raw DB rows.
@@ -39,7 +42,7 @@
 - `profiles.role` changes are blocked by the `profiles_role_guard` trigger unless the updater is super_admin (admin client / SQL exempt). New app views must set `security_invoker = true` unless they exist precisely to bypass RLS like `clients_basic`.
 - **RLS does not cover everything.** A server action that uses `createAdminClient()` or calls an external API (Assembly, Stripe, PriceLabs) runs outside RLS, so it **must check `hasPermission()` in code** — the DB will not stop it. Prior art: `pipeline:control` gates `createAssemblyClientForLead` (admin-client insert into `clients` + portal invite) and `sendContractToAssembly` (sends a contract to the prospect) in `app/(authenticated)/pipeline/actions.ts`.
 - **Machine-to-machine auth** (external consumers, no Supabase session) uses `lib/api-auth.server.ts`: `Authorization: Bearer rvf_live_<64 hex>`, resolved by SHA-256 digest against `api_keys` with one indexed lookup, scoped via `API_SCOPES` (`leads:read`). 401 for missing/invalid/revoked, 403 for a valid key missing the scope. Keys are issued and revoked with `scripts/create-api-key.ts` / `revoke-api-key.ts` — never an env var, so an external's key can be rotated without a redeploy. This is distinct from the inbound webhooks (`WEBHOOK_SECRET`, `SCHEDULER_WEBHOOK_SECRET`) and cron (`CRON_SECRET`), which stay static shared secrets.
-- **When a route verifies a key and then reads through `createAdminClient()`, the column projection *is* the security boundary** — RLS is bypassed. Enumerate columns explicitly, never `select("*")`, and say so in a comment. Prior art: `app/api/v1/leads/route.ts` and the public adjustment shell `app/a/[token]/page.tsx`. Concretely, `leads.description` must never be projected: the scheduler webhook flattens the host's name/email, the meet link, and free-text notes into it. Outbound public APIs live under `app/api/v1/` so the contract can be versioned.
+- **When a route verifies a key and then reads through `createAdminClient()`, the column projection _is_ the security boundary** — RLS is bypassed. Enumerate columns explicitly, never `select("*")`, and say so in a comment. Prior art: `app/api/v1/leads/route.ts` and the public adjustment shell `app/a/[token]/page.tsx`. Concretely, `leads.description` must never be projected: the scheduler webhook flattens the host's name/email, the meet link, and free-text notes into it. Outbound public APIs live under `app/api/v1/` so the contract can be versioned.
 - `team_credentials` (migration 070) is its own resource: `admin` has view/create/edit (delete off by default, tunable in Settings → Roles) and the external roles (`contractor`, `marketing`, `hostpricing`) are explicitly denied. Its server actions (`app/(authenticated)/knowledge/credentials-actions.ts`) check `hasPermission` in code in addition to the RLS backstop — follow that pattern for new credential-like mutations.
 - Roles seeded by migration must use `ON CONFLICT (role_name, resource, action) DO UPDATE SET allowed = EXCLUDED.allowed` when the grant has to be deterministic: `createRole()` in Settings → Roles pre-seeds every `resource × action` row as `FALSE`, so `DO NOTHING` silently no-ops if the role already exists. Use `DO NOTHING` only when the intent is "recreate on a fresh DB, never touch the live one".
 - Adjustment comment `origin` is set **server-side from the author's profile role** (`hostpricing` role → `hostpricing`, else `internal`; `client` reserved — owners have no login), never accepted from the client. The needs-reply flag is always derived (`hasUnansweredExternalComment` over `adjustment_comment_stats`), never stored. An internal comment (author with `adjustments:edit`) on a `needs_info` ticket auto-reverts it to `open` inside `addAdjustmentComment`; status-change notes in `updateAdjustmentStatus` are inserted inline precisely so they bypass that revert. Every status transition writes an `adjustment_status_history` row.
@@ -83,6 +86,7 @@
 - Detail-as-modal with a real URL uses the intercepting-route pattern (slot `app/(authenticated)/@modal/` + `(.)route/[id]`), not a client Dialog that refetches: one shared server component renders both the full page and the modal, close = `router.back()`, and the slot keeps `default.tsx` + a required (never optional) catch-all returning null. Prior art: Pipeline lead detail; rationale and gotchas in `decisions.md` 2026-07-13.
 
 ## Kanban
+
 - Columns use subtle tinted backgrounds matching semantic status.
 - Cards use a `border-l-[3px]` accent matching column color.
 - Column headers show label and count badge.
@@ -94,6 +98,7 @@
 - The `/roadmap` Kanban treats `posts` as tasks. Every task must have a `roadmap_projects` parent; the board supports an all-project view and a single-project filter. The legacy `posts.eta` storage field is presented as the task Deadline in the app, while `roadmap_projects.deadline` is the overall project deadline.
 
 ## Listings
+
 - Listing detail has a PriceLabs-style KPI row: Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked.
 - `occColor(occ, marketOcc)` uses red under 0.8x market, amber from 0.8x to 1x, green from 1x to 1.2x, blue above 1.2x.
 - Client detail listing cards show Occ(7N), Occ(30N), MPI(30N), Last Booked from real PriceLabs data.
@@ -103,10 +108,12 @@
 - All "add/edit listing" forms share `components/listings/listing-form-fields.tsx` (Name, City, State selector, Airbnb ID, PriceLabs/Listing ID) plus its helpers `buildListingFields`, `listingValuesFromRecord`, `EMPTY_LISTING_VALUES`. Reused by `components/clients/add-listing-dialog.tsx`, `settings/listings/listing-dialog.tsx`, and the financials `link-subscription-dialog.tsx` quick-add. State is a code selector from `lib/us-states.ts` (always store the 2-letter code) — do not use a free-text State input.
 
 ## Client Pricing Dashboard
+
 - Client detail pages read the private embed link directly from `clients.dashboard_url`.
 - Present `dashboard_url` as a compact copy action alongside the other client integration buttons; never expose or reconstruct a separate dashboard token, and never include the URL in logs, analytics, or error messages.
 
 ## Environment
+
 Required variables:
 
 ```env
@@ -114,6 +121,7 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 PRICELABS_API_KEY=
+PREDICTHQ_ACCESS_TOKEN=
 ASSEMBLY_API_KEY=
 STRIPE_SECRET_KEY=
 AI_GATEWAY_API_KEY=
@@ -131,12 +139,14 @@ Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are bro
 Agent Studio is a draft sandbox: model tools remain read-only, runs stay ephemeral, and no Assembly send tool is exposed. A future production sending path needs its own explicit permission, approval/audit flow, and server-side policy gate.
 
 ## Agent Memory Hygiene
+
 - Store durable project/system memory in `docs/agent/`, not `.claude/rules/`.
 - Do not store personal profile memory, private preferences, secrets, tokens, credentials, or customer-sensitive details in repo docs.
 - If a task creates durable knowledge, update the relevant memory doc during the work and mention it in the final response.
 - Skip memory updates for trivial tasks, quick factual answers, or changes already fully captured by code.
 
 ## Optional Claude Local Stop Hook
+
 `.claude/` is ignored by git, so local Claude hooks are optional and machine-specific. If you want a local end-of-session nudge, add a Stop hook in `.claude/settings.local.json` that points to a script like:
 
 ```bash
@@ -170,6 +180,20 @@ Do not commit local hook settings unless the team deliberately decides to versio
 - Structured-output compatibility and reasoning controls are model-specific. Keep the required JSON fields explicit in immutable instructions and smoke-test every selectable Gateway model after model-catalog or AI SDK changes.
 - Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
 - “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.
+
+## Market Signals Boundaries
+
+- Market Signals use the `market_signals` permission resource. Canonical events/evidence are service-ingested and read-only to authenticated users; human reviewers append decisions rather than rewriting evidence or history.
+- Market Signals scoring and queue selection are deterministic and auditable. The Vercel AI Gateway Signal Brief may explain only the stored snapshot; it must not calculate booking vulnerability, choose numeric ADR/stay-rule changes, bypass the bounded review gate, or mutate PriceLabs/PMS/OTA systems. Persist the prompt version, model, fingerprinted input snapshot, structured output, usage, latency, and failure state. Validate grounding before exposing output.
+- A Needs Review item must have current PriceLabs evidence for at least half of the market's active approved listings, explicit vulnerability at or above 45, verified/current event evidence, materiality at or above 65, and selection inside the five-distinct-family market review budget. Unknown/stale/overflow items stay on Watchlist.
+- Market footprint setup is agent-managed: coordinate matches can be approved and configured markets activated without a human setup gate. The agent may automatically enable a registered source only after its secure server credential exists. Human approval begins at consequential revenue recommendations and all downstream PriceLabs/PMS/OTA mutations.
+- Provider adapters must normalize into `NormalizedProviderEvent`; secrets stay server-side and a missing credential must fail closed. Never add a committed fallback token.
+- Event identity is source-independent. Deduplicate by canonical fingerprint and provider records, not provider ID alone. Unknown recurring-family keys must remain title-specific rather than falling back to `sports`, `concerts`, or another broad category.
+- Initial reviewer proposals name bounded actions and missing evidence; they do not invent an ADR percentage or mutate PriceLabs, a PMS, or an OTA.
+- Human Watch/Dismiss/Escalate/Create/Link decisions are tied to the completed brief version and append-only. A changed deterministic snapshot creates a new brief and reopens review. Creating or linking an Adjustment must use the migration-082 transactional RPCs; only an open internal recommendation may be created, and no commercial change is approved or applied by that operation.
+- Scheduled and manual refreshes must enqueue one durable `market_signal_jobs` row per market. Workers claim with a lease and `FOR UPDATE SKIP LOCKED`; never reintroduce a request-scoped loop across all active markets. A source's own cadence is the minimum provider-read interval, but actual freshness also depends on how often a worker is invoked. The current Vercel project drains daily through the existing Stripe cron plus on-demand editor refresh; adding a higher-frequency scheduler requires a compatible deployment plan or an authenticated external wake-up.
+- Deterministic scoring may evaluate every approved listing in memory, but database evidence is bounded to the top 25 exposed listings for each selected review signal. Keep full evaluated/exposed counts in the impact summary and use the atomic scoring RPC; do not persist the complete event × listing Cartesian product.
+- PriceLabs inventory refresh must enqueue `inventory_refresh` jobs so vulnerability and cached briefs can be recomputed without a PredictHQ request. The event-provider beta expiring must not stop inventory-only work or queue retries.
 
 ## Liquid Glass Visual System
 
