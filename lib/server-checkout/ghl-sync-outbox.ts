@@ -10,6 +10,8 @@ export type GhlCheckoutProjection = {
   checkout_session_id: string
   stripe_customer_id: string
   stripe_subscription_id: string
+  stripe_initial_invoice_id: string
+  stripe_payment_intent_id: string
   payment_state: "payment_verified" | "payment_verified_scheduled"
 }
 

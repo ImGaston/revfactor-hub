@@ -6,6 +6,7 @@ import {
 export type AssemblyHandoffCandidate = {
   onboardingRunId: string
   checkoutAttemptId: string
+  agreementRevision: number
   finalOnboardingSubmittedAt: string
   dedupeKey: string
 }
@@ -16,10 +17,28 @@ export function buildAssemblyHandoffCandidate(input: {
   onboardingRunId: string
   checkoutAttemptId: string
   checkoutState: CheckoutState
+  entitlementStatus: "active" | "superseded" | "revoked"
+  agreementRevision: number
+  currentAgreementRevision: number
   finalOnboardingSubmittedAt: string | null
   hasOwnedException: boolean
+  hasIdentityConflict: boolean
+  hasProviderConflict: boolean
 }): AssemblyHandoffCandidate {
-  if (input.hasOwnedException) {
+  if (
+    input.entitlementStatus !== "active" ||
+    input.agreementRevision !== input.currentAgreementRevision
+  ) {
+    throw new CheckoutBoundaryError(
+      "inactive_entitlement",
+      "Only the current active agreement revision can trigger Assembly"
+    )
+  }
+  if (
+    input.hasOwnedException ||
+    input.hasIdentityConflict ||
+    input.hasProviderConflict
+  ) {
     throw new CheckoutBoundaryError(
       "manual_review",
       "Owned exceptions cannot trigger Assembly"
@@ -44,7 +63,8 @@ export function buildAssemblyHandoffCandidate(input: {
   return {
     onboardingRunId: input.onboardingRunId,
     checkoutAttemptId: input.checkoutAttemptId,
+    agreementRevision: input.agreementRevision,
     finalOnboardingSubmittedAt: input.finalOnboardingSubmittedAt,
-    dedupeKey: `rf.onboarding.final.v1:${input.onboardingRunId}:${input.checkoutAttemptId}`,
+    dedupeKey: `rf.onboarding.v1:${input.onboardingRunId}`,
   }
 }

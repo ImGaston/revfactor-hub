@@ -39,7 +39,7 @@ export class DbCheckoutAttemptRepository {
     const result = await this.database
       .from("agreement_entitlements")
       .select(
-        "id,jti,status,expires_at,highlevel_location_id,highlevel_contact_id,agreement_document_id,agreement_template_id,agreement_revision,agreement_content_sha256,primary_quantity,child_quantity,onboarding_fee_cents,service_start_mode,service_start_date,currency,price_book_version,tax_policy"
+        "id,jti,status,expires_at,environment,stripe_account_id,highlevel_location_id,highlevel_contact_id,agreement_document_id,agreement_template_id,agreement_revision,agreement_content_sha256,primary_quantity,child_quantity,onboarding_fee_cents,service_start_mode,service_start_date,currency,price_book_version,tax_policy"
       )
       .eq("jti", jti)
       .maybeSingle()
@@ -51,6 +51,8 @@ export class DbCheckoutAttemptRepository {
       jti: String(row.jti),
       status: row.status as StoredEntitlement["status"],
       expiresAt: String(row.expires_at),
+      environment: row.environment as StoredEntitlement["environment"],
+      stripeAccountId: String(row.stripe_account_id),
       highLevelLocationId: String(row.highlevel_location_id),
       highLevelContactId: String(row.highlevel_contact_id),
       agreementDocumentId: String(row.agreement_document_id),
@@ -78,6 +80,8 @@ export class DbCheckoutAttemptRepository {
       priceId: string
       quantity: number
       kind: "one_time" | "recurring"
+      unitAmount: number
+      currency: "usd"
     }>
   ): Promise<CheckoutAttempt> {
     const result = await this.database.rpc("claim_server_checkout_attempt", {

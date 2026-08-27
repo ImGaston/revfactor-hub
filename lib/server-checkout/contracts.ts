@@ -54,6 +54,7 @@ export const entitlementPayloadSchema = z
       serviceStartDate: z.string().date().nullable(),
       currency: z.literal("usd"),
       priceBookVersion: z.string().min(1).max(50),
+      stripeAccountId: z.string().min(3).max(100),
       taxPolicy: z.enum(["policy_blocked", "provisional_fixture_only"]),
     }),
   })
@@ -101,6 +102,8 @@ export type StoredEntitlement = {
   jti: string
   status: "active" | "superseded" | "revoked"
   expiresAt: string
+  environment: "isolated_fixture" | "test" | "live"
+  stripeAccountId: string
   highLevelLocationId: string
   highLevelContactId: string
   agreementDocumentId: string
