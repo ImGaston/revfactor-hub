@@ -309,6 +309,13 @@ GoHighLevel is intended to replace the vibecoded scheduler and own lead capture,
 - Contact upsert now also records `contact.rf_agreement_effective_date` as the agreement-creation date. The corresponding GHL contact custom field exists, but the PDF template still needs its page-one legal-name/effective-date overlays linked before those values can render in the agreement.
 - Browser CORS is restricted to `https://links.revfactor.io`; the API credential is a Worker secret. The funnel, workflows, and production signup URL remain unpublished/unchanged. Before launch, link the page-one legal-name/effective-date fields, decide whether RevFactor should countersign or use a static authorized-representative block, confirm whether the internal signer blocks the immediate agreement-to-payment transition, then run a Stripe Test payment and idempotent Assembly handoff.
 
+### RF-AUTO-001 server-checkout boundary (Draft/Test, 2026-08-27)
+
+- The accepted boundary keeps GHL responsible for agreement/intake/reminders but does not let GHL or browser fields supply billing authority. A short-lived Ed25519-signed entitlement identifies one agreement document revision; the Hub compares it to a stored entitlement and resolves exact prices through a versioned server allowlist.
+- Migration 088 is additive and unapplied. Database functions own checkout generations, idempotency keys, legal transitions, provider-event replay, canonical Stripe IDs, and the GHL sync outbox transaction. RLS is enabled and writes/functions are service-role-only.
+- The implementation is inert: no public route, real Stripe adapter, migration application, enabled GHL outbox worker, feature flag, or Assembly trigger. Tax is blocked except for explicitly labeled isolated fixtures. Payment cannot create an Assembly handoff candidate until final onboarding has been submitted and the GHL onboarding gate is unlocked.
+- Review contract and diagrams: `docs/ghl/RF-AUTO-001_SERVER_CHECKOUT_BOUNDARY.md`.
+
 ## Landing Page to Pipeline Webhook (implemented 2026-07-09)
 
 Generic lead intake for landing-page forms (e.g. the home email-capture field). External contract: `docs/webhook-pipeline-integration.md` (rewritten 2026-07-10; the old version documented `project_name`/`full_name` as required, which the code never enforced).

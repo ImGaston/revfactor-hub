@@ -659,3 +659,10 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Repaired the cloned template's incomplete recurring schedule so GHL would accept publication, deployed staging Worker version `239bd9d7-42fc-4cc2-865e-d9b157ce93af`, and added the child-template settings to local/example Worker configuration.
 - Added `contact.rf_agreement_effective_date` population and its GHL contact custom field. The page-one agreement boxes are not yet linked because GHL requires precise drag placement in its PDF canvas. Fresh page-four QA showed the signature/name/date overlays aligned correctly. No agreement was signed and no payment was attempted.
 - Verification: the targeted HighLevel tests (3) and `pnpm typecheck` pass. Fresh standard and child documents were generated through the staging Worker and inspected without completing their required fields.
+
+# 2026-08-27 — RF-AUTO-001 inert server-checkout boundary
+
+- Started from a clean isolated `codex/rf-auto-001-server-checkout` worktree pinned to canonical `origin/main`; the mixed working checkout and its untracked migration 087 were not touched.
+- Added signed agreement-entitlement verification and stored-record comparison, a versioned provider price allowlist, DB-owned checkout generations/idempotency, injected provider interfaces only, signed webhook reconciliation, atomic provider-event/GHL-outbox persistence, a hard-disabled GHL worker contract, and a final-submission Assembly gate.
+- Added unapplied additive migration 088 with explicit state constraints, service-billing and owned-exception states, RLS, grants, service-role-only functions, row-lock concurrency, replay uniqueness, and fail-closed tax policy outside isolated provisional fixtures.
+- Added architecture/process documentation and structural, replay, state, authority, and policy tests. No route, migration application, provider resource, card, message, workflow, domain, GHL/Hub/Assembly production write, or AI activation was introduced.

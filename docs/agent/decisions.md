@@ -408,3 +408,7 @@ Replace the client-visible native GHL form confirmation/email detour with an in-
 Create the agreement with `sendDocument: false`, send it with `medium: link`, and navigate the top window directly to the contact-specific GHL signer URL. Email is retained only as a future fallback, not the primary path.
 
 Keep the funnel and both workflows unpublished until the agreement-to-Stripe-Test-to-Assembly sequence is verified. The internal RevFactor signer on the current template is an explicit release gate because it may delay payment after the client signs.
+
+# 2026-08-27 — Billing Authority Is a Signed Agreement Revision, Not Browser or GHL Fields
+
+The native GHL payment surface could not prove one immutable transaction containing the required one-time fee plus exact signed recurring quantities. The accepted minimum custom boundary therefore receives only a short-lived Ed25519-signed entitlement token, compares every commercial field to a stored agreement revision, resolves exact provider prices through a versioned server allowlist, and lets the database own idempotency generations and webhook replay. Provider reconciliation commits canonical IDs and a disabled GHL outbox atomically. Payment alone never triggers Assembly; final onboarding submission remains a separate mandatory gate. Migration 088 and all policies are Draft/Test only and unapplied; tax remains blocked outside explicit isolated fixtures.
