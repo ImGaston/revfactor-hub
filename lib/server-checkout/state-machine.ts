@@ -18,6 +18,7 @@ export const legalCheckoutTransitions: Readonly<
     "checkout_completed_unverified",
     "session_expired",
     "payment_failed",
+    "provider_conflict",
     "cancelled",
   ],
   session_expired: ["superseded", "cancelled"],
@@ -66,6 +67,15 @@ export const legalCheckoutTransitions: Readonly<
   revoked: [],
   cancelled: [],
 }
+
+export const legalServiceBillingTransitions = {
+  not_started: ["scheduled", "active"],
+  scheduled: ["active", "failed", "cancelled"],
+  active: ["past_due", "failed", "cancelled"],
+  past_due: ["active", "failed", "cancelled"],
+  failed: ["active", "cancelled"],
+  cancelled: [],
+} as const
 
 export function reduceCheckoutState(
   current: CheckoutState,

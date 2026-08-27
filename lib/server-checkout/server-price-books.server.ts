@@ -53,7 +53,7 @@ export function loadServerPriceBooks(
       serverEnvironment,
       "RF_CHECKOUT_STRIPE_ACCOUNT_ID"
     ),
-    mode,
+    environment: mode,
     primary: {
       priceId: required(serverEnvironment, "RF_CHECKOUT_V1_PRIMARY_PRICE_ID"),
       productMarker: "revfactor_primary_listing",

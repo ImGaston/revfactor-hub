@@ -46,8 +46,9 @@ sequenceDiagram
   S->>P: Create/reuse session with DB idempotency key
   S->>D: Attach canonical session ID
   W->>S: Signed event
-  S->>P: Retrieve canonical session/subscription
-  S->>D: Atomic event + IDs + verified state + outbox
+  S->>P: Retrieve Session + initial Invoice/PaymentIntent + Subscription
+  S->>S: Prove exact paid amount/currency and active or exact trial state
+  S->>D: Atomic event + canonical billing IDs + verified state + outbox
   D-->>S: Commit
   Note over G: No route/scheduler/worker exists in this stage
 ```
@@ -69,31 +70,32 @@ Transitions are duplicated intentionally in TypeScript and migration 088. Tests 
 - The checkout function accepts only `entitlementToken` from the browser. There are no browser price, quantity, account, fee, cadence, or tax parameters.
 - The entitlement signature is EdDSA; header algorithm/type/key ID, audience, issuer, maximum lifetime, not-before, expiry, agreement hash/revision, quantities, service start, currency, price-book version, and tax policy are validated.
 - Signed fields are then compared one-for-one with `agreement_entitlements`; a valid token with stale or conflicting stored state fails.
-- The provider price inspection must match the allowlisted Stripe account, live/test mode, active state, product marker, amount, currency, one-time/recurring kind, and monthly cadence.
+- Token, stored entitlement, price book, provider adapter, signed event, and retrieved objects must all match the same environment and Stripe account. An `isolated_fixture` requires a `fixture:*` account and cannot invoke a Test/Live adapter.
+- The provider price inspection must match the allowlisted Stripe account, environment/live mode, active state, product marker, amount, currency, one-time/recurring kind, and monthly cadence.
 - `claim_server_checkout_attempt` locks the entitlement row, returns an existing active generation, and creates a replacement generation only from bounded safe states with no payment/subscription IDs.
-- Provider events are unique by provider event ID. Reconciliation, canonical IDs, verified state, and the GHL outbox insert commit atomically.
+- The one canonical line-item shape is `{ priceId, quantity, kind, unitAmount, currency }`, sorted by price ID from server claim through provider retrieval and SQL comparison.
+- `no_payment_required` is rejected. Scheduled service requires a paid $150 initial Invoice, its succeeded PaymentIntent, the Subscription latest-invoice identity, `trialing`, and the exact noon-UTC epoch of the signed service-start date. Immediate service requires the paid `$150 + first month` Invoice/PaymentIntent, `active`, and no trial.
+- Provider events are serialized and unique by provider event ID. Successful reconciliation, canonical customer/subscription/initial-Invoice/PaymentIntent IDs, verified state, and the GHL outbox insert commit atomically.
+- Correctly signed conflicts and unknown/out-of-order events are stored once with an allowlisted error code and a redacted observation capped at 4 KB. They create no GHL outbox row and known attempts fail closed in `provider_conflict`.
 - The webhook reconciliation module imports no GHL or Assembly client. It cannot perform an external action before database commit.
-- Migration 088 creates no Assembly trigger or outbox. `buildAssemblyHandoffCandidate` additionally requires a final onboarding submission and an unlocked/active checkout state.
+- Migration 088 adds a guard trigger to migration 087's existing Assembly handoff outbox. It requires the current active agreement revision, matching GHL contact/run identity, no exception/conflict, final submitted GHL onboarding, approved commercial state, and the run-stable key `rf.onboarding.v1:<run_id>`. Replacement checkout attempts cannot create a second Assembly identity.
 
 ## RLS and grants
 
-All five new tables enable RLS. Authenticated users receive SELECT only and only `super_admin` passes the policy. `anon` and `authenticated` receive no writes. The service role receives the minimum table rights and exclusive execute rights on claim, attach, transition, and reconciliation functions. Every SECURITY DEFINER function fixes `search_path = public`.
+All six new tables enable RLS. Authenticated users receive SELECT only and only `super_admin` passes the policy. `anon` and `authenticated` receive no writes. The service role receives the minimum table rights and exclusive execute rights on claim, attach, transition, expected-state lookup, reconciliation, and conflict-audit functions. Every SECURITY DEFINER function fixes `search_path = public`. Separate triggers enforce checkout transitions, service-billing transitions, immutable issued commercial fields, immutable attempt authority fields, and the final Assembly predicate.
 
-## Test and migration rehearsal plan
+## Executed disposable migration rehearsal
 
-1. Run unit/structural tests and TypeScript checks without credentials.
-2. Apply migration 088 only to a disposable database cloned through migration 087-or-earlier history; verify forward apply, constraints, RLS, grants, and function signatures.
-3. Run two concurrent claim transactions for one entitlement; both must return the same active generation and idempotency key.
-4. Replay one provider event; the second call must report duplicate and create no second outbox row.
-5. Exercise mismatch cases for signature, stored agreement revision, price/account/mode, quantities, tax policy, provider IDs, and service-start state.
-6. Confirm migration rollback is drop-only in the disposable database. Production rollback before activation is code/flag removal plus leaving inert ledger tables in place; destructive table rollback requires separate approval.
+`scripts/rehearse-server-checkout-migration.sh` starts PostgreSQL in a new `mktemp` cluster with socket-only networking, applies the real local migration 087, applies 088 inside a transaction and rolls it back, verifies no 088 object survived, applies 088 forward, runs assertions, then drops and rebuilds the database and applies 087→088 again. The cluster is stopped and deleted on exit.
+
+The executed rehearsal passed: 087→088 forward, transactional rollback, forward-again, 20 concurrent claims returning one attempt/generation, success and conflict replay, out-of-order fail-closed behavior, RLS/grants/function signatures, agreement/attempt immutability, service-billing transitions, exact scheduled and immediate authority, GHL outbox atomicity, and the final Assembly gate. `supabase/rehearsal/087_prerequisites.sql` contains disposable schema stubs only; the actual 087 file is supplied to the script and is not copied into this PR.
 
 ## Deliberate limitations
 
 - No public route wires these services.
 - No real Stripe adapter or test/live Stripe resource is present.
 - The inert server price-book loader names five future server-only variables (`RF_CHECKOUT_STRIPE_ACCOUNT_ID`, `RF_CHECKOUT_STRIPE_MODE`, and the three `RF_CHECKOUT_V1_*_PRICE_ID` values); none is configured or read by a route in this stage.
-- No migration has been applied.
+- Migration 088 has not been applied outside the disposable temporary PostgreSQL clusters described above.
 - No GHL outbox worker exists; `GHL_CHECKOUT_SYNC_WORKER_ENABLED` is `false`.
 - No GHL/Assembly production effect, message, agreement, domain, workflow, card, subscription, invoice, or AI action is included.
 - Tax policy and immediate-versus-scheduled commercial policy remain Federico decisions before any integration stage.

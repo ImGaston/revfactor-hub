@@ -13,6 +13,8 @@ import {
 import type { CheckoutAttemptRepository } from "@/lib/server-checkout/repository.server"
 
 export type CheckoutProviderAdapter = {
+  environment: "isolated_fixture" | "test" | "live"
+  stripeAccountId: string
   createCheckout(input: {
     idempotencyKey: string
     entitlementId: string
@@ -24,6 +26,8 @@ export type CheckoutProviderAdapter = {
       priceId: string
       quantity: number
       kind: "one_time" | "recurring"
+      unitAmount: number
+      currency: "usd"
     }>
   }): Promise<{ checkoutSessionId: string; checkoutUrl: string }>
 }
@@ -65,6 +69,15 @@ export async function prepareServerCheckout(input: {
     inspectPrice: input.inspectPrice,
     allowProvisionalFixturePolicy: input.allowProvisionalFixturePolicy,
   })
+  if (
+    input.provider.environment !== entitlement.environment ||
+    input.provider.stripeAccountId !== entitlement.order.stripeAccountId
+  ) {
+    throw new CheckoutBoundaryError(
+      "environment_mismatch",
+      "Provider adapter is not bound to the signed environment and account"
+    )
+  }
   const identitySha256 = agreementRevisionIdentity(entitlement)
   const attempt = await input.repository.claimAttempt(
     stored.id,

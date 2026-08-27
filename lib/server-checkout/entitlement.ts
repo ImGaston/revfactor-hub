@@ -86,6 +86,8 @@ export function compareEntitlementToStoredRecord(
   const expected: Array<[string, unknown, unknown]> = [
     ["subject", payload.sub, stored.id],
     ["jti", payload.jti, stored.jti],
+    ["environment", payload.environment, stored.environment],
+    ["Stripe account", payload.order.stripeAccountId, stored.stripeAccountId],
     ["GHL location", payload.highLevel.locationId, stored.highLevelLocationId],
     ["GHL contact", payload.highLevel.contactId, stored.highLevelContactId],
     [
