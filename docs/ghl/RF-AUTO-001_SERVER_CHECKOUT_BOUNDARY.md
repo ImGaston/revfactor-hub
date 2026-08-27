@@ -4,7 +4,7 @@ Status: **Draft/Test only; migration 088 is unapplied; no route, worker, provide
 
 This slice replaces the unsafe authority model of the existing draft checkout bridge. Browser/GHL values do not select prices or quantities. A short-lived Ed25519-signed entitlement identifies one exact agreement revision; the server compares every commercial claim to its stored record, resolves a versioned allowlisted price book, and lets the database own attempt generations and provider-event replay.
 
-The policies below are fixtures only: **PROVISIONAL — NOT BUSINESS APPROVAL.** The one-time fee is $150; scheduled service collects that fee at checkout and begins recurring billing on the service-start date; immediate service includes the first month; quantity changes require a revised agreement; tax is `policy_blocked` outside isolated fixtures; owned exceptions require a named human and cannot trigger Assembly.
+The policies below are fixtures only: **PROVISIONAL — NOT BUSINESS APPROVAL.** The one-time fee is $150; scheduled service collects that fee at checkout and begins recurring billing on the service-start date; immediate service includes the first month; quantity changes require a revised agreement; tax is `policy_blocked` outside isolated fixtures; owned exceptions require a named human and cannot trigger Assembly. Federico's four pending choices are consolidated in [RF-AUTO-001_FEDE_COMMERCIAL_DECISIONS.md](./RF-AUTO-001_FEDE_COMMERCIAL_DECISIONS.md).
 
 ## Architecture
 
