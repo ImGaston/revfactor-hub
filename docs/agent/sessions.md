@@ -726,3 +726,10 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 # 2026-09-03 — Reconciliation build slice
 
 On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), added and tested `lib/market-signals/reconciliation.ts` plus four deterministic Vitest cases. Updated the university source audit and added `docs/market-signals/university-reconciliation-handoff.md`. No database, environment, provider, schedule, or pricing changes were made. Next step is review/integration of durable reconciliation run and delta persistence after the foundation production migration is approved.
+
+# 2026-08-27 — RF-AUTO-001 inert server-checkout boundary
+
+- Started from a clean isolated `codex/rf-auto-001-server-checkout` worktree pinned to canonical `origin/main`; the mixed working checkout and its untracked migration 087 were not touched.
+- Added signed agreement-entitlement verification and stored-record comparison, a versioned provider price allowlist, DB-owned checkout generations/idempotency, injected provider interfaces only, signed webhook reconciliation, atomic provider-event/GHL-outbox persistence, a hard-disabled GHL worker contract, and a final-submission Assembly gate.
+- Added unapplied additive migration 088 with explicit state constraints, service-billing and owned-exception states, RLS, grants, service-role-only functions, row-lock concurrency, replay uniqueness, and fail-closed tax policy outside isolated provisional fixtures.
+- Added architecture/process documentation and structural, replay, state, authority, and policy tests. No route, migration application, provider resource, card, message, workflow, domain, GHL/Hub/Assembly production write, or AI activation was introduced.
