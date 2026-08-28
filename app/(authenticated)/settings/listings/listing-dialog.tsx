@@ -10,6 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -40,6 +41,9 @@ type ListingRecord = {
   airbnb_link: string | null
   city: string | null
   state: string | null
+  initial_setup_date?: string | null
+  adjustment_confirmed_date?: string | null
+  deactivated_date?: string | null
 }
 
 type ClientOption = { id: string; name: string }
@@ -56,6 +60,15 @@ export function ListingDialog({
   const isEdit = !!listing?.id
   const [clientId, setClientId] = useState(listing?.client_id ?? "")
   const [status, setStatus] = useState(listing?.status ?? "active")
+  const [initialSetupDate, setInitialSetupDate] = useState(
+    listing?.initial_setup_date ?? ""
+  )
+  const [adjustmentConfirmedDate, setAdjustmentConfirmedDate] = useState(
+    listing?.adjustment_confirmed_date ?? ""
+  )
+  const [deactivatedDate, setDeactivatedDate] = useState(
+    listing?.deactivated_date ?? ""
+  )
   const [values, setValues] = useState<ListingFormValues>(
     listingValuesFromRecord(listing)
   )
@@ -89,6 +102,9 @@ export function ListingDialog({
       client_id: clientId,
       status: status || "active",
       ...buildListingFields(values),
+      initial_setup_date: initialSetupDate || null,
+      adjustment_confirmed_date: adjustmentConfirmedDate || null,
+      deactivated_date: deactivatedDate || null,
     }
 
     const result = isEdit
@@ -152,6 +168,41 @@ export function ListingDialog({
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="listing-initial-setup">Initial setup</Label>
+              <Input
+                id="listing-initial-setup"
+                type="date"
+                value={initialSetupDate}
+                onChange={(e) => setInitialSetupDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="listing-adjustment-confirmed">
+                Adjustment confirmed
+              </Label>
+              <Input
+                id="listing-adjustment-confirmed"
+                type="date"
+                value={adjustmentConfirmedDate}
+                onChange={(e) => setAdjustmentConfirmedDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="listing-deactivated">Deactivated</Label>
+              <Input
+                id="listing-deactivated"
+                type="date"
+                value={deactivatedDate}
+                onChange={(e) => setDeactivatedDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Auto-set when the listing goes inactive; cleared on reactivation.
+              </p>
             </div>
           </div>
 

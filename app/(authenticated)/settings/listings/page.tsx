@@ -17,7 +17,7 @@ export default async function SettingsListingsPage() {
     supabase
       .from("listings")
       .select(
-        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, clients(id, name)"
+        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, initial_setup_date, adjustment_confirmed_date, deactivated_date, clients(id, name)"
       )
       .order("name"),
     supabase
@@ -53,6 +53,9 @@ export default async function SettingsListingsPage() {
       client_id: l.client_id as string,
       client_name: client?.name ?? null,
       pl_synced_at: l.pl_synced_at as string | null,
+      initial_setup_date: l.initial_setup_date as string | null,
+      adjustment_confirmed_date: l.adjustment_confirmed_date as string | null,
+      deactivated_date: l.deactivated_date as string | null,
     }
   })
 

@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/chart"
 import { Bar, BarChart, XAxis, YAxis } from "recharts"
 import { MonthlyPacingChart } from "@/components/dashboard/monthly-pacing-chart"
+import { EvolutionChart } from "@/components/dashboard/listings-evolution-chart"
+import type { MonthlyEvolutionPoint } from "@/lib/monthly-summary"
 import type { MonthlyPacingSource } from "@/lib/monthly-pacing"
 
 type TasksByStatus = {
@@ -78,10 +80,14 @@ export function DashboardView({
   stats,
   recentTasks,
   monthlyPacingSource,
+  listingsEvolution,
+  clientsEvolution,
 }: {
   stats: DashboardStats
   recentTasks: RecentTask[]
   monthlyPacingSource: MonthlyPacingSource
+  listingsEvolution: MonthlyEvolutionPoint[]
+  clientsEvolution: MonthlyEvolutionPoint[]
 }) {
   const barData = taskBarData.map((d, i) => {
     const keys = ["todo", "in_progress", "waiting", "done"] as const
@@ -138,6 +144,20 @@ export function DashboardView({
           value={stats.roadmapInProgress}
           sub="active initiatives"
           href="/roadmap"
+        />
+      </div>
+
+      {/* Monthly evolution — listings and clients side by side */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <EvolutionChart
+          points={listingsEvolution}
+          title="Listings"
+          description="Active listings at month end, with new and churned"
+        />
+        <EvolutionChart
+          points={clientsEvolution}
+          title="Clients"
+          description="Active clients at month end, with new and churned"
         />
       </div>
 

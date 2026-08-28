@@ -65,6 +65,9 @@ type SettingsListing = {
   client_id: string
   client_name: string | null
   pl_synced_at: string | null
+  initial_setup_date: string | null
+  adjustment_confirmed_date: string | null
+  deactivated_date: string | null
 }
 
 type StatusFilter = "all" | "active" | "inactive"

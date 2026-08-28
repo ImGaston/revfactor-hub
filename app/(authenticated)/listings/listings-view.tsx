@@ -73,12 +73,16 @@ import { deleteListingAction } from "@/app/(authenticated)/settings/listings/act
 export type FlatListing = {
   id: string
   name: string
+  status: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
   city: string | null
   state: string | null
   client_id: string
+  initial_setup_date: string | null
+  adjustment_confirmed_date: string | null
+  deactivated_date: string | null
   client_name: string | null
   client_status: string | null
 }
@@ -87,11 +91,15 @@ type ListingFormData = {
   id?: string
   client_id: string
   name: string
+  status: string
   listing_id: string | null
   pricelabs_link: string | null
   airbnb_link: string | null
   city: string | null
   state: string | null
+  initial_setup_date: string | null
+  adjustment_confirmed_date: string | null
+  deactivated_date: string | null
 }
 
 type SortField = "name" | "client_name" | "city" | "state"
@@ -170,11 +178,15 @@ export function ListingsView({
       id: listing.id,
       client_id: listing.client_id,
       name: listing.name,
+      status: listing.status,
       listing_id: listing.listing_id,
       pricelabs_link: listing.pricelabs_link,
       airbnb_link: listing.airbnb_link,
       city: listing.city,
       state: listing.state,
+      initial_setup_date: listing.initial_setup_date,
+      adjustment_confirmed_date: listing.adjustment_confirmed_date,
+      deactivated_date: listing.deactivated_date,
     })
     setDialogOpen(true)
   }

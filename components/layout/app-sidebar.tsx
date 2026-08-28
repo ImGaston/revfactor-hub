@@ -21,6 +21,7 @@ import {
   User as UserIcon,
   FileChartColumnIncreasing,
   Trophy,
+  CalendarRange,
 } from "lucide-react"
 import * as React from "react"
 import Image from "next/image"
@@ -66,6 +67,12 @@ const navItems: NavItem[] = [
     href: "/listings",
     icon: Building2,
     resource: "listings",
+  },
+  {
+    title: "Monthly Summary",
+    href: "/monthly-summary",
+    icon: CalendarRange,
+    resource: "monthly_summary",
   },
   {
     title: "Reservations",

@@ -18,6 +18,7 @@ export const RESOURCES = [
   { key: "market_signals", label: "Market Signals", description: "Governed market events, evidence, and revenue review queues" },
   { key: "wins", label: "Wins", description: "Positive-performance detection and client message drafts" },
   { key: "team_credentials", label: "Team Credentials", description: "Shared logins for team apps (PriceLabs, OTA extranets, ...)" },
+  { key: "monthly_summary", label: "Monthly Summary", description: "Portfolio counts and new/churned listings per month" },
 ] as const
 
 export const ACTIONS = ["view", "create", "edit", "delete", "publish", "control"] as const

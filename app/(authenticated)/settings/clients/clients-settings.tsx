@@ -77,6 +77,8 @@ type SettingsClient = {
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
+  pms_name: string | null
+  has_vrbo: boolean
   listingCount: number
 }
 

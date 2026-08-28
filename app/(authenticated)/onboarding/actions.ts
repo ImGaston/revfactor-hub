@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
+import { clientStatusPatch } from "@/lib/clients"
 
 // ─── Update client status ─────────────────────────────
 
@@ -16,9 +17,25 @@ export async function updateClientStatus(
   }
 
   const supabase = await createClient()
+
+  // Same churn-field semantics as the Settings clients action (shared helper):
+  // going inactive stamps ending_date, reactivating clears churn data.
+  const { data: current } = await supabase
+    .from("clients")
+    .select("status, ending_date")
+    .eq("id", clientId)
+    .single()
+
   const { error } = await supabase
     .from("clients")
-    .update({ status })
+    .update({
+      status,
+      ...clientStatusPatch(
+        current?.status ?? null,
+        status,
+        current?.ending_date ?? null
+      ),
+    })
     .eq("id", clientId)
 
   if (error) return { error: error.message }

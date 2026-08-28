@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { getMonthlyPacingSource } from "@/lib/monthly-pacing"
+import {
+  computeMonthlyEvolution,
+  currentMonthISO,
+  getClientsEvolutionRows,
+  getMonthlySummaryListings,
+} from "@/lib/monthly-summary"
 import { DashboardView } from "./dashboard-view"
 
 export default async function DashboardPage() {
@@ -14,6 +20,8 @@ export default async function DashboardPage() {
     { data: recentTasks },
     { count: roadmapInProgress },
     monthlyPacingSource,
+    summaryListings,
+    clientRows,
   ] = await Promise.all([
     supabase.from("clients").select("*", { count: "exact", head: true }),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
@@ -23,7 +31,13 @@ export default async function DashboardPage() {
     supabase.from("tasks").select("id, title, status, tags, clients(name), profiles(full_name, email)").order("created_at", { ascending: false }).limit(5),
     supabase.from("posts").select("*", { count: "exact", head: true }).eq("status", "in_progress"),
     getMonthlyPacingSource(supabase),
+    getMonthlySummaryListings(supabase),
+    getClientsEvolutionRows(supabase),
   ])
+
+  const month = currentMonthISO()
+  const listingsEvolution = computeMonthlyEvolution(summaryListings, 12, month)
+  const clientsEvolution = computeMonthlyEvolution(clientRows, 12, month)
 
   const tasksByStatus = {
     todo: 0,
@@ -43,6 +57,8 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       monthlyPacingSource={monthlyPacingSource}
+      listingsEvolution={listingsEvolution}
+      clientsEvolution={clientsEvolution}
       stats={{
         totalClients: clientCount ?? 0,
         activeClients: activeClientCount ?? 0,

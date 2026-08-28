@@ -22,6 +22,7 @@ import {
   Pencil,
   Copy,
   UserMinus,
+  MonitorSmartphone,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -397,6 +398,15 @@ export function ClientDetailPage({
           </span>
         </InfoRow>
 
+        <InfoRow icon={MonitorSmartphone} label="PMS">
+          <span>{client.pms_name ?? "No PMS"}</span>
+          {client.has_vrbo && (
+            <Badge variant="secondary" className="ml-2" title="Parent/child listings in PriceLabs">
+              Vrbo
+            </Badge>
+          )}
+        </InfoRow>
+
         {isSuperAdmin &&
           client.status === "inactive" &&
           (client.ending_reason_tags.length > 0 || client.ending_note) && (
@@ -722,6 +732,8 @@ export function ClientDetailPage({
           billing_amount: client.billing_amount,
           autopayment_set_up: client.autopayment_set_up,
           stripe_dashboard: client.stripe_dashboard,
+          pms_name: client.pms_name,
+          has_vrbo: client.has_vrbo,
           ending_reason_tags: client.ending_reason_tags,
           ending_note: client.ending_note,
         }}

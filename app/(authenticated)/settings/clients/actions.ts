@@ -10,6 +10,7 @@ import {
   assemblyClientMessagesUrl,
   assemblyCompanyMessagesUrl,
 } from "@/lib/assembly"
+import { clientStatusPatch } from "@/lib/clients"
 
 type ClientInput = {
   name: string
@@ -21,6 +22,8 @@ type ClientInput = {
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
+  pms_name: string | null
+  has_vrbo: boolean
   ending_reason_tags?: string[]
   ending_note?: string | null
 }
@@ -207,25 +210,20 @@ export async function updateClientAction(id: string, input: ClientInput) {
     delete input.ending_note
   }
 
-  if (input.status === "inactive") {
-    if (!input.ending_date) {
-      input.ending_date = new Date().toISOString().split("T")[0]
-    }
-  } else {
+  let currentStatus: string | null = null
+  if (input.status !== "inactive") {
     const { data: current } = await supabase
       .from("clients")
       .select("status")
       .eq("id", id)
       .single()
-    // Reactivated clients are no longer churned — clear churn data for any role.
-    // Only on the inactive → active/onboarding transition: ending_date doubles as
-    // the planned contract end for active clients and must survive normal edits.
-    if (current?.status === "inactive") {
-      input.ending_date = null
-      input.ending_reason_tags = []
-      input.ending_note = null
-    }
+    currentStatus = current?.status ?? null
   }
+  // Reactivated clients are no longer churned — clear churn data for any role.
+  Object.assign(
+    input,
+    clientStatusPatch(currentStatus, input.status, input.ending_date)
+  )
 
   const { error } = await supabase.from("clients").update(input).eq("id", id)
   if (error) return { error: error.message }

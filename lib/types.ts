@@ -14,6 +14,9 @@ export type Listing = {
   pl_mpi_next_30: number | null
   pl_last_booked_date: string | null
   stripe_subscription_id?: string | null
+  initial_setup_date?: string | null
+  adjustment_confirmed_date?: string | null
+  deactivated_date?: string | null
 }
 
 export type ListingWithMetrics = Listing & {
@@ -70,6 +73,8 @@ export type Client = {
   assembly_client_id: string | null
   assembly_company_id: string | null
   dashboard_url: string | null
+  pms_name: string | null
+  has_vrbo: boolean
   listings: Listing[]
   tasks: ClientTask[]
 }

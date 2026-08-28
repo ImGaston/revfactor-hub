@@ -21,6 +21,11 @@ type ListingInput = {
   airbnb_link: string | null
   city: string | null
   state: string | null
+  // Lifecycle dates (YYYY-MM-DD). Optional so quick-add dialogs insert without them;
+  // deactivated_date is also auto-stamped/cleared by the DB trigger on status flips.
+  initial_setup_date?: string | null
+  adjustment_confirmed_date?: string | null
+  deactivated_date?: string | null
 }
 
 export async function getClientOptionsAction(): Promise<

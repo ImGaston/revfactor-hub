@@ -190,7 +190,7 @@ export async function updateAdjustmentStatus(
 
   const { data: current, error: fetchError } = await supabase
     .from("adjustments")
-    .select("status, public_token")
+    .select("status, public_token, type, listing_id, resolved_at")
     .eq("id", adjustmentId)
     .single()
 
@@ -259,6 +259,33 @@ export async function updateAdjustmentStatus(
       origin: await commentOriginForUser(supabase, user.id),
     })
     if (noteError) return { error: noteError.message }
+  }
+
+  // Controlling a setup adjustment certifies the listing's initial setup:
+  // stamp its lifecycle dates, only where still empty (first controlled setup
+  // wins). resolved = when the setup was done; controlled = when verified.
+  // Admin client because the actor holds adjustments:control (checked above),
+  // not necessarily listings:edit — that check is the in-code gate this
+  // privileged write requires. Non-fatal: the status transition already stuck.
+  if (newStatus === "controlled" && current.type === "setup" && current.listing_id) {
+    const today = new Date().toISOString().split("T")[0]
+    const admin = createAdminClient()
+    const { data: listingDates } = await admin
+      .from("listings")
+      .select("initial_setup_date, adjustment_confirmed_date")
+      .eq("id", current.listing_id)
+      .single()
+    if (listingDates) {
+      await admin
+        .from("listings")
+        .update({
+          initial_setup_date:
+            listingDates.initial_setup_date ??
+            (current.resolved_at ? String(current.resolved_at).slice(0, 10) : today),
+          adjustment_confirmed_date: listingDates.adjustment_confirmed_date ?? today,
+        })
+        .eq("id", current.listing_id)
+    }
   }
 
   revalidateAdjustment(adjustmentId, current.public_token)

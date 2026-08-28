@@ -36,6 +36,8 @@ type ClientFormData = {
   billing_amount: number | null
   autopayment_set_up: boolean
   stripe_dashboard: string | null
+  pms_name: string | null
+  has_vrbo: boolean
   ending_reason_tags?: string[] | null
   ending_note?: string | null
 }
@@ -50,6 +52,8 @@ const EMPTY: ClientFormData = {
   billing_amount: null,
   autopayment_set_up: false,
   stripe_dashboard: null,
+  pms_name: null,
+  has_vrbo: false,
   ending_reason_tags: [],
   ending_note: null,
 }
@@ -91,6 +95,8 @@ export function ClientDialog({
       billing_amount: form.billing_amount,
       autopayment_set_up: form.autopayment_set_up,
       stripe_dashboard: form.stripe_dashboard?.trim() || null,
+      pms_name: form.pms_name?.trim() || null,
+      has_vrbo: form.has_vrbo,
       // Only super_admin sees/edits churn fields; omit the keys otherwise so
       // a non-super_admin save never wipes existing values.
       ...(isSuperAdmin
@@ -189,6 +195,30 @@ export function ClientDialog({
                 value={form.ending_date ?? ""}
                 onChange={(e) => set("ending_date", e.target.value || null)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pms_name">PMS</Label>
+              <Input
+                id="pms_name"
+                value={form.pms_name ?? ""}
+                onChange={(e) => set("pms_name", e.target.value || null)}
+                placeholder="Empty = no PMS"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 pt-6">
+              <Switch
+                id="has_vrbo"
+                checked={form.has_vrbo}
+                onCheckedChange={(v) => set("has_vrbo", v)}
+              />
+              <div>
+                <Label htmlFor="has_vrbo">Vrbo account</Label>
+                <p className="text-xs text-muted-foreground">
+                  Parent/child listings in PriceLabs
+                </p>
+              </div>
             </div>
 
             {isSuperAdmin && form.status === "inactive" && (
