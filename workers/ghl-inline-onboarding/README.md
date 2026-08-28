@@ -38,7 +38,19 @@ The Durable Object persists each action state before crossing the GHL network bo
 
 A different revision for the same contact fails before commercial mutation. Ambiguous GHL outcomes remain in reconciliation-only stages and use bounded, redacted result codes; they never reopen the create path. A stale in-flight create state also advances only to reconciliation. The current version deliberately supports one immutable agreement revision per contact; amendments require a separately reviewed lifecycle design instead of overwriting the existing claim.
 
-Executable Worker tests use the Cloudflare Vitest pool and mocked GHL endpoints to prove concurrent identical-request collapse, standard/referral conflict isolation, exact-replay immutability, changed-legal-name rejection, and recovery from a committed-but-unacknowledged and temporarily unlistable GHL draft.
+Every preflight and reconciliation scan paginates the complete GHL location document inventory with `limit=50` and increasing `skip`. It requires a stable, safe-integer `total`, caps the scan at 20 pages / 1,000 documents, rejects missing or drifting totals, incomplete pages, over-counts, and duplicate/missing document IDs, and fails closed before commercial mutation whenever completeness cannot be proven. Read-only `preflight_scanning` may be safely restarted after 15 seconds; the mutation-bearing `commercial_writing` stage remains fail-closed/manual.
+
+The conflict-only legacy inventory is intentionally explicit:
+
+| Historical GHL template ID | Recognized document/template name |
+| --- | --- |
+| `6a88b36bf6fb5d14abd2fbfe` | `RevFactor_Service_Agreement` |
+| `6a89a4cff6fb5d14abe08d13` | `RevFactor_Service_Agreement_With_Child_Listings` |
+| `6a91927a8217f6dcbf68b3f9` | `RevFactor_Service_Agreement_Standard_Immediate_Start_DRAFT_v2` |
+
+An exact historical name or the Worker-generated form `<name> — …` blocks a new claim in draft, sent, viewed, completed, signed, or accepted state. These templates are conflict evidence only and can never be selected for new generation.
+
+Executable Worker tests use the Cloudflare Vitest pool and mocked GHL endpoints to prove concurrent identical-request collapse, standard/referral conflict isolation, exact-replay immutability, changed-legal-name rejection, page-two conflict/reconciliation discovery, incomplete/drifting/duplicate page-set rejection, all inventoried legacy agreement classes and open/completed states, stale preflight recovery, and recovery from a committed-but-unacknowledged and temporarily unlistable GHL draft.
 
 Run them from this directory with:
 
