@@ -6,7 +6,7 @@ import {
   CheckSquare,
   ClipboardList,
   Lightbulb,
-  Funnel,
+  Cable,
   DollarSign,
   Bot,
   BookOpen,
@@ -45,8 +45,8 @@ export const commands: CommandDef[] = [
   { id: "nav-tasks", label: "Go to Tasks", icon: CheckSquare, category: "pages", href: "/tasks", permission: { resource: "tasks", action: "view" }, contextRoutes: ["/tasks"] },
   { id: "nav-onboarding", label: "Go to Onboarding", icon: ClipboardList, category: "pages", href: "/onboarding", permission: { resource: "onboarding", action: "view" }, contextRoutes: ["/onboarding"] },
   { id: "nav-roadmap", label: "Go to Projects & Roadmap", icon: Lightbulb, category: "pages", href: "/roadmap", permission: { resource: "roadmap", action: "view" }, contextRoutes: ["/roadmap"] },
-  { id: "nav-pipeline", label: "Go to Pipeline", icon: Funnel, category: "pages", href: "/pipeline", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/pipeline"] },
-  { id: "nav-revenue-briefs", label: "Go to Revenue Briefs", icon: FileChartColumnIncreasing, category: "pages", href: "/revenue-briefs", permission: { resource: "pipeline", action: "view" }, contextRoutes: ["/revenue-briefs"], keywords: ["proposal", "pdf", "listing analysis", "owner brief"] },
+  { id: "nav-ghl", label: "Go to GHL", icon: Cable, category: "pages", href: "/ghl", permission: { resource: "ghl", action: "view" }, contextRoutes: ["/ghl"], keywords: ["gohighlevel", "highlevel", "crm", "sales"] },
+  { id: "nav-revenue-briefs", label: "Go to Revenue Briefs", icon: FileChartColumnIncreasing, category: "pages", href: "/revenue-briefs", permission: { resource: "ghl", action: "view" }, contextRoutes: ["/revenue-briefs"], keywords: ["proposal", "pdf", "listing analysis", "owner brief"] },
   { id: "nav-wins", label: "Go to Wins", icon: Trophy, category: "pages", href: "/wins", permission: { resource: "wins", action: "view" }, contextRoutes: ["/wins"], keywords: ["performance", "pickup", "yoy", "double win", "client update"] },
   { id: "nav-financials", label: "Go to Financials", icon: DollarSign, category: "pages", href: "/financials", superAdminOnly: true, contextRoutes: ["/financials"] },
   { id: "nav-agent-studio", label: "Go to Agent Studio", icon: Bot, category: "pages", href: "/agent-studio", permission: { resource: "agent_studio", action: "view" }, contextRoutes: ["/agent-studio"], keywords: ["ai", "assistant", "sandbox", "agent"] },
@@ -57,7 +57,6 @@ export const commands: CommandDef[] = [
   // --- Actions ---
   { id: "action-new-client", label: "New Client", icon: Plus, category: "actions", href: "/settings/clients", keywords: ["create", "add", "client"], permission: { resource: "clients", action: "create" }, contextRoutes: ["/clients"] },
   { id: "action-new-task", label: "New Task", icon: Plus, category: "actions", href: "/tasks", keywords: ["create", "add", "task"], permission: { resource: "tasks", action: "create" }, contextRoutes: ["/tasks"] },
-  { id: "action-new-lead", label: "New Lead", icon: Plus, category: "actions", href: "/pipeline", keywords: ["create", "add", "lead", "pipeline"], permission: { resource: "pipeline", action: "create" }, contextRoutes: ["/pipeline"] },
   { id: "action-new-idea", label: "New Roadmap Task", icon: Plus, category: "actions", href: "/roadmap", keywords: ["create", "add", "task", "project", "roadmap"], permission: { resource: "roadmap", action: "create" }, contextRoutes: ["/roadmap"] },
 
   // --- Settings ---

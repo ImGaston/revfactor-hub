@@ -7,7 +7,7 @@ import {
   CheckSquare,
   ClipboardList,
   Lightbulb,
-  Funnel,
+  Cable,
   Building2,
   DollarSign,
   BookOpen,
@@ -100,12 +100,12 @@ const navItems: NavItem[] = [
     icon: Lightbulb,
     resource: "roadmap",
   },
-  { title: "Pipeline", href: "/pipeline", icon: Funnel, resource: "pipeline" },
+  { title: "GHL", href: "/ghl", icon: Cable, resource: "ghl" },
   {
     title: "Revenue Briefs",
     href: "/revenue-briefs",
     icon: FileChartColumnIncreasing,
-    resource: "pipeline",
+    resource: "ghl",
   },
   {
     title: "Knowledge",

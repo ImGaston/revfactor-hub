@@ -383,7 +383,7 @@ export function RevenueBriefBuilder({
             <h1 className="text-2xl font-semibold tracking-tight">
               Revenue Brief Builder
             </h1>
-            <Badge variant="secondary">Pipeline tool</Badge>
+            <Badge variant="secondary">Sales tool</Badge>
           </div>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Turn a listing review into a consistent, owner-safe RevFactor

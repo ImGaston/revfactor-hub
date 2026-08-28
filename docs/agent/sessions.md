@@ -676,3 +676,8 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Reordered the workflow so clients search Unmapped Listings first and then Mapped Listings; documented that previously mapped Airbnb/Vrbo pairs may appear as PARENT and CHILD rows and that both channel IDs should be sent.
 - Produced a five-page branded PDF and packaged it at `public/resources/revfactor-pricelabs-listing-id-guide.pdf` for client download.
 - Added migration 088 to seed the same client-safe guidance as a native Client Onboarding Knowledge article, including the approved-answer candidate, escalation boundary, and review date. The article remains in the human review queue and agent-disabled until a Knowledge publisher approves and indexes it.
+## 2026-08-28 — Pipeline section removed, replaced by `/ghl` placeholder
+
+- Deleted `app/(authenticated)/pipeline/` (14 files), `@modal/(.)pipeline/`, and `lib/leads.ts`. Created `app/(authenticated)/ghl/page.tsx` — a `ghl:view`-gated placeholder describing the upcoming GoHighLevel↔Hub connection (scope TBD next session).
+- Updated sidebar (Cable icon), top-bar breadcrumb, command registry (removed `action-new-lead`, `nav-pipeline` → `nav-ghl`), `lib/permissions.ts` RESOURCES (`pipeline` → `ghl`), and re-pointed Revenue Briefs gating (`page.tsx` + `generate`/`airroi` routes + "Sales tool" badge) to `ghl:view`.
+- Migration `087_ghl_resource.sql` renames `role_permissions.resource` `pipeline` → `ghl`. Lead tables, ingest webhooks, Leads Read API, and `lib/lead-attribution.ts` intentionally untouched (external contracts, admin-client paths). See decisions.md 2026-08-28.

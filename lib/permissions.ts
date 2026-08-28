@@ -4,7 +4,7 @@ export const RESOURCES = [
   { key: "clients", label: "Clients", description: "Client profiles and contact information" },
   { key: "listings", label: "Listings", description: "Property listings and their links" },
   { key: "tasks", label: "Tasks", description: "Task board and assignments" },
-  { key: "pipeline", label: "Pipeline", description: "Sales pipeline and leads" },
+  { key: "ghl", label: "GHL", description: "GoHighLevel connection and sales tools" },
   { key: "roadmap", label: "Roadmap", description: "Projects and roadmap tasks" },
   { key: "onboarding", label: "Onboarding", description: "Client onboarding steps" },
   { key: "users", label: "Users", description: "User management and invitations" },

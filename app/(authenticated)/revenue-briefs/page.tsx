@@ -5,7 +5,7 @@ import { hasPermission } from "@/lib/permissions.server"
 import { RevenueBriefBuilder } from "./revenue-brief-builder"
 
 export default async function RevenueBriefsPage() {
-  if (!(await hasPermission("pipeline", "view"))) redirect("/")
+  if (!(await hasPermission("ghl", "view"))) redirect("/")
 
   return <RevenueBriefBuilder airRoiConfigured={isAirRoiConfigured()} />
 }

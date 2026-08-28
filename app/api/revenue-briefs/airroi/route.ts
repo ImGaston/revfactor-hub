@@ -7,7 +7,7 @@ import {
 import { hasPermission } from "@/lib/permissions.server"
 
 export async function POST(request: Request) {
-  if (!(await hasPermission("pipeline", "view"))) {
+  if (!(await hasPermission("ghl", "view"))) {
     return Response.json(
       { error: "You do not have access to revenue briefs." },
       { status: 403 }
