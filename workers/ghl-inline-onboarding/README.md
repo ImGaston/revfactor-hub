@@ -31,12 +31,12 @@ The Durable Object persists each action state before crossing the GHL network bo
 | `claimed` | Read-only preflight document scan |
 | `preflight_clear` | One commercial-field write |
 | `commercial_written` | One native-template generation request |
-| `template_reconciling` | Read-only draft lookup; template generation is never repeated |
+| `template_reconciling` | Atomically claim `template_reconcile_scanning`; only that generation performs the read-only draft lookup |
 | `draft_found` | One link-generation request |
-| `link_reconciling` | Read-only sent-document lookup; link generation is never repeated |
+| `link_reconciling` | Atomically claim `link_reconcile_scanning`; only that generation performs the read-only sent-document lookup |
 | `completed` | Return the stored canonical document ID and signing URL without commercial rewrites |
 
-A different revision for the same contact fails before commercial mutation. Ambiguous GHL outcomes remain in reconciliation-only stages and use bounded, redacted result codes; they never reopen the create path. A stale in-flight create state also advances only to reconciliation. The current version deliberately supports one immutable agreement revision per contact; amendments require a separately reviewed lifecycle design instead of overwriting the existing claim.
+A different revision for the same contact fails before commercial mutation. Every transition is a SQLite compare-and-swap over fingerprint, expected prior stage, and monotonic `state_version`. Post-I/O results therefore apply only while their exact operation generation still owns the row. Ambiguous GHL outcomes remain in reconciliation-only stages and use bounded, redacted result codes; they never reopen the create path. A stale takeover rotates `state_version`, so the original late response cannot regress state or claim a new completion. The current version deliberately supports one immutable agreement revision per contact; amendments require a separately reviewed lifecycle design instead of overwriting the existing claim.
 
 Every preflight and reconciliation scan paginates the complete GHL location document inventory with `limit=50` and increasing `skip`. It requires a stable, safe-integer `total`, caps the scan at 20 pages / 1,000 documents, rejects missing or drifting totals, incomplete pages, over-counts, and duplicate/missing document IDs, and fails closed before commercial mutation whenever completeness cannot be proven. Read-only `preflight_scanning` may be safely restarted after 15 seconds; the mutation-bearing `commercial_writing` stage remains fail-closed/manual.
 
@@ -50,7 +50,7 @@ The conflict-only legacy inventory is intentionally explicit:
 
 An exact historical name or the Worker-generated form `<name> — …` blocks a new claim in draft, sent, viewed, completed, signed, or accepted state. These templates are conflict evidence only and can never be selected for new generation.
 
-Executable Worker tests use the Cloudflare Vitest pool and mocked GHL endpoints to prove concurrent identical-request collapse, standard/referral conflict isolation, exact-replay immutability, changed-legal-name rejection, page-two conflict/reconciliation discovery, incomplete/drifting/duplicate page-set rejection, all inventoried legacy agreement classes and open/completed states, stale preflight recovery, and recovery from a committed-but-unacknowledged and temporarily unlistable GHL draft.
+Executable Worker tests use the Cloudflare Vitest pool and mocked GHL endpoints to prove concurrent identical-request collapse, standard/referral conflict isolation, exact-replay immutability, changed-legal-name rejection, page-two conflict/reconciliation discovery, incomplete/drifting/duplicate page-set rejection, all inventoried legacy agreement classes and open/completed states, barrier-synchronized template/link reconciliation, single semantic completion/tagging, stale-owner fencing, stale preflight recovery, and recovery from a committed-but-unacknowledged and temporarily unlistable GHL draft.
 
 Run them from this directory with:
 
