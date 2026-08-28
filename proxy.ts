@@ -30,13 +30,17 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const isPublicPriceLabsGuide =
+    pathname === "/resources/revfactor-pricelabs-listing-id-guide.pdf"
 
   // If not logged in and not on public routes, redirect to login.
   // /a/<token> is the public adjustment shell: WhatsApp's OG scraper and
   // link recipients hit it without a session; the page itself only serves
-  // non-sensitive fields until the viewer logs in.
+  // non-sensitive fields until the viewer logs in. The PriceLabs guide is an
+  // intentionally public, client-safe static resource linked from Knowledge.
   if (
     !user &&
+    !isPublicPriceLabsGuide &&
     pathname !== "/login" &&
     !pathname.startsWith("/auth/") &&
     !pathname.startsWith("/a/") &&

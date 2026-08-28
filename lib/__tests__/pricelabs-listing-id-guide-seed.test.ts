@@ -18,6 +18,8 @@ const pdf = readFileSync(
   )
 )
 
+const proxy = readFileSync(join(process.cwd(), "proxy.ts"), "utf8")
+
 describe("PriceLabs listing-ID Knowledge guide seed", () => {
   it("stores the complete client handoff workflow as native Knowledge text", () => {
     expect(migration).toContain("How to Find Your PriceLabs Listing ID")
@@ -39,6 +41,10 @@ describe("PriceLabs listing-ID Knowledge guide seed", () => {
     )
     expect(pdf.subarray(0, 4).toString("ascii")).toBe("%PDF")
     expect(pdf.byteLength).toBeGreaterThan(100_000)
+    expect(proxy).toContain(
+      'pathname === "/resources/revfactor-pricelabs-listing-id-guide.pdf"'
+    )
+    expect(proxy).toContain("!isPublicPriceLabsGuide")
   })
 
   it("keeps the client-safe article review-only until human approval", () => {
