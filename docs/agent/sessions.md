@@ -668,3 +668,11 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Client dialog/detail now edit and show PMS + Vrbo. Verified: `pnpm typecheck`, SQL trigger assertions (stamp/clear/no-restamp, events both directions, rolled back), pure-function edge cases via tsx. UI behind login not visually verified this session.
 - Backfilled `initial_setup_date` for 203 listings from the "RM // Blackbird HM Client List" Excel (sheet `clients-data`, column "setup incial"): matched by PriceLabs `listing_id` UUID, fuzzy name fallback; text dates without year resolved as Aug–Dec → 2025, Jan–Feb → 2026, and the 4 ambiguous March entries as 2025 per user decision. 16 Excel rows have no hub listing (SBA cabins, Como, Jake's Lookout/Artemis Landing, etc.); 31 active hub listings remain without a setup date (not in the Excel). The Excel's "Onboarding date" column has corrupted mixed date formats — do not use it.
 - Added the Listings Evolution chart to the dashboard home (`components/dashboard/listings-evolution-chart.tsx`, `computeMonthlyEvolution` in `lib/monthly-summary.ts`): 12 trailing months, line = active at month end, green/red bars = new/churned (right axis). Also: Active-at-end-of-month table on `/monthly-summary` now sorts newest setup first.
+
+# 2026-08-28 — Client PriceLabs listing-ID guide
+
+- Added `docs/guides/pricelabs-listing-id/guide.md`, a client-facing walkthrough for opening Manage Listings and identifying the listing information RevFactor needs.
+- Captured tightly framed PriceLabs screenshots and added callouts for PMS-connected listings and direct Airbnb/Vrbo connections without exposing unrelated client listings.
+- Reordered the workflow so clients search Unmapped Listings first and then Mapped Listings; documented that previously mapped Airbnb/Vrbo pairs may appear as PARENT and CHILD rows and that both channel IDs should be sent.
+- Produced a five-page branded PDF and packaged it at `public/resources/revfactor-pricelabs-listing-id-guide.pdf` for client download.
+- Added migration 088 to seed the same client-safe guidance as a native Client Onboarding Knowledge article, including the approved-answer candidate, escalation boundary, and review date. The article remains in the human review queue and agent-disabled until a Knowledge publisher approves and indexes it.
