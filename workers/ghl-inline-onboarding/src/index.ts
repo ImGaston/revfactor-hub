@@ -1,14 +1,17 @@
-type Env = {
+export type Env = {
   HIGHLEVEL_API_KEY: string
   HIGHLEVEL_LOCATION_ID: string
   HIGHLEVEL_ONBOARDING_TEMPLATE_ID: string
-  HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_ID?: string
+  HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_ID: string
   HIGHLEVEL_ONBOARDING_SENDER_USER_ID: string
   HIGHLEVEL_ONBOARDING_TEMPLATE_NAME: string
-  HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_NAME?: string
+  HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME: string
+  HIGHLEVEL_ONBOARDING_REFERRAL_CODES?: string
   HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL: string
   HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN: string
 }
+
+export type PricingProgram = "Regular" | "Referral"
 
 type Signup = {
   legalName: string
@@ -16,9 +19,7 @@ type Signup = {
   email: string
   phone: string | null
   primaryListingQuantity: number
-  childListingQuantity: number
-  serviceStartMode: "immediate" | "scheduled"
-  serviceStartDate: string | null
+  pricingProgram: PricingProgram
 }
 
 type DocumentLink = {
@@ -56,7 +57,29 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function parseSignup(body: unknown): Signup {
+function configuredCodeSet(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((code) => code.trim().toLocaleLowerCase())
+      .filter(Boolean)
+  )
+}
+
+export function resolvePricingProgram(
+  offerCode: unknown,
+  configuredReferralCodes: string | undefined
+): PricingProgram {
+  const candidate =
+    typeof offerCode === "string" ? offerCode.trim().toLocaleLowerCase() : ""
+  if (!candidate) return "Regular"
+  if (configuredCodeSet(configuredReferralCodes).has(candidate)) {
+    return "Referral"
+  }
+  throw new Error("Enter a valid referral code")
+}
+
+export function parseSignup(body: unknown, env: Env): Signup {
   if (!isRecord(body)) throw new Error("Invalid submission")
   if (typeof body.website === "string" && body.website.trim()) {
     throw new Error("Invalid submission")
@@ -69,12 +92,13 @@ function parseSignup(body: unknown): Signup {
     .toLowerCase()
   const phone = String(body.phone ?? "").trim() || null
   const primaryListingQuantity = Number(body.primaryListingQuantity)
-  const childListingQuantity = Number(body.childListingQuantity)
-  const serviceStartMode = body.serviceStartMode
-  const serviceStartDate =
-    typeof body.serviceStartDate === "string" && body.serviceStartDate
-      ? body.serviceStartDate
-      : null
+  const childListingQuantity = Number(body.childListingQuantity ?? 0)
+  const serviceStartMode = body.serviceStartMode ?? "immediate"
+  const serviceStartDate = String(body.serviceStartDate ?? "").trim()
+  const pricingProgram = resolvePricingProgram(
+    body.offerCode,
+    env.HIGHLEVEL_ONBOARDING_REFERRAL_CODES
+  )
 
   if (legalName.length < 2 || legalName.length > 255) {
     throw new Error("Enter the legal business or client name")
@@ -93,42 +117,13 @@ function parseSignup(body: unknown): Signup {
   ) {
     throw new Error("Primary listings must be between 1 and 5")
   }
-  if (
-    !Number.isInteger(childListingQuantity) ||
-    childListingQuantity < 0 ||
-    childListingQuantity > 5
-  ) {
-    throw new Error("Child listings must be between 0 and 5")
-  }
-  if (serviceStartMode !== "immediate" && serviceStartMode !== "scheduled") {
-    throw new Error("Choose when service should start")
-  }
-  if (serviceStartMode === "scheduled") {
-    if (!serviceStartDate || !/^\d{4}-\d{2}-\d{2}$/.test(serviceStartDate)) {
-      throw new Error("Choose a valid service start date")
-    }
-    const today = new Date()
-    const minimum = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate() + 3
-      )
+  if (!Number.isInteger(childListingQuantity) || childListingQuantity !== 0) {
+    throw new Error(
+      "Child listings require a separate RevFactor onboarding path"
     )
-      .toISOString()
-      .slice(0, 10)
-    const maximum = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate() + 120
-      )
-    )
-      .toISOString()
-      .slice(0, 10)
-    if (serviceStartDate < minimum || serviceStartDate > maximum) {
-      throw new Error(`Choose a service date between ${minimum} and ${maximum}`)
-    }
+  }
+  if (serviceStartMode !== "immediate" || serviceStartDate) {
+    throw new Error("The standard RevFactor signup starts service immediately")
   }
 
   return {
@@ -137,40 +132,24 @@ function parseSignup(body: unknown): Signup {
     email,
     phone,
     primaryListingQuantity,
-    childListingQuantity,
-    serviceStartMode,
-    serviceStartDate:
-      serviceStartMode === "scheduled" ? serviceStartDate : null,
+    pricingProgram,
   }
 }
 
-function serviceValues(input: Signup) {
-  const primaryMonthlyAmount = input.primaryListingQuantity * 350
-  const childMonthlyAmount = input.childListingQuantity * 50
-  const monthlyServiceFee = primaryMonthlyAmount + childMonthlyAmount
+export function serviceValues(
+  input: Pick<Signup, "primaryListingQuantity" | "pricingProgram">
+) {
+  const primaryMonthlyRate = input.pricingProgram === "Referral" ? 320 : 350
+  const monthlyServiceFee = input.primaryListingQuantity * primaryMonthlyRate
   const onboardingFee = 150
-  const initialCheckoutTotal =
-    input.serviceStartMode === "scheduled"
-      ? onboardingFee
-      : monthlyServiceFee + onboardingFee
-  const formattedStart = input.serviceStartDate
-    ? new Intl.DateTimeFormat("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      }).format(new Date(`${input.serviceStartDate}T12:00:00.000Z`))
-    : null
+  const initialCheckoutTotal = monthlyServiceFee + onboardingFee
 
   return {
-    primaryMonthlyAmount,
-    childMonthlyAmount,
+    primaryMonthlyRate,
     monthlyServiceFee,
     onboardingFee,
     initialCheckoutTotal,
-    pricingProgram: formattedStart
-      ? `Regular - Monthly service begins ${formattedStart}`
-      : "Regular",
+    pricingProgram: input.pricingProgram,
   }
 }
 
@@ -199,7 +178,11 @@ async function ghlFetch(
   return response
 }
 
-async function upsertContact(env: Env, input: Signup): Promise<string> {
+async function upsertContact(
+  env: Env,
+  input: Signup,
+  includeCommercialFields = false
+): Promise<string> {
   const values = serviceValues(input)
   const response = await ghlFetch(env, "/contacts/upsert", {
     method: "POST",
@@ -211,45 +194,38 @@ async function upsertContact(env: Env, input: Signup): Promise<string> {
       locationId: env.HIGHLEVEL_LOCATION_ID,
       source: "RevFactor inline GHL onboarding",
       createNewIfDuplicateAllowed: false,
-      customFields: [
-        { key: "contact.rf_client_legal_name", fieldValue: input.legalName },
-        {
-          key: "contact.rf_primary_listing_quantity",
-          fieldValue: String(input.primaryListingQuantity),
-        },
-        {
-          key: "contact.rf_child_listing_quantity",
-          fieldValue: String(input.childListingQuantity),
-        },
-        {
-          key: "contact.rf_pricing_program",
-          fieldValue: values.pricingProgram,
-        },
-        {
-          key: "contact.rf_monthly_service_fee",
-          fieldValue: String(values.monthlyServiceFee),
-        },
-        {
-          key: "contact.rf_onboarding_fee",
-          fieldValue: String(values.onboardingFee),
-        },
-        {
-          key: "contact.rf_initial_checkout_total",
-          fieldValue: String(values.initialCheckoutTotal),
-        },
-        {
-          key: "contact.rf_service_start_mode",
-          fieldValue: input.serviceStartMode,
-        },
-        {
-          key: "contact.rf_service_start_date",
-          fieldValue: input.serviceStartDate ?? "",
-        },
-        {
-          key: "contact.rf_agreement_effective_date",
-          fieldValue: new Date().toISOString().slice(0, 10),
-        },
-      ],
+      customFields: includeCommercialFields
+        ? [
+            {
+              key: "contact.rf_client_legal_name",
+              fieldValue: input.legalName,
+            },
+            {
+              key: "contact.rf_primary_listing_quantity",
+              fieldValue: String(input.primaryListingQuantity),
+            },
+            { key: "contact.rf_child_listing_quantity", fieldValue: "0" },
+            {
+              key: "contact.rf_pricing_program",
+              fieldValue: values.pricingProgram,
+            },
+            {
+              key: "contact.rf_monthly_service_fee",
+              fieldValue: String(values.monthlyServiceFee),
+            },
+            {
+              key: "contact.rf_onboarding_fee",
+              fieldValue: String(values.onboardingFee),
+            },
+            {
+              key: "contact.rf_initial_checkout_total",
+              fieldValue: String(values.initialCheckoutTotal),
+            },
+            { key: "contact.rf_service_start_mode", fieldValue: "immediate" },
+            { key: "contact.rf_service_start_date", fieldValue: "" },
+            { key: "contact.rf_agreement_effective_date", fieldValue: "" },
+          ]
+        : undefined,
     }),
   })
   const payload = (await response.json()) as { contact?: { id?: unknown } }
@@ -315,24 +291,42 @@ function signingUrl(env: Env, referenceId: string): string {
   return `${env.HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL.replace(/\/$/, "")}/documents/v1/${encodeURIComponent(referenceId)}?locale=en-US`
 }
 
+export function agreementTemplate(env: Env, pricingProgram: PricingProgram) {
+  if (pricingProgram === "Referral") {
+    return {
+      templateId: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_ID,
+      templateName: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
+      competingTemplateName: env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
+    }
+  }
+  return {
+    templateId: env.HIGHLEVEL_ONBOARDING_TEMPLATE_ID,
+    templateName: env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
+    competingTemplateName: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
+  }
+}
+
+export function agreementDocumentName(input: Signup, templateName: string) {
+  return `${templateName} — ${input.contactName} — q${input.primaryListingQuantity}`
+}
+
 async function prepareAgreement(env: Env, input: Signup, contactId: string) {
-  const hasChildListings = input.childListingQuantity > 0
-  const templateId = hasChildListings
-    ? env.HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_ID ??
-      env.HIGHLEVEL_ONBOARDING_TEMPLATE_ID
-    : env.HIGHLEVEL_ONBOARDING_TEMPLATE_ID
-  const templateName = hasChildListings
-    ? env.HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_NAME ??
-      env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME
-    : env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME
-  const existing = matchingDocument(
-    (await listDocuments(env, input.contactName)).documents,
-    contactId,
-    templateName,
-    ["sent", "viewed"]
+  const { templateId, templateName, competingTemplateName } = agreementTemplate(
+    env,
+    input.pricingProgram
   )
+  const documents = (await listDocuments(env, input.contactName)).documents
+  const expectedDocumentName = agreementDocumentName(input, templateName)
+  const existing = matchingDocument(documents, contactId, templateName, [
+    "sent",
+    "viewed",
+  ])
   const existingReference = contactReference(existing?.links, contactId)
-  if (existingReference && typeof existing?.documentId === "string") {
+  if (
+    existingReference &&
+    existing?.name === expectedDocumentName &&
+    typeof existing.documentId === "string"
+  ) {
     return {
       documentId: existing.documentId,
       signingUrl: signingUrl(env, existingReference),
@@ -340,27 +334,58 @@ async function prepareAgreement(env: Env, input: Signup, contactId: string) {
     }
   }
 
-  await ghlFetch(env, "/proposals/templates/send", {
-    method: "POST",
-    body: JSON.stringify({
-      templateId,
-      userId: env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
-      sendDocument: false,
-      locationId: env.HIGHLEVEL_LOCATION_ID,
-      contactId,
-    }),
-  })
-
-  let draft: GhlDocument | null = null
-  for (let attempt = 0; attempt < 4 && !draft; attempt += 1) {
-    draft = matchingDocument(
-      (await listDocuments(env, input.contactName)).documents,
-      contactId,
-      templateName,
-      ["draft"]
+  const completed = matchingDocument(documents, contactId, templateName, [
+    "completed",
+    "signed",
+    "accepted",
+  ])
+  const competing = matchingDocument(
+    documents,
+    contactId,
+    competingTemplateName,
+    ["draft", "sent", "viewed", "completed", "signed", "accepted"]
+  )
+  const reusableDraft = matchingDocument(documents, contactId, templateName, [
+    "draft",
+  ])
+  const mismatchedDraft =
+    reusableDraft && reusableDraft.name !== expectedDocumentName
+      ? reusableDraft
+      : null
+  if (completed || competing || existing || mismatchedDraft) {
+    throw new Error(
+      "An agreement already exists for this contact. Contact RevFactor before continuing."
     )
-    if (!draft)
-      await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)))
+  }
+
+  const confirmedContactId = await upsertContact(env, input, true)
+  if (confirmedContactId !== contactId) {
+    throw new Error("HighLevel returned a conflicting contact identity")
+  }
+
+  let draft: GhlDocument | null = reusableDraft
+  if (!draft) {
+    await ghlFetch(env, "/proposals/templates/send", {
+      method: "POST",
+      body: JSON.stringify({
+        templateId,
+        userId: env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
+        sendDocument: false,
+        locationId: env.HIGHLEVEL_LOCATION_ID,
+        contactId,
+      }),
+    })
+
+    for (let attempt = 0; attempt < 4 && !draft; attempt += 1) {
+      draft = matchingDocument(
+        (await listDocuments(env, input.contactName)).documents,
+        contactId,
+        templateName,
+        ["draft"]
+      )
+      if (!draft)
+        await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)))
+    }
   }
   if (!draft || typeof draft.documentId !== "string") {
     throw new Error("HighLevel did not create the agreement draft")
@@ -371,7 +396,7 @@ async function prepareAgreement(env: Env, input: Signup, contactId: string) {
     body: JSON.stringify({
       locationId: env.HIGHLEVEL_LOCATION_ID,
       documentId: draft.documentId,
-      documentName: `${templateName} — ${input.contactName}`,
+      documentName: expectedDocumentName,
       medium: "link",
       sentBy: env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
     }),
@@ -388,14 +413,24 @@ async function prepareAgreement(env: Env, input: Signup, contactId: string) {
   }
 }
 
-async function addTag(env: Env, contactId: string) {
+async function addTag(
+  env: Env,
+  contactId: string,
+  pricingProgram: PricingProgram
+) {
   await ghlFetch(env, `/contacts/${contactId}/tags`, {
     method: "POST",
-    body: JSON.stringify({ tags: ["rf-standard-inline-agreement"] }),
+    body: JSON.stringify({
+      tags: [
+        pricingProgram === "Referral"
+          ? "rf-referral-inline-agreement"
+          : "rf-standard-inline-agreement",
+      ],
+    }),
   })
 }
 
-export default {
+const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get("Origin")
     if (origin !== env.HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN) {
@@ -409,11 +444,36 @@ export default {
     }
 
     try {
-      const input = parseSignup(await request.json())
+      const body = await request.json()
+      const pathname = new URL(request.url).pathname
+      if (pathname === "/quote") {
+        if (!isRecord(body)) throw new Error("Invalid submission")
+        const primaryListingQuantity = Number(body.primaryListingQuantity)
+        if (
+          !Number.isInteger(primaryListingQuantity) ||
+          primaryListingQuantity < 1 ||
+          primaryListingQuantity > 5
+        ) {
+          throw new Error("Primary listings must be between 1 and 5")
+        }
+        const pricingProgram = resolvePricingProgram(
+          body.offerCode,
+          env.HIGHLEVEL_ONBOARDING_REFERRAL_CODES
+        )
+        return json(env, {
+          success: true,
+          ...serviceValues({ primaryListingQuantity, pricingProgram }),
+        })
+      }
+      if (pathname !== "/") {
+        return json(env, { error: "Not found" }, 404)
+      }
+
+      const input = parseSignup(body, env)
       const contactId = await upsertContact(env, input)
       const agreement = await prepareAgreement(env, input, contactId)
       try {
-        await addTag(env, contactId)
+        await addTag(env, contactId, input.pricingProgram)
       } catch (error) {
         console.warn(
           "[ghl-inline-onboarding] agreement created but tag update failed",
@@ -438,3 +498,5 @@ export default {
     }
   },
 }
+
+export default worker
