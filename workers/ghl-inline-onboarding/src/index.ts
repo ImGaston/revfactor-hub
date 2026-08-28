@@ -1,3 +1,10 @@
+import {
+  DurableObject,
+  type DurableObjectNamespace,
+  type DurableObjectState,
+  type SqlStorage,
+} from "cloudflare:workers"
+
 export type Env = {
   HIGHLEVEL_API_KEY: string
   HIGHLEVEL_LOCATION_ID: string
@@ -9,11 +16,12 @@ export type Env = {
   HIGHLEVEL_ONBOARDING_REFERRAL_CODES?: string
   HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL: string
   HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN: string
+  AGREEMENT_CLAIMS: DurableObjectNamespace<AgreementClaimCoordinator>
 }
 
 export type PricingProgram = "Regular" | "Referral"
 
-type Signup = {
+export type Signup = {
   legalName: string
   contactName: string
   email: string
@@ -35,6 +43,68 @@ type GhlDocument = {
   createdAt?: unknown
   recipients?: Array<{ id?: unknown }>
   links?: DocumentLink[]
+}
+
+type ClaimStage =
+  | "claimed"
+  | "preflight_scanning"
+  | "preflight_clear"
+  | "commercial_writing"
+  | "commercial_written"
+  | "template_creating"
+  | "template_reconciling"
+  | "draft_found"
+  | "link_creating"
+  | "link_reconciling"
+  | "completed"
+  | "conflict"
+
+type AgreementRevision = {
+  version: 1
+  contactId: string
+  contactName: string
+  normalizedLegalName: string
+  primaryListingQuantity: number
+  pricingProgram: PricingProgram
+  primaryMonthlyRate: number
+  monthlyServiceFee: number
+  onboardingFee: number
+  initialCheckoutTotal: number
+  templateId: string
+  templateName: string
+}
+
+type AgreementClaimRequest = {
+  contactId: string
+  input: Signup
+}
+
+export type AgreementClaimResult =
+  | {
+      outcome: "completed"
+      documentId: string
+      signingUrl: string
+      reused: boolean
+    }
+  | {
+      outcome: "pending"
+      stage: ClaimStage
+      retryAfterSeconds: number
+    }
+  | {
+      outcome: "conflict"
+      message: string
+    }
+
+type ClaimRow = {
+  fingerprint: string
+  revision_json: string
+  stage: ClaimStage
+  document_id: string | null
+  signing_url: string | null
+  created_at: number
+  updated_at: number
+  last_error_code: string | null
 }
 
 const GHL_API = "https://services.leadconnectorhq.com"
@@ -190,7 +260,7 @@ async function upsertContact(
       name: input.contactName,
       email: input.email,
       phone: input.phone ?? undefined,
-      companyName: input.legalName,
+      companyName: includeCommercialFields ? input.legalName : undefined,
       locationId: env.HIGHLEVEL_LOCATION_ID,
       source: "RevFactor inline GHL onboarding",
       createNewIfDuplicateAllowed: false,
@@ -249,31 +319,6 @@ async function listDocuments(env: Env, query: string) {
   return (await response.json()) as { documents?: GhlDocument[] }
 }
 
-function matchingDocument(
-  documents: GhlDocument[] | undefined,
-  contactId: string,
-  templateName: string,
-  statuses: string[]
-): GhlDocument | null {
-  return (
-    documents
-      ?.filter(
-        (document) =>
-          typeof document.documentId === "string" &&
-          typeof document.name === "string" &&
-          document.name.startsWith(templateName) &&
-          typeof document.status === "string" &&
-          statuses.includes(document.status) &&
-          document.recipients?.some((recipient) => recipient.id === contactId)
-      )
-      .sort((left, right) =>
-        String(right.createdAt ?? "").localeCompare(
-          String(left.createdAt ?? "")
-        )
-      )[0] ?? null
-  )
-}
-
 function contactReference(
   links: DocumentLink[] | undefined,
   contactId: string
@@ -296,120 +341,420 @@ export function agreementTemplate(env: Env, pricingProgram: PricingProgram) {
     return {
       templateId: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_ID,
       templateName: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
-      competingTemplateName: env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
     }
   }
   return {
     templateId: env.HIGHLEVEL_ONBOARDING_TEMPLATE_ID,
     templateName: env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
-    competingTemplateName: env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
   }
 }
 
-export function agreementDocumentName(input: Signup, templateName: string) {
-  return `${templateName} — ${input.contactName} — q${input.primaryListingQuantity}`
+function normalizeLegalName(value: string) {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase()
 }
 
-async function prepareAgreement(env: Env, input: Signup, contactId: string) {
-  const { templateId, templateName, competingTemplateName } = agreementTemplate(
-    env,
-    input.pricingProgram
-  )
-  const documents = (await listDocuments(env, input.contactName)).documents
-  const expectedDocumentName = agreementDocumentName(input, templateName)
-  const existing = matchingDocument(documents, contactId, templateName, [
-    "sent",
-    "viewed",
-  ])
-  const existingReference = contactReference(existing?.links, contactId)
-  if (
-    existingReference &&
-    existing?.name === expectedDocumentName &&
-    typeof existing.documentId === "string"
-  ) {
+export function buildAgreementRevision(
+  env: Env,
+  request: AgreementClaimRequest
+): AgreementRevision {
+  const values = serviceValues(request.input)
+  const template = agreementTemplate(env, request.input.pricingProgram)
+  return {
+    version: 1,
+    contactId: request.contactId,
+    contactName: request.input.contactName.trim().replace(/\s+/g, " "),
+    normalizedLegalName: normalizeLegalName(request.input.legalName),
+    primaryListingQuantity: request.input.primaryListingQuantity,
+    pricingProgram: request.input.pricingProgram,
+    primaryMonthlyRate: values.primaryMonthlyRate,
+    monthlyServiceFee: values.monthlyServiceFee,
+    onboardingFee: values.onboardingFee,
+    initialCheckoutTotal: values.initialCheckoutTotal,
+    templateId: template.templateId,
+    templateName: template.templateName,
+  }
+}
+
+export async function agreementRevisionFingerprint(
+  revision: AgreementRevision
+) {
+  const bytes = new TextEncoder().encode(JSON.stringify(revision))
+  const digest = await crypto.subtle.digest("SHA-256", bytes)
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("")
+}
+
+export function agreementDocumentName(
+  revision: AgreementRevision,
+  fingerprint: string
+) {
+  return `${revision.templateName} — ${revision.contactName} — rf-${fingerprint.slice(0, 16)}`
+}
+
+const ACTION_STALE_AFTER_MS = 15_000
+const ACTIVE_DOCUMENT_STATUSES = [
+  "draft",
+  "sent",
+  "viewed",
+  "completed",
+  "signed",
+  "accepted",
+]
+
+function claimRows(sql: SqlStorage): ClaimRow[] {
+  return sql.exec<ClaimRow>("SELECT * FROM agreement_claim LIMIT 1").toArray()
+}
+
+function stageResult(row: ClaimRow): AgreementClaimResult {
+  return {
+    outcome: "pending",
+    stage: row.stage,
+    retryAfterSeconds: 2,
+  }
+}
+
+export class AgreementClaimCoordinator extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env)
+    ctx.blockConcurrencyWhile(async () => {
+      ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS agreement_claim (
+          fingerprint TEXT PRIMARY KEY,
+          revision_json TEXT NOT NULL,
+          stage TEXT NOT NULL CHECK (stage IN (
+            'claimed', 'preflight_scanning', 'preflight_clear',
+            'commercial_writing', 'commercial_written',
+            'template_creating', 'template_reconciling', 'draft_found',
+            'link_creating', 'link_reconciling', 'completed', 'conflict'
+          )),
+          document_id TEXT,
+          signing_url TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          last_error_code TEXT
+        );
+        CREATE TABLE IF NOT EXISTS claim_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          stage TEXT NOT NULL,
+          result_code TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `)
+    })
+  }
+
+  private get sql() {
+    return this.ctx.storage.sql
+  }
+
+  private event(stage: ClaimStage, resultCode: string) {
+    this.sql.exec(
+      "INSERT INTO claim_events (stage, result_code, created_at) VALUES (?, ?, ?)",
+      stage,
+      resultCode,
+      Date.now()
+    )
+    this.sql.exec(`
+      DELETE FROM claim_events
+      WHERE id NOT IN (SELECT id FROM claim_events ORDER BY id DESC LIMIT 100)
+    `)
+  }
+
+  private transition(
+    fingerprint: string,
+    stage: ClaimStage,
+    fields: {
+      documentId?: string | null
+      signingUrl?: string | null
+      errorCode?: string | null
+    } = {}
+  ): ClaimRow {
+    this.sql.exec(
+      `UPDATE agreement_claim
+       SET stage = ?, document_id = COALESCE(?, document_id),
+           signing_url = COALESCE(?, signing_url), updated_at = ?,
+           last_error_code = ?
+       WHERE fingerprint = ?`,
+      stage,
+      fields.documentId ?? null,
+      fields.signingUrl ?? null,
+      Date.now(),
+      fields.errorCode ?? null,
+      fingerprint
+    )
+    this.event(stage, fields.errorCode ?? "ok")
+    const row = claimRows(this.sql)[0]
+    if (!row) throw new Error("Agreement claim disappeared")
+    return row
+  }
+
+  private conflict(row: ClaimRow, code: string): AgreementClaimResult {
+    if (row.stage !== "completed" && row.stage !== "conflict") {
+      this.transition(row.fingerprint, "conflict", { errorCode: code })
+    } else {
+      this.event("conflict", code)
+    }
     return {
-      documentId: existing.documentId,
-      signingUrl: signingUrl(env, existingReference),
-      reused: true,
+      outcome: "conflict",
+      message:
+        "This contact already has a different agreement revision. Contact RevFactor before continuing.",
     }
   }
 
-  const completed = matchingDocument(documents, contactId, templateName, [
-    "completed",
-    "signed",
-    "accepted",
-  ])
-  const competing = matchingDocument(
-    documents,
-    contactId,
-    competingTemplateName,
-    ["draft", "sent", "viewed", "completed", "signed", "accepted"]
-  )
-  const reusableDraft = matchingDocument(documents, contactId, templateName, [
-    "draft",
-  ])
-  const mismatchedDraft =
-    reusableDraft && reusableDraft.name !== expectedDocumentName
-      ? reusableDraft
-      : null
-  if (completed || competing || existing || mismatchedDraft) {
-    throw new Error(
-      "An agreement already exists for this contact. Contact RevFactor before continuing."
+  private revisionConflict(code: string): AgreementClaimResult {
+    this.event("conflict", code)
+    return {
+      outcome: "conflict",
+      message:
+        "This contact already has a different agreement revision. Contact RevFactor before continuing.",
+    }
+  }
+
+  private relevantDocuments(
+    documents: GhlDocument[] | undefined,
+    contactId: string
+  ) {
+    const templateNames = [
+      this.env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
+      this.env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
+    ]
+    return (documents ?? []).filter(
+      (document) =>
+        typeof document.documentId === "string" &&
+        typeof document.name === "string" &&
+        templateNames.some((name) => String(document.name).startsWith(name)) &&
+        typeof document.status === "string" &&
+        ACTIVE_DOCUMENT_STATUSES.includes(document.status) &&
+        document.recipients?.some((recipient) => recipient.id === contactId)
     )
   }
 
-  const confirmedContactId = await upsertContact(env, input, true)
-  if (confirmedContactId !== contactId) {
-    throw new Error("HighLevel returned a conflicting contact identity")
+  private async scan(revision: AgreementRevision) {
+    return this.relevantDocuments(
+      (await listDocuments(this.env, revision.contactName)).documents,
+      revision.contactId
+    )
   }
 
-  let draft: GhlDocument | null = reusableDraft
-  if (!draft) {
-    await ghlFetch(env, "/proposals/templates/send", {
-      method: "POST",
-      body: JSON.stringify({
-        templateId,
-        userId: env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
-        sendDocument: false,
-        locationId: env.HIGHLEVEL_LOCATION_ID,
-        contactId,
-      }),
-    })
+  async processAgreement(
+    request: AgreementClaimRequest
+  ): Promise<AgreementClaimResult> {
+    const revision = buildAgreementRevision(this.env, request)
+    const revisionJson = JSON.stringify(revision)
+    const fingerprint = await agreementRevisionFingerprint(revision)
+    const now = Date.now()
+    let row = claimRows(this.sql)[0]
 
-    for (let attempt = 0; attempt < 4 && !draft; attempt += 1) {
-      draft = matchingDocument(
-        (await listDocuments(env, input.contactName)).documents,
-        contactId,
-        templateName,
-        ["draft"]
+    if (!row) {
+      this.sql.exec(
+        `INSERT INTO agreement_claim
+          (fingerprint, revision_json, stage, created_at, updated_at)
+         VALUES (?, ?, 'claimed', ?, ?)`,
+        fingerprint,
+        revisionJson,
+        now,
+        now
       )
-      if (!draft)
-        await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)))
+      this.event("claimed", "claim_created")
+      row = claimRows(this.sql)[0]
     }
-  }
-  if (!draft || typeof draft.documentId !== "string") {
-    throw new Error("HighLevel did not create the agreement draft")
-  }
+    if (!row) throw new Error("Agreement claim was not created")
 
-  const response = await ghlFetch(env, "/proposals/document/send", {
-    method: "POST",
-    body: JSON.stringify({
-      locationId: env.HIGHLEVEL_LOCATION_ID,
-      documentId: draft.documentId,
-      documentName: expectedDocumentName,
-      medium: "link",
-      sentBy: env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
-    }),
-  })
-  const payload = (await response.json()) as { links?: DocumentLink[] }
-  const referenceId = contactReference(payload.links, contactId)
-  if (!referenceId)
-    throw new Error("HighLevel returned no contact signing link")
+    if (row.fingerprint !== fingerprint || row.revision_json !== revisionJson) {
+      return this.revisionConflict("revision_mismatch")
+    }
+    if (row.stage === "completed" && row.document_id && row.signing_url) {
+      this.event("completed", "exact_replay")
+      return {
+        outcome: "completed",
+        documentId: row.document_id,
+        signingUrl: row.signing_url,
+        reused: true,
+      }
+    }
+    if (row.stage === "conflict") return this.conflict(row, "claim_conflict")
 
-  return {
-    documentId: draft.documentId,
-    signingUrl: signingUrl(env, referenceId),
-    reused: false,
+    if (
+      (row.stage === "template_creating" || row.stage === "link_creating") &&
+      now - row.updated_at >= ACTION_STALE_AFTER_MS
+    ) {
+      row = this.transition(
+        fingerprint,
+        row.stage === "template_creating"
+          ? "template_reconciling"
+          : "link_reconciling",
+        { errorCode: "stale_action_reconcile" }
+      )
+    }
+
+    if (
+      row.stage === "preflight_scanning" ||
+      row.stage === "commercial_writing" ||
+      row.stage === "template_creating" ||
+      row.stage === "link_creating"
+    ) {
+      return stageResult(row)
+    }
+
+    if (row.stage === "claimed") {
+      row = this.transition(fingerprint, "preflight_scanning")
+      let documents: GhlDocument[]
+      try {
+        documents = await this.scan(revision)
+      } catch {
+        row = this.transition(fingerprint, "claimed", {
+          errorCode: "preflight_lookup_failed",
+        })
+        return stageResult(row)
+      }
+      if (documents.length > 0) {
+        return this.conflict(row, "preexisting_agreement")
+      }
+      row = this.transition(fingerprint, "preflight_clear")
+    }
+
+    if (row.stage === "preflight_clear") {
+      row = this.transition(fingerprint, "commercial_writing")
+      try {
+        const confirmedContactId = await upsertContact(
+          this.env,
+          request.input,
+          true
+        )
+        if (confirmedContactId !== revision.contactId) {
+          return this.conflict(row, "contact_identity_conflict")
+        }
+      } catch {
+        row = this.transition(fingerprint, "commercial_writing", {
+          errorCode: "commercial_write_ambiguous",
+        })
+        return stageResult(row)
+      }
+      row = this.transition(fingerprint, "commercial_written")
+    }
+
+    if (row.stage === "commercial_written") {
+      row = this.transition(fingerprint, "template_creating")
+      try {
+        await ghlFetch(this.env, "/proposals/templates/send", {
+          method: "POST",
+          body: JSON.stringify({
+            templateId: revision.templateId,
+            userId: this.env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
+            sendDocument: false,
+            locationId: this.env.HIGHLEVEL_LOCATION_ID,
+            contactId: revision.contactId,
+          }),
+        })
+      } catch {
+        // GHL may have committed before the response was lost. Never create
+        // again; every subsequent attempt is read-only reconciliation.
+      }
+      row = this.transition(fingerprint, "template_reconciling", {
+        errorCode: "template_outcome_reconcile",
+      })
+    }
+
+    if (row.stage === "template_reconciling") {
+      let documents: GhlDocument[]
+      try {
+        documents = await this.scan(revision)
+      } catch {
+        row = this.transition(fingerprint, "template_reconciling", {
+          errorCode: "template_lookup_failed",
+        })
+        return stageResult(row)
+      }
+      const drafts = documents.filter(
+        (document) =>
+          document.status === "draft" &&
+          typeof document.name === "string" &&
+          document.name.startsWith(revision.templateName)
+      )
+      if (drafts.length === 0) return stageResult(row)
+      if (drafts.length !== 1) {
+        return this.conflict(row, "ambiguous_template_drafts")
+      }
+      row = this.transition(fingerprint, "draft_found", {
+        documentId: String(drafts[0].documentId),
+      })
+    }
+
+    if (row.stage === "draft_found" && row.document_id) {
+      const draftDocumentId = row.document_id
+      row = this.transition(fingerprint, "link_creating")
+      let response: Response | null = null
+      try {
+        response = await ghlFetch(this.env, "/proposals/document/send", {
+          method: "POST",
+          body: JSON.stringify({
+            locationId: this.env.HIGHLEVEL_LOCATION_ID,
+            documentId: draftDocumentId,
+            documentName: agreementDocumentName(revision, fingerprint),
+            medium: "link",
+            sentBy: this.env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
+          }),
+        })
+      } catch {
+        // Same rule as template creation: reconcile; never send again.
+      }
+      if (response) {
+        const payload = (await response.json()) as { links?: DocumentLink[] }
+        const referenceId = contactReference(payload.links, revision.contactId)
+        if (referenceId) {
+          const url = signingUrl(this.env, referenceId)
+          this.transition(fingerprint, "completed", {
+            documentId: draftDocumentId,
+            signingUrl: url,
+          })
+          return {
+            outcome: "completed",
+            documentId: draftDocumentId,
+            signingUrl: url,
+            reused: false,
+          }
+        }
+      }
+      row = this.transition(fingerprint, "link_reconciling", {
+        errorCode: "link_outcome_reconcile",
+      })
+    }
+
+    if (row.stage === "link_reconciling" && row.document_id) {
+      let documents: GhlDocument[]
+      try {
+        documents = await this.scan(revision)
+      } catch {
+        row = this.transition(fingerprint, "link_reconciling", {
+          errorCode: "link_lookup_failed",
+        })
+        return stageResult(row)
+      }
+      const expectedName = agreementDocumentName(revision, fingerprint)
+      const sent = documents.filter(
+        (document) =>
+          document.documentId === row.document_id &&
+          document.name === expectedName &&
+          ["sent", "viewed"].includes(String(document.status))
+      )
+      if (sent.length !== 1) return stageResult(row)
+      const referenceId = contactReference(sent[0].links, revision.contactId)
+      if (!referenceId) return stageResult(row)
+      const url = signingUrl(this.env, referenceId)
+      this.transition(fingerprint, "completed", {
+        documentId: row.document_id,
+        signingUrl: url,
+      })
+      return {
+        outcome: "completed",
+        documentId: row.document_id,
+        signingUrl: url,
+        reused: false,
+      }
+    }
+
+    return stageResult(row)
   }
 }
 
@@ -470,15 +815,35 @@ const worker = {
       }
 
       const input = parseSignup(body, env)
-      const contactId = await upsertContact(env, input)
-      const agreement = await prepareAgreement(env, input, contactId)
-      try {
-        await addTag(env, contactId, input.pricingProgram)
-      } catch (error) {
-        console.warn(
-          "[ghl-inline-onboarding] agreement created but tag update failed",
-          error instanceof Error ? error.message : error
+      const contactId = await upsertContact(env, input, false)
+      const agreement = await env.AGREEMENT_CLAIMS.getByName(
+        contactId
+      ).processAgreement({ contactId, input })
+      if (agreement.outcome === "conflict") {
+        return json(env, { error: agreement.message }, 409)
+      }
+      if (agreement.outcome === "pending") {
+        const response = json(
+          env,
+          {
+            error:
+              "Your agreement is still being prepared. Please try again in a moment.",
+            stage: agreement.stage,
+          },
+          503
         )
+        response.headers.set("Retry-After", String(agreement.retryAfterSeconds))
+        return response
+      }
+      if (!agreement.reused) {
+        try {
+          await addTag(env, contactId, input.pricingProgram)
+        } catch (error) {
+          console.warn(
+            "[ghl-inline-onboarding] agreement created but tag update failed",
+            error instanceof Error ? error.message : error
+          )
+        }
       }
       return json(env, {
         success: true,
