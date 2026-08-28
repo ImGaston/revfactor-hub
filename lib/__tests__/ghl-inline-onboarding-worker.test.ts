@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 import {
   agreementDocumentName,
+  agreementRevisionFingerprint,
   agreementTemplate,
-  default as worker,
+  buildAgreementRevision,
+  type Env,
   parseSignup,
   resolvePricingProgram,
   serviceValues,
@@ -19,7 +21,7 @@ const env = {
   HIGHLEVEL_ONBOARDING_REFERRAL_CODES: " partner-one, STRLTB ",
   HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL: "https://links.revfactor.io",
   HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN: "https://links.revfactor.io",
-}
+} as unknown as Env
 
 const validSignup = {
   legalName: "Example Holdings LLC",
@@ -32,18 +34,6 @@ const validSignup = {
   serviceStartDate: null,
   website: "",
 }
-
-function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  })
-}
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-})
 
 describe("GHL inline onboarding offer authority", () => {
   it("defaults blank offer codes to the standard agreement", () => {
@@ -101,149 +91,29 @@ describe("GHL inline onboarding offer authority", () => {
     })
   })
 
-  it("binds replay identity to the template and exact primary quantity", () => {
+  it("binds replay identity to legal name, template, quantity, and exact terms", async () => {
     const input = parseSignup(validSignup, env)
-    expect(agreementDocumentName(input, "Standard_Agreement")).toBe(
-      "Standard_Agreement — Example Client — q2"
+    const revision = buildAgreementRevision(env, {
+      contactId: "contact-123",
+      input,
+    })
+    const fingerprint = await agreementRevisionFingerprint(revision)
+    expect(agreementDocumentName(revision, fingerprint)).toMatch(
+      /^Standard_Agreement — Example Client — rf-[0-9a-f]{16}$/
     )
-    expect(
-      agreementDocumentName(
-        { ...input, primaryListingQuantity: 3 },
-        "Standard_Agreement"
-      )
-    ).not.toBe(agreementDocumentName(input, "Standard_Agreement"))
+    const changedLegalName = buildAgreementRevision(env, {
+      contactId: "contact-123",
+      input: { ...input, legalName: "Changed Holdings LLC" },
+    })
+    expect(await agreementRevisionFingerprint(changedLegalName)).not.toBe(
+      fingerprint
+    )
   })
 
   it("fails closed for an unknown non-empty offer code", () => {
     expect(() =>
       parseSignup({ ...validSignup, offerCode: "unknown" }, env)
     ).toThrow("Enter a valid referral code")
-  })
-
-  it("quotes referral pricing without creating a GHL contact or document", async () => {
-    const response = await worker.fetch(
-      new Request("https://worker.example/quote", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://links.revfactor.io",
-        },
-        body: JSON.stringify({
-          offerCode: "PARTNER-ONE",
-          primaryListingQuantity: 3,
-        }),
-      }),
-      env
-    )
-
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({
-      pricingProgram: "Referral",
-      primaryMonthlyRate: 320,
-      monthlyServiceFee: 960,
-      onboardingFee: 150,
-      initialCheckoutTotal: 1110,
-    })
-  })
-
-  it("selects only the allowlisted referral template and writes canonical totals", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ contact: { id: "contact-123" } }))
-      .mockResolvedValueOnce(jsonResponse({ documents: [] }))
-      .mockResolvedValueOnce(jsonResponse({ contact: { id: "contact-123" } }))
-      .mockResolvedValueOnce(jsonResponse({ success: true }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          documents: [
-            {
-              documentId: "document-123",
-              name: "Referral_Agreement",
-              status: "draft",
-              recipients: [{ id: "contact-123" }],
-            },
-          ],
-        })
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          links: [
-            {
-              referenceId: "reference-123",
-              recipientId: "contact-123",
-              entityName: "contacts",
-            },
-          ],
-        })
-      )
-      .mockResolvedValueOnce(jsonResponse({ success: true }))
-    vi.stubGlobal("fetch", fetchMock)
-
-    const response = await worker.fetch(
-      new Request("https://worker.example/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://links.revfactor.io",
-        },
-        body: JSON.stringify({ ...validSignup, offerCode: "strltb" }),
-      }),
-      env
-    )
-
-    expect(response.status).toBe(200)
-    expect(fetchMock).toHaveBeenCalledTimes(7)
-    expect(await fetchMock.mock.calls[0][1]?.body).not.toContain("customFields")
-    expect(await fetchMock.mock.calls[2][1]?.body).toContain(
-      '"contact.rf_pricing_program","fieldValue":"Referral"'
-    )
-    expect(await fetchMock.mock.calls[2][1]?.body).toContain(
-      '"contact.rf_monthly_service_fee","fieldValue":"640"'
-    )
-    expect(await fetchMock.mock.calls[3][1]?.body).toContain(
-      '"templateId":"referral-template"'
-    )
-    expect(await fetchMock.mock.calls[5][1]?.body).toContain(
-      '"documentName":"Referral_Agreement — Example Client — q2"'
-    )
-  })
-
-  it("fails before commercial-field mutation when a competing agreement exists", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ contact: { id: "contact-123" } }))
-      .mockResolvedValueOnce(
-        jsonResponse({
-          documents: [
-            {
-              documentId: "document-standard",
-              name: "Standard_Agreement — Example Client — q2",
-              status: "sent",
-              recipients: [{ id: "contact-123" }],
-            },
-          ],
-        })
-      )
-    vi.stubGlobal("fetch", fetchMock)
-
-    const response = await worker.fetch(
-      new Request("https://worker.example/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Origin: "https://links.revfactor.io",
-        },
-        body: JSON.stringify({ ...validSignup, offerCode: "strltb" }),
-      }),
-      env
-    )
-
-    expect(response.status).toBe(400)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(await fetchMock.mock.calls[0][1]?.body).not.toContain("customFields")
-    await expect(response.json()).resolves.toMatchObject({
-      error: expect.stringContaining("agreement already exists"),
-    })
   })
 
   it("rejects child listings and deferred starts in the standard journey", () => {

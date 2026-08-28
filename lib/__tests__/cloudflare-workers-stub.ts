@@ -1,0 +1,13 @@
+export class DurableObject<Env> {
+  protected readonly ctx: DurableObjectState
+  protected readonly env: Env
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    this.ctx = ctx
+    this.env = env
+  }
+}
+
+type DurableObjectState = {
+  storage: unknown
+}

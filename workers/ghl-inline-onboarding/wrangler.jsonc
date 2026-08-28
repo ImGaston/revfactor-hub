@@ -4,6 +4,20 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
   "workers_dev": true,
+  "exports": {
+    "AgreementClaimCoordinator": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGREEMENT_CLAIMS",
+        "class_name": "AgreementClaimCoordinator",
+      },
+    ],
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
@@ -11,6 +25,14 @@
   "env": {
     "staging": {
       "name": "revfactor-ghl-inline-onboarding-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AGREEMENT_CLAIMS",
+            "class_name": "AgreementClaimCoordinator",
+          },
+        ],
+      },
       "vars": {
         "HIGHLEVEL_LOCATION_ID": "ErABPRqWbMyIicvzvCFt",
         "HIGHLEVEL_ONBOARDING_TEMPLATE_ID": "6a919f20ede3dcd490eee0c9",
