@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-08-27 — `start.revfactor.io` Is the New Onboarding URL
+
+Federico selected `start.revfactor.io` as the canonical client-facing URL for the unified GHL agreement, payment, and onboarding journey. `onboarding.revfactor.io` remains active during the parallel validation and migration period; it is not redirected or retired by this decision. `start.revfactor.io` must not be pointed at the draft journey or sent to clients until the complete Stripe Test path, final GHL submission, and idempotent Assembly handoff pass and a separate cutover review explicitly approves DNS/domain publication. `launch.revfactor.io` remains unassigned and may be reserved for a future post-payment launch experience.
+
 ## 2026-08-25 — Provider Failure Is Isolated and Commercial Authority Stays Deterministic
 
 Market Signals now treats PredictHQ, Ticketmaster, and NWS as independent evidence adapters behind one normalized contract. The agent enables a registered source only while its server-side configuration exists; one expired, rate-limited, or failed provider records its own health failure but does not prevent healthy providers from completing the market refresh. Scheduled work fetches only sources whose own cadence is due, then computes listing vulnerability and Signal Briefs once for the market. This keeps the 90-day PredictHQ beta replaceable instead of operationally central.

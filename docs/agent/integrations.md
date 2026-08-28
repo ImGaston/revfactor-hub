@@ -286,6 +286,7 @@ GoHighLevel is intended to replace the vibecoded scheduler and own lead capture,
 
 ### GHL-native onboarding draft (2026-08-21)
 
+- Approved future client URL: `start.revfactor.io`. Keep `onboarding.revfactor.io` active in parallel; no redirect, DNS change, funnel-domain attachment, or client use is approved until the complete test journey and a separate cutover review pass.
 - Client-visible target: GHL funnel/form → GHL `RevFactor_Service_Agreement` → GHL direct monthly payment → Assembly invitation. The client should not visit the Vercel pilot; only the final provisioning webhook remains outside GHL and is invisible to the client.
 - Draft GHL assets:
   - Funnel `RevFactor Client Onboarding`, step `Start Onboarding` (`start`), page-builder ID `YCl1q29Evuh1Qd97PIxe`. Saved but not published and no domain is attached.
