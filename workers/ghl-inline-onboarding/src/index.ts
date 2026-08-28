@@ -45,6 +45,11 @@ type GhlDocument = {
   links?: DocumentLink[]
 }
 
+type GhlDocumentPage = {
+  documents?: unknown
+  total?: unknown
+}
+
 type ClaimStage =
   | "claimed"
   | "preflight_scanning"
@@ -305,18 +310,67 @@ async function upsertContact(
   return payload.contact.id
 }
 
-async function listDocuments(env: Env, query: string) {
-  const params = new URLSearchParams({
-    locationId: env.HIGHLEVEL_LOCATION_ID,
-    limit: "20",
-    query,
-  })
-  const response = await ghlFetch(
-    env,
-    `/proposals/document?${params.toString()}`,
-    { method: "GET" }
-  )
-  return (await response.json()) as { documents?: GhlDocument[] }
+const DOCUMENT_PAGE_SIZE = 50
+const MAX_DOCUMENT_SCAN_PAGES = 20
+const MAX_DOCUMENT_SCAN_RESULTS = DOCUMENT_PAGE_SIZE * MAX_DOCUMENT_SCAN_PAGES
+
+async function listAllDocuments(env: Env): Promise<GhlDocument[]> {
+  const documents: GhlDocument[] = []
+  const documentIds = new Set<string>()
+  let expectedTotal: number | null = null
+
+  for (let page = 0; page < MAX_DOCUMENT_SCAN_PAGES; page += 1) {
+    const params = new URLSearchParams({
+      locationId: env.HIGHLEVEL_LOCATION_ID,
+      limit: String(DOCUMENT_PAGE_SIZE),
+      skip: String(documents.length),
+    })
+    const response = await ghlFetch(
+      env,
+      `/proposals/document?${params.toString()}`,
+      { method: "GET" }
+    )
+    const payload = (await response.json()) as GhlDocumentPage
+    if (
+      !Number.isSafeInteger(payload.total) ||
+      Number(payload.total) < 0 ||
+      Number(payload.total) > MAX_DOCUMENT_SCAN_RESULTS
+    ) {
+      throw new Error("HighLevel returned an unsafe document total")
+    }
+    const pageTotal = Number(payload.total)
+    if (expectedTotal === null) expectedTotal = pageTotal
+    if (pageTotal !== expectedTotal) {
+      throw new Error("HighLevel document total changed during pagination")
+    }
+    if (!Array.isArray(payload.documents)) {
+      throw new Error("HighLevel returned an invalid document page")
+    }
+    if (payload.documents.length > DOCUMENT_PAGE_SIZE) {
+      throw new Error("HighLevel exceeded the document page limit")
+    }
+    if (payload.documents.length === 0 && documents.length < expectedTotal) {
+      throw new Error("HighLevel returned an incomplete document page set")
+    }
+
+    for (const candidate of payload.documents) {
+      if (!isRecord(candidate) || typeof candidate.documentId !== "string") {
+        throw new Error("HighLevel returned a document without an identity")
+      }
+      if (documentIds.has(candidate.documentId)) {
+        throw new Error("HighLevel returned duplicate document identities")
+      }
+      documentIds.add(candidate.documentId)
+      documents.push(candidate as GhlDocument)
+    }
+
+    if (documents.length > expectedTotal) {
+      throw new Error("HighLevel returned more documents than declared")
+    }
+    if (documents.length === expectedTotal) return documents
+  }
+
+  throw new Error("HighLevel document pagination exceeded its safe bound")
 }
 
 function contactReference(
@@ -401,6 +455,16 @@ const ACTIVE_DOCUMENT_STATUSES = [
   "signed",
   "accepted",
 ]
+
+export const LEGACY_REVFACTOR_AGREEMENT_NAMES = [
+  "RevFactor_Service_Agreement",
+  "RevFactor_Service_Agreement_With_Child_Listings",
+  "RevFactor_Service_Agreement_Standard_Immediate_Start_DRAFT_v2",
+] as const
+
+function matchesAgreementName(name: string, agreementName: string) {
+  return name === agreementName || name.startsWith(`${agreementName} — `)
+}
 
 function claimRows(sql: SqlStorage): ClaimRow[] {
   return sql.exec<ClaimRow>("SELECT * FROM agreement_claim LIMIT 1").toArray()
@@ -518,12 +582,15 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
     const templateNames = [
       this.env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
       this.env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
+      ...LEGACY_REVFACTOR_AGREEMENT_NAMES,
     ]
     return (documents ?? []).filter(
       (document) =>
         typeof document.documentId === "string" &&
         typeof document.name === "string" &&
-        templateNames.some((name) => String(document.name).startsWith(name)) &&
+        templateNames.some((name) =>
+          matchesAgreementName(String(document.name), name)
+        ) &&
         typeof document.status === "string" &&
         ACTIVE_DOCUMENT_STATUSES.includes(document.status) &&
         document.recipients?.some((recipient) => recipient.id === contactId)
@@ -532,7 +599,7 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
 
   private async scan(revision: AgreementRevision) {
     return this.relevantDocuments(
-      (await listDocuments(this.env, revision.contactName)).documents,
+      await listAllDocuments(this.env),
       revision.contactId
     )
   }
@@ -574,6 +641,15 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
       }
     }
     if (row.stage === "conflict") return this.conflict(row, "claim_conflict")
+
+    if (
+      row.stage === "preflight_scanning" &&
+      now - row.updated_at >= ACTION_STALE_AFTER_MS
+    ) {
+      row = this.transition(fingerprint, "claimed", {
+        errorCode: "stale_preflight_rescan",
+      })
+    }
 
     if (
       (row.stage === "template_creating" || row.stage === "link_creating") &&

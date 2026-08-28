@@ -1,7 +1,14 @@
 import { delay, http, HttpResponse } from "msw"
 import { env } from "cloudflare:workers"
+import { runInDurableObject } from "cloudflare:test"
 import { describe, expect, it } from "vitest"
-import worker, { type Env as WorkerEnv, type Signup } from "../src/index"
+import worker, {
+  agreementRevisionFingerprint,
+  buildAgreementRevision,
+  LEGACY_REVFACTOR_AGREEMENT_NAMES,
+  type Env as WorkerEnv,
+  type Signup,
+} from "../src/index"
 import { network } from "./setup"
 
 const API = "https://services.leadconnectorhq.com"
@@ -39,6 +46,10 @@ function installHarness(options: {
   templateCreateFailsAfterCommit?: boolean
   templateInitiallyHidden?: boolean
   commercialDelayMs?: number
+  documentPage?: (
+    skip: number,
+    harness: Harness
+  ) => { documents: unknown[]; total?: number }
 }) {
   const harness: Harness = {
     contactId: options.contactId,
@@ -60,9 +71,13 @@ function installHarness(options: {
       }
       return HttpResponse.json({ contact: { id: harness.contactId } })
     }),
-    http.get(`${API}/proposals/document`, () => {
+    http.get(`${API}/proposals/document`, ({ request }) => {
+      const skip = Number(new URL(request.url).searchParams.get("skip") ?? 0)
+      if (options.documentPage) {
+        return HttpResponse.json(options.documentPage(skip, harness))
+      }
       if (!harness.templateCreated || !harness.templateVisible) {
-        return HttpResponse.json({ documents: [] })
+        return HttpResponse.json({ documents: [], total: 0 })
       }
       if (harness.sentDocumentName) {
         return HttpResponse.json({
@@ -81,6 +96,7 @@ function installHarness(options: {
               ],
             },
           ],
+          total: 1,
         })
       }
       return HttpResponse.json({
@@ -92,6 +108,7 @@ function installHarness(options: {
             recipients: [{ id: harness.contactId }],
           },
         ],
+        total: 1,
       })
     }),
     http.post(`${API}/proposals/templates/send`, async ({ request }) => {
@@ -154,6 +171,29 @@ function submit(input: Signup) {
     }),
     testEnv
   )
+}
+
+function unrelatedDocuments(count: number, prefix: string) {
+  return Array.from({ length: count }, (_, index) => ({
+    documentId: `${prefix}-${index}`,
+    name: `Unrelated document ${prefix}-${index}`,
+    status: "draft",
+    recipients: [{ id: `other-contact-${index}` }],
+  }))
+}
+
+function agreementDocument(
+  contactId: string,
+  name: string,
+  status: string,
+  documentId = `agreement-${contactId}`
+) {
+  return {
+    documentId,
+    name,
+    status,
+    recipients: [{ id: contactId }],
+  }
 }
 
 describe("agreement claim orchestration", () => {
@@ -266,6 +306,199 @@ describe("agreement claim orchestration", () => {
     })
     expect(harness.templateCreates).toHaveLength(1)
     expect(harness.commercialWrites).toHaveLength(1)
+    expect(harness.linkCreates).toHaveLength(1)
+  })
+
+  it("finds a relevant existing agreement on page two before any commercial mutation", async () => {
+    const contactId = "contact-page-two-conflict"
+    const pageOne = unrelatedDocuments(50, "page-two-conflict")
+    const harness = installHarness({
+      contactId,
+      documentPage: (skip) => ({
+        total: 51,
+        documents:
+          skip === 0
+            ? pageOne
+            : [
+                agreementDocument(
+                  contactId,
+                  testEnv.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
+                  "sent"
+                ),
+              ],
+      }),
+    })
+    const result = await testEnv.AGREEMENT_CLAIMS.getByName(
+      contactId
+    ).processAgreement({
+      contactId,
+      input: signup({
+        email: "page-two-conflict@example.com",
+        contactName: "Page Two Conflict",
+      }),
+    })
+
+    expect(result).toMatchObject({ outcome: "conflict" })
+    expect(harness.commercialWrites).toHaveLength(0)
+    expect(harness.templateCreates).toHaveLength(0)
+    expect(harness.linkCreates).toHaveLength(0)
+  })
+
+  it.each([
+    ["missing total", () => ({ documents: [] })],
+    ["truncated page set", () => ({ documents: [], total: 1 })],
+    [
+      "drifting total",
+      (skip: number) => ({
+        documents:
+          skip === 0
+            ? unrelatedDocuments(50, "drifting-total")
+            : [
+                {
+                  documentId: "drifting-total-last",
+                  name: "Unrelated final document",
+                  status: "draft",
+                  recipients: [{ id: "other" }],
+                },
+              ],
+        total: skip === 0 ? 51 : 52,
+      }),
+    ],
+    [
+      "duplicate document identity",
+      (skip: number) => {
+        const page = unrelatedDocuments(50, "duplicate-id")
+        return {
+          documents: skip === 0 ? page : [page[0]],
+          total: 51,
+        }
+      },
+    ],
+  ])(
+    "fails closed for an incomplete document inventory: %s",
+    async (_label, documentPage) => {
+      const contactId = `contact-incomplete-${String(_label).replaceAll(" ", "-")}`
+      const harness = installHarness({ contactId, documentPage })
+      const result = await testEnv.AGREEMENT_CLAIMS.getByName(
+        contactId
+      ).processAgreement({
+        contactId,
+        input: signup({
+          email: `${contactId}@example.com`,
+          contactName: `Incomplete ${_label}`,
+        }),
+      })
+
+      expect(result).toMatchObject({ outcome: "pending", stage: "claimed" })
+      expect(harness.commercialWrites).toHaveLength(0)
+      expect(harness.templateCreates).toHaveLength(0)
+      expect(harness.linkCreates).toHaveLength(0)
+    }
+  )
+
+  it("finds a newly created reconciliation target on page two", async () => {
+    const contactId = "contact-page-two-reconcile"
+    const pageOne = unrelatedDocuments(50, "page-two-reconcile")
+    const harness = installHarness({
+      contactId,
+      documentPage: (skip, state) => {
+        if (!state.templateCreated) return { documents: [], total: 0 }
+        return {
+          total: 51,
+          documents:
+            skip === 0
+              ? pageOne
+              : [
+                  agreementDocument(
+                    contactId,
+                    state.createdTemplateName,
+                    "draft",
+                    `document-${contactId}`
+                  ),
+                ],
+        }
+      },
+    })
+    const result = await testEnv.AGREEMENT_CLAIMS.getByName(
+      contactId
+    ).processAgreement({
+      contactId,
+      input: signup({
+        email: "page-two-reconcile@example.com",
+        contactName: "Page Two Reconcile",
+      }),
+    })
+
+    expect(result).toMatchObject({ outcome: "completed" })
+    expect(harness.commercialWrites).toHaveLength(1)
+    expect(harness.templateCreates).toHaveLength(1)
+    expect(harness.linkCreates).toHaveLength(1)
+  })
+
+  it.each(
+    LEGACY_REVFACTOR_AGREEMENT_NAMES.flatMap((name) =>
+      ["draft", "sent", "viewed", "completed"].map(
+        (status) => [name, status] as const
+      )
+    )
+  )(
+    "blocks legacy agreement %s in %s state before commercial mutation",
+    async (legacyName, status) => {
+      const suffix = `${LEGACY_REVFACTOR_AGREEMENT_NAMES.indexOf(legacyName)}-${status}`
+      const contactId = `contact-legacy-${suffix}`
+      const harness = installHarness({
+        contactId,
+        documentPage: () => ({
+          total: 1,
+          documents: [agreementDocument(contactId, legacyName, status)],
+        }),
+      })
+      const result = await testEnv.AGREEMENT_CLAIMS.getByName(
+        contactId
+      ).processAgreement({
+        contactId,
+        input: signup({
+          email: `legacy-${suffix}@example.com`,
+          contactName: `Legacy ${suffix}`,
+        }),
+      })
+
+      expect(result).toMatchObject({ outcome: "conflict" })
+      expect(harness.commercialWrites).toHaveLength(0)
+      expect(harness.templateCreates).toHaveLength(0)
+      expect(harness.linkCreates).toHaveLength(0)
+    }
+  )
+
+  it("recovers an expired read-only preflight scan after an isolate crash", async () => {
+    const contactId = "contact-stale-preflight"
+    const harness = installHarness({ contactId })
+    const stub = testEnv.AGREEMENT_CLAIMS.getByName(contactId)
+    const input = signup({
+      email: "stale-preflight@example.com",
+      contactName: "Stale Preflight",
+    })
+    const revision = buildAgreementRevision(testEnv, { contactId, input })
+    const fingerprint = await agreementRevisionFingerprint(revision)
+
+    await runInDurableObject(stub, async (_instance, state) => {
+      const staleAt = Date.now() - 60_000
+      state.storage.sql.exec(
+        `INSERT INTO agreement_claim
+          (fingerprint, revision_json, stage, created_at, updated_at)
+         VALUES (?, ?, 'preflight_scanning', ?, ?)`,
+        fingerprint,
+        JSON.stringify(revision),
+        staleAt,
+        staleAt
+      )
+    })
+
+    expect(await stub.processAgreement({ contactId, input })).toMatchObject({
+      outcome: "completed",
+    })
+    expect(harness.commercialWrites).toHaveLength(1)
+    expect(harness.templateCreates).toHaveLength(1)
     expect(harness.linkCreates).toHaveLength(1)
   })
 })
