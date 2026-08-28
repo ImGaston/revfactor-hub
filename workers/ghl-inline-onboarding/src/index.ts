@@ -58,9 +58,11 @@ type ClaimStage =
   | "commercial_written"
   | "template_creating"
   | "template_reconciling"
+  | "template_reconcile_scanning"
   | "draft_found"
   | "link_creating"
   | "link_reconciling"
+  | "link_reconcile_scanning"
   | "completed"
   | "conflict"
 
@@ -110,6 +112,7 @@ type ClaimRow = {
   created_at: number
   updated_at: number
   last_error_code: string | null
+  state_version: number
 }
 
 const GHL_API = "https://services.leadconnectorhq.com"
@@ -489,14 +492,17 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
           stage TEXT NOT NULL CHECK (stage IN (
             'claimed', 'preflight_scanning', 'preflight_clear',
             'commercial_writing', 'commercial_written',
-            'template_creating', 'template_reconciling', 'draft_found',
-            'link_creating', 'link_reconciling', 'completed', 'conflict'
+            'template_creating', 'template_reconciling',
+            'template_reconcile_scanning', 'draft_found',
+            'link_creating', 'link_reconciling',
+            'link_reconcile_scanning', 'completed', 'conflict'
           )),
           document_id TEXT,
           signing_url TEXT,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
-          last_error_code TEXT
+          last_error_code TEXT,
+          state_version INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS claim_events (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -526,36 +532,68 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
   }
 
   private transition(
-    fingerprint: string,
+    expected: ClaimRow,
     stage: ClaimStage,
     fields: {
       documentId?: string | null
       signingUrl?: string | null
       errorCode?: string | null
     } = {}
-  ): ClaimRow {
-    this.sql.exec(
-      `UPDATE agreement_claim
+  ): ClaimRow | null {
+    const rows = this.sql
+      .exec<ClaimRow>(
+        `UPDATE agreement_claim
        SET stage = ?, document_id = COALESCE(?, document_id),
            signing_url = COALESCE(?, signing_url), updated_at = ?,
-           last_error_code = ?
-       WHERE fingerprint = ?`,
-      stage,
-      fields.documentId ?? null,
-      fields.signingUrl ?? null,
-      Date.now(),
-      fields.errorCode ?? null,
-      fingerprint
-    )
+           last_error_code = ?, state_version = state_version + 1
+       WHERE fingerprint = ? AND stage = ? AND state_version = ?
+       RETURNING *`,
+        stage,
+        fields.documentId ?? null,
+        fields.signingUrl ?? null,
+        Date.now(),
+        fields.errorCode ?? null,
+        expected.fingerprint,
+        expected.stage,
+        expected.state_version
+      )
+      .toArray()
+    if (rows.length === 0) return null
     this.event(stage, fields.errorCode ?? "ok")
+    return rows[0]
+  }
+
+  private current(): ClaimRow {
     const row = claimRows(this.sql)[0]
     if (!row) throw new Error("Agreement claim disappeared")
     return row
   }
 
+  private currentResult(): AgreementClaimResult {
+    const row = this.current()
+    if (row.stage === "completed" && row.document_id && row.signing_url) {
+      return {
+        outcome: "completed",
+        documentId: row.document_id,
+        signingUrl: row.signing_url,
+        reused: true,
+      }
+    }
+    if (row.stage === "conflict") {
+      return {
+        outcome: "conflict",
+        message:
+          "This contact already has a different agreement revision. Contact RevFactor before continuing.",
+      }
+    }
+    return stageResult(row)
+  }
+
   private conflict(row: ClaimRow, code: string): AgreementClaimResult {
     if (row.stage !== "completed" && row.stage !== "conflict") {
-      this.transition(row.fingerprint, "conflict", { errorCode: code })
+      if (!this.transition(row, "conflict", { errorCode: code })) {
+        return this.currentResult()
+      }
     } else {
       this.event("conflict", code)
     }
@@ -642,56 +680,61 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
     }
     if (row.stage === "conflict") return this.conflict(row, "claim_conflict")
 
-    if (
-      row.stage === "preflight_scanning" &&
-      now - row.updated_at >= ACTION_STALE_AFTER_MS
-    ) {
-      row = this.transition(fingerprint, "claimed", {
-        errorCode: "stale_preflight_rescan",
-      })
+    const staleRecovery: Partial<Record<ClaimStage, ClaimStage>> = {
+      preflight_scanning: "claimed",
+      template_creating: "template_reconciling",
+      template_reconcile_scanning: "template_reconciling",
+      link_creating: "link_reconciling",
+      link_reconcile_scanning: "link_reconciling",
     }
-
-    if (
-      (row.stage === "template_creating" || row.stage === "link_creating") &&
-      now - row.updated_at >= ACTION_STALE_AFTER_MS
-    ) {
-      row = this.transition(
-        fingerprint,
-        row.stage === "template_creating"
-          ? "template_reconciling"
-          : "link_reconciling",
-        { errorCode: "stale_action_reconcile" }
-      )
+    const recoveryStage = staleRecovery[row.stage]
+    if (recoveryStage && now - row.updated_at >= ACTION_STALE_AFTER_MS) {
+      const recovered = this.transition(row, recoveryStage, {
+        errorCode:
+          row.stage === "preflight_scanning"
+            ? "stale_preflight_rescan"
+            : "stale_operation_reconcile",
+      })
+      if (!recovered) return this.currentResult()
+      row = recovered
     }
 
     if (
       row.stage === "preflight_scanning" ||
       row.stage === "commercial_writing" ||
       row.stage === "template_creating" ||
-      row.stage === "link_creating"
+      row.stage === "template_reconcile_scanning" ||
+      row.stage === "link_creating" ||
+      row.stage === "link_reconcile_scanning"
     ) {
       return stageResult(row)
     }
 
     if (row.stage === "claimed") {
-      row = this.transition(fingerprint, "preflight_scanning")
+      const scanning = this.transition(row, "preflight_scanning")
+      if (!scanning) return this.currentResult()
+      row = scanning
       let documents: GhlDocument[]
       try {
         documents = await this.scan(revision)
       } catch {
-        row = this.transition(fingerprint, "claimed", {
+        const retryable = this.transition(row, "claimed", {
           errorCode: "preflight_lookup_failed",
         })
-        return stageResult(row)
+        return retryable ? stageResult(retryable) : this.currentResult()
       }
       if (documents.length > 0) {
         return this.conflict(row, "preexisting_agreement")
       }
-      row = this.transition(fingerprint, "preflight_clear")
+      const clear = this.transition(row, "preflight_clear")
+      if (!clear) return this.currentResult()
+      row = clear
     }
 
     if (row.stage === "preflight_clear") {
-      row = this.transition(fingerprint, "commercial_writing")
+      const writing = this.transition(row, "commercial_writing")
+      if (!writing) return this.currentResult()
+      row = writing
       try {
         const confirmedContactId = await upsertContact(
           this.env,
@@ -702,16 +745,20 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
           return this.conflict(row, "contact_identity_conflict")
         }
       } catch {
-        row = this.transition(fingerprint, "commercial_writing", {
+        const ambiguous = this.transition(row, "commercial_writing", {
           errorCode: "commercial_write_ambiguous",
         })
-        return stageResult(row)
+        return ambiguous ? stageResult(ambiguous) : this.currentResult()
       }
-      row = this.transition(fingerprint, "commercial_written")
+      const written = this.transition(row, "commercial_written")
+      if (!written) return this.currentResult()
+      row = written
     }
 
     if (row.stage === "commercial_written") {
-      row = this.transition(fingerprint, "template_creating")
+      const creating = this.transition(row, "template_creating")
+      if (!creating) return this.currentResult()
+      row = creating
       try {
         await ghlFetch(this.env, "/proposals/templates/send", {
           method: "POST",
@@ -727,20 +774,25 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
         // GHL may have committed before the response was lost. Never create
         // again; every subsequent attempt is read-only reconciliation.
       }
-      row = this.transition(fingerprint, "template_reconciling", {
+      const reconciling = this.transition(row, "template_reconciling", {
         errorCode: "template_outcome_reconcile",
       })
+      if (!reconciling) return this.currentResult()
+      row = reconciling
     }
 
     if (row.stage === "template_reconciling") {
+      const scanning = this.transition(row, "template_reconcile_scanning")
+      if (!scanning) return this.currentResult()
+      row = scanning
       let documents: GhlDocument[]
       try {
         documents = await this.scan(revision)
       } catch {
-        row = this.transition(fingerprint, "template_reconciling", {
+        const retryable = this.transition(row, "template_reconciling", {
           errorCode: "template_lookup_failed",
         })
-        return stageResult(row)
+        return retryable ? stageResult(retryable) : this.currentResult()
       }
       const drafts = documents.filter(
         (document) =>
@@ -748,18 +800,27 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
           typeof document.name === "string" &&
           document.name.startsWith(revision.templateName)
       )
-      if (drafts.length === 0) return stageResult(row)
+      if (drafts.length === 0) {
+        const pending = this.transition(row, "template_reconciling", {
+          errorCode: "template_not_visible",
+        })
+        return pending ? stageResult(pending) : this.currentResult()
+      }
       if (drafts.length !== 1) {
         return this.conflict(row, "ambiguous_template_drafts")
       }
-      row = this.transition(fingerprint, "draft_found", {
+      const found = this.transition(row, "draft_found", {
         documentId: String(drafts[0].documentId),
       })
+      if (!found) return this.currentResult()
+      row = found
     }
 
     if (row.stage === "draft_found" && row.document_id) {
       const draftDocumentId = row.document_id
-      row = this.transition(fingerprint, "link_creating")
+      const creating = this.transition(row, "link_creating")
+      if (!creating) return this.currentResult()
+      row = creating
       let response: Response | null = null
       try {
         response = await ghlFetch(this.env, "/proposals/document/send", {
@@ -780,10 +841,11 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
         const referenceId = contactReference(payload.links, revision.contactId)
         if (referenceId) {
           const url = signingUrl(this.env, referenceId)
-          this.transition(fingerprint, "completed", {
+          const completed = this.transition(row, "completed", {
             documentId: draftDocumentId,
             signingUrl: url,
           })
+          if (!completed) return this.currentResult()
           return {
             outcome: "completed",
             documentId: draftDocumentId,
@@ -792,45 +854,59 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
           }
         }
       }
-      row = this.transition(fingerprint, "link_reconciling", {
+      const reconciling = this.transition(row, "link_reconciling", {
         errorCode: "link_outcome_reconcile",
       })
+      if (!reconciling) return this.currentResult()
+      row = reconciling
     }
 
     if (row.stage === "link_reconciling" && row.document_id) {
+      const reconcilingDocumentId = row.document_id
+      const scanning = this.transition(row, "link_reconcile_scanning")
+      if (!scanning) return this.currentResult()
+      row = scanning
       let documents: GhlDocument[]
       try {
         documents = await this.scan(revision)
       } catch {
-        row = this.transition(fingerprint, "link_reconciling", {
+        const retryable = this.transition(row, "link_reconciling", {
           errorCode: "link_lookup_failed",
         })
-        return stageResult(row)
+        return retryable ? stageResult(retryable) : this.currentResult()
       }
       const expectedName = agreementDocumentName(revision, fingerprint)
       const sent = documents.filter(
         (document) =>
-          document.documentId === row.document_id &&
+          document.documentId === reconcilingDocumentId &&
           document.name === expectedName &&
           ["sent", "viewed"].includes(String(document.status))
       )
-      if (sent.length !== 1) return stageResult(row)
-      const referenceId = contactReference(sent[0].links, revision.contactId)
-      if (!referenceId) return stageResult(row)
+      const referenceId =
+        sent.length === 1
+          ? contactReference(sent[0].links, revision.contactId)
+          : null
+      if (!referenceId) {
+        const pending = this.transition(row, "link_reconciling", {
+          errorCode: "link_not_visible",
+        })
+        return pending ? stageResult(pending) : this.currentResult()
+      }
       const url = signingUrl(this.env, referenceId)
-      this.transition(fingerprint, "completed", {
-        documentId: row.document_id,
+      const completed = this.transition(row, "completed", {
+        documentId: reconcilingDocumentId,
         signingUrl: url,
       })
+      if (!completed) return this.currentResult()
       return {
         outcome: "completed",
-        documentId: row.document_id,
+        documentId: reconcilingDocumentId,
         signingUrl: url,
         reused: false,
       }
     }
 
-    return stageResult(row)
+    return this.currentResult()
   }
 }
 
