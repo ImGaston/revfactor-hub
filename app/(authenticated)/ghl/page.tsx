@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
-import { Cable, ArrowLeftRight, Webhook } from "lucide-react"
+import Link from "next/link"
+import { Cable, ArrowLeftRight, Webhook, FileSearch } from "lucide-react"
 
 import { hasPermission } from "@/lib/permissions.server"
 import {
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 export default async function GhlPage() {
   if (!(await hasPermission("ghl", "view"))) redirect("/")
@@ -45,6 +47,23 @@ export default async function GhlPage() {
               checkout / signup).
             </li>
           </ul>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <FileSearch className="size-5 text-muted-foreground" />
+            <CardTitle>Listing reviews</CardTitle>
+          </div>
+          <CardDescription>
+            Create secure links for post-call property and financial review,
+            then monitor submissions and private files.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild>
+            <Link href="/ghl/listing-reviews">Open listing reviews</Link>
+          </Button>
         </CardContent>
       </Card>
     </div>
