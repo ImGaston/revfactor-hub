@@ -38,12 +38,15 @@ export async function proxy(request: NextRequest) {
   // link recipients hit it without a session; the page itself only serves
   // non-sensitive fields until the viewer logs in. The PriceLabs guide is an
   // intentionally public, client-safe static resource linked from Knowledge.
+  // /listing-review/<token> is a capability-link intake whose server actions
+  // validate the opaque token before returning or changing request data.
   if (
     !user &&
     !isPublicPriceLabsGuide &&
     pathname !== "/login" &&
     !pathname.startsWith("/auth/") &&
     !pathname.startsWith("/a/") &&
+    !pathname.startsWith("/listing-review/") &&
     !pathname.startsWith("/api/")
   ) {
     const url = request.nextUrl.clone()
