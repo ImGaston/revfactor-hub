@@ -681,3 +681,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Deleted `app/(authenticated)/pipeline/` (14 files), `@modal/(.)pipeline/`, and `lib/leads.ts`. Created `app/(authenticated)/ghl/page.tsx` — a `ghl:view`-gated placeholder describing the upcoming GoHighLevel↔Hub connection (scope TBD next session).
 - Updated sidebar (Cable icon), top-bar breadcrumb, command registry (removed `action-new-lead`, `nav-pipeline` → `nav-ghl`), `lib/permissions.ts` RESOURCES (`pipeline` → `ghl`), and re-pointed Revenue Briefs gating (`page.tsx` + `generate`/`airroi` routes + "Sales tool" badge) to `ghl:view`.
 - Migration `087_ghl_resource.sql` renames `role_permissions.resource` `pipeline` → `ghl`. Lead tables, ingest webhooks, Leads Read API, and `lib/lead-attribution.ts` intentionally untouched (external contracts, admin-client paths). See decisions.md 2026-08-28.
+
+# 2026-09-01 — Cancellation policy adjustment type
+
+- Added `cancellation_policy` / “Cancellation policy” as the 17th adjustment type, with a required target policy and no date or booking-window fields. Migration 089 widens the database CHECK and enables the type for both RevFactor and HostPricing creators.

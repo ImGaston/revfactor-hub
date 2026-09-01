@@ -745,6 +745,7 @@ export type AdjustmentType =
   | "visibility"
   | "blocked_dates"
   | "pricing_flexibility"
+  | "cancellation_policy"
   | "other"
 
 export type AdjustmentOrigin = "client" | "internal" | "hostpricing"

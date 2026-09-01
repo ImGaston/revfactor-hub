@@ -26,6 +26,7 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
   { value: "visibility", label: "Visibility / Ranking" },
   { value: "blocked_dates", label: "Blocked Dates" },
   { value: "pricing_flexibility", label: "Pricing Flexibility" },
+  { value: "cancellation_policy", label: "Cancellation policy" },
   { value: "other", label: "Other" },
 ]
 
@@ -331,6 +332,16 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsSignals: true,
     showsSuggestions: true,
     targetPlaceholder: "e.g. allow deeper last-minute discounting",
+  },
+  cancellation_policy: {
+    showsTarget: true,
+    requiresTarget: true,
+    showsDates: false,
+    requiresDateFrom: false,
+    showsBookingWindow: false,
+    showsSignals: false,
+    showsSuggestions: false,
+    targetPlaceholder: "e.g. switch to Flexible",
   },
   other: {
     showsTarget: true,
