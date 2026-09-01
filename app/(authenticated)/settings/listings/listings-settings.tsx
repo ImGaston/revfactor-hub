@@ -52,6 +52,10 @@ import {
   syncReportBuilderAction,
   updateListingStatusAction,
 } from "./actions"
+import {
+  AIRBNB_CANCELLATION_POLICY_LABELS,
+  type AirbnbCancellationPolicy,
+} from "@/lib/airbnb-cancellation-foundation"
 
 type SettingsListing = {
   id: string
@@ -62,12 +66,14 @@ type SettingsListing = {
   airbnb_link: string | null
   city: string | null
   state: string | null
-  client_id: string
+  client_id: string | null
   client_name: string | null
   pl_synced_at: string | null
   initial_setup_date: string | null
   adjustment_confirmed_date: string | null
   deactivated_date: string | null
+  default_cancellation_policy: AirbnbCancellationPolicy | null
+  timezone: string | null
 }
 
 type StatusFilter = "all" | "active" | "inactive"
@@ -254,7 +260,9 @@ export function ListingsSettings({
           `Report Builder synced: ${result.metricRowCount ?? 0} rows, ${
             result.listingCount ?? 0
           } listings${
-            result.unresolvedCount ? `, ${result.unresolvedCount} unresolved` : ""
+            result.unresolvedCount
+              ? `, ${result.unresolvedCount} unresolved`
+              : ""
           }`
         )
         router.refresh()
@@ -490,19 +498,22 @@ export function ListingsSettings({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%] min-w-[180px]">Name</TableHead>
-                <TableHead className="w-[17%] min-w-[120px]">Client</TableHead>
-                <TableHead className="w-[12%] min-w-[100px]">
+                <TableHead className="w-[20%] min-w-[180px]">Name</TableHead>
+                <TableHead className="w-[14%] min-w-[120px]">Account</TableHead>
+                <TableHead className="w-[10%] min-w-[100px]">
                   Location
                 </TableHead>
-                <TableHead className="w-[12%] min-w-[90px]">
+                <TableHead className="w-[10%] min-w-[90px]">
                   Listing ID
                 </TableHead>
-                <TableHead className="w-[16%] min-w-[130px]">
+                <TableHead className="w-[16%] min-w-[150px]">
+                  Airbnb foundation
+                </TableHead>
+                <TableHead className="w-[14%] min-w-[130px]">
                   PriceLabs Sync
                 </TableHead>
-                <TableHead className="w-[10%] min-w-[90px]">Status</TableHead>
-                <TableHead className="w-[8%] min-w-[80px]" />
+                <TableHead className="w-[9%] min-w-[90px]">Status</TableHead>
+                <TableHead className="w-[7%] min-w-[80px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -522,7 +533,7 @@ export function ListingsSettings({
                       {listing.name}
                     </TableCell>
                     <TableCell className="truncate text-muted-foreground">
-                      {listing.client_name ?? "—"}
+                      {listing.client_name ?? "Blackbird"}
                     </TableCell>
                     <TableCell className="truncate text-muted-foreground">
                       {[listing.city, listing.state]
@@ -531,6 +542,26 @@ export function ListingsSettings({
                     </TableCell>
                     <TableCell className="truncate font-mono text-xs text-muted-foreground">
                       {listing.listing_id ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        {listing.default_cancellation_policy &&
+                        listing.timezone ? (
+                          <Badge variant="outline">Ready</Badge>
+                        ) : (
+                          <Badge variant="secondary">Blocked</Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {listing.default_cancellation_policy
+                            ? AIRBNB_CANCELLATION_POLICY_LABELS[
+                                listing.default_cancellation_policy
+                              ]
+                            : "Policy missing"}
+                        </span>
+                        <span className="max-w-full truncate text-xs text-muted-foreground">
+                          {listing.timezone ?? "Timezone missing"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div
@@ -593,7 +624,7 @@ export function ListingsSettings({
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="py-8 text-center text-muted-foreground"
                   >
                     {hasFilters || statusFilter !== "all"

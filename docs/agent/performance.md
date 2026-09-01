@@ -54,6 +54,7 @@ Other performance work should get its own migration. Known candidates from `docs
 - `listings.listing_id` for PriceLabs sync lookups.
 - `tasks(sort_order, created_at DESC)` for task board ordering.
 - `onboarding_progress.client_id` and `onboarding_progress.template_id`.
+- Migration 091 adds `idx_listings_active_airbnb_foundation_missing`, a partial UUID index only for active rows missing policy or timezone, plus `idx_adjustments_listing_id` for the cross-table ownership check. The deterministic inventory scans active listings only; do not join reservations into it.
 
 ## Market Signals Ingestion
 

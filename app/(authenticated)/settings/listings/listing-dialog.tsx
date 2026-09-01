@@ -15,10 +15,12 @@ import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import {
   ListingFormFields,
   buildListingFields,
@@ -30,10 +32,19 @@ import {
   getClientOptionsAction,
   updateListingAction,
 } from "./actions"
+import {
+  AIRBNB_CANCELLATION_POLICIES,
+  AIRBNB_CANCELLATION_POLICY_LABELS,
+  isValidIanaTimezone,
+  type AirbnbCancellationPolicy,
+} from "@/lib/airbnb-cancellation-foundation"
+
+const BLACKBIRD_ACCOUNT = "__blackbird__"
+const UNSET_POLICY = "__unset_policy__"
 
 type ListingRecord = {
   id?: string
-  client_id: string
+  client_id: string | null
   name: string
   status?: string
   listing_id: string | null
@@ -44,6 +55,8 @@ type ListingRecord = {
   initial_setup_date?: string | null
   adjustment_confirmed_date?: string | null
   deactivated_date?: string | null
+  default_cancellation_policy?: AirbnbCancellationPolicy | null
+  timezone?: string | null
 }
 
 type ClientOption = { id: string; name: string }
@@ -58,7 +71,9 @@ export function ListingDialog({
   listing?: ListingRecord
 }) {
   const isEdit = !!listing?.id
-  const [clientId, setClientId] = useState(listing?.client_id ?? "")
+  const [clientId, setClientId] = useState<string | null>(
+    listing ? listing.client_id : ""
+  )
   const [status, setStatus] = useState(listing?.status ?? "active")
   const [initialSetupDate, setInitialSetupDate] = useState(
     listing?.initial_setup_date ?? ""
@@ -69,6 +84,11 @@ export function ListingDialog({
   const [deactivatedDate, setDeactivatedDate] = useState(
     listing?.deactivated_date ?? ""
   )
+  const [defaultCancellationPolicy, setDefaultCancellationPolicy] =
+    useState<AirbnbCancellationPolicy | null>(
+      listing?.default_cancellation_policy ?? null
+    )
+  const [timezone, setTimezone] = useState(listing?.timezone ?? "")
   const [values, setValues] = useState<ListingFormValues>(
     listingValuesFromRecord(listing)
   )
@@ -92,12 +112,24 @@ export function ListingDialog({
       toast.error("Name is required")
       return
     }
-    if (!clientId) {
-      toast.error("Client is required")
+    if (clientId === "") {
+      toast.error("Choose a RevFactor client or the Blackbird account")
+      return
+    }
+    const normalizedTimezone = timezone.trim()
+    if (normalizedTimezone && !isValidIanaTimezone(normalizedTimezone)) {
+      toast.error("Use a valid IANA timezone, such as America/New_York")
       return
     }
 
     setSaving(true)
+    // This dialog is also reused by the general /listings route. Until that
+    // route intentionally selects these fields, omit them there so an edit to
+    // an unrelated field cannot clear an inventoried policy/timezone.
+    const includeAirbnbFoundationFields =
+      !listing ||
+      "default_cancellation_policy" in listing ||
+      "timezone" in listing
     const input = {
       client_id: clientId,
       status: status || "active",
@@ -105,6 +137,12 @@ export function ListingDialog({
       initial_setup_date: initialSetupDate || null,
       adjustment_confirmed_date: adjustmentConfirmedDate || null,
       deactivated_date: deactivatedDate || null,
+      ...(includeAirbnbFoundationFields
+        ? {
+            default_cancellation_policy: defaultCancellationPolicy,
+            timezone: normalizedTimezone || null,
+          }
+        : {}),
     }
 
     const result = isEdit
@@ -127,13 +165,17 @@ export function ListingDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Listing" : "New Listing"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-client">Client *</Label>
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="listing-client">
+                Account / client *
+              </FieldLabel>
               <Select
-                value={clientId}
-                onValueChange={setClientId}
+                value={clientId ?? BLACKBIRD_ACCOUNT}
+                onValueChange={(value) =>
+                  setClientId(value === BLACKBIRD_ACCOUNT ? null : value)
+                }
                 disabled={clients === null}
               >
                 <SelectTrigger id="listing-client" className="w-full">
@@ -144,31 +186,89 @@ export function ListingDialog({
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {(clients ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                  <SelectGroup>
+                    <SelectItem value={BLACKBIRD_ACCOUNT}>
+                      Blackbird — no RevFactor client
                     </SelectItem>
-                  ))}
+                    {(clients ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="listing-status">Status</Label>
+            <Field>
+              <FieldLabel htmlFor="listing-default-cancellation-policy">
+                Default cancellation policy
+              </FieldLabel>
+              <Select
+                value={defaultCancellationPolicy ?? UNSET_POLICY}
+                onValueChange={(value) =>
+                  setDefaultCancellationPolicy(
+                    value === UNSET_POLICY
+                      ? null
+                      : (value as AirbnbCancellationPolicy)
+                  )
+                }
+              >
+                <SelectTrigger
+                  id="listing-default-cancellation-policy"
+                  className="w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={UNSET_POLICY}>
+                      Not inventoried — blocked
+                    </SelectItem>
+                    {AIRBNB_CANCELLATION_POLICIES.map((policy) => (
+                      <SelectItem key={policy} value={policy}>
+                        {AIRBNB_CANCELLATION_POLICY_LABELS[policy]}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="listing-timezone">
+                Property timezone
+              </FieldLabel>
+              <Input
+                id="listing-timezone"
+                value={timezone}
+                onChange={(event) => setTimezone(event.target.value)}
+                placeholder="America/New_York"
+                autoComplete="off"
+              />
+              <FieldDescription>
+                Exact IANA identifier. Missing values remain blocked.
+              </FieldDescription>
+            </Field>
+
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="listing-status">Status</FieldLabel>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger id="listing-status" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">
-                    Active — visible in Clients & Listings
-                  </SelectItem>
-                  <SelectItem value="inactive">
-                    Inactive — hidden, only shown here
-                  </SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="active">
+                      Active — visible in Clients & Listings
+                    </SelectItem>
+                    <SelectItem value="inactive">
+                      Inactive — hidden, only shown here
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
-            </div>
+            </Field>
 
             <div className="space-y-2">
               <Label htmlFor="listing-initial-setup">Initial setup</Label>
@@ -201,7 +301,8 @@ export function ListingDialog({
                 onChange={(e) => setDeactivatedDate(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Auto-set when the listing goes inactive; cleared on reactivation.
+                Auto-set when the listing goes inactive; cleared on
+                reactivation.
               </p>
             </div>
           </div>
@@ -221,7 +322,11 @@ export function ListingDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Listing"}
+              {saving
+                ? "Saving..."
+                : isEdit
+                  ? "Save Changes"
+                  : "Create Listing"}
             </Button>
           </DialogFooter>
         </form>

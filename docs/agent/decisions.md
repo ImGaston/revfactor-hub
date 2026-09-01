@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-09-01 — Seasonal Cancellation Automation Fails Closed on Inventoried Listing Defaults
+
+The Hub, not a fabricated client row, owns account classification: active listings with a client are RevFactor and active listings without one are Blackbird. Migration 091 therefore makes Adjustment client ownership nullable only behind a cross-table database invariant, and it protects the invariant in both directions when either an Adjustment or listing client changes. Existing RLS and the resolved-to-controlled governance remain unchanged.
+
+The future Grok Bot skill cannot infer policy or timezone. Each listing gets nullable, constrained `default_cancellation_policy` and IANA `timezone`; NULL means unverified and blocks action. Field changes append to a database audit ledger. The deterministic inventory reads listings/client identity only. Reservation gaps will later come from `pricelabs_reservations_cache`, gated by a successful local refresh run within 90 minutes; neither Airbnb scraping nor the daily upstream timestamp can substitute for that proof. Full future targeting and Adjustment decisions are recorded in `docs/airbnb-seasonal-cancellation-foundation.md`. This foundation ships no skill, cron, Slack send, Adjustment, or Airbnb change.
+
 ## 2026-08-25 — Provider Failure Is Isolated and Commercial Authority Stays Deterministic
 
 Market Signals now treats PredictHQ, Ticketmaster, and NWS as independent evidence adapters behind one normalized contract. The agent enables a registered source only while its server-side configuration exists; one expired, rate-limited, or failed provider records its own health failure but does not prevent healthy providers from completing the market refresh. Scheduled work fetches only sources whose own cadence is due, then computes listing vulnerability and Signal Briefs once for the market. This keeps the 90-day PredictHQ beta replaceable instead of operationally central.
