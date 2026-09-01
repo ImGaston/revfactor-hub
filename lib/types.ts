@@ -17,10 +17,14 @@ export type Listing = {
   initial_setup_date?: string | null
   adjustment_confirmed_date?: string | null
   deactivated_date?: string | null
+  default_cancellation_policy?:
+    | import("@/lib/airbnb-cancellation-foundation").AirbnbCancellationPolicy
+    | null
+  timezone?: string | null
 }
 
 export type ListingWithMetrics = Listing & {
-  client_id: string
+  client_id: string | null
   created_at: string
   updated_at: string
   pl_base_price: number | null

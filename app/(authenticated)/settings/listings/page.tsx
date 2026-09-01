@@ -3,6 +3,7 @@ import { getProfile } from "@/lib/supabase/profile"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { ListingsSettings } from "./listings-settings"
+import type { AirbnbCancellationPolicy } from "@/lib/airbnb-cancellation-foundation"
 
 export default async function SettingsListingsPage() {
   const [profile, canEdit] = await Promise.all([
@@ -17,12 +18,14 @@ export default async function SettingsListingsPage() {
     supabase
       .from("listings")
       .select(
-        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, initial_setup_date, adjustment_confirmed_date, deactivated_date, clients(id, name)"
+        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, initial_setup_date, adjustment_confirmed_date, deactivated_date, default_cancellation_policy, timezone, clients:clients_basic(id, name)"
       )
       .order("name"),
     supabase
       .from("report_group_overrides")
-      .select("id, group_name, client_id, note, created_by, created_at, clients(name)")
+      .select(
+        "id, group_name, client_id, note, created_by, created_at, clients(name)"
+      )
       .order("group_name"),
   ])
 
@@ -50,12 +53,15 @@ export default async function SettingsListingsPage() {
       airbnb_link: l.airbnb_link as string | null,
       city: l.city as string | null,
       state: l.state as string | null,
-      client_id: l.client_id as string,
+      client_id: l.client_id as string | null,
       client_name: client?.name ?? null,
       pl_synced_at: l.pl_synced_at as string | null,
       initial_setup_date: l.initial_setup_date as string | null,
       adjustment_confirmed_date: l.adjustment_confirmed_date as string | null,
       deactivated_date: l.deactivated_date as string | null,
+      default_cancellation_policy:
+        l.default_cancellation_policy as AirbnbCancellationPolicy | null,
+      timezone: l.timezone as string | null,
     }
   })
 

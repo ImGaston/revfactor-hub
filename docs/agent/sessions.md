@@ -1,5 +1,11 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-01 — RF-AUTO-002 Airbnb seasonal-cancellation data foundation
+
+- Audited production read-only before editing: PostgreSQL 17.6; 257 active client-associated listings, no clientless Hub listing rows, no ownership-invalid Adjustment among 124 rows, and an hourly concurrent reservation-cache refresh with the latest inspected run successful inside 90 minutes. Recorded the distinction between local refresh evidence and the older daily BigQuery source timestamp.
+- Added migration 091 with nullable canonical default-policy/IANA-timezone fields, fail-closed missing inventory, a partial missing-foundation index, a database-enforced portfolio/RevFactor/Blackbird Adjustment invariant in both directions, and an append-only field-change audit without changing existing RLS or resolved-to-controlled governance.
+- Added authorized Settings visibility/editing with explicit Blackbird classification, the deterministic read-only `report:airbnb-foundation` command, pure inventory helpers/tests, a production-shaped PostgreSQL 17 rollback/reapply harness, and the future-skill decision record. The exact migration passed every ownership case, legacy compatibility, RLS/grant preservation, timezone/policy validation, and audit immutability in rehearsal. No skill, schedule, Slack message, Adjustment, reservation read, or Airbnb setting was created or changed during implementation.
+
 ## 2026-08-25 — Ticketmaster and NWS Market Signals adapters
 
 - Synced the working branch with the latest Hub `main`, preserving the Revenue Manager/Market Signals work while integrating Reservations, Wins, Revenue Briefs, Adjustments, and the liquid-glass system. The pre-merge work was checkpointed locally before conflict resolution.

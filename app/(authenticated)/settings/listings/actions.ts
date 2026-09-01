@@ -11,9 +11,14 @@ import { getProfile } from "@/lib/supabase/profile"
 import { hasPermission } from "@/lib/permissions.server"
 import type { ReportGroupOverride } from "@/lib/types"
 import type { SeoMetricRow } from "@/lib/seo-metrics"
+import {
+  isAirbnbCancellationPolicy,
+  isValidIanaTimezone,
+  type AirbnbCancellationPolicy,
+} from "@/lib/airbnb-cancellation-foundation"
 
 type ListingInput = {
-  client_id: string
+  client_id: string | null
   name: string
   status: string
   listing_id: string | null
@@ -26,6 +31,22 @@ type ListingInput = {
   initial_setup_date?: string | null
   adjustment_confirmed_date?: string | null
   deactivated_date?: string | null
+  default_cancellation_policy?: AirbnbCancellationPolicy | null
+  timezone?: string | null
+}
+
+function validateAirbnbFoundationFields(input: ListingInput): string | null {
+  if (
+    input.default_cancellation_policy !== null &&
+    input.default_cancellation_policy !== undefined &&
+    !isAirbnbCancellationPolicy(input.default_cancellation_policy)
+  ) {
+    return "Unknown Airbnb cancellation policy"
+  }
+  if (input.timezone && !isValidIanaTimezone(input.timezone)) {
+    return "Timezone must be a valid IANA identifier such as America/New_York"
+  }
+  return null
 }
 
 export async function getClientOptionsAction(): Promise<
@@ -33,13 +54,15 @@ export async function getClientOptionsAction(): Promise<
 > {
   const supabase = await createClient()
   const { data } = await supabase
-    .from("clients")
+    .from("clients_basic")
     .select("id, name")
     .order("name")
   return data ?? []
 }
 
 export async function createListingAction(input: ListingInput) {
+  const validationError = validateAirbnbFoundationFields(input)
+  if (validationError) return { error: validationError }
   const supabase = await createClient()
   const { error } = await supabase.from("listings").insert(input)
   if (error) return { error: error.message }
@@ -50,6 +73,8 @@ export async function createListingAction(input: ListingInput) {
 }
 
 export async function updateListingAction(id: string, input: ListingInput) {
+  const validationError = validateAirbnbFoundationFields(input)
+  if (validationError) return { error: validationError }
   const supabase = await createClient()
   const { error } = await supabase.from("listings").update(input).eq("id", id)
   if (error) return { error: error.message }
@@ -127,7 +152,10 @@ export async function syncPriceLabsAction() {
  */
 export async function syncReportBuilderAction() {
   if (!isReportBuilderConfigured()) {
-    return { error: "PRICELABS_API_KEY not configured", status: "failed" as const }
+    return {
+      error: "PRICELABS_API_KEY not configured",
+      status: "failed" as const,
+    }
   }
 
   const profile = await getProfile()
@@ -144,7 +172,8 @@ export async function syncReportBuilderAction() {
     revalidatePath("/dashboard")
 
     return {
-      error: result.status === "failed" ? result.error ?? result.message : null,
+      error:
+        result.status === "failed" ? (result.error ?? result.message) : null,
       status: result.status,
       message: result.message,
       listingCount: result.listingCount ?? null,
@@ -169,7 +198,9 @@ export async function listReportGroupOverridesAction(): Promise<
     .order("group_name")
   return (data ?? []).map((row) => {
     const client = row.clients as { name: string } | { name: string }[] | null
-    const client_name = Array.isArray(client) ? client[0]?.name ?? null : client?.name ?? null
+    const client_name = Array.isArray(client)
+      ? (client[0]?.name ?? null)
+      : (client?.name ?? null)
     return {
       id: row.id as string,
       group_name: row.group_name as string,
