@@ -17,7 +17,9 @@ The first production-oriented slice now includes:
 - durable scheduled ingestion, cross-source persistence, PriceLabs vulnerability scoring, human review, and governed Adjustment linking; and
 - an optional-schema repository boundary that keeps the live route available before the timestamped package is applied.
 
-Not yet implemented: official university-page collectors, a Grok discovery connector, review/activation of the proposed market census, canonical-locality listing backfill, notifications in this release, or any external pricing/stay-rule write.
+Prepared locally after the foundation: a disabled-by-default official university-page adapter and a separate post-foundation configuration migration for the nine UConn, UT Knoxville, and GW registry rows. It has not been merged, deployed, migrated, or activated.
+
+Not yet implemented: approved university source activation and scheduling, a Grok discovery connector, review/activation of the proposed market census, canonical-locality listing backfill, notifications in this release, or any external pricing/stay-rule write.
 
 ## Decision
 

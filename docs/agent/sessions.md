@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-03 — Official university calendar source layer
+
+- Audited first-party family, commencement, registrar, and athletics sources for UConn, UT Knoxville, and George Washington, including crawl constraints and a real UTK registrar/ceremony date conflict.
+- Added a bounded, official-domain-only university page adapter with iCalendar, Event JSON-LD, HTML, and JSON-wrapped HTML parsing, explicit source match rules, stable normalization, and no attendance inference.
+- Added a separate post-foundation configuration migration for the nine existing source rows. It keeps all rows `registry_only` and inactive and adds the false-by-default `UNIVERSITY_PAGE_INGESTION_ENABLED` runtime gate.
+- Preserved pre-foundation runtime compatibility by querying the institution relationship only when the new gate is enabled. No ingestion, market activation, event creation, scheduling, or commercial write was enabled.
+
 ## 2026-09-02 — Market & Event Intelligence foundation prepared locally
 
 - Converted the high-confidence census into 38 idempotent `needs_review` market proposals with canonical locality candidates, jurisdiction, aggregate source-row counts, confidence, and explicit exception codes. The proposal seed creates no market, locality, membership, geometry, event, job, or external action and does not overwrite later reviewer work.

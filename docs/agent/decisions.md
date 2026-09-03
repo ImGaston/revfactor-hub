@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-09-03 — Official University Pages Require Governed Precedence and Three Activation Gates
+
+Commencement and family-program pages are canonical for their own dates; registrar calendars are corroborating future-year placeholders; general campus calendars are discovery-only. Future activation must retain conflicting observations as evidence and prefer the more specific program page rather than allowing last-writer-wins behavior. The current adapter labels authority tiers but does not yet reconcile overlapping observations, so a precedence-safe reconciliation slice is required before any source is enabled. The reusable page adapter is code-complete for bounded iCalendar, JSON-LD, HTML, and first-party REST HTML, but collection also requires `collection_status=enabled`, an active source row, and `UNIVERSITY_PAGE_INGESTION_ENABLED=true`. No one condition can activate it alone.
+
 ## 2026-09-02 — The Initial Census Enters the Hub as Proposals, Never Assignments
 
 The first market census is preserved as 38 `needs_review` research proposals: the 25 high-confidence table entries plus 13 straightforward same-city candidates. Migration `20260902203400` records canonical locality candidates, US jurisdiction, aggregate PriceLabs source-row counts, confidence, limitations, and explicit exception codes. Counts remain evidence rather than property totals because PriceLabs can contain channel duplicates and parent/child rows.
@@ -59,6 +63,7 @@ The onboarding study does not create a second onboarding system or a general-pur
 ## 2026-08-20 — Revenue Manager Starts as an Evidence-Blocked Read-Only Fixture
 
 The first Revenue Manager UI is an internal `/revenue-manager` workspace computed from the sanitized Ashwood fixture, not a premature database or live-integration surface. It presents one verdict and one attention item, while Profile, Decisions, and Evidence retain the deeper explanation. Deterministic gates classify Ashwood as `data_blocked`: 15-day pace and minimum-price exposure are materially interesting, but unresolved adjusted-occupancy/market-cohort and forward-inventory semantics prevent a decision-safe rate recommendation. The UI therefore disables action, proposes no commercial mutation, and explains the evidence work required next. Migration 075 remains unapplied; only `super_admin` passes the current `revenue:view` check until permission rows are reviewed and applied. This preserves the product's fail-closed evidence doctrine while allowing the full local read model, persistence contract, navigation, and responsive UI to be tested.
+
 ## 2026-08-20 — Wins Dashboard: Deterministic Templates, Frozen Evidence, and No Assembly Write Path
 
 `/wins` replaces the manual "Wins YoY x Pickup" Excel with an auditable detection run (migration `075_wins.sql`). Key decisions:
@@ -72,7 +77,6 @@ The first Revenue Manager UI is an internal `/revenue-manager` workspace compute
 7. **`IS NOT TRUE`, never a bare `NOT`, when gating on `has_permission` inside a function.** It returns NULL for a session with no profile row, and `IF NOT NULL THEN` skips its branch — the original guard let an unidentified session through. RLS policies were never affected. Found by probing the deployed function as the `authenticated` role.
 
 Deferred with reasons: no cron (the PriceLabs cron already uses 52s of a 60s budget), no portfolio-level client messages, no owner/account-manager filter (the column does not exist), and no hardening of the `USING (true)` policies on `report_*` — that is a wider blast radius and belongs in its own migration.
-
 
 ## 2026-08-20 — Liquid Glass Is Chrome-Only, Built In-House, With No Gooey Filter
 
@@ -97,6 +101,7 @@ The Hub's visual system moves off the stock shadcn theme. Three reference implem
 The Revenue Brief Builder may use AirROI on demand to prefill public listing facts and show an internal TTM modeled-performance snapshot. AirROI is an evidence source, not the decision-maker: its revenue, ADR, occupancy, and RevPAR values are labeled third-party modeled estimates, never owner-reported actuals or guaranteed property projections. Demand-driver research, property constraints, opportunity framing, and the approved RevFactor managed-benchmark section still require human review before PDF generation.
 
 The integration is deliberately stateless and bounded to one `GET /listings` call after a signed-in `pipeline:view` user explicitly requests research. The Hub extracts a numeric listing ID from an `airbnb.com` URL, keeps `AIRROI_API_KEY` server-only, returns private/no-store JSON, and stores neither the intake nor response. Missing configuration disables AirROI enrichment without blocking the manual builder.
+
 ## 2026-08-10 — Roadmap Posts Become Project Tasks Without Losing History
 
 The `/roadmap` workspace now presents Projects first and a project-filterable Task board second. Existing `posts` remain the task records so comments, upvotes, tags, categories, ordering, and dates survive; a new required `roadmap_projects` parent provides the missing planning hierarchy. Migration 074 creates a stable General project and gives `posts.project_id` a non-null General default, avoiding orphan tasks and keeping legacy writers safe during deployment. The old `posts.eta` storage name is retained for backward compatibility but is presented as Deadline throughout the UI; projects carry their own optional deadline. Boards remain reusable categories rather than being overloaded as projects.
@@ -460,6 +465,7 @@ Billing (HostPricing invoices from actuales + altas + bajas per month) needs per
 The sales pipeline moved to GoHighLevel (see 2026-08-01 session: `RevFactor Sales` GHL pipeline), so the Hub's Pipeline section was deleted entirely — routes under `app/(authenticated)/pipeline/`, the `@modal/(.)pipeline/[id]` intercepted lead modal, and `lib/leads.ts`. A new `/ghl` section (placeholder for now) takes its sidebar slot; its purpose is the GHL↔Hub connection and its scope will be defined next.
 
 Decisions that shape the removal:
+
 - **Permission resource renamed, not deleted**: migration `087_ghl_resource.sql` does `update role_permissions set resource='ghl' where resource='pipeline'`, so every role (incl. the external `marketing` role from 041) keeps exactly its former grants under the new resource. Revenue Briefs, previously gated by `pipeline:view` (page + both API routes + sidebar/command entries), is now gated by `ghl:view`.
 - **Lead data and external contracts retained**: `leads` & friends, the `new-lead`/`scheduler` ingest webhooks, `GET /api/v1/leads`, and `lib/lead-attribution.ts` were all kept — they are external contracts (landing page, marketing tracking stack) and run through the admin client, so the UI removal doesn't affect them. Their RLS still references `pipeline`, which no role holds anymore; that closes session-level access to lead rows, which is intended.
 - **Lead types in `lib/types.ts` kept** because `app/api/v1/leads/route.ts` imports `Lead`.
