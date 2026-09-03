@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "benchmark:market-signals": "tsx scripts/benchmark-market-signal-scale.ts",
-    "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts"
+    "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts",
+    "case-studies:foundation": "tsx scripts/case-studies-foundation.ts"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
