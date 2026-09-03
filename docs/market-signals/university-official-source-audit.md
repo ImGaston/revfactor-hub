@@ -1,6 +1,6 @@
 # University official-source audit
 
-Status: researched and adapter scaffold complete on 2026-09-03. Collection remains disabled and is not activation-ready until the reconciliation work below is complete. No source, event, market, listing assignment, or commercial action is activated by this work.
+Status: researched and adapter scaffold complete on 2026-09-03. A pure, deterministic reconciliation engine now exists in `lib/market-signals/reconciliation.ts`; collection remains disabled because persistence wiring, complete-snapshot run tracking, and human review are still required. No source, event, market, listing assignment, or commercial action is activated by this work.
 
 ## Source precedence
 
@@ -9,7 +9,7 @@ Status: researched and adapter scaffold complete on 2026-09-03. Collection remai
 3. Official athletics schedules are the authority for home games and changing kickoff times.
 4. General campus calendars and news releases are supplemental discovery only.
 
-Conflicts are evidence, not permission to overwrite silently. For example, UT Knoxville's spring 2027 ceremony page says May 13–16 while its registrar calendar says May 14–17. The ceremony page must win operationally and both observations must remain auditable. The current adapter records authority tiers but does not yet perform this cross-source reconciliation, so no source should be activated until that layer is implemented and tested.
+Conflicts are evidence, not permission to overwrite silently. For example, UT Knoxville's spring 2027 ceremony page says May 13–16 while its registrar calendar says May 14–17. The ceremony page must win operationally and both observations must remain auditable. The reconciliation engine groups observations by institution/category/title/year/quarter, clusters dates within a 14-day drift window, selects the canonical observation by source role and observation time, and retains date/title/status conflicts for review.
 
 ## Pilot registry
 
@@ -38,7 +38,7 @@ Execution requires three independent approvals: the source configuration must mo
 
 ## Activation blockers
 
-Before any row moves to `enabled`, add and test cross-source occurrence reconciliation using the foundation's event-series identity. It must preserve both canonical and corroborating observations, apply the precedence policy above, and mark previously observed future occurrences stale or review-required when a complete source snapshot no longer contains them. The current source-level synthetic identity can track an HTML date move within one configured occurrence slot, but it is not a substitute for that cross-source series layer.
+Before any row moves to `enabled`, wire the pure reconciliation result to the foundation's event-series identity and durable run/delta records. The engine preserves both canonical and corroborating observations, applies the precedence policy above, and marks previously observed future occurrences missing only when a source explicitly declares a complete snapshot. The current source-level synthetic identity can track an HTML date move within one configured occurrence slot, but it is not a substitute for this cross-source series layer.
 
 Activation also requires source-specific snapshots from the live page shapes and an explicit decision for pages that legitimately have zero future matches between announcement cycles. The default parser-health minimum is one event, so a silent page redesign fails the source run instead of advancing health as if collection succeeded.
 
