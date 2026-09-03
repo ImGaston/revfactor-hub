@@ -1,4 +1,7 @@
-import type { NormalizedProviderEvent } from "@/lib/market-signals/contracts"
+import type {
+  MarketEventChangeType,
+  NormalizedProviderEvent,
+} from "@/lib/market-signals/contracts"
 import { canonicalEventFingerprint } from "@/lib/market-signals/domain"
 
 export type MarketSignalMarket = {
@@ -25,6 +28,11 @@ export type MarketSignalProviderCandidate = {
   evidenceSummary: string
   materialityFloor?: number
   retentionFloor?: number
+  // Some first-party pages expose no publication timestamp. Their adapter
+  // supplies the observation time initially; persistence then preserves the
+  // first-seen value and excludes observation-only timestamps from content
+  // identity so an unchanged page does not churn versions every poll.
+  timestampsFromObservation?: boolean
 }
 
 export type MarketSignalProviderFetchResult<TRaw> = {
@@ -43,6 +51,34 @@ export class MarketSignalProviderRequestError extends Error {
     this.provider = provider
     this.status = status
   }
+}
+
+export function stabilizeObservationTimestamps(input: {
+  incoming: NormalizedProviderEvent
+  previous: NormalizedProviderEvent | null
+  changeType: MarketEventChangeType
+  observedAt: string
+  timestampsFromObservation: boolean
+}) {
+  if (!input.timestampsFromObservation || !input.previous) {
+    return input.incoming
+  }
+  return {
+    ...input.incoming,
+    firstSeenAt: input.previous.firstSeenAt,
+    updatedAt:
+      input.changeType === "unchanged"
+        ? input.previous.updatedAt
+        : input.observedAt,
+  }
+}
+
+export function stripObservationTimestamps<
+  T extends { firstSeenAt: unknown; updatedAt: unknown },
+>(value: T, timestampsFromObservation: boolean) {
+  return timestampsFromObservation
+    ? { ...value, firstSeenAt: null, updatedAt: null }
+    : value
 }
 
 export function batchProviderCandidates(

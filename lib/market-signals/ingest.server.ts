@@ -41,8 +41,15 @@ import {
   parseCFBDQueryConfig,
 } from "@/lib/market-signals/cfbd"
 import {
+  fetchUniversityPageEvents,
+  normalizeUniversityPageEvent,
+  parseUniversityPageQueryConfig,
+} from "@/lib/market-signals/university-pages"
+import {
   batchProviderCandidates,
   MarketSignalProviderRequestError,
+  stabilizeObservationTimestamps,
+  stripObservationTimestamps,
   type MarketSignalMarket,
   type MarketSignalProviderCandidate,
 } from "@/lib/market-signals/provider"
@@ -57,8 +64,12 @@ type SourceRow = {
   high_water_mark: string | null
   cadence_minutes: number
   last_attempt_at: string | null
+  source_url: string | null
   market: MarketRow | MarketRow[]
+  institution?: InstitutionRow | InstitutionRow[] | null
 }
+
+type InstitutionRow = { official_domain: string }
 
 type MarketRow = {
   id: string
@@ -109,6 +120,7 @@ export type MarketSignalsRuntimeStatus = {
   ticketmasterConfigured: boolean
   cfbdConfigured: boolean
   nwsConfigured: boolean
+  universityPagesEnabled: boolean
   configuredSources: number
   ready: boolean
 }
@@ -137,11 +149,15 @@ export function getMarketSignalsRuntimeStatus(): MarketSignalsRuntimeStatus {
     process.env.CFBD_INGESTION_ENABLED?.trim().toLowerCase() === "true" &&
     Boolean(process.env.CFBD_API_KEY?.trim())
   const nwsConfigured = Boolean(process.env.NWS_USER_AGENT?.trim())
+  const universityPagesEnabled =
+    process.env.UNIVERSITY_PAGE_INGESTION_ENABLED?.trim().toLowerCase() ===
+    "true"
   const configuredSources = [
     predictHQConfigured,
     ticketmasterConfigured,
     cfbdConfigured,
     nwsConfigured,
+    universityPagesEnabled,
   ].filter(Boolean).length
   return {
     serviceRoleConfigured,
@@ -149,6 +165,7 @@ export function getMarketSignalsRuntimeStatus(): MarketSignalsRuntimeStatus {
     ticketmasterConfigured,
     cfbdConfigured,
     nwsConfigured,
+    universityPagesEnabled,
     configuredSources,
     ready: serviceRoleConfigured && configuredSources > 0,
   }
@@ -182,9 +199,12 @@ function providerState(
   return "verified"
 }
 
-function normalizedSnapshot(candidate: MarketSignalProviderCandidate) {
+function normalizedSnapshot(
+  candidate: MarketSignalProviderCandidate,
+  normalized = candidate.normalized
+) {
   return {
-    ...candidate.normalized,
+    ...normalized,
     providerState: candidate.providerState,
     rank: candidate.rank,
     accommodationSpend: candidate.accommodationSpend,
@@ -236,7 +256,9 @@ async function findEvent(
     .eq("canonical_fingerprint", legacyFingerprint)
     .maybeSingle()
   if (legacyError) {
-    throw new Error(`Failed to deduplicate legacy event: ${legacyError.message}`)
+    throw new Error(
+      `Failed to deduplicate legacy event: ${legacyError.message}`
+    )
   }
   return (legacyData ?? null) as EventRow | null
 }
@@ -249,16 +271,12 @@ async function persistCandidate(input: {
   observedAt: string
 }) {
   const { supabase, sourceId, market, candidate, observedAt } = input
-  const normalized = candidate.normalized
-  const fingerprint = canonicalEventFingerprint(normalized)
-  const legacyFingerprint = legacyCanonicalEventFingerprint(normalized)
-  const snapshot = normalizedSnapshot(candidate)
-  const hash = contentHash(snapshot)
+  const incomingNormalized = candidate.normalized
   const { data: providerData, error: providerError } = await supabase
     .from("market_event_provider_records")
     .select("id, event_id, content_hash, normalized_fields")
     .eq("source_id", sourceId)
-    .eq("external_id", normalized.externalId)
+    .eq("external_id", incomingNormalized.externalId)
     .maybeSingle()
   if (providerError) {
     throw new Error(`Failed to read provider record: ${providerError.message}`)
@@ -270,7 +288,23 @@ async function persistCandidate(input: {
     : null
   const classifiedChange = classifyEventChange(
     priorNormalized?.success ? priorNormalized.data : null,
-    normalized
+    incomingNormalized
+  )
+  const normalized = stabilizeObservationTimestamps({
+    incoming: incomingNormalized,
+    previous: priorNormalized?.success ? priorNormalized.data : null,
+    changeType: classifiedChange,
+    observedAt,
+    timestampsFromObservation: candidate.timestampsFromObservation === true,
+  })
+  const fingerprint = canonicalEventFingerprint(normalized)
+  const legacyFingerprint = legacyCanonicalEventFingerprint(normalized)
+  const snapshot = normalizedSnapshot(candidate, normalized)
+  const hash = contentHash(
+    stripObservationTimestamps(
+      snapshot,
+      candidate.timestampsFromObservation === true
+    )
   )
   const changeType =
     classifiedChange === "unchanged" && provider?.content_hash !== hash
@@ -503,6 +537,37 @@ async function fetchSourceCandidates(
   source: SourceRow,
   market: MarketSignalMarket
 ) {
+  if (source.source_type === "official_feed") {
+    if (
+      process.env.UNIVERSITY_PAGE_INGESTION_ENABLED?.trim().toLowerCase() !==
+      "true"
+    ) {
+      throw new Error("Official university page ingestion is disabled")
+    }
+    const institution = source.institution
+      ? relationOne(source.institution)
+      : null
+    if (!institution || !source.source_url) {
+      throw new Error(
+        "Official university source requires an institution domain and source URL"
+      )
+    }
+    const queryConfig = parseUniversityPageQueryConfig(source.query_config)
+    const observedAt = new Date().toISOString()
+    const response = await fetchUniversityPageEvents({
+      sourceUrl: source.source_url,
+      officialDomain: institution.official_domain,
+      market,
+      queryConfig,
+    })
+    return {
+      candidates: response.events.map((event) =>
+        normalizeUniversityPageEvent(event, market, queryConfig, observedAt)
+      ),
+      overflow: response.overflow,
+    }
+  }
+
   if (source.source_type === "predicthq") {
     const response = await fetchPredictHQEvents({
       token: requiredEnvironment("PREDICTHQ_ACCESS_TOKEN"),
@@ -668,12 +733,20 @@ async function readActiveSources(
   marketId?: string,
   dueOnly = false
 ) {
+  // Keep the existing providers operational while the additive institution
+  // schema is still pending. The relationship is queried only when the new
+  // runtime gate is explicitly enabled after that migration is live.
+  const universityRelation = getMarketSignalsRuntimeStatus()
+    .universityPagesEnabled
+    ? "institution:market_signal_institutions(official_domain),"
+    : ""
   let query = supabase
     .from("revenue_market_sources")
     .select(
       `
-        id, market_id, source_type, query_config, high_water_mark,
+        id, market_id, source_type, source_url, query_config, high_water_mark,
         cadence_minutes, last_attempt_at,
+        ${universityRelation}
         market:revenue_markets!inner(
           id, name, country_code, timezone, center_lat, center_lon,
           radius_miles, market_kind, status
@@ -722,6 +795,9 @@ async function enableAgentManagedSources(
     ["cfbd", runtime.cfbdConfigured],
     ["nws", runtime.nwsConfigured],
   ]
+  // Official university rows are never auto-enabled. Research must first set
+  // an explicit config and a reviewer must activate the individual source;
+  // the global runtime flag is only a second execution gate.
   for (const [sourceType, isActive] of availability) {
     const { error } = await supabase
       .from("revenue_market_sources")
