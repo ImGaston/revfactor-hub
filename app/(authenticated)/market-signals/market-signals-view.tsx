@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   AlertTriangle,
+  ArchiveRestore,
   ArrowUpRight,
   BrainCircuit,
   CalendarClock,
@@ -15,6 +16,7 @@ import {
   ClipboardPlus,
   Database,
   Eye,
+  GraduationCap,
   Link2,
   MapPinned,
   Radar,
@@ -80,6 +82,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type {
   MarketSignalsMarketSummary,
   MarketSignalsQueueItem,
+  MarketSignalsRecoveryItem,
+  MarketSignalsUniversitySummary,
   MarketSignalsWorkspace,
 } from "@/lib/market-signals/repository.server"
 
@@ -624,6 +628,289 @@ function SignalList({
   )
 }
 
+function sourceName(source: string) {
+  if (source === "official_feed") return "Official source"
+  if (source === "google_news") return "Google News"
+  if (source === "nws") return "NWS"
+  if (source === "predicthq") return "PredictHQ"
+  if (source === "ticketmaster") return "Ticketmaster"
+  if (source === "cfbd") return "College Football Data"
+  if (source === "seatgeek") return "SeatGeek"
+  return source.replaceAll("_", " ")
+}
+
+function PredictHQRecoveryList({
+  items,
+}: {
+  items: MarketSignalsRecoveryItem[]
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        No PredictHQ reference events have been archived yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-3">
+      <Alert>
+        <ArchiveRestore />
+        <AlertTitle>
+          PredictHQ is reference data, not an active dependency
+        </AlertTitle>
+        <AlertDescription>
+          Needs replacement means only PredictHQ has found the canonical event.
+          Recovered means at least one independent source found the same event.
+        </AlertDescription>
+      </Alert>
+      {items.map((item) => (
+        <div
+          key={item.eventId}
+          className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border p-4"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={
+                  item.status === "pending" ? "destructive" : "secondary"
+                }
+              >
+                {item.status === "pending" ? "Needs replacement" : "Recovered"}
+              </Badge>
+              <Badge variant="outline">{item.category}</Badge>
+            </div>
+            <h3 className="mt-2 font-heading text-base font-semibold">
+              {item.title}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {item.marketNames.length > 0
+                ? item.marketNames.join(" · ")
+                : `${item.city}${item.region ? `, ${item.region}` : ""}`}{" "}
+              · {formatDate(item.startAt)}–{formatDate(item.endAt)}
+            </p>
+          </div>
+          <div className="min-w-48 text-sm">
+            <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              Independent coverage
+            </div>
+            <div className="mt-1 font-medium">
+              {item.replacementSourceTypes.length > 0
+                ? item.replacementSourceTypes.map(sourceName).join(" · ")
+                : "None yet"}
+            </div>
+            <div className="mt-2 text-xs text-muted-foreground">
+              PredictHQ first seen {formatDate(item.predictHQFirstObservedAt)}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function universityEventTypeLabel(value: string) {
+  if (value === "family_weekend") return "Family weekend"
+  if (value === "college_football") return "Football"
+  if (value === "commencement") return "Graduation"
+  return value.replaceAll("_", " ")
+}
+
+function UniversityRegistry({
+  universities,
+}: {
+  universities: MarketSignalsUniversitySummary[]
+}) {
+  if (universities.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        No university-event sources are mapped yet.
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      {universities.map((university) => {
+        const monitoredSources = university.sources.filter(
+          (source) => source.isActive
+        ).length
+        return (
+          <Card
+            key={`${university.marketId ?? "unmapped"}:${university.id}`}
+            size="sm"
+          >
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle>{university.name}</CardTitle>
+                  <CardDescription className="mt-1">
+                    {university.marketName ?? "Market proposal pending"} ·{" "}
+                    {university.city}, {university.region}
+                  </CardDescription>
+                </div>
+                <Badge
+                  variant={
+                    university.relevanceStatus === "active"
+                      ? "default"
+                      : "outline"
+                  }
+                  className="capitalize"
+                >
+                  {university.relevanceStatus === "active"
+                    ? "Mapped"
+                    : university.relevanceStatus}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {university.eventTypes.map((eventType) => (
+                  <Badge key={eventType} variant="secondary">
+                    {universityEventTypeLabel(eventType)}
+                  </Badge>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3 border-t pt-4">
+              <div>
+                <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  Official sources
+                </div>
+                <div className="mt-2 grid gap-2">
+                  {university.sources.map((source) => (
+                    <div
+                      key={source.id}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      {source.sourceUrl ? (
+                        <Link
+                          href={source.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 truncate font-medium hover:underline"
+                        >
+                          {source.name}
+                          <ArrowUpRight className="ml-1 inline size-3.5" />
+                        </Link>
+                      ) : (
+                        <span className="min-w-0 truncate font-medium">
+                          {source.name}
+                        </span>
+                      )}
+                      <Badge variant="outline" className="shrink-0">
+                        {source.sourceRole === "corroborating"
+                          ? "Cross-check"
+                          : "Official"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {university.demandRationale}
+              </p>
+              <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
+                <span>
+                  {university.sources.length} official pages registered
+                </span>
+                <span>
+                  {monitoredSources > 0
+                    ? `${monitoredSources} monitored`
+                    : "Collector pending"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+function FoundationSnapshot({
+  foundation,
+}: {
+  foundation: MarketSignalsWorkspace["foundation"]
+}) {
+  if (!foundation.available) {
+    return (
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="size-4" /> Intelligence foundation
+          </CardTitle>
+          <CardDescription>
+            Registry KPIs will appear after the additive market and event
+            foundation migration is applied. Existing signal monitoring remains
+            available.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  const operationalSources = foundation.sourceCatalog.filter((source) =>
+    ["active", "pilot"].includes(source.status)
+  ).length
+  const researchSources = foundation.sourceCatalog.filter(
+    (source) => source.status === "research"
+  ).length
+  const credentialSources = foundation.sourceCatalog.filter(
+    (source) => source.status === "credentials_pending"
+  ).length
+
+  return (
+    <section className="grid gap-3">
+      <div>
+        <h2 className="font-heading text-lg font-semibold">
+          Intelligence foundation
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Fast readiness checks for mapping, source coverage, and future-event
+          monitoring.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <MetricCard
+          icon={ShieldCheck}
+          label="Primary mapped"
+          value={foundation.primaryAssignments}
+          detail={`${foundation.unmappedActiveListings} active listings unmapped`}
+        />
+        <MetricCard
+          icon={MapPinned}
+          label="Localities"
+          value={foundation.localityCount}
+          detail={`${foundation.stateCount} market jurisdictions`}
+        />
+        <MetricCard
+          icon={CircleDotDashed}
+          label="Market proposals"
+          value={foundation.openMarketProposals}
+          detail="Draft, review, or approved"
+        />
+        <MetricCard
+          icon={Database}
+          label="Source catalog"
+          value={foundation.sourceCatalog.length}
+          detail={`${operationalSources} active/pilot · ${researchSources} research · ${credentialSources} credentials`}
+        />
+        <MetricCard
+          icon={CalendarClock}
+          label="Dates due"
+          value={foundation.dueDateWatches}
+          detail="Recurring dates awaiting verification"
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          label="Playoff watches"
+          value={foundation.pendingConditionalEvents}
+          detail="Conditional events still pending"
+        />
+      </div>
+    </section>
+  )
+}
+
 function sourceStatusLabel(market: MarketSignalsMarketSummary) {
   if (market.sources.length === 0) return "Sources not registered"
   const active = market.sources.filter((item) => item.isActive)
@@ -670,6 +957,7 @@ function MarketCard({
     serviceRoleConfigured: boolean
     predictHQConfigured: boolean
     ticketmasterConfigured: boolean
+    cfbdConfigured: boolean
     nwsConfigured: boolean
     configuredSources: number
     ready: boolean
@@ -711,6 +999,18 @@ function MarketCard({
             <CardDescription className="mt-1 capitalize">
               {market.kind} · {market.radiusMiles} mi source radius
             </CardDescription>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {market.stateLabels.map((state) => (
+                <Badge key={state} variant="outline">
+                  {state}
+                </Badge>
+              ))}
+            </div>
+            {market.localityLabels.length > 0 && (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                {market.localityLabels.join(" · ")}
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <Badge variant={market.status === "active" ? "default" : "outline"}>
@@ -807,6 +1107,7 @@ export function MarketSignalsView({
     serviceRoleConfigured: boolean
     predictHQConfigured: boolean
     ticketmasterConfigured: boolean
+    cfbdConfigured: boolean
     nwsConfigured: boolean
     configuredSources: number
     ready: boolean
@@ -837,6 +1138,9 @@ export function MarketSignalsView({
   )
   const failedJobs = workspace.markets.filter(
     (market) => market.latestJob?.status === "failed"
+  )
+  const predictHQPending = workspace.predictHQRecovery.filter(
+    (item) => item.status === "pending"
   )
 
   return (
@@ -889,8 +1193,9 @@ export function MarketSignalsView({
           <AlertTitle>Runtime credentials required</AlertTitle>
           <AlertDescription>
             Add the server-side Supabase service role and at least one event
-            source connection (Ticketmaster, NWS, or PredictHQ) so the agent can
-            monitor automatically. No credential is exposed to the browser.
+            source connection (Ticketmaster, College Football Data, or NWS) so
+            the agent can monitor automatically. No credential is exposed to the
+            browser.
           </AlertDescription>
         </Alert>
       )}
@@ -932,7 +1237,7 @@ export function MarketSignalsView({
         </Alert>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <MetricCard
           icon={AlertTriangle}
           label="Needs review"
@@ -961,7 +1266,15 @@ export function MarketSignalsView({
               : `${workspace.markets.length} configured markets · agent healthy`
           }
         />
+        <MetricCard
+          icon={ArchiveRestore}
+          label="PHQ gaps"
+          value={predictHQPending.length}
+          detail={`${workspace.predictHQRecovery.length - predictHQPending.length} independently recovered`}
+        />
       </div>
+
+      <FoundationSnapshot foundation={workspace.foundation} />
 
       <Tabs defaultValue="review">
         <TabsList className="max-w-full overflow-x-auto">
@@ -970,6 +1283,10 @@ export function MarketSignalsView({
           <TabsTrigger value="changed">Changed</TabsTrigger>
           <TabsTrigger value="watch">Watchlist</TabsTrigger>
           <TabsTrigger value="reviewed">Reviewed</TabsTrigger>
+          <TabsTrigger value="universities">
+            <GraduationCap /> Universities
+          </TabsTrigger>
+          <TabsTrigger value="predicthq">PredictHQ recovery</TabsTrigger>
           <TabsTrigger value="markets">Markets</TabsTrigger>
         </TabsList>
         <TabsContent value="review" className="mt-4">
@@ -1011,6 +1328,12 @@ export function MarketSignalsView({
             canEdit={canEdit}
             briefRuntime={briefRuntime}
           />
+        </TabsContent>
+        <TabsContent value="universities" className="mt-4">
+          <UniversityRegistry universities={workspace.universities} />
+        </TabsContent>
+        <TabsContent value="predicthq" className="mt-4">
+          <PredictHQRecoveryList items={workspace.predictHQRecovery} />
         </TabsContent>
         <TabsContent value="markets" className="mt-4">
           {workspace.markets.length === 0 ? (

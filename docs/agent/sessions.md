@@ -1,5 +1,21 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-02 — Market & Event Intelligence foundation prepared locally
+
+- Converted the high-confidence census into 38 idempotent `needs_review` market proposals with canonical locality candidates, jurisdiction, aggregate source-row counts, confidence, and explicit exception codes. The proposal seed creates no market, locality, membership, geometry, event, job, or external action and does not overwrite later reviewer work.
+- Added a timestamped, additive foundation for cross-jurisdiction markets, canonical localities, exactly one approved primary listing market, optional secondary influences, locked manual overrides, and governed new-market proposals. It preserves the five live market IDs and 52 existing memberships; no new market or membership is activated.
+- Added normalized proposal-to-listing candidates, provider-catalog metadata, recurring event series and rolling three-year date watches, audience and attendance provenance, expected booking windows, and an evidence-only conditional playoff lifecycle.
+- Rewrote the unapplied university migration so UConn and UTK stay inactive and marketless while GW alone maps to the existing Washington market. PredictHQ remains reference-only; Arizona/CFBD remains the only new active-market provider registration in this package.
+- Hardened review gating so Tier-2/3/4 evidence requires two independent canonical provider identities. New exact identities use SHA-256 while ingestion retains a legacy-fingerprint fallback for existing canonical events.
+- Added a compact read-only Hub foundation snapshot and optional-schema compatibility, plus the source map, census, isolated deployment runbook, and aggregate verification utility. The updated five-file package requires a fresh isolated dry run before deployment.
+- Production remains untouched. No Grok submission scope, cron, provider call, PriceLabs action, stay rule, check-in/out restriction, or notification was enabled.
+
+## 2026-09-02 — College Football Data adapter
+
+- Added a fixture-tested CFBD schedule adapter to the normalized Market Signals pipeline. The server-only bearer key never enters source URLs, database configuration, errors, or browser props.
+- Home games are bounded by horizon, venue coordinates, and each market's reviewed radius. Completed attendance is retained when reported; stadium capacity drives only an explicit materiality floor and is never mislabeled as attendance.
+- Timestamp migration `20260902203100` registers Arizona football for the existing Tucson market. UConn and Tennessee remain inactive institution-scoped rows until their markets are reviewed; official-page graduation and Family Weekend collection remains deferred.
+
 ## 2026-09-01 — RF-AUTO-002 Airbnb seasonal-cancellation data foundation
 
 - Audited production read-only before editing: PostgreSQL 17.6; 257 active client-associated listings, no clientless Hub listing rows, no ownership-invalid Adjustment among 124 rows, and an hourly concurrent reservation-cache refresh with the latest inspected run successful inside 90 minutes. Recorded the distinction between local refresh evidence and the older daily BigQuery source timestamp.
