@@ -118,6 +118,7 @@
 
 - Created the branded GoHighLevel template `Sales - Post-call - Start onboarding` for qualified leads after a completed sales call. The template personalizes the greeting, links to the production onboarding start flow with campaign UTMs, and explains the agreement, payment, portal, and future service-start path.
 - Verified the template through the GHL v3 API and its hosted HTML preview. Recorded the template ID and manual-send decision in `docs/agent/integrations.md` so it can be wired into a later sales workflow without sending to every completed-call outcome.
+
 ## 2026-08-21 — Reservations Header Stats and Booked/Check-in Date Filter
 
 Added a 4-card stats header to `/reservations` (USD rental revenue sum, nights-weighted ADR, average booking window, nights sum) computed DB-side by the new `reservation_page_stats` RPC (migration 077, applied to prod; SECURITY INVOKER with the `IS NOT TRUE` permission gate from the wins pattern). With no date range chosen, stats default to the **last 30 days by booked date** while the table still shows everything; with a range chosen, stats follow the table's filters exactly. Money figures are USD-only by product decision (the cache carries 103 CAD + 32 EUR rows) and the caption discloses the excluded count. The date-range filter gained a Check-in/Booked field selector (`df` URL param, check-in remains the default and keeps old URLs stable). Verified the RPC end-to-end with simulated authenticated sessions (gate rejects no-profile sessions with 42501; all filter paths return correct aggregates — last 30d: 2,154 reservations, $3.46M, ADR $482.69). Typecheck and lint clean; in-browser visual check pending a login session.
@@ -128,14 +129,13 @@ Saved views (product decisions: team-shared, relative ranges): extended the URL 
 
 ## 2026-08-20 — Wins Dashboard Built and Verified Against Production Data
 
-Planned and implemented `/wins` end to end. Phase 0 resolved every open question against the live database rather than assuming: `report_metrics` covers calendar 2026 (not a rolling window); STLY equals LY for closed months but diverges for future ones, confirming STLY is same-time-last-year *pace*; reservations carry CAD/EUR as well as USD, though every Hub-mapped reservation is USD; 177 reservation keys fan out across 3 PriceLabs listings; `source_fetched_at` gives real freshness instead of a proxy.
+Planned and implemented `/wins` end to end. Phase 0 resolved every open question against the live database rather than assuming: `report_metrics` covers calendar 2026 (not a rolling window); STLY equals LY for closed months but diverges for future ones, confirming STLY is same-time-last-year _pace_; reservations carry CAD/EUR as well as USD, though every Hub-mapped reservation is USD; 177 reservation keys fan out across 3 PriceLabs listings; `source_fetched_at` gives real freshness instead of a proxy.
 
 Reconciled the pickup maths against the reference workbook **to the cent** (`Rabbit Run`: W2 $5,335.97, W3 $36,794.12, Δ $31,458.15, median lead 70.5d) and confirmed the ±15% trend cuts empirically across its 239 rows.
 
 Shipped: migration 075 (5 tables, 14 policies, 1 RPC, permission seeds), `lib/wins.ts` / `lib/wins-message.ts` (pure, fully unit-tested), `lib/wins-detection.server.ts`, `lib/wins-queries.ts`, the `/wins` route with queue + evidence drawer + message composer, and `lib/clipboard.ts` extracted from the one existing copy path that degraded properly. 193 tests pass.
 
 Three real defects surfaced only by running it: the candidate unique key collided on fanned-out listings; delete-then-insert orphaned already-copied drafts; and the in-function permission guard used a bare `NOT` against a function that returns NULL for unidentified sessions. All three are fixed, documented in `conventions.md`, and covered by regression tests. Negative RLS probes as the `authenticated` role confirm zero rows visible, the RPC raising `42501`, and the append-only tables refusing UPDATE/DELETE.
-
 
 ## 2026-08-20 — Liquid Glass visual refresh (foundation, shell, primitives)
 
@@ -152,6 +152,7 @@ Three real defects surfaced only by running it: the candidate unique key collide
 - Added a short prospect intake for prepared-for name, property address, Airbnb URL, owner goals, and known constraints, with a manual apply path that leaves the existing full analyst form intact.
 - Added an optional server-only AirROI listing integration. One explicit import pre-fills public listing facts and owner-safe draft language while showing TTM modeled metrics only in an internal source callout; demand drivers and RevFactor benchmarks remain human-reviewed.
 - Kept the workflow stateless and permission-gated, added missing-key graceful degradation, strict Airbnb ID extraction, response validation, tests, and durable integration/evidence-boundary documentation.
+
 ## 2026-08-10 — Project-based roadmap workspace
 
 - Reworked `/roadmap` into Projects and Task board tabs. Project cards show completion counts, upcoming deadlines, a task preview, and a detail dialog with every attached task; each project can open a pre-filtered Kanban.
@@ -705,6 +706,7 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 - Reordered the workflow so clients search Unmapped Listings first and then Mapped Listings; documented that previously mapped Airbnb/Vrbo pairs may appear as PARENT and CHILD rows and that both channel IDs should be sent.
 - Produced a five-page branded PDF and packaged it at `public/resources/revfactor-pricelabs-listing-id-guide.pdf` for client download.
 - Added migration 088 to seed the same client-safe guidance as a native Client Onboarding Knowledge article, including the approved-answer candidate, escalation boundary, and review date. The article remains in the human review queue and agent-disabled until a Knowledge publisher approves and indexes it.
+
 ## 2026-08-28 — Pipeline section removed, replaced by `/ghl` placeholder
 
 - Deleted `app/(authenticated)/pipeline/` (14 files), `@modal/(.)pipeline/`, and `lib/leads.ts`. Created `app/(authenticated)/ghl/page.tsx` — a `ghl:view`-gated placeholder describing the upcoming GoHighLevel↔Hub connection (scope TBD next session).
@@ -714,3 +716,11 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 # 2026-09-01 — Cancellation policy adjustment type
 
 - Added `cancellation_policy` / “Cancellation policy” as the 17th adjustment type, with a required target policy and no date or booking-window fields. Migration 089 widens the database CHECK and enables the type for both RevFactor and HostPricing creators.
+
+# 2026-09-03 — Read-only case-study foundation
+
+- Added `pnpm case-studies:foundation --as-of YYYY-MM-DD --template-id <reviewed-exact-id> --output <absolute-directory>` with optional reviewed `--selection-file` support for an exactly three-listing pilot.
+- The command reads the latest completed Report Builder run plus Hub listing/client/lifecycle/onboarding evidence through a GET/HEAD-only, exact-project-pinned Supabase client. It performs no Hub, PriceLabs, Assembly, GHL, Notion, or external write.
+- Added exact Report Builder run-count/unresolved reconciliation, launch-month exclusion, live/completed exact-roster start evidence, raw-versus-valid metric counts, guarded first-period summaries, and market-trend evidence independent of listing-LY attribution.
+- Added deterministic JSON, CSV, executive Markdown, blocked-evidence Markdown, restricted/PII source manifest, and checksum artifacts. Exact replay is accepted; changed or unexpected existing files stop the run.
+- Added fixture tests for month boundaries, final-LY attribution, assisted launches, stale/small/extreme/identity gates, selection isolation, transport enforcement, pagination identity, formula-safe CSV, and artifact replay. No live-data execution occurred in this implementation session.
