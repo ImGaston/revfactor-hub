@@ -714,3 +714,6 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 # 2026-09-01 — Cancellation policy adjustment type
 
 - Added `cancellation_policy` / “Cancellation policy” as the 17th adjustment type, with a required target policy and no date or booking-window fields. Migration 089 widens the database CHECK and enables the type for both RevFactor and HostPricing creators.
+# 2026-09-03 — Reconciliation build slice
+
+On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), added and tested `lib/market-signals/reconciliation.ts` plus four deterministic Vitest cases. Updated the university source audit and added `docs/market-signals/university-reconciliation-handoff.md`. No database, environment, provider, schedule, or pricing changes were made. Next step is review/integration of durable reconciliation run and delta persistence after the foundation production migration is approved.
