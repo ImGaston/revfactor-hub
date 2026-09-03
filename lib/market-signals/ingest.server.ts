@@ -16,6 +16,7 @@ import {
   determineActionGate,
   distanceMiles,
   eventFamilyKey,
+  legacyCanonicalEventFingerprint,
   shouldRetainProviderCandidate,
 } from "@/lib/market-signals/domain"
 import {
@@ -34,6 +35,11 @@ import {
   normalizeNWSAlert,
   parseNWSQueryConfig,
 } from "@/lib/market-signals/nws"
+import {
+  fetchCFBDGames,
+  normalizeCFBDGame,
+  parseCFBDQueryConfig,
+} from "@/lib/market-signals/cfbd"
 import {
   batchProviderCandidates,
   MarketSignalProviderRequestError,
@@ -101,6 +107,7 @@ export type MarketSignalsRuntimeStatus = {
   serviceRoleConfigured: boolean
   predictHQConfigured: boolean
   ticketmasterConfigured: boolean
+  cfbdConfigured: boolean
   nwsConfigured: boolean
   configuredSources: number
   ready: boolean
@@ -120,22 +127,27 @@ export function getMarketSignalsRuntimeStatus(): MarketSignalsRuntimeStatus {
   const serviceRoleConfigured = Boolean(
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   )
-  const predictHQConfigured = Boolean(
-    process.env.PREDICTHQ_ACCESS_TOKEN?.trim()
-  )
+  const predictHQConfigured =
+    process.env.PREDICTHQ_INGESTION_ENABLED?.trim().toLowerCase() === "true" &&
+    Boolean(process.env.PREDICTHQ_ACCESS_TOKEN?.trim())
   const ticketmasterConfigured = Boolean(
     process.env.TICKETMASTER_API_KEY?.trim()
   )
+  const cfbdConfigured =
+    process.env.CFBD_INGESTION_ENABLED?.trim().toLowerCase() === "true" &&
+    Boolean(process.env.CFBD_API_KEY?.trim())
   const nwsConfigured = Boolean(process.env.NWS_USER_AGENT?.trim())
   const configuredSources = [
     predictHQConfigured,
     ticketmasterConfigured,
+    cfbdConfigured,
     nwsConfigured,
   ].filter(Boolean).length
   return {
     serviceRoleConfigured,
     predictHQConfigured,
     ticketmasterConfigured,
+    cfbdConfigured,
     nwsConfigured,
     configuredSources,
     ready: serviceRoleConfigured && configuredSources > 0,
@@ -196,7 +208,8 @@ async function nextVersion(supabase: SupabaseClient, eventId: string) {
 async function findEvent(
   supabase: SupabaseClient,
   provider: ProviderRecordRow | null,
-  fingerprint: string
+  fingerprint: string,
+  legacyFingerprint: string
 ) {
   if (provider) {
     const { data, error } = await supabase
@@ -215,7 +228,17 @@ async function findEvent(
     .eq("canonical_fingerprint", fingerprint)
     .maybeSingle()
   if (error) throw new Error(`Failed to deduplicate event: ${error.message}`)
-  return (data ?? null) as EventRow | null
+  if (data) return data as EventRow
+
+  const { data: legacyData, error: legacyError } = await supabase
+    .from("market_events")
+    .select("id, canonical_fingerprint, state")
+    .eq("canonical_fingerprint", legacyFingerprint)
+    .maybeSingle()
+  if (legacyError) {
+    throw new Error(`Failed to deduplicate legacy event: ${legacyError.message}`)
+  }
+  return (legacyData ?? null) as EventRow | null
 }
 
 async function persistCandidate(input: {
@@ -228,6 +251,7 @@ async function persistCandidate(input: {
   const { supabase, sourceId, market, candidate, observedAt } = input
   const normalized = candidate.normalized
   const fingerprint = canonicalEventFingerprint(normalized)
+  const legacyFingerprint = legacyCanonicalEventFingerprint(normalized)
   const snapshot = normalizedSnapshot(candidate)
   const hash = contentHash(snapshot)
   const { data: providerData, error: providerError } = await supabase
@@ -254,7 +278,12 @@ async function persistCandidate(input: {
       : classifiedChange
   const unchanged =
     provider?.content_hash === hash && changeType === "unchanged"
-  let event = await findEvent(supabase, provider, fingerprint)
+  let event = await findEvent(
+    supabase,
+    provider,
+    fingerprint,
+    legacyFingerprint
+  )
   let created = false
 
   if (!event) {
@@ -517,6 +546,21 @@ async function fetchSourceCandidates(
     }
   }
 
+  if (source.source_type === "cfbd") {
+    const queryConfig = parseCFBDQueryConfig(source.query_config)
+    const response = await fetchCFBDGames({
+      apiKey: requiredEnvironment("CFBD_API_KEY"),
+      market,
+      queryConfig,
+    })
+    return {
+      candidates: response.events.map((game) =>
+        normalizeCFBDGame(game, market, queryConfig)
+      ),
+      overflow: response.overflow,
+    }
+  }
+
   throw new Error(
     `Market Signals source ${source.source_type} has no provider adapter`
   )
@@ -675,6 +719,7 @@ async function enableAgentManagedSources(
   const availability: Array<[MarketSignalSourceType, boolean]> = [
     ["predicthq", runtime.predictHQConfigured],
     ["ticketmaster", runtime.ticketmasterConfigured],
+    ["cfbd", runtime.cfbdConfigured],
     ["nws", runtime.nwsConfigured],
   ]
   for (const [sourceType, isActive] of availability) {

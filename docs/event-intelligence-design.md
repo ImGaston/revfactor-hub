@@ -1,19 +1,23 @@
 # Event Intelligence — Product and Architecture Proposal
 
-Status: foundation implemented, 2026-08-21. Migration 076, the governed read model, deterministic event identity/change gates, tests, and the authenticated `/market-signals` route exist in the repository. Migration 076 remains unapplied; no production ingestion, external writes, or PriceLabs mutations are enabled.
+Status: initial foundation live; scalable foundation prepared locally, 2026-09-02. Migration 076 and the authenticated `/market-signals` read model are live. The newer timestamped package (`20260902203000`–`20260902203400`) remains unapplied and adds PredictHQ recovery tracking, CFBD/university registry, governed jurisdictions/markets/localities, primary/secondary listing membership, proposals, provider catalog, recurrence watches, and conditional sports events. No production schema change, Grok connector, pricing/stay-rule write, or notification was enabled by the 2026-09-02 work.
+
+Visual architecture map: [`docs/diagrams/event-signals-data-map.html`](diagrams/event-signals-data-map.html). It distinguishes implemented sources and workflows from the planned official-calendar/news layer, including the academic-date coverage gap.
 
 ## Implementation Boundary
 
 The first production-oriented slice now includes:
 
 - permission-protected market, source, event, provider-record, version, evidence, impact, and review tables in `076_market_signals_foundation.sql`;
-- five draft pilot market centroids that require explicit human activation;
+- five live pilot market centroids with existing coordinate-approved memberships;
 - source-independent event fingerprints and event-family keys that do not collapse unknown events to a broad category;
 - deterministic date-change, cancellation, action-gate, and evidence-gap logic with unit tests;
 - an authenticated, `market_signals:view`-gated queue and market-readiness UI;
-- a repository boundary that fails closed while the migration is unapplied.
+- replaceable PredictHQ, Ticketmaster, NWS, and locally prepared CFBD adapters behind one normalized provider contract;
+- durable scheduled ingestion, cross-source persistence, PriceLabs vulnerability scoring, human review, and governed Adjustment linking; and
+- an optional-schema repository boundary that keeps the live route available before the timestamped package is applied.
 
-Not yet implemented: provider adapters, scheduled ingestion, cross-source merge persistence, listing assignment review actions, booking-vulnerability joins, reviewer mutations, Adjustment linking, notifications, or any external pricing/stay-rule write.
+Not yet implemented: official university-page collectors, a Grok discovery connector, review/activation of the proposed market census, canonical-locality listing backfill, notifications in this release, or any external pricing/stay-rule write.
 
 ## Decision
 

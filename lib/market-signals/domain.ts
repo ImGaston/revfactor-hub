@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+
 import type {
   MarketEventChangeType,
   MarketEventState,
@@ -18,7 +20,7 @@ function normalizeText(value: string) {
     .replace(/\s+/g, " ")
 }
 
-function stableHash(value: string) {
+function legacyStableHash(value: string) {
   let hash = 0x811c9dc5
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index)
@@ -51,7 +53,25 @@ export function canonicalEventFingerprint(
         .join(":")
   const identity = [normalizeText(event.title), date, location].join("|")
 
-  return `market-event:${stableHash(identity)}`
+  return `market-event:v2:${createHash("sha256").update(identity).digest("hex")}`
+}
+
+export function legacyCanonicalEventFingerprint(
+  event: Pick<
+    NormalizedProviderEvent,
+    "title" | "startDate" | "venueName" | "city" | "region" | "countryCode"
+  >
+) {
+  const date = event.startDate.slice(0, 10)
+  const location = event.venueName
+    ? normalizeText(event.venueName)
+    : [event.city, event.region, event.countryCode]
+        .filter(Boolean)
+        .map((value) => normalizeText(value ?? ""))
+        .join(":")
+  const identity = [normalizeText(event.title), date, location].join("|")
+
+  return `market-event:${legacyStableHash(identity)}`
 }
 
 export function distanceMiles(
@@ -207,7 +227,7 @@ export function determineActionGate(input: {
   }
 
   const sufficientlyVerified =
-    input.authorityTier <= 2 || input.corroborationCount >= 2
+    input.authorityTier === 1 || input.corroborationCount >= 2
   const materiallyRelevant = input.materialityScore >= 65
   const vulnerable =
     input.vulnerabilityScore != null && input.vulnerabilityScore >= 45
@@ -215,6 +235,24 @@ export function determineActionGate(input: {
   return sufficientlyVerified && materiallyRelevant && vulnerable
     ? "review_now"
     : "watch"
+}
+
+export function countIndependentEvidence(
+  evidence: Array<{ providerId: string | null; publisher: string }>
+) {
+  const identities = new Set<string>()
+
+  for (const item of evidence) {
+    if (item.providerId) {
+      identities.add(`provider:${item.providerId}`)
+      continue
+    }
+
+    const publisher = normalizeText(item.publisher)
+    if (publisher) identities.add(`publisher:${publisher}`)
+  }
+
+  return identities.size
 }
 
 export function buildReviewProposal(input: {

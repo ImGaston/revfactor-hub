@@ -44,6 +44,35 @@ const cadenceMigration = readFileSync(
   "utf8"
 )
 
+const predictHQRecoveryMigration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260902203000_predicthq_reference_recovery.sql"
+  ),
+  "utf8"
+)
+
+const collegeEventMigration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260902203100_college_football_data_source.sql"
+  ),
+  "utf8"
+)
+
+const universityRegistryMigration = readFileSync(
+  join(
+    process.cwd(),
+    "supabase/migrations/20260902203200_university_event_source_registry.sql"
+  ),
+  "utf8"
+)
+
+const marketSignalsIngestion = readFileSync(
+  join(process.cwd(), "lib/market-signals/ingest.server.ts"),
+  "utf8"
+)
+
 const workerRoute = readFileSync(
   join(process.cwd(), "app/api/cron/market-signals/route.ts"),
   "utf8"
@@ -242,5 +271,112 @@ describe("Market Signals persistence migration", () => {
     expect(stripeCronRoute).toContain("processMarketSignalJobs")
     expect(stripeCronRoute).toContain("maximumJobs: 5")
     expect(vercelConfiguration).not.toContain('"/api/cron/market-signals"')
+  })
+
+  it("retains PredictHQ as an RLS-bound recovery reference, not an automatic source", () => {
+    expect(predictHQRecoveryMigration).toContain(
+      "CREATE OR REPLACE VIEW public.market_event_source_recovery"
+    )
+    expect(predictHQRecoveryMigration).toContain("security_invoker = TRUE")
+    expect(predictHQRecoveryMigration).toContain(
+      "WHERE source_type = 'predicthq'"
+    )
+    expect(predictHQRecoveryMigration).toContain("SET is_active = FALSE")
+    expect(predictHQRecoveryMigration).toContain("source_type <> 'predicthq'")
+    expect(predictHQRecoveryMigration).toContain("THEN 'recovered'")
+    expect(predictHQRecoveryMigration).toContain("ELSE 'pending'")
+    expect(predictHQRecoveryMigration).toContain(
+      "GRANT SELECT ON public.market_event_source_recovery TO authenticated"
+    )
+    expect(predictHQRecoveryMigration).not.toMatch(
+      /PREDICTHQ_ACCESS_TOKEN|net\.http|http_post|pg_net/i
+    )
+    expect(marketSignalsIngestion).toContain(
+      'process.env.PREDICTHQ_INGESTION_ENABLED?.trim().toLowerCase() === "true"'
+    )
+  })
+
+  it("registers CFBD as a server-side football source without a pricing path", () => {
+    expect(collegeEventMigration).toContain(
+      "DROP CONSTRAINT IF EXISTS revenue_market_sources_source_type_check"
+    )
+    expect(collegeEventMigration).toContain("'cfbd'")
+    expect(collegeEventMigration).toContain("'tucson-az'")
+    expect(collegeEventMigration).toContain('"team":"Arizona"')
+    expect(collegeEventMigration).toContain('"home_only":true')
+    expect(collegeEventMigration).not.toMatch(
+      /CFBD_API_KEY|PREDICTHQ_ACCESS_TOKEN|PRICELABS_API_KEY|TICKETMASTER_API_KEY|net\.http|http_post|pg_net|create_market_signal_adjustment/i
+    )
+    expect(marketSignalsIngestion).toContain(
+      'requiredEnvironment("CFBD_API_KEY")'
+    )
+    expect(marketSignalsIngestion).toContain(
+      'process.env.CFBD_INGESTION_ENABLED?.trim().toLowerCase() === "true"'
+    )
+  })
+
+  it("registers three universities without auto-activating new markets", () => {
+    expect(universityRegistryMigration).toContain(
+      "CREATE TABLE public.market_signal_institutions"
+    )
+    expect(universityRegistryMigration).toContain(
+      "CREATE TABLE public.revenue_market_institutions"
+    )
+    expect(universityRegistryMigration).toContain("'129020'")
+    expect(universityRegistryMigration).toContain("'221759'")
+    expect(universityRegistryMigration).toContain("'131469'")
+    expect(universityRegistryMigration).toContain("'university-of-connecticut'")
+    expect(universityRegistryMigration).toContain(
+      "'university-of-tennessee-knoxville'"
+    )
+    expect(universityRegistryMigration).toContain(
+      "'george-washington-university'"
+    )
+    expect(universityRegistryMigration).not.toContain(
+      "WITH located_listings AS"
+    )
+    expect(universityRegistryMigration).not.toContain(
+      "INSERT INTO public.revenue_markets"
+    )
+    expect(universityRegistryMigration).not.toContain(
+      "INSERT INTO public.revenue_market_listings"
+    )
+    expect(universityRegistryMigration).toContain("NULL::UUID")
+    expect(universityRegistryMigration).toContain(
+      "institution-scoped registry rows"
+    )
+    expect(universityRegistryMigration).toContain("'washington-dc'")
+    expect(universityRegistryMigration).toContain(
+      "https://familyweekend.uconn.edu/"
+    )
+    expect(universityRegistryMigration).toContain(
+      "https://studentlife.utk.edu/family/events/vol-family-reunions/"
+    )
+    expect(universityRegistryMigration).toContain(
+      "https://alumnifamiliesweekend.gwu.edu/"
+    )
+    expect(universityRegistryMigration).toContain("'registry_only'")
+    expect(universityRegistryMigration).not.toMatch(
+      /INSERT INTO public\.(market_events|market_event_impacts|market_signal_reviews)/
+    )
+  })
+
+  it("keeps the university registry permission-bound and secret-free", () => {
+    expect(universityRegistryMigration).toContain(
+      "ALTER TABLE public.market_signal_institutions ENABLE ROW LEVEL SECURITY"
+    )
+    expect(universityRegistryMigration).toContain(
+      "ALTER TABLE public.revenue_market_institutions ENABLE ROW LEVEL SECURITY"
+    )
+    expect(universityRegistryMigration).toContain(
+      "public.has_permission('market_signals', 'view')"
+    )
+    expect(universityRegistryMigration).toContain(
+      "public.has_permission('market_signals', 'edit')"
+    )
+    expect(universityRegistryMigration).not.toMatch(/USING\s*\(\s*true\s*\)/i)
+    expect(universityRegistryMigration).not.toMatch(
+      /CFBD_API_KEY|PREDICTHQ_ACCESS_TOKEN|SUPABASE_SERVICE_ROLE_KEY|TICKETMASTER_API_KEY|net\.http|http_post|pg_net|create_market_signal_adjustment/i
+    )
   })
 })

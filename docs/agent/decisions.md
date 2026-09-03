@@ -1,5 +1,39 @@
 # Decisions — RevFactor Hub
 
+## 2026-09-02 — The Initial Census Enters the Hub as Proposals, Never Assignments
+
+The first market census is preserved as 38 `needs_review` research proposals: the 25 high-confidence table entries plus 13 straightforward same-city candidates. Migration `20260902203400` records canonical locality candidates, US jurisdiction, aggregate PriceLabs source-row counts, confidence, limitations, and explicit exception codes. Counts remain evidence rather than property totals because PriceLabs can contain channel duplicates and parent/child rows.
+
+The migration does not create or activate `revenue_markets`, create localities, assign listings, infer boundaries, or invent centers and radii. Existing-market candidates such as Smokies, Myrtle Beach, Park City, and Tucson are flagged for merge review instead of silently creating duplicates. Re-running the migration does not overwrite an existing open proposal, preserving later reviewer work.
+
+## 2026-09-02 — Market Intelligence Uses Governed Geography and Recurring Evidence
+
+The scalable geography is `State/Jurisdiction ↔ Market → Locality`, not city strings or radius-only clustering. A market has exactly one anchored primary jurisdiction and may span secondary jurisdictions; each locality records its own jurisdiction. Each active listing may have exactly one approved primary market and optional secondary influence markets. A listing membership may optionally identify its canonical locality, with a composite foreign key preventing cross-market locality assignments; existing memberships remain locality-null until evidence supports a backfill. Manual assignments, exclusions, and overrides are locked. Known locality matches can be deterministic, while genuinely new markets enter a governed proposal queue—even when only one listing is present. Listing candidates for unresolved markets are normalized under the proposal with provenance, evidence, confidence, and reviewer state; accepting one records a decision but never creates a market or membership. The initial census proved the distinction matters: proximity alone merges Knoxville into the Smokies, while the reviewed Smokies market contains Sevierville, Pigeon Forge, Gatlinburg, and Pittman Center.
+
+Recurring real-world events are modeled as a series plus dated occurrences. Annual series receive a rolling three-year unknown-date watch; multiple occurrences in one year are allowed. Events and market impacts retain audience, attendance range/confidence/provenance, date certainty, announcement/verification timestamps, and expected booking windows. Conditional sports dates have a separate evidence-only qualification lifecycle so potential playoffs can be watched, qualified, or eliminated without implying a pricing action.
+
+Provider identity and coverage metadata live in a source catalog, separate from per-market subscriptions and credentials. PredictHQ is reference-only; unimplemented sources remain visibly research/pending and cannot claim healthy monitoring. Tier-1 official evidence may verify an event alone; all other sources require two independent canonical provider identities, with normalized publisher used only before provider identity is available, so repeated versions or per-market rows from one feed do not count as corroboration. No migration in this slice adds PriceLabs, PMS, OTA, notification, minimum-stay, check-in, or check-out writes.
+
+The five unapplied Market Signals changes use full UTC timestamp versions (`20260902203000`–`20260902203400`) newer than the live ledger. The repository's legacy migration history is divergent, so production application must use an isolated manifest whose dry run lists exactly those five files. `db push --include-all`, bulk history repair, and numeric migrations are prohibited for this release.
+
+## 2026-09-02 — University Events Start with Three Explicit Market Mappings
+
+Graduation and Family Weekend coverage begins with registry entries for UConn, the University of Tennessee, Knoxville, and George Washington University. Institution identity is separate from revenue-market relevance: timestamp migration `20260902203200` adds a small IPEDS-keyed institution registry, a market mapping with demand rationale and event scope, and optional institution ownership on registered sources. Only GW maps to the already-active Washington market. UConn and UTK sources remain inactive and marketless until their revenue-market proposals are reviewed; the migration creates no market or listing membership.
+
+Each pilot institution registers one official Family Weekend page, one official commencement page, and one registrar/academic-calendar cross-check. Registration is not collection: those sources remain inactive and explicitly marked `registry_only` until an official-page/feed collector can record dates, changes, and source health through the existing normalized pipeline. UConn and Tennessee CFBD rows are also inactive until their markets are approved. The migration seeds no calendar event and preserves the human boundary before pricing or stay-rule action.
+
+## 2026-09-02 — College Football Starts with CFBD Inside the Existing Provider Pipeline
+
+College football is the first university-event slice. `CFBD_API_KEY` stays server-side and College Football Data schedules enter the same normalized Market Signals provider pipeline as Ticketmaster and NWS; there is no parallel college-event database or bot API. Each source is explicitly mapped to a team and an existing revenue market, defaults to home games, verifies venue distance against that market, and retains kickoff/venue/status changes through the existing versioned evidence model.
+
+CFBD stadium capacity is useful materiality context but is never stored as predicted attendance; future attendance remains null and completed-game attendance is used only when CFBD reports it. Timestamp migration `20260902203100` registers Arizona football for the already-active Tucson market; UConn and Tennessee remain inactive registry rows until their markets are reviewed. Normal runtime configuration keeps `CFBD_INGESTION_ENABLED=false`, so having the credential cannot silently start collection; an approved run requires both the explicit flag and the server-only key.
+
+## 2026-09-02 — PredictHQ Becomes a Measurable Recovery Archive
+
+The expired PredictHQ trial remains valuable as a reference corpus, but it is no longer an operational source. Historical canonical events, provider records, versions, evidence, impacts, and briefs remain intact. Timestamp migration `20260902203000` disables PredictHQ source rows and adds a `security_invoker` recovery view that is automatically `pending` while PredictHQ is the only provider and `recovered` as soon as an independent provider attaches to the same canonical event. The Market Signals dashboard exposes the pending count and source coverage so replacing PredictHQ becomes a measurable backlog.
+
+Normal runtime configuration keeps `PREDICTHQ_INGESTION_ENABLED=false`; the token alone can no longer reactivate ingestion. A temporary audited recovery pull requires the explicit flag plus the token. Ticketmaster, NWS, future SeatGeek, and governed official university feeds continue through the source-neutral canonical model. The existing human approval boundary for commercial actions is unchanged.
+
 ## 2026-09-01 — Seasonal Cancellation Automation Fails Closed on Inventoried Listing Defaults
 
 The Hub, not a fabricated client row, owns account classification: active listings with a client are RevFactor and active listings without one are Blackbird. Migration 091 therefore makes Adjustment client ownership nullable only behind a cross-table database invariant, and it protects the invariant in both directions when either an Adjustment or listing client changes. Existing RLS and the resolved-to-controlled governance remain unchanged.

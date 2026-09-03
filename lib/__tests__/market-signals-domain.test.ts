@@ -5,8 +5,10 @@ import {
   buildReviewProposal,
   canonicalEventFingerprint,
   classifyEventChange,
+  countIndependentEvidence,
   determineActionGate,
   eventFamilyKey,
+  legacyCanonicalEventFingerprint,
 } from "@/lib/market-signals/domain"
 import {
   calculateListingVulnerability,
@@ -49,6 +51,10 @@ describe("Market Signals event identity", () => {
     const second = canonicalEventFingerprint(secondEvent)
 
     expect(second).toBe(first)
+    expect(first).toMatch(/^market-event:v2:[a-f0-9]{64}$/)
+    expect(legacyCanonicalEventFingerprint(baseEvent)).toMatch(
+      /^market-event:[a-f0-9]{8}$/
+    )
   })
 
   it("never collapses unrelated events to their broad category", () => {
@@ -139,6 +145,61 @@ describe("Market Signals action boundary", () => {
         evidenceFreshness: "current",
       })
     ).toBe("unwind")
+  })
+
+  it("requires two independent sources when no official source verifies the event", () => {
+    expect(
+      determineActionGate({
+        state: "verified",
+        verificationState: "verified",
+        authorityTier: 2,
+        corroborationCount: 1,
+        materialityScore: 82,
+        vulnerabilityScore: 61,
+        evidenceFreshness: "current",
+      })
+    ).toBe("watch")
+
+    expect(
+      determineActionGate({
+        state: "verified",
+        verificationState: "verified",
+        authorityTier: 2,
+        corroborationCount: 2,
+        materialityScore: 82,
+        vulnerabilityScore: 61,
+        evidenceFreshness: "current",
+      })
+    ).toBe("review_now")
+  })
+
+  it("counts canonical providers rather than repeated evidence versions", () => {
+    expect(
+      countIndependentEvidence([
+        { providerId: "ticketmaster", publisher: "Ticketmaster" },
+        { providerId: "ticketmaster", publisher: "Ticketmaster update" },
+        { providerId: "official-site", publisher: "Organizer" },
+      ])
+    ).toBe(2)
+
+    expect(
+      countIndependentEvidence([
+        { providerId: null, publisher: "Local News" },
+        { providerId: null, publisher: "local-news" },
+      ])
+    ).toBe(1)
+  })
+
+  it("does not treat per-market source rows for one provider as independent", () => {
+    expect(
+      countIndependentEvidence([
+        { providerId: "ticketmaster-provider", publisher: "Ticketmaster DC" },
+        {
+          providerId: "ticketmaster-provider",
+          publisher: "Ticketmaster Baltimore",
+        },
+      ])
+    ).toBe(1)
   })
 
   it("produces review categories without inventing an ADR percentage", () => {
