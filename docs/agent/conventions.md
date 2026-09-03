@@ -101,6 +101,11 @@
 
 ## Listings
 
+- `/listings` treats `listings.status` and `clients.status` independently. Its
+  status filter and active count use the listing status; the client status is
+  informational and remains visible beside the client name. Inactive listings
+  stay discoverable through the Inactive/All filters and render their own
+  status badge.
 - Listing detail has a PriceLabs-style KPI row: Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked.
 - `occColor(occ, marketOcc)` uses red under 0.8x market, amber from 0.8x to 1x, green from 1x to 1.2x, blue above 1.2x.
 - Client detail listing cards show Occ(7N), Occ(30N), MPI(30N), Last Booked from real PriceLabs data.

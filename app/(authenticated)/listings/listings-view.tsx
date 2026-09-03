@@ -30,6 +30,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -66,6 +67,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { escapeCSV, downloadCSV } from "@/lib/csv"
+import {
+  matchesListingStatus,
+  type ListingStatusFilter,
+} from "@/lib/listing-status"
 import { getListingsExportData } from "@/app/(authenticated)/listings/export-actions"
 import { ListingDialog } from "@/app/(authenticated)/settings/listings/listing-dialog"
 import { deleteListingAction } from "@/app/(authenticated)/settings/listings/actions"
@@ -104,7 +109,6 @@ type ListingFormData = {
 
 type SortField = "name" | "client_name" | "city" | "state"
 type SortDir = "asc" | "desc"
-type StatusFilter = "active_onboarding" | "all" | "active" | "onboarding" | "inactive"
 
 const clientStatusColor: Record<string, string> = {
   active:
@@ -126,7 +130,8 @@ export function ListingsView({
   const [search, setSearch] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
   const [clientFilter, setClientFilter] = useState<string>("all")
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active_onboarding")
+  const [statusFilter, setStatusFilter] =
+    useState<ListingStatusFilter>("active")
   const [sortField, setSortField] = useState<SortField>("name")
   const [sortDir, setSortDir] = useState<SortDir>("asc")
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
@@ -246,13 +251,9 @@ export function ListingsView({
   const filtered = useMemo(() => {
     let result = listings
 
-    if (statusFilter === "active_onboarding") {
-      result = result.filter(
-        (l) => l.client_status === "active" || l.client_status === "onboarding"
-      )
-    } else if (statusFilter !== "all") {
-      result = result.filter((l) => l.client_status === statusFilter)
-    }
+    result = result.filter((listing) =>
+      matchesListingStatus(listing.status, statusFilter)
+    )
 
     if (locationFilter !== "all") {
       result = result.filter((l) => l.state === locationFilter)
@@ -309,7 +310,7 @@ export function ListingsView({
   const activeFilters =
     (locationFilter !== "all" ? 1 : 0) +
     (clientFilter !== "all" ? 1 : 0) +
-    (statusFilter !== "active_onboarding" ? 1 : 0)
+    (statusFilter !== "active" ? 1 : 0)
 
   return (
     <div className="space-y-4">
@@ -343,20 +344,20 @@ export function ListingsView({
           />
         </div>
 
-        {/* Status dropdown (client status) */}
+        {/* Listing status dropdown. Client status remains informational. */}
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+          onValueChange={(v) => setStatusFilter(v as ListingStatusFilter)}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="active_onboarding">Active & Onboarding</SelectItem>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="onboarding">Onboarding</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectGroup>
+              <SelectItem value="active">Active listings</SelectItem>
+              <SelectItem value="inactive">Inactive listings</SelectItem>
+              <SelectItem value="all">All listing statuses</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
 
@@ -369,12 +370,14 @@ export function ListingsView({
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All states</SelectItem>
-            {locations.map(([state, count]) => (
-              <SelectItem key={state} value={state}>
-                {state} ({count})
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="all">All states</SelectItem>
+              {locations.map(([state, count]) => (
+                <SelectItem key={state} value={state}>
+                  {state} ({count})
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
 
@@ -451,7 +454,7 @@ export function ListingsView({
             onClick={() => {
               setLocationFilter("all")
               setClientFilter("all")
-              setStatusFilter("active_onboarding")
+              setStatusFilter("active")
             }}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
           >
@@ -476,6 +479,7 @@ export function ListingsView({
               <SortHeader field="state" className="w-[80px]">
                 State
               </SortHeader>
+              <TableHead className="w-[100px]">Status</TableHead>
               <TableHead className="w-[90px]">Airbnb</TableHead>
               <TableHead className="w-[100px]">PriceLabs</TableHead>
               {showActions && <TableHead className="w-[56px]"></TableHead>}
@@ -485,7 +489,7 @@ export function ListingsView({
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={showActions ? 7 : 6}
+                  colSpan={showActions ? 8 : 7}
                   className="text-center text-muted-foreground py-12"
                 >
                   No listings found
@@ -543,6 +547,16 @@ export function ListingsView({
                   </TableCell>
                   <TableCell className="text-sm">
                     {listing.state ?? "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        listing.status === "active" ? "default" : "secondary"
+                      }
+                      className="capitalize"
+                    >
+                      {listing.status}
+                    </Badge>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {listing.airbnb_link ? (

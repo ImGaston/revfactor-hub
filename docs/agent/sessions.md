@@ -1,5 +1,14 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-03 — Listing status independence in `/listings`
+
+- Corrected the `/listings` status filter to use `listings.status` instead of
+  the joined client's status. An inactive property owned by an active client
+  no longer contributes to the default active listing total.
+- Added a dedicated listing-status badge and kept inactive listings available
+  through the Inactive and All filters; client status remains a separate badge.
+- Added a focused regression test for active/inactive listing filtering.
+
 ## 2026-09-03 — Official university calendar source layer
 
 - Audited first-party family, commencement, registrar, and athletics sources for UConn, UT Knoxville, and George Washington, including crawl constraints and a real UTK registrar/ceremony date conflict.
