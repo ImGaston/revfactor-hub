@@ -59,3 +59,52 @@ export async function collectUniversityOfficialPage(input: {
     html: await response.text(),
   })
 }
+
+function parseDateRange(value: string) {
+  const match = value.match(/^([A-Za-z]+)\s+(\d{1,2})(?:[-–](\d{1,2}))?,?\s+(20\d{2})$/)
+  if (!match) return null
+  const month = match[1]
+  const start = Number(match[2])
+  const end = Number(match[3] ?? match[2])
+  const year = Number(match[4])
+  const monthIndex = new Date(`${month} 1, 2000`).getUTCMonth()
+  const startDate = new Date(Date.UTC(year, monthIndex, start, 0, 0, 0))
+  const endDate = new Date(Date.UTC(year, monthIndex, end, 23, 59, 59))
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return null
+  return { startDate: startDate.toISOString(), endDate: endDate.toISOString() }
+}
+
+export function normalizeUniversityPageDates(input: {
+  rows: UniversityPageDate[]
+  city: string
+  region: string
+  timezone?: string
+}): NormalizedProviderEvent[] {
+  return input.rows.flatMap((row, index) => {
+    const range = parseDateRange(row.date)
+    if (!range) return []
+    const now = new Date().toISOString()
+    return [{
+      sourceType: "official_feed",
+      externalId: `university-page:${row.institution.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${row.eventType}:${row.date.toLowerCase().replace(/[^a-z0-9]+/g, "-")}:${index}`,
+      sourceUrl: row.sourceUrl,
+      title: row.title.slice(0, 300),
+      category: row.eventType,
+      startDate: range.startDate,
+      endDate: range.endDate,
+      timezone: input.timezone ?? "America/New_York",
+      venueName: row.institution,
+      city: input.city,
+      region: input.region,
+      countryCode: "US",
+      latitude: null,
+      longitude: null,
+      providerStatus: "official_page",
+      attendance: null,
+      localRank: null,
+      firstSeenAt: now,
+      updatedAt: now,
+    }]
+  })
+}
+import type { NormalizedProviderEvent } from "@/lib/market-signals/contracts"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { collectUniversityOfficialPage, parseUniversityOfficialPage } from "@/lib/market-signals/university-pages"
+import { collectUniversityOfficialPage, normalizeUniversityPageDates, parseUniversityOfficialPage } from "@/lib/market-signals/university-pages"
 
 describe("university official page extraction", () => {
   it("extracts graduation and family weekend dates without fetching or writing", () => {
@@ -30,5 +30,12 @@ describe("university official page extraction", () => {
     })
     expect(rows).toHaveLength(1)
     expect(rows[0].eventType).toBe("graduation")
+  })
+
+  it("emits the existing normalized provider contract", () => {
+    const rows = parseUniversityOfficialPage({ institution: "Example University", sourceUrl: "https://example.edu/calendar", html: "<p>Commencement May 17, 2027</p>" })
+    const events = normalizeUniversityPageDates({ rows, city: "Storrs", region: "CT" })
+    expect(events[0]).toMatchObject({ sourceType: "official_feed", category: "graduation", city: "Storrs", countryCode: "US" })
+    expect(events[0].startDate).toContain("2027-05-17")
   })
 })
