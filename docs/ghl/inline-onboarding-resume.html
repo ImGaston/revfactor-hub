@@ -1,0 +1,97 @@
+<div id="rf-onboarding-resume" role="status" aria-live="polite">
+  <style>
+    #rf-onboarding-resume {
+      max-width: 680px;
+      margin: 64px auto;
+      padding: 32px;
+      border: 1px solid rgba(20, 45, 38, 0.14);
+      border-radius: 16px;
+      background: #f5f2eb;
+      color: #142d26;
+      text-align: center;
+      font: 500 16px/1.55 Inter, Arial, sans-serif;
+    }
+    #rf-onboarding-resume h1 { margin: 0 0 12px; font-size: 28px; }
+    #rf-onboarding-resume p { margin: 0; }
+  </style>
+  <h1>Preparing your next step</h1>
+  <p>Please keep this page open while we verify your agreement or payment.</p>
+</div>
+<script>
+  ;(() => {
+    const endpoint =
+      "https://revfactor-ghl-inline-onboarding-staging.federico-241.workers.dev"
+    const root = document.getElementById("rf-onboarding-resume")
+    const cookieToken = document.cookie
+      .split("; ")
+      .find((entry) => entry.startsWith("rf_onboarding_resume="))
+      ?.slice("rf_onboarding_resume=".length)
+    const token =
+      sessionStorage.getItem("rfOnboardingResumeToken") ||
+      (cookieToken ? decodeURIComponent(cookieToken) : "")
+    let attempts = 0
+
+    function message(title, detail) {
+      root.querySelector("h1").textContent = title
+      root.querySelector("p").textContent = detail
+    }
+
+    async function resume() {
+      if (!token) {
+        message(
+          "This link cannot be resumed",
+          "Please return to your original RevFactor onboarding link and try again."
+        )
+        return
+      }
+      attempts += 1
+      try {
+        const response = await fetch(`${endpoint}/v2/groups/resume`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resumeToken: token }),
+        })
+        const data = await response.json()
+        if (!response.ok || !data.nextAction) {
+          throw new Error(data.error || "We could not verify the next step.")
+        }
+        const action = data.nextAction
+        if (action.kind === "awaiting_provider") {
+          if (attempts >= 20) {
+            message(
+              "Verification is taking longer than expected",
+              "Your progress is saved. Please refresh this page in a minute."
+            )
+            return
+          }
+          setTimeout(resume, Math.min(5000, 1000 + attempts * 250))
+          return
+        }
+        if (
+          (action.kind === "agreement" ||
+            action.kind === "payment" ||
+            action.kind === "onboarding") &&
+          typeof action.url === "string"
+        ) {
+          sessionStorage.setItem("rfOnboardingResumeToken", token)
+          if (action.kind === "onboarding") {
+            document.cookie =
+              "rf_onboarding_resume=; Max-Age=0; Path=/; Domain=.revfactor.io; Secure; SameSite=Lax"
+            sessionStorage.removeItem("rfOnboardingResumeToken")
+          }
+          message("Opening your next step", "You will be redirected securely.")
+          window.location.assign(action.url)
+          return
+        }
+        throw new Error("The next onboarding step was invalid.")
+      } catch (error) {
+        message(
+          "We could not continue automatically",
+          error.message || "Please refresh this page or contact RevFactor."
+        )
+      }
+    }
+
+    void resume()
+  })()
+</script>

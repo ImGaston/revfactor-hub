@@ -44,6 +44,10 @@ The Hub, not a fabricated client row, owns account classification: active listin
 
 The future Grok Bot skill cannot infer policy or timezone. Each listing gets nullable, constrained `default_cancellation_policy` and IANA `timezone`; NULL means unverified and blocks action. Field changes append to a database audit ledger. The deterministic inventory reads listings/client identity only. Reservation gaps will later come from `pricelabs_reservations_cache`, gated by a successful local refresh run within 90 minutes; neither Airbnb scraping nor the daily upstream timestamp can substitute for that proof. Full future targeting and Adjustment decisions are recorded in `docs/airbnb-seasonal-cancellation-foundation.md`. This foundation ships no skill, cron, Slack send, Adjustment, or Airbnb change.
 
+## 2026-08-27 — `start.revfactor.io` Is the New Onboarding URL
+
+Federico selected `start.revfactor.io` as the canonical client-facing URL for the unified GHL agreement, payment, and onboarding journey. `onboarding.revfactor.io` remains active during the parallel validation and migration period; it is not redirected or retired by this decision. `start.revfactor.io` must not be pointed at the draft journey or sent to clients until the complete Stripe Test path, final GHL submission, and idempotent Assembly handoff pass and a separate cutover review explicitly approves DNS/domain publication. `launch.revfactor.io` remains unassigned and may be reserved for a future post-payment launch experience.
+
 ## 2026-08-25 — Provider Failure Is Isolated and Commercial Authority Stays Deterministic
 
 Market Signals now treats PredictHQ, Ticketmaster, and NWS as independent evidence adapters behind one normalized contract. The agent enables a registered source only while its server-side configuration exists; one expired, rate-limited, or failed provider records its own health failure but does not prevent healthy providers from completing the market refresh. Scheduled work fetches only sources whose own cadence is due, then computes listing vulnerability and Signal Briefs once for the market. This keeps the 90-day PredictHQ beta replaceable instead of operationally central.
@@ -472,3 +476,7 @@ Decisions that shape the removal:
 # 2026-09-03 — University reconciliation remains pure until activation gate
 
 The official university source slice now includes a side-effect-free reconciliation engine. It deterministically selects canonical observations, retains corroborating evidence/conflicts, classifies date/status changes, and only reports missing future occurrences for explicitly complete snapshots. Supabase persistence, durable run/delta storage, source activation, and commercial actions remain separate follow-up work behind the RF-INTEL-001 production migration gate.
+
+# 2026-08-27 — Billing Authority Is a Signed Agreement Revision, Not Browser or GHL Fields
+
+The native GHL payment surface could not prove one immutable transaction containing the required one-time fee plus exact signed recurring quantities. The accepted minimum custom boundary therefore receives only a short-lived Ed25519-signed entitlement token, compares every commercial field to a stored agreement revision, resolves exact provider prices through a versioned server allowlist, and lets the database own idempotency generations and webhook replay. Provider reconciliation commits canonical IDs and a disabled GHL outbox atomically. Payment alone never triggers Assembly; final onboarding submission remains a separate mandatory gate. Migration 088 and all policies are Draft/Test only and unapplied; tax remains blocked outside explicit isolated fixtures.

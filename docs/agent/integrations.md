@@ -288,6 +288,7 @@ GoHighLevel is intended to replace the vibecoded scheduler and own lead capture,
 
 ### GHL-native onboarding draft (2026-08-21)
 
+- Approved future client URL: `start.revfactor.io`. Keep `onboarding.revfactor.io` active in parallel; no redirect, DNS change, funnel-domain attachment, or client use is approved until the complete test journey and a separate cutover review pass.
 - Client-visible target: GHL funnel/form → GHL `RevFactor_Service_Agreement` → GHL direct monthly payment → Assembly invitation. The client should not visit the Vercel pilot; only the final provisioning webhook remains outside GHL and is invisible to the client.
 - Draft GHL assets:
   - Funnel `RevFactor Client Onboarding`, step `Start Onboarding` (`start`), page-builder ID `YCl1q29Evuh1Qd97PIxe`. Saved but not published and no domain is attached.
@@ -310,6 +311,23 @@ GoHighLevel is intended to replace the vibecoded scheduler and own lead capture,
 - Agreement products now branch by the signup's child-listing choice. `RevFactor_Service_Agreement` is the published no-child template (primary + onboarding only); `RevFactor_Service_Agreement_With_Child_Listings` is the published child template (primary + required child + onboarding). The Worker selects the template before creating the signer link, so the child product is absent when the signup checkbox is off instead of appearing as an optional upsell. The child template uses a repaired monthly invoice schedule (22nd, every month) required by GHL's publish validator.
 - Contact upsert now also records `contact.rf_agreement_effective_date` as the agreement-creation date. The corresponding GHL contact custom field exists, but the PDF template still needs its page-one legal-name/effective-date overlays linked before those values can render in the agreement.
 - Browser CORS is restricted to `https://links.revfactor.io`; the API credential is a Worker secret. The funnel, workflows, and production signup URL remain unpublished/unchanged. Before launch, link the page-one legal-name/effective-date fields, decide whether RevFactor should countersign or use a static authorized-representative block, confirm whether the internal signer blocks the immediate agreement-to-payment transition, then run a Stripe Test payment and idempotent Assembly handoff.
+
+### RF-AUTO-001 server-checkout boundary (Draft/Test, 2026-08-27)
+
+- The accepted boundary keeps GHL responsible for agreement/intake/reminders but does not let GHL or browser fields supply billing authority. A short-lived Ed25519-signed entitlement identifies one agreement document revision; the Hub compares it to a stored entitlement and resolves exact prices through a versioned server allowlist.
+- Migration 088 is additive and unapplied outside disposable rehearsal databases. Database functions own checkout generations, idempotency keys, checkout/service-billing transitions, successful and conflicting provider-event replay, canonical Stripe account/customer/subscription/initial-Invoice/PaymentIntent truth, and the GHL sync outbox transaction. RLS is enabled and writes/functions are service-role-only.
+- Reconciliation requires an exact paid initial Invoice and succeeded PaymentIntent. Scheduled service additionally requires `trialing` with the exact normalized signed trial end; immediate service requires `active`, no trial, and the exact first-month-plus-setup total. Token, stored entitlement, price book, adapter, event, and retrieved objects are environment/account-bound.
+- The implementation remains disabled by default. It now includes signed internal checkout/status routes, a real Stripe adapter, and a signed Stripe webhook reconciliation route, but `RF_CHECKOUT_ENABLED` is off, the GHL outbox worker is disabled, the final onboarding URL is unconfigured, and no provider resource or shared migration is applied. Federico approved explicit no-tax collection on 2026-09-03; enabled Test/Live entitlements use `configured_no_collection`, while unconfigured flows remain `policy_blocked`. The Assembly gate still requires the current agreement/contact, final submitted GHL onboarding, approved commercial state, no exception/conflict, and the run-stable `rf.onboarding.v1:<run_id>` identity.
+- A disposable PostgreSQL rehearsal passed 087→088 forward, transactional rollback, forward-again, 20 concurrent claims, replay/out-of-order conflict, RLS/grants/signatures, immutability, service-billing transitions, GHL outbox atomicity, and the final Assembly gate. No production or shared database was contacted.
+- Review contract and diagrams: `docs/ghl/RF-AUTO-001_SERVER_CHECKOUT_BOUNDARY.md`.
+
+### RF-AUTO-001 multi-business extension (Draft/Test, 2026-09-03)
+
+- The unwired V2 Worker contract supports `single` and `separate_per_listing`. Separate mode freezes one ordered legal business, GHL Opportunity, agreement, Stripe customer/subscription, and checkout per property under one signer/group; mixed grouping remains rejected.
+- The browser supplies no commercial authority. The server freezes `$350` standard or group-wide `$320` referral pricing and divides the one `$150` group onboarding fee exactly across 1–5 billing accounts. Stable group/account identities plus Durable Object compare-and-swap stages prevent duplicate Opportunity/template/link paths.
+- Two new unpublished Opportunity-native templates, seven Opportunity fields, and the inert six-stage `RevFactor Onboarding Accounts — DRAFT` pipeline now exist and their exact IDs are recorded in `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`. The current funnel still calls the older Worker; no template, funnel, workflow, or Worker was published or deployed.
+- Unapplied migrations `20260903190000_server_checkout_boundary.sql` and `20260903200000_multi_business_onboarding.sql` add account-scoped entitlements, billing relationships, provider identity projection, and an all-accounts Assembly gate. Disposable PostgreSQL forward/rollback/forward-again rehearsal passed; no shared database was touched.
+- Full design and remaining gates: `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`.
 
 ## Landing Page to Pipeline Webhook (implemented 2026-07-09)
 
