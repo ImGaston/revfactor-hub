@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-04T08:29:37.423Z",
+  "read_only": true,
+  "currency": "USD",
+  "warning": "Thin samples are descriptive only and must not set automatic markup floors.",
+  "markets": [
+    {
+      "id": "eef7dc2c-0ec9-41d1-80b1-b6b6c622f539",
+      "proposed_slug": "knoxville-tn",
+      "proposed_name": "Knoxville",
+      "listings": [
+        {
+          "listing_key": "candidate-054bfb17",
+          "review_status": "needs_review",
+          "baseline": {
+            "reservations": 59,
+            "revenue": 157816.01,
+            "nights": 208
+          }
+        }
+      ],
+      "aggregate": {
+        "reservations": 59,
+        "revenue": 157816.01,
+        "nights": 208
+      }
+    },
+    {
+      "id": "9e88174b-1465-455a-b8ef-af70496c37df",
+      "proposed_slug": "lake-lure-nc",
+      "proposed_name": "Lake Lure",
+      "listings": [
+        {
+          "listing_key": "candidate-cdf4700a",
+          "review_status": "needs_review",
+          "baseline": {
+            "reservations": 93,
+            "revenue": 91146.26999999999,
+            "nights": 281
+          }
+        }
+      ],
+      "aggregate": {
+        "reservations": 93,
+        "revenue": 91146.26999999999,
+        "nights": 281
+      }
+    },
+    {
+      "id": "70d4e717-bd1f-4182-aad1-b1e152bfcc0d",
+      "proposed_slug": "asheville-area-nc",
+      "proposed_name": "Asheville area",
+      "listings": [
+        {
+          "listing_key": "candidate-60e70cc4",
+          "review_status": "needs_review",
+          "baseline": {
+            "reservations": 81,
+            "revenue": 87182.51000000001,
+            "nights": 284
+          }
+        },
+        {
+          "listing_key": "candidate-4bfba754",
+          "review_status": "needs_review",
+          "baseline": {
+            "reservations": 7,
+            "revenue": 12074.36,
+            "nights": 18
+          }
+        }
+      ],
+      "aggregate": {
+        "reservations": 88,
+        "revenue": 99256.87000000001,
+        "nights": 302
+      }
+    },
+    {
+      "id": "b4754524-d256-444f-bad9-466b0c7f7fc1",
+      "proposed_slug": "eastern-connecticut-ct",
+      "proposed_name": "Eastern Connecticut",
+      "listings": [
+        {
+          "listing_key": "candidate-468866c2",
+          "review_status": "needs_review",
+          "baseline": {
+            "reservations": 72,
+            "revenue": 68573.65,
+            "nights": 289
+          }
+        }
+      ],
+      "aggregate": {
+        "reservations": 72,
+        "revenue": 68573.65,
+        "nights": 289
+      }
+    }
+  ]
+}
