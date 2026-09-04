@@ -1,0 +1,443 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-04T08:17:31.195Z",
+  "read_only": true,
+  "source": "Hub listings coordinates",
+  "markets": [
+    {
+      "slug": "asheville-area-nc",
+      "name": "Asheville area",
+      "state": "NC",
+      "cities": [
+        "Asheville",
+        "Fairview",
+        "Avery Creek"
+      ],
+      "aliases": [
+        "Asheville",
+        "Fairview",
+        "Avery Creek"
+      ],
+      "proposed_market_kind": "urban",
+      "center": {
+        "latitude": 35.4972975,
+        "longitude": -82.4963995
+      },
+      "radius_miles": 8,
+      "evidence_count": 2,
+      "coordinate_count": 2,
+      "confidence": "low",
+      "listing_points": [
+        {
+          "city": "Fairview",
+          "state": "NC",
+          "latitude": 35.52707,
+          "longitude": -82.423747,
+          "has_coordinates": true
+        },
+        {
+          "city": "Avery Creek",
+          "state": "NC",
+          "latitude": 35.467525,
+          "longitude": -82.569052,
+          "has_coordinates": true
+        }
+      ]
+    },
+    {
+      "slug": "lake-lure-nc",
+      "name": "Lake Lure",
+      "state": "NC",
+      "cities": [
+        "Lake Lure"
+      ],
+      "aliases": [
+        "Lake Lure"
+      ],
+      "proposed_market_kind": "destination",
+      "center": {
+        "latitude": 35.446898,
+        "longitude": -82.164885
+      },
+      "radius_miles": 5,
+      "evidence_count": 1,
+      "coordinate_count": 1,
+      "confidence": "low",
+      "listing_points": [
+        {
+          "city": "Lake Lure",
+          "state": "NC",
+          "latitude": 35.446898,
+          "longitude": -82.164885,
+          "has_coordinates": true
+        }
+      ]
+    },
+    {
+      "slug": "knoxville-tn",
+      "name": "Knoxville",
+      "state": "TN",
+      "cities": [
+        "Knoxville"
+      ],
+      "aliases": [
+        "Knoxville"
+      ],
+      "proposed_market_kind": "urban",
+      "center": {
+        "latitude": 35.987908,
+        "longitude": -83.922778
+      },
+      "radius_miles": 5,
+      "evidence_count": 1,
+      "coordinate_count": 1,
+      "confidence": "low",
+      "listing_points": [
+        {
+          "city": "Knoxville",
+          "state": "TN",
+          "latitude": 35.987908,
+          "longitude": -83.922778,
+          "has_coordinates": true
+        }
+      ]
+    },
+    {
+      "slug": "eastern-connecticut-ct",
+      "name": "Eastern Connecticut",
+      "state": "CT",
+      "cities": [
+        "Storrs",
+        "Mansfield",
+        "Willimantic",
+        "Windham"
+      ],
+      "aliases": [
+        "Storrs",
+        "Mansfield",
+        "Willimantic",
+        "Windham"
+      ],
+      "proposed_market_kind": "mixed",
+      "center": {
+        "latitude": 41.705068,
+        "longitude": -72.210101
+      },
+      "radius_miles": 5,
+      "evidence_count": 1,
+      "coordinate_count": 1,
+      "confidence": "low",
+      "listing_points": [
+        {
+          "city": "Windham",
+          "state": "CT",
+          "latitude": 41.705068,
+          "longitude": -72.210101,
+          "has_coordinates": true
+        }
+      ]
+    }
+  ],
+  "exceptions": [
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Kill Devil Hills",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Pigeon Forge",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Pittman Center",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Kill Devil Hills",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Charlotte",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Pigeon Forge",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "North Myrtle Beach",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Cary",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Charlotte",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Pigeon Forge",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Pigeon Forge",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Gatlinburg",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "North Myrtle Beach",
+      "state": "NC",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    },
+    {
+      "city": "Sevierville",
+      "state": "TN",
+      "has_coordinates": true,
+      "classification": "outside-target-clusters"
+    }
+  ]
+}
