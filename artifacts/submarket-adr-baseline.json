@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-04T08:29:37.423Z",
+  "generated_at": "2026-09-04T08:29:52.108Z",
   "read_only": true,
   "currency": "USD",
   "warning": "Thin samples are descriptive only and must not set automatic markup floors.",
@@ -23,7 +23,8 @@
       "aggregate": {
         "reservations": 59,
         "revenue": 157816.01,
-        "nights": 208
+        "nights": 208,
+        "adr": 758.73
       }
     },
     {
@@ -44,7 +45,8 @@
       "aggregate": {
         "reservations": 93,
         "revenue": 91146.26999999999,
-        "nights": 281
+        "nights": 281,
+        "adr": 324.36
       }
     },
     {
@@ -74,7 +76,8 @@
       "aggregate": {
         "reservations": 88,
         "revenue": 99256.87000000001,
-        "nights": 302
+        "nights": 302,
+        "adr": 328.67
       }
     },
     {
@@ -95,7 +98,8 @@
       "aggregate": {
         "reservations": 72,
         "revenue": 68573.65,
-        "nights": 289
+        "nights": 289,
+        "adr": 237.28
       }
     }
   ]
