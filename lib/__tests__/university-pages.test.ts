@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseUniversityOfficialPage } from "@/lib/market-signals/university-pages"
+import { collectUniversityOfficialPage, parseUniversityOfficialPage } from "@/lib/market-signals/university-pages"
 
 describe("university official page extraction", () => {
   it("extracts graduation and family weekend dates without fetching or writing", () => {
@@ -20,5 +20,15 @@ describe("university official page extraction", () => {
     })
     expect(rows).toHaveLength(1)
     expect(rows[0].eventType).toBe("academic_calendar")
+  })
+
+  it("collects through an injected fetcher without persisting anything", async () => {
+    const rows = await collectUniversityOfficialPage({
+      institution: "Example University",
+      sourceUrl: "https://example.edu/commencement",
+      fetcher: async () => new Response("<p>Commencement May 17, 2027</p>"),
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].eventType).toBe("graduation")
   })
 })

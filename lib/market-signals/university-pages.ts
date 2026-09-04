@@ -41,3 +41,21 @@ export function parseUniversityOfficialPage(input: {
   }
   return output.filter((row, index, rows) => rows.findIndex((candidate) => candidate.eventType === row.eventType && candidate.date === row.date) === index)
 }
+
+export async function collectUniversityOfficialPage(input: {
+  institution: string
+  sourceUrl: string
+  fetcher?: typeof fetch
+}): Promise<UniversityPageDate[]> {
+  const fetcher = input.fetcher ?? fetch
+  const response = await fetcher(input.sourceUrl, {
+    headers: { accept: "text/html,application/xhtml+xml" },
+    signal: AbortSignal.timeout(15_000),
+  })
+  if (!response.ok) throw new Error(`University source returned HTTP ${response.status}`)
+  return parseUniversityOfficialPage({
+    institution: input.institution,
+    sourceUrl: input.sourceUrl,
+    html: await response.text(),
+  })
+}
