@@ -153,6 +153,10 @@ export function LinkSubscriptionDialog({
     } else {
       toast.success(`Linked ${selectedIds.size} listing${selectedIds.size !== 1 ? "s" : ""} to subscription`)
       onOpenChange(false)
+      // The Overview and Subscriptions tabs share the listings snapshot loaded
+      // by the parent Server Component. Refresh it after saving so switching
+      // tabs immediately reflects the new assignment.
+      router.refresh()
     }
   }
 
