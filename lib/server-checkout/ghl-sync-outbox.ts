@@ -5,7 +5,10 @@ import { CheckoutBoundaryError } from "@/lib/server-checkout/contracts"
 export const GHL_CHECKOUT_SYNC_WORKER_ENABLED = false as const
 
 export type GhlCheckoutProjection = {
+  onboarding_group_id: string
+  billing_account_id: string
   highlevel_contact_id: string
+  highlevel_opportunity_id: string
   agreement_document_id: string
   checkout_session_id: string
   stripe_customer_id: string

@@ -26,6 +26,15 @@
           #rf-inline-onboarding input[type="text"], #rf-inline-onboarding input[type="email"], #rf-inline-onboarding input[type="tel"], #rf-inline-onboarding input[type="number"] { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #c9c8c2; border-radius: 8px; background: #fff; color: #161910; font: 500 16px/1.35 Inter, Arial, sans-serif; outline: none; transition: border-color .18s, box-shadow .18s; }
           #rf-inline-onboarding input:focus { border-color: #5d6d59; box-shadow: 0 0 0 3px rgba(93,109,89,.16); }
           #rf-inline-onboarding .rf-help { margin: 7px 0 0; color: #5d625e; font-size: 13px; line-height: 1.5; }
+          #rf-inline-onboarding .rf-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          #rf-inline-onboarding .rf-choice { display: flex; gap: 10px; align-items: flex-start; min-height: 88px; padding: 14px; border: 1px solid #c9c8c2; border-radius: 10px; background: #fff; cursor: pointer; }
+          #rf-inline-onboarding .rf-choice:has(input:checked) { border-color: #142d26; box-shadow: 0 0 0 2px rgba(20,45,38,.12); }
+          #rf-inline-onboarding .rf-choice:has(input:disabled) { cursor: not-allowed; opacity: .55; }
+          #rf-inline-onboarding .rf-choice input { margin-top: 3px; accent-color: #142d26; }
+          #rf-inline-onboarding .rf-choice strong { display: block; margin-bottom: 4px; font-size: 14px; }
+          #rf-inline-onboarding .rf-choice span { display: block; color: #5d625e; font-size: 12px; line-height: 1.4; }
+          #rf-inline-onboarding .rf-business-fields { display: grid; gap: 16px; }
+          #rf-inline-onboarding .rf-account-summary { margin-top: 8px; color: #5d625e; font-size: 12px; }
           #rf-inline-onboarding .rf-offer-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
           #rf-inline-onboarding .rf-apply { min-width: 112px; border: 1px solid #142d26; border-radius: 8px; background: transparent; color: #142d26; font: 700 13px/1 Inter, Arial, sans-serif; cursor: pointer; }
           #rf-inline-onboarding .rf-apply:disabled { cursor: wait; opacity: .65; }
@@ -39,7 +48,7 @@
           #rf-inline-onboarding .rf-error { display: none; margin: 0 0 16px; padding: 12px 14px; border: 1px solid #b68072; border-radius: 8px; background: #fff6f2; color: #6f3327; font-size: 14px; line-height: 1.45; }
           #rf-inline-onboarding .rf-secure { margin: 13px 0 0; text-align: center; color: #5d625e; font-size: 12px; line-height: 1.5; }
           #rf-inline-onboarding .rf-honeypot { position: absolute !important; left: -10000px !important; width: 1px !important; height: 1px !important; overflow: hidden !important; }
-          @media (max-width: 680px) { #rf-inline-onboarding { padding: 24px 14px 34px; } #rf-inline-onboarding .rf-card { padding: 24px 20px; border-radius: 14px; } #rf-inline-onboarding .rf-grid { grid-template-columns: 1fr; gap: 20px; } #rf-inline-onboarding .rf-full { grid-column: auto; } #rf-inline-onboarding .rf-offer-row { grid-template-columns: 1fr; } #rf-inline-onboarding .rf-apply { min-height: 46px; } }
+          @media (max-width: 680px) { #rf-inline-onboarding { padding: 24px 14px 34px; } #rf-inline-onboarding .rf-card { padding: 24px 20px; border-radius: 14px; } #rf-inline-onboarding .rf-grid { grid-template-columns: 1fr; gap: 20px; } #rf-inline-onboarding .rf-full { grid-column: auto; } #rf-inline-onboarding .rf-choice-grid, #rf-inline-onboarding .rf-offer-row { grid-template-columns: 1fr; } #rf-inline-onboarding .rf-apply { min-height: 46px; } }
         </style>
         <form class="rf-card" novalidate>
           <div class="rf-error" role="alert" aria-live="polite"></div>
@@ -49,12 +58,16 @@
             <div><label for="rf-phone">Phone</label><input id="rf-phone" name="phone" type="tel" autocomplete="tel" placeholder="+1 (555) 000-0000"></div>
             <div><label for="rf-email">Email *</label><input id="rf-email" name="email" type="email" autocomplete="email" placeholder="your@email.com" required></div>
             <div class="rf-full"><label for="rf-primary">Number of listings *</label><input id="rf-primary" name="primaryListingQuantity" type="number" inputmode="numeric" min="1" max="5" step="1" value="1" required></div>
+            <fieldset class="rf-full" style="border:0;padding:0;margin:0"><legend style="margin:0 0 8px;font-size:14px;font-weight:700">How should these properties be contracted and billed?</legend><div class="rf-choice-grid">
+              <label class="rf-choice"><input type="radio" name="billingMode" value="single" checked><span><strong>One business and card</strong>One agreement and payment covers every listing.</span></label>
+              <label class="rf-choice"><input type="radio" name="billingMode" value="separate_per_listing"><span><strong>Separate business and card per property</strong>Each property signs and pays separately, then shares one onboarding.</span></label>
+            </div></fieldset>
+            <div class="rf-full rf-business-fields"></div>
             <div class="rf-full">
               <label for="rf-offer-code">Referral code <span class="rf-help">Optional</span></label>
               <div class="rf-offer-row"><input id="rf-offer-code" name="offerCode" type="text" autocomplete="off" maxlength="120" placeholder="Enter your referral code"><button class="rf-apply" type="button">Apply code</button></div>
               <p class="rf-offer-status" aria-live="polite"></p>
             </div>
-            <div class="rf-full"><label for="rf-legal">Legal business or client name *</label><input id="rf-legal" name="legalName" type="text" autocomplete="organization" required></div>
             <div class="rf-full rf-summary" aria-live="polite"></div>
             <div class="rf-honeypot" aria-hidden="true"><label for="rf-website">Website</label><input id="rf-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
             <div class="rf-full"><button class="rf-submit" type="button">Continue to agreement</button><p class="rf-secure">Secure signup · Your agreement opens here in the same tab · Never enter passwords or access codes</p></div>
@@ -67,6 +80,9 @@
 
       const form = root.querySelector("form")
       const primaryInput = root.querySelector("#rf-primary")
+      const singleBillingInput = root.querySelector('input[name="billingMode"][value="single"]')
+      const separateBillingInput = root.querySelector('input[name="billingMode"][value="separate_per_listing"]')
+      const businessFields = root.querySelector(".rf-business-fields")
       const offerInput = root.querySelector("#rf-offer-code")
       const applyOffer = root.querySelector(".rf-apply")
       const offerStatus = root.querySelector(".rf-offer-status")
@@ -88,15 +104,45 @@
       let appliedOfferCode = ""
       let pricingProgram = "Regular"
 
-      function updateSummary(values) {
-        const primary = Math.min(
-          5,
-          Math.max(1, Number(primaryInput.value) || 1)
+      function billingMode() {
+        return root.querySelector('input[name="billingMode"]:checked').value
+      }
+
+      function listingCount() {
+        return Math.min(5, Math.max(1, Number(primaryInput.value) || 1))
+      }
+
+      function renderBusinessFields() {
+        separateBillingInput.disabled = listingCount() < 2
+        if (separateBillingInput.disabled && separateBillingInput.checked) {
+          singleBillingInput.checked = true
+        }
+        const count = billingMode() === "single" ? 1 : listingCount()
+        const previous = Array.from(
+          businessFields.querySelectorAll("input")
+        ).map((input) => input.value)
+        businessFields.innerHTML = Array.from({ length: count }, (_, index) => {
+          const label =
+            count === 1
+              ? "Legal business or client name *"
+              : `Property ${index + 1} legal business name *`
+          return `<div><label for="rf-legal-${index}">${label}</label><input id="rf-legal-${index}" class="rf-legal-name" name="legalBusinessName${index + 1}" type="text" autocomplete="organization" value="${(previous[index] || "").replaceAll("&", "&amp;").replaceAll('"', "&quot;")}" required>${count > 1 ? `<p class="rf-account-summary">Agreement ${index + 1} of ${count} · separate card and subscription</p>` : ""}</div>`
+        }).join("")
+      }
+
+      function legalBusinessNames() {
+        return Array.from(root.querySelectorAll(".rf-legal-name")).map(
+          (input) => input.value.trim()
         )
+      }
+
+      function updateSummary(values) {
+        const primary = listingCount()
         const rate =
-          values?.primaryMonthlyRate ||
+          values?.accounts?.[0]?.monthlyRateCents / 100 ||
           (pricingProgram === "Referral" ? 320 : 350)
-        summary.textContent = `${primary} primary listing${primary === 1 ? "" : "s"} · $${primary * rate}/month + $150 one-time onboarding fee${pricingProgram === "Referral" ? " · Referral rate applied" : ""}`
+        const accountCount = billingMode() === "single" ? 1 : primary
+        summary.textContent = `${primary} primary listing${primary === 1 ? "" : "s"} · ${accountCount} agreement${accountCount === 1 ? "" : "s"} and payment${accountCount === 1 ? "" : "s"} · $${primary * rate}/month + $150 total onboarding fee${pricingProgram === "Referral" ? " · Referral rate applied" : ""}`
       }
 
       async function validateOffer() {
@@ -113,12 +159,13 @@
         applyOffer.disabled = true
         applyOffer.textContent = "Checking…"
         try {
-          const response = await fetch(`${endpoint}/quote`, {
+          const response = await fetch(`${endpoint}/v2/groups/quote`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              offerCode,
-              primaryListingQuantity: Number(primaryInput.value),
+              referralCode: offerCode,
+              billingMode: billingMode(),
+              totalListingCount: listingCount(),
             }),
           })
           const data = await response.json()
@@ -157,9 +204,18 @@
         updateSummary()
       })
       primaryInput.addEventListener("input", () => {
+        renderBusinessFields()
         if (appliedOfferCode) void validateOffer()
         else updateSummary()
       })
+      root.querySelectorAll('input[name="billingMode"]').forEach((input) =>
+        input.addEventListener("change", () => {
+          renderBusinessFields()
+          if (appliedOfferCode) void validateOffer()
+          else updateSummary()
+        })
+      )
+      renderBusinessFields()
       updateSummary()
 
       async function openAgreement() {
@@ -182,29 +238,28 @@
         try {
           const firstName = root.querySelector("#rf-first-name").value.trim()
           const lastName = root.querySelector("#rf-last-name").value.trim()
-          const response = await fetch(endpoint, {
+          const response = await fetch(`${endpoint}/v2/groups/start`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             signal: controller.signal,
             body: JSON.stringify({
-              legalName: root.querySelector("#rf-legal").value.trim(),
+              billingMode: billingMode(),
               contactName: `${firstName} ${lastName}`.trim(),
               email: root.querySelector("#rf-email").value.trim(),
               phone: root.querySelector("#rf-phone").value.trim(),
-              primaryListingQuantity: Number(primaryInput.value),
-              childListingQuantity: 0,
-              serviceStartMode: "immediate",
-              serviceStartDate: null,
-              offerCode: appliedOfferCode || undefined,
+              totalListingCount: listingCount(),
+              legalBusinessNames: legalBusinessNames(),
+              referralCode: appliedOfferCode || undefined,
               website: root.querySelector("#rf-website").value,
             }),
           })
           const data = await response.json()
-          if (!response.ok || !data.signingUrl) {
+          if (!response.ok || data.nextAction?.kind !== "agreement" || !data.nextAction.url) {
             throw new Error(data.error || "We could not prepare the agreement.")
           }
           submit.textContent = "Opening your agreement…"
-          window.location.assign(data.signingUrl)
+          sessionStorage.setItem("rfOnboardingResumeToken", data.resumeToken)
+          window.location.assign(data.nextAction.url)
         } catch (error) {
           errorBox.textContent =
             error.name === "AbortError"

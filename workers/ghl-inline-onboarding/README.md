@@ -1,28 +1,34 @@
 # GHL inline onboarding adapter
 
-This Worker is the same-tab adapter used by the RevFactor GHL start page. GHL remains the client-facing surface and the owner of the agreement/signature experience. The adapter performs only the minimum server-authoritative work that the browser cannot be trusted to do:
+This Worker is the draft same-tab adapter for the RevFactor GHL start page. GHL remains the client-facing surface and the owner of the agreement/signature experience. The legacy `/` and `/quote` routes remain unchanged for recoverability. The new, unwired `/v2/groups/start` and `/v2/groups/quote` routes add one-business and separate-business-per-property groups.
 
 - normalize and validate the immediate-start, primary-listings-only request;
 - resolve an optional referral code against the server-side allowlist;
 - calculate either the standard `$350` or referral `$320` monthly rate with the unchanged `$150` onboarding fee;
-- atomically claim one immutable commercial revision per GHL contact;
-- write the canonical GHL contact fields only after that claim wins;
-- create the matching native GHL agreement at most once and return its signing link.
+- atomically freeze one immutable commercial group per signer/contact;
+- create one GHL Opportunity and agreement per billing account without writing shared Contact commercial fields;
+- preserve a separate agreement, Stripe customer, subscription, and card boundary per account while withholding consolidated onboarding until all accounts verify.
+
+The browser submits only billing mode, signer/contact information, total listing count, ordered legal-business names, and referral code. Rates, fee allocations, totals, template IDs, Opportunity field IDs, Stripe Price IDs, and provider state are server-owned.
 
 ## Draft/Test bindings
 
-The staging configuration points to these unpublished native GHL templates:
+The legacy route still points to these unpublished native GHL templates:
 
 - standard: `6a919f20ede3dcd490eee0c9` (`RevFactor_Service_Agreement_Standard_Immediate_Start_NATIVE_DRAFT_v3`)
 - referral: `6a91a6095a4408090a88e8f4` (`RevFactor_Service_Agreement_Referral_320_NATIVE_DRAFT_v1`)
 
 `HIGHLEVEL_ONBOARDING_REFERRAL_CODES` is a comma-separated Worker secret. Never place referral codes in `wrangler.jsonc`, the GHL page, browser JavaScript, logs, or screenshots. A blank code selects standard pricing; an unknown non-empty code fails closed.
 
-The `/quote` route validates the code and returns calculated display totals without calling GHL. The `/` route creates the contact-specific agreement link. Child listings and deferred starts are rejected and require separately approved onboarding paths.
+The `/v2/groups/quote` route calculates all per-account values without calling GHL. `/v2/groups/start` creates only the currently actionable Opportunity/agreement and returns an HMAC-authenticated one-hour resume token plus a server-controlled `nextAction`. Child listings, deferred start, and mixed billing groups are rejected.
+
+The V2 staging variables now record the exact unpublished Opportunity-native template, pipeline/stage, and seven Opportunity-field IDs listed in `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`. The HMAC resume secret and referral-code allowlist remain absent; `/v2/groups/start` therefore fails closed until separately authorized staging secrets are configured.
 
 ## Replay and concurrency contract
 
-`AGREEMENT_CLAIMS` is a SQLite-backed Durable Object namespace keyed by the GHL contact ID. The stored revision binds the contact and template IDs, template name/version, normalized legal name, primary quantity, pricing program, monthly rate, monthly fee, onboarding fee, and initial checkout total. The resulting SHA-256 fingerprint is the server-owned idempotency identity.
+`AGREEMENT_CLAIMS` is a SQLite-backed Durable Object namespace. Legacy calls remain keyed by contact. V2 groups use `group:<contactId>` and persist one group claim plus ordered account claims. The group SHA-256 fingerprint binds billing mode, ordered normalized legal names, total quantity, pricing program, monthly rates/amounts, and the exact `$150` fee allocation.
+
+For separate mode the allocations are exactly `$75`, `$50`, `$37.50`, or `$30` for 2, 3, 4, or 5 accounts. The first incomplete account alone is actionable. Provider-verified progress must move it through agreement, payment, and completion before the next account can be prepared; the public handler cannot call that trusted progress RPC.
 
 The Durable Object persists each action state before crossing the GHL network boundary:
 

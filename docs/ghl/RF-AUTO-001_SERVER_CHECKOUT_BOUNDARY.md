@@ -1,6 +1,6 @@
 # RF-AUTO-001 — Server Checkout Boundary (Draft/Test Review)
 
-Status: **Draft/Test only; migration 088 is unapplied; no route, worker, provider client, or feature flag is enabled.**
+Status: **Draft/Test only; migration `20260903190000_server_checkout_boundary.sql` is unapplied; no route, worker, provider client, or feature flag is enabled.**
 
 This slice replaces the unsafe authority model of the existing draft checkout bridge. Browser/GHL values do not select prices or quantities. A short-lived Ed25519-signed entitlement identifies one exact agreement revision; the server compares every commercial claim to its stored record, resolves a versioned allowlisted price book, and lets the database own attempt generations and provider-event replay.
 
@@ -63,7 +63,7 @@ sequenceDiagram
 | GHL and billing | `ghl_sync_pending`, `ghl_onboarding_unlocked`, `service_billing_active`, `service_billing_failed` | Outbox-based GHL projection and explicit service-billing state. |
 | Owned exceptions | `identity_conflict`, `provider_conflict`, `manual_review`, `revoked` | Human-owned terminal/review paths; never automatic Assembly handoff. |
 
-Transitions are duplicated intentionally in TypeScript and migration 088. Tests check the application reducer, while the database function rejects transitions not present in the locked transition table.
+Transitions are duplicated intentionally in TypeScript and the server-checkout migration. Tests check the application reducer, while the database function rejects transitions not present in the locked transition table.
 
 ## Authority and replay guarantees
 
@@ -78,7 +78,7 @@ Transitions are duplicated intentionally in TypeScript and migration 088. Tests 
 - Provider events are serialized and unique by provider event ID. Successful reconciliation, canonical customer/subscription/initial-Invoice/PaymentIntent IDs, verified state, and the GHL outbox insert commit atomically.
 - Correctly signed conflicts and unknown/out-of-order events are stored once with an allowlisted error code and a redacted observation capped at 4 KB. They create no GHL outbox row and known attempts fail closed in `provider_conflict`.
 - The webhook reconciliation module imports no GHL or Assembly client. It cannot perform an external action before database commit.
-- Migration 088 adds a guard trigger to migration 087's existing Assembly handoff outbox. It requires the current active agreement revision, matching GHL contact/run identity, no exception/conflict, final submitted GHL onboarding, approved commercial state, and the run-stable key `rf.onboarding.v1:<run_id>`. Replacement checkout attempts cannot create a second Assembly identity.
+- The checkout migration adds the Assembly handoff outbox and its guard trigger on top of the canonical migration tip. It requires the current active agreement revision, matching GHL contact/run identity, no exception/conflict, final submitted GHL onboarding, approved commercial state, and the run-stable key `rf.onboarding.v1:<run_id>`. The later multi-business migration strengthens this to require every billing account in the group.
 
 ## RLS and grants
 
@@ -86,16 +86,16 @@ All six new tables enable RLS. Authenticated users receive SELECT only and only 
 
 ## Executed disposable migration rehearsal
 
-`scripts/rehearse-server-checkout-migration.sh` starts PostgreSQL in a new `mktemp` cluster with socket-only networking, applies the real local migration 087, applies 088 inside a transaction and rolls it back, verifies no 088 object survived, applies 088 forward, runs assertions, then drops and rebuilds the database and applies 087→088 again. The cluster is stopped and deleted on exit.
+`scripts/rehearse-server-checkout-migration.sh` starts PostgreSQL in a new `mktemp` cluster with socket-only networking, applies the canonical base plus checkout and multi-business migrations, verifies transactional rollback, runs assertions, then drops and rebuilds the database and repeats the full sequence. The cluster is stopped and deleted on exit.
 
-The executed rehearsal passed: 087→088 forward, transactional rollback, forward-again, 20 concurrent claims returning one attempt/generation, success and conflict replay, out-of-order fail-closed behavior, RLS/grants/function signatures, agreement/attempt immutability, service-billing transitions, exact scheduled and immediate authority, GHL outbox atomicity, and the final Assembly gate. `supabase/rehearsal/087_prerequisites.sql` contains disposable schema stubs only; the actual 087 file is supplied to the script and is not copied into this PR.
+The executed rehearsal passed: canonical base → checkout → multi-business forward, transactional rollback, forward-again, 20 concurrent claims returning one attempt/generation, account isolation, exact group-fee allocation, RLS/grants/function signatures, agreement/attempt/account immutability, service-billing transitions, GHL outbox atomicity, and the all-accounts Assembly gate. `supabase/rehearsal/087_prerequisites.sql` contains disposable schema stubs only.
 
 ## Deliberate limitations
 
 - No public route wires these services.
 - No real Stripe adapter or test/live Stripe resource is present.
 - The inert server price-book loader names five future server-only variables (`RF_CHECKOUT_STRIPE_ACCOUNT_ID`, `RF_CHECKOUT_STRIPE_MODE`, and the three `RF_CHECKOUT_V1_*_PRICE_ID` values); none is configured or read by a route in this stage.
-- Migration 088 has not been applied outside the disposable temporary PostgreSQL clusters described above.
+- Neither new migration has been applied outside the disposable temporary PostgreSQL clusters described above.
 - No GHL outbox worker exists; `GHL_CHECKOUT_SYNC_WORKER_ENABLED` is `false`.
 - No GHL/Assembly production effect, message, agreement, domain, workflow, card, subscription, invoice, or AI action is included.
 - Tax policy and immediate-versus-scheduled commercial policy remain Federico decisions before any integration stage.

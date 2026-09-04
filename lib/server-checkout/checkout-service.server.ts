@@ -18,7 +18,11 @@ export type CheckoutProviderAdapter = {
   createCheckout(input: {
     idempotencyKey: string
     entitlementId: string
+    onboardingGroupId: string
+    billingAccountId: string
+    accountSequence: number
     highLevelContactId: string
+    highLevelOpportunityId: string
     agreementDocumentId: string
     serviceStartMode: "immediate" | "scheduled"
     serviceStartDate: string | null
@@ -96,7 +100,11 @@ export async function prepareServerCheckout(input: {
   const checkout = await input.provider.createCheckout({
     idempotencyKey: attempt.idempotencyKey,
     entitlementId: stored.id,
+    onboardingGroupId: stored.onboardingGroupId,
+    billingAccountId: stored.billingAccountId,
+    accountSequence: stored.accountSequence,
     highLevelContactId: stored.highLevelContactId,
+    highLevelOpportunityId: stored.highLevelOpportunityId,
     agreementDocumentId: stored.agreementDocumentId,
     serviceStartMode: stored.serviceStartMode,
     serviceStartDate: stored.serviceStartDate,

@@ -39,7 +39,7 @@ export class DbCheckoutAttemptRepository {
     const result = await this.database
       .from("agreement_entitlements")
       .select(
-        "id,jti,status,expires_at,environment,stripe_account_id,highlevel_location_id,highlevel_contact_id,agreement_document_id,agreement_template_id,agreement_revision,agreement_content_sha256,primary_quantity,child_quantity,onboarding_fee_cents,service_start_mode,service_start_date,currency,price_book_version,tax_policy"
+        "id,jti,status,expires_at,environment,stripe_account_id,highlevel_location_id,highlevel_contact_id,highlevel_opportunity_id,onboarding_group_id,billing_account_id,account_sequence,account_count,total_listing_count,billing_mode,agreement_document_id,agreement_template_id,agreement_revision,agreement_content_sha256,primary_quantity,child_quantity,onboarding_fee_cents,service_start_mode,service_start_date,currency,price_book_version,tax_policy"
       )
       .eq("jti", jti)
       .maybeSingle()
@@ -55,6 +55,13 @@ export class DbCheckoutAttemptRepository {
       stripeAccountId: String(row.stripe_account_id),
       highLevelLocationId: String(row.highlevel_location_id),
       highLevelContactId: String(row.highlevel_contact_id),
+      highLevelOpportunityId: String(row.highlevel_opportunity_id),
+      onboardingGroupId: String(row.onboarding_group_id),
+      billingAccountId: String(row.billing_account_id),
+      accountSequence: Number(row.account_sequence),
+      accountCount: Number(row.account_count),
+      totalListingCount: Number(row.total_listing_count),
+      billingMode: row.billing_mode as StoredEntitlement["billingMode"],
       agreementDocumentId: String(row.agreement_document_id),
       agreementTemplateId: String(row.agreement_template_id),
       agreementRevision: Number(row.agreement_revision),

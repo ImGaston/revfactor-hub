@@ -4,6 +4,14 @@ import {
   type DurableObjectState,
   type SqlStorage,
 } from "cloudflare:workers"
+import {
+  freezeOnboardingGroup,
+  onboardingGroupFingerprint,
+  opportunityCommercialFields,
+  type FrozenBillingAccount,
+  type FrozenOnboardingGroup,
+  type GroupSignup,
+} from "./multi-business"
 
 export type Env = {
   HIGHLEVEL_API_KEY: string
@@ -16,6 +24,24 @@ export type Env = {
   HIGHLEVEL_ONBOARDING_REFERRAL_CODES?: string
   HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL: string
   HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN: string
+  HIGHLEVEL_ONBOARDING_GROUP_TEMPLATE_ID?: string
+  HIGHLEVEL_ONBOARDING_GROUP_REFERRAL_TEMPLATE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_PIPELINE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_AGREEMENT_PENDING_STAGE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_AGREEMENT_SIGNED_STAGE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_PAYMENT_PENDING_STAGE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_PAYMENT_VERIFIED_STAGE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_COMPLETE_STAGE_ID?: string
+  HIGHLEVEL_ONBOARDING_ACCOUNT_MANUAL_REVIEW_STAGE_ID?: string
+  HIGHLEVEL_OPPORTUNITY_LEGAL_NAME_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_LISTING_QUANTITY_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_PRICING_PROGRAM_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_MONTHLY_RATE_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_MONTHLY_AMOUNT_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_ONBOARDING_FEE_FIELD_ID?: string
+  HIGHLEVEL_OPPORTUNITY_INITIAL_TOTAL_FIELD_ID?: string
+  HIGHLEVEL_ONBOARDING_CONTINUATION_URL?: string
+  HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET?: string
   AGREEMENT_CLAIMS: DurableObjectNamespace<AgreementClaimCoordinator>
 }
 
@@ -115,6 +141,74 @@ type ClaimRow = {
   state_version: number
 }
 
+type GroupClaimStage =
+  | "claimed"
+  | "preflight_scanning"
+  | "preflight_clear"
+  | "active"
+  | "complete"
+  | "conflict"
+
+type GroupAccountStage =
+  | "planned"
+  | "opportunity_creating"
+  | "opportunity_reconciling"
+  | "opportunity_ready"
+  | "template_creating"
+  | "template_reconciling"
+  | "draft_found"
+  | "link_creating"
+  | "link_reconciling"
+  | "agreement_pending"
+  | "agreement_signed"
+  | "payment_pending"
+  | "payment_verified"
+  | "complete"
+  | "manual_review"
+
+type GroupClaimRow = {
+  fingerprint: string
+  group_json: string
+  stage: GroupClaimStage
+  created_at: number
+  updated_at: number
+  state_version: number
+  last_error_code: string | null
+}
+
+type GroupAccountRow = {
+  sequence: number
+  account_json: string
+  stage: GroupAccountStage
+  opportunity_name: string
+  opportunity_id: string | null
+  document_id: string | null
+  signing_url: string | null
+  checkout_url: string | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  updated_at: number
+  state_version: number
+  last_error_code: string | null
+}
+
+export type OnboardingGroupResult =
+  | {
+      outcome: "ready"
+      groupFingerprint: string
+      accountSequence: number
+      signingUrl: string
+      reused: boolean
+    }
+  | {
+      outcome: "pending"
+      groupFingerprint: string
+      accountSequence: number
+      stage: GroupClaimStage | GroupAccountStage
+      retryAfterSeconds: number
+    }
+  | { outcome: "conflict"; message: string }
+
 const GHL_API = "https://services.leadconnectorhq.com"
 
 function corsHeaders(env: Env): HeadersInit {
@@ -212,6 +306,55 @@ export function parseSignup(body: unknown, env: Env): Signup {
     primaryListingQuantity,
     pricingProgram,
   }
+}
+
+export function parseGroupSignup(body: unknown, env: Env): GroupSignup {
+  if (!isRecord(body)) throw new Error("Invalid submission")
+  if (typeof body.website === "string" && body.website.trim()) {
+    throw new Error("Invalid submission")
+  }
+  const billingMode = body.billingMode
+  if (billingMode !== "single" && billingMode !== "separate_per_listing") {
+    throw new Error("Choose how the properties should be contracted and billed")
+  }
+  const contactName = String(body.contactName ?? "").trim()
+  const email = String(body.email ?? "")
+    .trim()
+    .toLocaleLowerCase()
+  const phone = String(body.phone ?? "").trim() || null
+  const totalListingCount = Number(body.totalListingCount)
+  const legalBusinessNames = Array.isArray(body.legalBusinessNames)
+    ? body.legalBusinessNames.map((value) => String(value ?? "").trim())
+    : []
+  if (contactName.length < 2 || contactName.length > 255) {
+    throw new Error("Enter the signer name")
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Enter a valid email address")
+  }
+  if (phone && phone.length > 40) throw new Error("Enter a valid phone number")
+  if (
+    !Number.isInteger(totalListingCount) ||
+    totalListingCount < 1 ||
+    totalListingCount > 5
+  ) {
+    throw new Error("Listings must be between 1 and 5")
+  }
+  const pricingProgram = resolvePricingProgram(
+    body.referralCode,
+    env.HIGHLEVEL_ONBOARDING_REFERRAL_CODES
+  )
+  const signup: GroupSignup = {
+    billingMode,
+    contactName,
+    email,
+    phone,
+    totalListingCount,
+    legalBusinessNames,
+    pricingProgram,
+  }
+  freezeOnboardingGroup({ contactId: "validation-only", signup })
+  return signup
 }
 
 export function serviceValues(
@@ -465,6 +608,133 @@ export const LEGACY_REVFACTOR_AGREEMENT_NAMES = [
   "RevFactor_Service_Agreement_Standard_Immediate_Start_DRAFT_v2",
 ] as const
 
+const GROUP_TEMPLATE_NAMES = {
+  Regular: "RevFactor_Service_Agreement_Standard_Opportunity_NATIVE_DRAFT_v4",
+  Referral:
+    "RevFactor_Service_Agreement_Referral_320_Opportunity_NATIVE_DRAFT_v2",
+} as const
+
+function requiredGroupConfig(env: Env, key: keyof Env): string {
+  const value = env[key]
+  if (
+    typeof value !== "string" ||
+    !value.trim() ||
+    value.startsWith("DRAFT_UNCONFIGURED_") ||
+    value.startsWith("PROVISIONAL_")
+  ) {
+    throw new Error(
+      `Multi-business onboarding is not configured: ${String(key)}`
+    )
+  }
+  return value.trim()
+}
+
+function groupTemplate(env: Env, pricingProgram: PricingProgram) {
+  return {
+    templateId: requiredGroupConfig(
+      env,
+      pricingProgram === "Referral"
+        ? "HIGHLEVEL_ONBOARDING_GROUP_REFERRAL_TEMPLATE_ID"
+        : "HIGHLEVEL_ONBOARDING_GROUP_TEMPLATE_ID"
+    ),
+    templateName: GROUP_TEMPLATE_NAMES[pricingProgram],
+  }
+}
+
+function opportunityName(
+  fingerprint: string,
+  account: FrozenBillingAccount,
+  accountCount: number
+) {
+  return `RF Onboarding ${fingerprint.slice(0, 16)} · ${account.sequence}/${accountCount} · ${account.legalBusinessName}`
+}
+
+type GhlOpportunity = { id?: unknown; name?: unknown; contactId?: unknown }
+
+async function listContactOpportunities(env: Env, contactId: string) {
+  const params = new URLSearchParams({
+    location_id: env.HIGHLEVEL_LOCATION_ID,
+    contact_id: contactId,
+    limit: "100",
+  })
+  const response = await ghlFetch(
+    env,
+    `/opportunities/search?${params.toString()}`,
+    { method: "GET" }
+  )
+  const payload = (await response.json()) as {
+    opportunities?: unknown
+    meta?: { total?: unknown }
+  }
+  if (!Array.isArray(payload.opportunities)) {
+    throw new Error("HighLevel returned an invalid opportunity inventory")
+  }
+  const total = Number(payload.meta?.total ?? payload.opportunities.length)
+  if (
+    !Number.isSafeInteger(total) ||
+    total < payload.opportunities.length ||
+    total > 100
+  ) {
+    throw new Error("HighLevel opportunity inventory is incomplete")
+  }
+  return payload.opportunities as GhlOpportunity[]
+}
+
+function opportunityCustomFields(env: Env, account: FrozenBillingAccount) {
+  const values = opportunityCommercialFields(account)
+  const mappings: Array<[keyof typeof values, keyof Env]> = [
+    ["rf_legal_business_name", "HIGHLEVEL_OPPORTUNITY_LEGAL_NAME_FIELD_ID"],
+    ["rf_listing_quantity", "HIGHLEVEL_OPPORTUNITY_LISTING_QUANTITY_FIELD_ID"],
+    ["rf_pricing_program", "HIGHLEVEL_OPPORTUNITY_PRICING_PROGRAM_FIELD_ID"],
+    ["rf_monthly_rate", "HIGHLEVEL_OPPORTUNITY_MONTHLY_RATE_FIELD_ID"],
+    ["rf_monthly_amount", "HIGHLEVEL_OPPORTUNITY_MONTHLY_AMOUNT_FIELD_ID"],
+    [
+      "rf_allocated_onboarding_fee",
+      "HIGHLEVEL_OPPORTUNITY_ONBOARDING_FEE_FIELD_ID",
+    ],
+    [
+      "rf_initial_checkout_total",
+      "HIGHLEVEL_OPPORTUNITY_INITIAL_TOTAL_FIELD_ID",
+    ],
+  ]
+  return mappings.map(([valueKey, envKey]) => ({
+    id: requiredGroupConfig(env, envKey),
+    field_value: values[valueKey],
+  }))
+}
+
+async function createBillingOpportunity(input: {
+  env: Env
+  contactId: string
+  name: string
+  account: FrozenBillingAccount
+}) {
+  const response = await ghlFetch(input.env, "/opportunities/", {
+    method: "POST",
+    body: JSON.stringify({
+      locationId: input.env.HIGHLEVEL_LOCATION_ID,
+      pipelineId: requiredGroupConfig(
+        input.env,
+        "HIGHLEVEL_ONBOARDING_ACCOUNT_PIPELINE_ID"
+      ),
+      pipelineStageId: requiredGroupConfig(
+        input.env,
+        "HIGHLEVEL_ONBOARDING_ACCOUNT_AGREEMENT_PENDING_STAGE_ID"
+      ),
+      contactId: input.contactId,
+      name: input.name,
+      status: "open",
+      monetaryValue: input.account.initialCheckoutTotalCents / 100,
+      customFields: opportunityCustomFields(input.env, input.account),
+    }),
+  })
+  const payload = (await response.json()) as { opportunity?: { id?: unknown } }
+  if (typeof payload.opportunity?.id !== "string") {
+    throw new Error("HighLevel returned no opportunity ID")
+  }
+  return payload.opportunity.id
+}
+
 function matchesAgreementName(name: string, agreementName: string) {
   return name === agreementName || name.startsWith(`${agreementName} — `)
 }
@@ -509,6 +779,39 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
           stage TEXT NOT NULL,
           result_code TEXT NOT NULL,
           created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS onboarding_group_claim (
+          fingerprint TEXT PRIMARY KEY,
+          group_json TEXT NOT NULL,
+          stage TEXT NOT NULL CHECK (stage IN (
+            'claimed', 'preflight_scanning', 'preflight_clear',
+            'active', 'complete', 'conflict'
+          )),
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          state_version INTEGER NOT NULL DEFAULT 0,
+          last_error_code TEXT
+        );
+        CREATE TABLE IF NOT EXISTS onboarding_group_account (
+          sequence INTEGER PRIMARY KEY CHECK (sequence BETWEEN 1 AND 5),
+          account_json TEXT NOT NULL,
+          stage TEXT NOT NULL CHECK (stage IN (
+            'planned', 'opportunity_creating', 'opportunity_reconciling',
+            'opportunity_ready', 'template_creating', 'template_reconciling',
+            'draft_found', 'link_creating', 'link_reconciling',
+            'agreement_pending', 'agreement_signed', 'payment_pending',
+            'payment_verified', 'complete', 'manual_review'
+          )),
+          opportunity_name TEXT NOT NULL UNIQUE,
+          opportunity_id TEXT UNIQUE,
+          document_id TEXT UNIQUE,
+          signing_url TEXT,
+          checkout_url TEXT,
+          stripe_customer_id TEXT UNIQUE,
+          stripe_subscription_id TEXT UNIQUE,
+          updated_at INTEGER NOT NULL,
+          state_version INTEGER NOT NULL DEFAULT 0,
+          last_error_code TEXT
         );
       `)
     })
@@ -620,6 +923,7 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
     const templateNames = [
       this.env.HIGHLEVEL_ONBOARDING_TEMPLATE_NAME,
       this.env.HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME,
+      ...Object.values(GROUP_TEMPLATE_NAMES),
       ...LEGACY_REVFACTOR_AGREEMENT_NAMES,
     ]
     return (documents ?? []).filter(
@@ -640,6 +944,557 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
       await listAllDocuments(this.env),
       revision.contactId
     )
+  }
+
+  private groupRow(): GroupClaimRow | null {
+    return (
+      this.sql
+        .exec<GroupClaimRow>("SELECT * FROM onboarding_group_claim LIMIT 1")
+        .toArray()[0] ?? null
+    )
+  }
+
+  private groupAccounts(): GroupAccountRow[] {
+    return this.sql
+      .exec<GroupAccountRow>(
+        "SELECT * FROM onboarding_group_account ORDER BY sequence"
+      )
+      .toArray()
+  }
+
+  private transitionGroup(
+    expected: GroupClaimRow,
+    stage: GroupClaimStage,
+    errorCode: string | null = null
+  ) {
+    return (
+      this.sql
+        .exec<GroupClaimRow>(
+          `UPDATE onboarding_group_claim
+           SET stage = ?, updated_at = ?, last_error_code = ?,
+               state_version = state_version + 1
+           WHERE fingerprint = ? AND stage = ? AND state_version = ?
+           RETURNING *`,
+          stage,
+          Date.now(),
+          errorCode,
+          expected.fingerprint,
+          expected.stage,
+          expected.state_version
+        )
+        .toArray()[0] ?? null
+    )
+  }
+
+  private transitionGroupAccount(
+    expected: GroupAccountRow,
+    stage: GroupAccountStage,
+    fields: {
+      opportunityId?: string | null
+      documentId?: string | null
+      signingUrl?: string | null
+      checkoutUrl?: string | null
+      stripeCustomerId?: string | null
+      stripeSubscriptionId?: string | null
+      errorCode?: string | null
+    } = {}
+  ) {
+    return (
+      this.sql
+        .exec<GroupAccountRow>(
+          `UPDATE onboarding_group_account
+           SET stage = ?,
+               opportunity_id = COALESCE(?, opportunity_id),
+               document_id = COALESCE(?, document_id),
+               signing_url = COALESCE(?, signing_url),
+               checkout_url = COALESCE(?, checkout_url),
+               stripe_customer_id = COALESCE(?, stripe_customer_id),
+               stripe_subscription_id = COALESCE(?, stripe_subscription_id),
+               updated_at = ?, last_error_code = ?,
+               state_version = state_version + 1
+           WHERE sequence = ? AND stage = ? AND state_version = ?
+           RETURNING *`,
+          stage,
+          fields.opportunityId ?? null,
+          fields.documentId ?? null,
+          fields.signingUrl ?? null,
+          fields.checkoutUrl ?? null,
+          fields.stripeCustomerId ?? null,
+          fields.stripeSubscriptionId ?? null,
+          Date.now(),
+          fields.errorCode ?? null,
+          expected.sequence,
+          expected.stage,
+          expected.state_version
+        )
+        .toArray()[0] ?? null
+    )
+  }
+
+  private groupPending(
+    fingerprint: string,
+    accountSequence: number,
+    stage: GroupClaimStage | GroupAccountStage
+  ): OnboardingGroupResult {
+    return {
+      outcome: "pending",
+      groupFingerprint: fingerprint,
+      accountSequence,
+      stage,
+      retryAfterSeconds: 2,
+    }
+  }
+
+  private groupConflict(): OnboardingGroupResult {
+    return {
+      outcome: "conflict",
+      message:
+        "This signer already has a different active onboarding group. Contact RevFactor before continuing.",
+    }
+  }
+
+  private groupDocumentName(
+    group: FrozenOnboardingGroup,
+    fingerprint: string,
+    account: FrozenBillingAccount
+  ) {
+    return `${groupTemplate(this.env, group.pricingProgram).templateName} — ${group.contactName} — ${account.sequence}/${group.accounts.length} — rfg-${fingerprint.slice(0, 16)}`
+  }
+
+  async processOnboardingGroup(request: {
+    contactId: string
+    input: GroupSignup
+  }): Promise<OnboardingGroupResult> {
+    const group = freezeOnboardingGroup({
+      contactId: request.contactId,
+      signup: request.input,
+    })
+    const groupJson = JSON.stringify(group)
+    const fingerprint = await onboardingGroupFingerprint(group)
+    let groupRow = this.groupRow()
+    const now = Date.now()
+    if (!groupRow) {
+      this.sql.exec(
+        `INSERT INTO onboarding_group_claim
+          (fingerprint, group_json, stage, created_at, updated_at)
+         VALUES (?, ?, 'claimed', ?, ?)`,
+        fingerprint,
+        groupJson,
+        now,
+        now
+      )
+      for (const account of group.accounts) {
+        this.sql.exec(
+          `INSERT INTO onboarding_group_account
+            (sequence, account_json, stage, opportunity_name, updated_at)
+           VALUES (?, ?, 'planned', ?, ?)`,
+          account.sequence,
+          JSON.stringify(account),
+          opportunityName(fingerprint, account, group.accounts.length),
+          now
+        )
+      }
+      groupRow = this.groupRow()
+    }
+    if (
+      !groupRow ||
+      groupRow.fingerprint !== fingerprint ||
+      groupRow.group_json !== groupJson ||
+      groupRow.stage === "conflict"
+    ) {
+      return this.groupConflict()
+    }
+
+    if (groupRow.stage === "claimed") {
+      const scanning = this.transitionGroup(groupRow, "preflight_scanning")
+      if (!scanning) {
+        return this.groupPending(
+          fingerprint,
+          1,
+          this.groupRow()?.stage ?? "claimed"
+        )
+      }
+      groupRow = scanning
+      try {
+        const documents = this.relevantDocuments(
+          await listAllDocuments(this.env),
+          request.contactId
+        )
+        if (documents.length > 0) {
+          this.transitionGroup(groupRow, "conflict", "preexisting_agreement")
+          return this.groupConflict()
+        }
+      } catch {
+        const retry = this.transitionGroup(
+          groupRow,
+          "claimed",
+          "preflight_lookup_failed"
+        )
+        return this.groupPending(
+          fingerprint,
+          1,
+          retry?.stage ?? "preflight_scanning"
+        )
+      }
+      const clear = this.transitionGroup(groupRow, "preflight_clear")
+      if (!clear) {
+        return this.groupPending(
+          fingerprint,
+          1,
+          this.groupRow()?.stage ?? "claimed"
+        )
+      }
+      groupRow = clear
+    }
+    if (groupRow.stage === "preflight_scanning") {
+      if (now - groupRow.updated_at < ACTION_STALE_AFTER_MS) {
+        return this.groupPending(fingerprint, 1, groupRow.stage)
+      }
+      const recovered = this.transitionGroup(
+        groupRow,
+        "claimed",
+        "stale_preflight_rescan"
+      )
+      return this.groupPending(
+        fingerprint,
+        1,
+        recovered?.stage ?? groupRow.stage
+      )
+    }
+    if (groupRow.stage === "preflight_clear") {
+      const active = this.transitionGroup(groupRow, "active")
+      if (!active) {
+        return this.groupPending(
+          fingerprint,
+          1,
+          this.groupRow()?.stage ?? groupRow.stage
+        )
+      }
+      groupRow = active
+    }
+
+    const accounts = this.groupAccounts()
+    const activeAccount = accounts.find(
+      (account) => account.stage !== "complete"
+    )
+    if (!activeAccount) {
+      if (groupRow.stage !== "complete")
+        this.transitionGroup(groupRow, "complete")
+      return this.groupPending(fingerprint, group.accounts.length, "complete")
+    }
+    let row = activeAccount
+    const account = JSON.parse(row.account_json) as FrozenBillingAccount
+    const template = groupTemplate(this.env, group.pricingProgram)
+
+    if (row.stage === "agreement_pending" && row.signing_url) {
+      return {
+        outcome: "ready",
+        groupFingerprint: fingerprint,
+        accountSequence: row.sequence,
+        signingUrl: row.signing_url,
+        reused: true,
+      }
+    }
+    if (
+      [
+        "agreement_signed",
+        "payment_pending",
+        "payment_verified",
+        "manual_review",
+      ].includes(row.stage)
+    ) {
+      return this.groupPending(fingerprint, row.sequence, row.stage)
+    }
+
+    if (row.stage === "planned") {
+      const reconciling = this.transitionGroupAccount(
+        row,
+        "opportunity_reconciling"
+      )
+      if (!reconciling) {
+        return this.groupPending(
+          fingerprint,
+          row.sequence,
+          this.groupAccounts()[row.sequence - 1].stage
+        )
+      }
+      row = reconciling
+      let existing: GhlOpportunity[]
+      try {
+        existing = (
+          await listContactOpportunities(this.env, request.contactId)
+        ).filter((opportunity) => opportunity.name === row.opportunity_name)
+      } catch {
+        const pending = this.transitionGroupAccount(row, "planned", {
+          errorCode: "opportunity_preflight_failed",
+        })
+        return this.groupPending(
+          fingerprint,
+          row.sequence,
+          pending?.stage ?? row.stage
+        )
+      }
+      if (existing.length > 1) {
+        const conflict = this.transitionGroupAccount(row, "manual_review", {
+          errorCode: "duplicate_opportunity_identity",
+        })
+        return this.groupPending(
+          fingerprint,
+          row.sequence,
+          conflict?.stage ?? row.stage
+        )
+      }
+      if (existing.length === 1 && typeof existing[0].id === "string") {
+        const ready = this.transitionGroupAccount(row, "opportunity_ready", {
+          opportunityId: existing[0].id,
+        })
+        if (!ready)
+          return this.groupPending(fingerprint, row.sequence, row.stage)
+        row = ready
+      } else {
+        const creating = this.transitionGroupAccount(
+          row,
+          "opportunity_creating"
+        )
+        if (!creating)
+          return this.groupPending(fingerprint, row.sequence, row.stage)
+        row = creating
+        try {
+          const opportunityId = await createBillingOpportunity({
+            env: this.env,
+            contactId: request.contactId,
+            name: row.opportunity_name,
+            account,
+          })
+          const ready = this.transitionGroupAccount(row, "opportunity_ready", {
+            opportunityId,
+          })
+          if (!ready)
+            return this.groupPending(fingerprint, row.sequence, row.stage)
+          row = ready
+        } catch {
+          const pending = this.transitionGroupAccount(
+            row,
+            "opportunity_reconciling",
+            { errorCode: "opportunity_outcome_reconcile" }
+          )
+          return this.groupPending(
+            fingerprint,
+            row.sequence,
+            pending?.stage ?? row.stage
+          )
+        }
+      }
+    }
+
+    if (row.stage === "opportunity_reconciling") {
+      let matches: GhlOpportunity[]
+      try {
+        matches = (
+          await listContactOpportunities(this.env, request.contactId)
+        ).filter((opportunity) => opportunity.name === row.opportunity_name)
+      } catch {
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      }
+      if (matches.length !== 1 || typeof matches[0].id !== "string") {
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      }
+      const ready = this.transitionGroupAccount(row, "opportunity_ready", {
+        opportunityId: matches[0].id,
+      })
+      if (!ready) return this.groupPending(fingerprint, row.sequence, row.stage)
+      row = ready
+    }
+
+    if (row.stage === "opportunity_ready" && row.opportunity_id) {
+      const creating = this.transitionGroupAccount(row, "template_creating")
+      if (!creating)
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      row = creating
+      try {
+        await ghlFetch(this.env, "/proposals/templates/send", {
+          method: "POST",
+          body: JSON.stringify({
+            templateId: template.templateId,
+            userId: this.env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
+            sendDocument: false,
+            locationId: this.env.HIGHLEVEL_LOCATION_ID,
+            contactId: request.contactId,
+            opportunityId: row.opportunity_id,
+          }),
+        })
+      } catch {
+        // Never create again after an ambiguous provider response.
+      }
+      const pending = this.transitionGroupAccount(row, "template_reconciling", {
+        errorCode: "template_outcome_reconcile",
+      })
+      if (!pending)
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      row = pending
+    }
+
+    if (row.stage === "template_reconciling") {
+      let documents: GhlDocument[]
+      try {
+        documents = await listAllDocuments(this.env)
+      } catch {
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      }
+      const drafts = documents.filter(
+        (document) =>
+          document.status === "draft" &&
+          typeof document.name === "string" &&
+          document.name.startsWith(template.templateName) &&
+          document.recipients?.some(
+            (recipient) => recipient.id === request.contactId
+          )
+      )
+      if (drafts.length !== 1 || typeof drafts[0].documentId !== "string") {
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      }
+      const found = this.transitionGroupAccount(row, "draft_found", {
+        documentId: drafts[0].documentId,
+      })
+      if (!found) return this.groupPending(fingerprint, row.sequence, row.stage)
+      row = found
+    }
+
+    if (row.stage === "draft_found" && row.document_id) {
+      const creating = this.transitionGroupAccount(row, "link_creating")
+      if (!creating)
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      row = creating
+      let response: Response | null = null
+      try {
+        response = await ghlFetch(this.env, "/proposals/document/send", {
+          method: "POST",
+          body: JSON.stringify({
+            locationId: this.env.HIGHLEVEL_LOCATION_ID,
+            documentId: row.document_id,
+            documentName: this.groupDocumentName(group, fingerprint, account),
+            medium: "link",
+            sentBy: this.env.HIGHLEVEL_ONBOARDING_SENDER_USER_ID,
+          }),
+        })
+      } catch {
+        // Reconcile only; do not issue a second link-generation request.
+      }
+      if (response) {
+        const payload = (await response.json()) as { links?: DocumentLink[] }
+        const referenceId = contactReference(payload.links, request.contactId)
+        if (referenceId) {
+          const url = signingUrl(this.env, referenceId)
+          const ready = this.transitionGroupAccount(row, "agreement_pending", {
+            signingUrl: url,
+          })
+          if (!ready)
+            return this.groupPending(fingerprint, row.sequence, row.stage)
+          return {
+            outcome: "ready",
+            groupFingerprint: fingerprint,
+            accountSequence: row.sequence,
+            signingUrl: url,
+            reused: false,
+          }
+        }
+      }
+      const pending = this.transitionGroupAccount(row, "link_reconciling", {
+        errorCode: "link_outcome_reconcile",
+      })
+      return this.groupPending(
+        fingerprint,
+        row.sequence,
+        pending?.stage ?? row.stage
+      )
+    }
+
+    if (row.stage === "link_reconciling" && row.document_id) {
+      let documents: GhlDocument[]
+      try {
+        documents = await listAllDocuments(this.env)
+      } catch {
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      }
+      const expectedName = this.groupDocumentName(group, fingerprint, account)
+      const sent = documents.filter(
+        (document) =>
+          document.documentId === row.document_id &&
+          document.name === expectedName &&
+          ["sent", "viewed"].includes(String(document.status))
+      )
+      const referenceId =
+        sent.length === 1
+          ? contactReference(sent[0].links, request.contactId)
+          : null
+      if (!referenceId)
+        return this.groupPending(fingerprint, row.sequence, row.stage)
+      const url = signingUrl(this.env, referenceId)
+      const ready = this.transitionGroupAccount(row, "agreement_pending", {
+        signingUrl: url,
+      })
+      if (!ready) return this.groupPending(fingerprint, row.sequence, row.stage)
+      return {
+        outcome: "ready",
+        groupFingerprint: fingerprint,
+        accountSequence: row.sequence,
+        signingUrl: url,
+        reused: false,
+      }
+    }
+
+    return this.groupPending(fingerprint, row.sequence, row.stage)
+  }
+
+  // This RPC is intentionally not exposed by the public fetch handler. A
+  // server-side GHL/Stripe verifier may call it only after provider retrieval.
+  async applyVerifiedAccountProgress(input: {
+    groupFingerprint: string
+    accountSequence: number
+    expectedStage:
+      | "agreement_pending"
+      | "agreement_signed"
+      | "payment_pending"
+      | "payment_verified"
+    nextStage:
+      | "agreement_signed"
+      | "payment_pending"
+      | "payment_verified"
+      | "complete"
+    documentId?: string
+    checkoutUrl?: string
+    stripeCustomerId?: string
+    stripeSubscriptionId?: string
+  }) {
+    const groupRow = this.groupRow()
+    if (!groupRow || groupRow.fingerprint !== input.groupFingerprint) {
+      throw new Error("Onboarding group identity mismatch")
+    }
+    const row = this.groupAccounts().find(
+      (candidate) => candidate.sequence === input.accountSequence
+    )
+    if (!row || row.stage !== input.expectedStage) {
+      throw new Error("Billing account stage changed concurrently")
+    }
+    if (input.documentId && row.document_id !== input.documentId) {
+      throw new Error("Verified agreement identity mismatch")
+    }
+    const legal: Record<string, string[]> = {
+      agreement_pending: ["agreement_signed"],
+      agreement_signed: ["payment_pending"],
+      payment_pending: ["payment_verified"],
+      payment_verified: ["complete"],
+    }
+    if (!legal[input.expectedStage].includes(input.nextStage)) {
+      throw new Error("Illegal verified billing-account transition")
+    }
+    const next = this.transitionGroupAccount(row, input.nextStage, {
+      checkoutUrl: input.checkoutUrl,
+      stripeCustomerId: input.stripeCustomerId,
+      stripeSubscriptionId: input.stripeSubscriptionId,
+    })
+    if (!next) throw new Error("Billing account stage changed concurrently")
+    return next
   }
 
   async processAgreement(
@@ -927,6 +1782,110 @@ async function addTag(
   })
 }
 
+export async function issueGroupResumeToken(
+  env: Env,
+  contactId: string,
+  groupFingerprint: string
+) {
+  const secret = requiredGroupConfig(
+    env,
+    "HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET"
+  )
+  const payload = btoa(
+    JSON.stringify({
+      v: 1,
+      c: contactId,
+      g: groupFingerprint,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60,
+    })
+  )
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "")
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  )
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payload)
+  )
+  const encodedSignature = btoa(
+    String.fromCharCode(...new Uint8Array(signature))
+  )
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "")
+  return `${payload}.${encodedSignature}`
+}
+
+function decodeBase64Url(value: string) {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/")
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0))
+}
+
+export async function verifyGroupResumeToken(
+  env: Env,
+  token: string,
+  expected: { contactId: string; groupFingerprint: string },
+  nowSeconds = Math.floor(Date.now() / 1000)
+) {
+  const parts = token.split(".")
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error("Invalid onboarding resume token")
+  }
+  const secret = requiredGroupConfig(
+    env,
+    "HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET"
+  )
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"]
+  )
+  let verified = false
+  try {
+    verified = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      decodeBase64Url(parts[1]),
+      new TextEncoder().encode(parts[0])
+    )
+  } catch {
+    verified = false
+  }
+  if (!verified) throw new Error("Invalid onboarding resume token")
+
+  let payload: unknown
+  try {
+    payload = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[0])))
+  } catch {
+    throw new Error("Invalid onboarding resume token")
+  }
+  if (
+    !isRecord(payload) ||
+    payload.v !== 1 ||
+    payload.c !== expected.contactId ||
+    payload.g !== expected.groupFingerprint ||
+    !Number.isSafeInteger(payload.exp) ||
+    Number(payload.exp) <= nowSeconds
+  ) {
+    throw new Error("Invalid or expired onboarding resume token")
+  }
+  return {
+    contactId: payload.c,
+    groupFingerprint: payload.g,
+    expiresAt: Number(payload.exp),
+  }
+}
+
 const worker = {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = request.headers.get("Origin")
@@ -943,6 +1902,103 @@ const worker = {
     try {
       const body = await request.json()
       const pathname = new URL(request.url).pathname
+      if (pathname === "/v2/groups/quote") {
+        if (!isRecord(body)) throw new Error("Invalid submission")
+        const billingMode = body.billingMode
+        const totalListingCount = Number(body.totalListingCount)
+        if (
+          (billingMode !== "single" &&
+            billingMode !== "separate_per_listing") ||
+          !Number.isInteger(totalListingCount) ||
+          totalListingCount < 1 ||
+          totalListingCount > 5
+        ) {
+          throw new Error("Choose a valid billing setup and listing count")
+        }
+        const accountCount = billingMode === "single" ? 1 : totalListingCount
+        const input: GroupSignup = {
+          billingMode,
+          contactName: "Quote Only",
+          email: "quote-only@revfactor.invalid",
+          phone: null,
+          totalListingCount,
+          legalBusinessNames: Array.from(
+            { length: accountCount },
+            (_, index) => `Quote Business ${index + 1}`
+          ),
+          pricingProgram: resolvePricingProgram(
+            body.referralCode,
+            env.HIGHLEVEL_ONBOARDING_REFERRAL_CODES
+          ),
+        }
+        const group = freezeOnboardingGroup({
+          contactId: "quote-only",
+          signup: input,
+        })
+        return json(env, {
+          success: true,
+          billingMode: group.billingMode,
+          totalListingCount: group.totalListingCount,
+          pricingProgram: group.pricingProgram,
+          onboardingFeeTotalCents: group.onboardingFeeTotalCents,
+          accounts: group.accounts.map((account) => ({
+            sequence: account.sequence,
+            legalBusinessName: account.legalBusinessName,
+            listingQuantity: account.listingQuantity,
+            monthlyRateCents: account.monthlyRateCents,
+            monthlyAmountCents: account.monthlyAmountCents,
+            onboardingFeeCents: account.onboardingFeeCents,
+            initialCheckoutTotalCents: account.initialCheckoutTotalCents,
+          })),
+        })
+      }
+      if (pathname === "/v2/groups/start") {
+        const input = parseGroupSignup(body, env)
+        const identityInput: Signup = {
+          legalName: input.legalBusinessNames[0],
+          contactName: input.contactName,
+          email: input.email,
+          phone: input.phone,
+          primaryListingQuantity: input.totalListingCount,
+          pricingProgram: input.pricingProgram,
+        }
+        const contactId = await upsertContact(env, identityInput, false)
+        const result = await env.AGREEMENT_CLAIMS.getByName(
+          `group:${contactId}`
+        ).processOnboardingGroup({ contactId, input })
+        if (result.outcome === "conflict") {
+          return json(env, { error: result.message }, 409)
+        }
+        if (result.outcome === "pending") {
+          const response = json(
+            env,
+            {
+              error:
+                "Your onboarding group is still being prepared. Please try again in a moment.",
+              stage: result.stage,
+              accountSequence: result.accountSequence,
+            },
+            503
+          )
+          response.headers.set("Retry-After", String(result.retryAfterSeconds))
+          return response
+        }
+        const resumeToken = await issueGroupResumeToken(
+          env,
+          contactId,
+          result.groupFingerprint
+        )
+        return json(env, {
+          success: true,
+          resumeToken,
+          nextAction: {
+            kind: "agreement",
+            accountSequence: result.accountSequence,
+            url: result.signingUrl,
+          },
+          reused: result.reused,
+        })
+      }
       if (pathname === "/quote") {
         if (!isRecord(body)) throw new Error("Invalid submission")
         const primaryListingQuantity = Number(body.primaryListingQuantity)

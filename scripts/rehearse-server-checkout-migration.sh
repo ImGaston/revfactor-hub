@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 3 ]]; then
-  echo "usage: $0 <postgres-bin-dir> <migration-087-path> <migration-088-path>" >&2
+if [[ $# -ne 4 ]]; then
+  echo "usage: $0 <postgres-bin-dir> <migration-087-path> <server-checkout-migration-path> <multi-business-migration-path>" >&2
   exit 64
 fi
 
 pg_bin="$1"
 migration_087="$2"
 migration_088="$3"
+multi_business_migration="$4"
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cluster_dir="$(mktemp -d "${TMPDIR:-/tmp}/rf-checkout-pg.XXXXXX")"
 socket_dir="$(mktemp -d "${TMPDIR:-/tmp}/rf-checkout-socket.XXXXXX")"
@@ -47,6 +48,18 @@ END \$\$;
 SQL
 "${psql[@]}" -d rf_checkout_rehearsal_a -f "$migration_088" >/dev/null
 "${psql[@]}" -d rf_checkout_rehearsal_a -f "$repo_root/supabase/rehearsal/088_assertions.sql" >/dev/null
+"${psql[@]}" -d rf_checkout_rehearsal_a <<SQL >/dev/null
+BEGIN;
+\i $multi_business_migration
+ROLLBACK;
+DO \$\$ BEGIN
+  IF to_regclass('public.onboarding_commercial_groups') IS NOT NULL THEN
+    RAISE EXCEPTION 'Transactional rollback left multi-business objects behind';
+  END IF;
+END \$\$;
+SQL
+"${psql[@]}" -d rf_checkout_rehearsal_a -f "$multi_business_migration" >/dev/null
+"${psql[@]}" -d rf_checkout_rehearsal_a -f "$repo_root/supabase/rehearsal/20260903200000_assertions.sql" >/dev/null
 
 entitlement_id="$("${psql[@]}" -At -d rf_checkout_rehearsal_a -c "SELECT id FROM public.agreement_entitlements WHERE jti='rehearsal-agreement-revision-1'")"
 lines='[{"priceId":"price_child","quantity":1,"kind":"recurring","unitAmount":5000,"currency":"usd"},{"priceId":"price_onboarding","quantity":1,"kind":"one_time","unitAmount":15000,"currency":"usd"},{"priceId":"price_primary","quantity":2,"kind":"recurring","unitAmount":35000,"currency":"usd"}]'
@@ -71,5 +84,7 @@ rm -rf "$claim_dir"
 prepare_baseline rf_checkout_rehearsal_b
 "${psql[@]}" -d rf_checkout_rehearsal_b -f "$migration_088" >/dev/null
 "${psql[@]}" -d rf_checkout_rehearsal_b -f "$repo_root/supabase/rehearsal/088_assertions.sql" >/dev/null
+"${psql[@]}" -d rf_checkout_rehearsal_b -f "$multi_business_migration" >/dev/null
+"${psql[@]}" -d rf_checkout_rehearsal_b -f "$repo_root/supabase/rehearsal/20260903200000_assertions.sql" >/dev/null
 
-echo "PASS: 087->088 forward, transactional rollback, forward-again, 20-claim concurrency, success/conflict replay, out-of-order fail-closed, RLS/grants/signatures, immutability, billing transitions, outbox atomicity, and final Assembly gate"
+echo "PASS: canonical base -> checkout -> multi-business forward, transactional rollback, forward-again, 20-claim concurrency, account isolation, group fee allocation, RLS/grants, immutability, outbox atomicity, and all-accounts Assembly gate"

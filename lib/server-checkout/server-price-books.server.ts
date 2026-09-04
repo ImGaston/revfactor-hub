@@ -2,13 +2,19 @@ import { CheckoutBoundaryError } from "@/lib/server-checkout/contracts"
 import type { PriceBook } from "@/lib/server-checkout/price-book"
 
 export const STANDARD_PRICE_BOOK_VERSION = "rf-standard-usd-v1" as const
+export const REFERRAL_PRICE_BOOK_VERSION = "rf-referral-320-usd-v1" as const
 
 type ServerPriceBookEnvironment = {
   RF_CHECKOUT_STRIPE_ACCOUNT_ID?: string
   RF_CHECKOUT_STRIPE_MODE?: string
   RF_CHECKOUT_V1_PRIMARY_PRICE_ID?: string
+  RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID?: string
   RF_CHECKOUT_V1_CHILD_PRICE_ID?: string
   RF_CHECKOUT_V1_ONBOARDING_PRICE_ID?: string
+  RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID?: string
+  RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID?: string
+  RF_CHECKOUT_V1_ONBOARDING_3750_PRICE_ID?: string
+  RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID?: string
 }
 
 function required(
@@ -36,9 +42,19 @@ export function loadServerPriceBooks(
     RF_CHECKOUT_STRIPE_MODE: process.env.RF_CHECKOUT_STRIPE_MODE,
     RF_CHECKOUT_V1_PRIMARY_PRICE_ID:
       process.env.RF_CHECKOUT_V1_PRIMARY_PRICE_ID,
+    RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID:
+      process.env.RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID,
     RF_CHECKOUT_V1_CHILD_PRICE_ID: process.env.RF_CHECKOUT_V1_CHILD_PRICE_ID,
     RF_CHECKOUT_V1_ONBOARDING_PRICE_ID:
       process.env.RF_CHECKOUT_V1_ONBOARDING_PRICE_ID,
+    RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID:
+      process.env.RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID,
+    RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID:
+      process.env.RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID,
+    RF_CHECKOUT_V1_ONBOARDING_3750_PRICE_ID:
+      process.env.RF_CHECKOUT_V1_ONBOARDING_3750_PRICE_ID,
+    RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID:
+      process.env.RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID,
   }
   const mode = required(serverEnvironment, "RF_CHECKOUT_STRIPE_MODE")
   if (mode !== "test" && mode !== "live") {
@@ -46,6 +62,49 @@ export function loadServerPriceBooks(
       "price_book_unconfigured",
       "RF_CHECKOUT_STRIPE_MODE must be test or live"
     )
+  }
+  const onboarding = {
+    priceId: required(serverEnvironment, "RF_CHECKOUT_V1_ONBOARDING_PRICE_ID"),
+    productMarker: "revfactor_onboarding_fee",
+    unitAmount: 15000,
+    currency: "usd" as const,
+    kind: "one_time" as const,
+    interval: null,
+  }
+  const onboardingAllocations = {
+    15000: onboarding,
+    7500: {
+      ...onboarding,
+      priceId: required(
+        serverEnvironment,
+        "RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID"
+      ),
+      unitAmount: 7500,
+    },
+    5000: {
+      ...onboarding,
+      priceId: required(
+        serverEnvironment,
+        "RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID"
+      ),
+      unitAmount: 5000,
+    },
+    3750: {
+      ...onboarding,
+      priceId: required(
+        serverEnvironment,
+        "RF_CHECKOUT_V1_ONBOARDING_3750_PRICE_ID"
+      ),
+      unitAmount: 3750,
+    },
+    3000: {
+      ...onboarding,
+      priceId: required(
+        serverEnvironment,
+        "RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID"
+      ),
+      unitAmount: 3000,
+    },
   }
   const book: PriceBook = {
     version: STANDARD_PRICE_BOOK_VERSION,
@@ -70,17 +129,23 @@ export function loadServerPriceBooks(
       kind: "recurring",
       interval: "month",
     },
-    onboarding: {
+    onboarding,
+    onboardingAllocations,
+  }
+  const referralBook: PriceBook = {
+    ...book,
+    version: REFERRAL_PRICE_BOOK_VERSION,
+    primary: {
+      ...book.primary,
       priceId: required(
         serverEnvironment,
-        "RF_CHECKOUT_V1_ONBOARDING_PRICE_ID"
+        "RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID"
       ),
-      productMarker: "revfactor_onboarding_fee",
-      unitAmount: 15000,
-      currency: "usd",
-      kind: "one_time",
-      interval: null,
+      unitAmount: 32000,
     },
   }
-  return Object.freeze({ [STANDARD_PRICE_BOOK_VERSION]: Object.freeze(book) })
+  return Object.freeze({
+    [STANDARD_PRICE_BOOK_VERSION]: Object.freeze(book),
+    [REFERRAL_PRICE_BOOK_VERSION]: Object.freeze(referralBook),
+  })
 }

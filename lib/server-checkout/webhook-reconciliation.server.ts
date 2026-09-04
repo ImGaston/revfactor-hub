@@ -27,8 +27,11 @@ export type CanonicalProviderCheckout = {
   environment: ProviderEnvironment
   customerId: string
   entitlementId: string
+  onboardingGroupId: string
+  billingAccountId: string
   agreementDocumentId: string
   highLevelContactId: string
+  highLevelOpportunityId: string
   serviceStartMode: "immediate" | "scheduled"
   serviceStartDate: string | null
   lines: CanonicalLineItem[]
@@ -55,8 +58,11 @@ export type ExpectedProviderCheckout = Pick<
   | "livemode"
   | "environment"
   | "entitlementId"
+  | "onboardingGroupId"
+  | "billingAccountId"
   | "agreementDocumentId"
   | "highLevelContactId"
+  | "highLevelOpportunityId"
   | "serviceStartMode"
   | "serviceStartDate"
   | "lines"
@@ -139,8 +145,15 @@ function assertProviderTruth(input: {
     ["retrieved environment", expected.environment, actual.environment],
     ["session", expected.checkoutSessionId, actual.checkoutSessionId],
     ["entitlement", expected.entitlementId, actual.entitlementId],
+    ["onboarding group", expected.onboardingGroupId, actual.onboardingGroupId],
+    ["billing account", expected.billingAccountId, actual.billingAccountId],
     ["agreement", expected.agreementDocumentId, actual.agreementDocumentId],
     ["GHL contact", expected.highLevelContactId, actual.highLevelContactId],
+    [
+      "GHL opportunity",
+      expected.highLevelOpportunityId,
+      actual.highLevelOpportunityId,
+    ],
     ["service-start mode", expected.serviceStartMode, actual.serviceStartMode],
     ["service-start date", expected.serviceStartDate, actual.serviceStartDate],
   ]
@@ -292,7 +305,10 @@ export async function reconcileSignedWebhook(input: {
     checkout,
     nextState,
     ghlProjection: {
+      onboarding_group_id: checkout.onboardingGroupId,
+      billing_account_id: checkout.billingAccountId,
       highlevel_contact_id: checkout.highLevelContactId,
+      highlevel_opportunity_id: checkout.highLevelOpportunityId,
       agreement_document_id: checkout.agreementDocumentId,
       checkout_session_id: checkout.checkoutSessionId,
       stripe_customer_id: checkout.customerId,

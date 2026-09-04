@@ -38,6 +38,15 @@ export const entitlementPayloadSchema = z
     highLevel: z.object({
       locationId: z.string().min(1).max(100),
       contactId: z.string().min(1).max(100),
+      opportunityId: z.string().min(1).max(100),
+    }),
+    onboardingGroup: z.object({
+      id: z.string().uuid(),
+      billingAccountId: z.string().uuid(),
+      accountSequence: z.number().int().min(1).max(5),
+      accountCount: z.number().int().min(1).max(5),
+      totalListingCount: z.number().int().min(1).max(5),
+      billingMode: z.enum(["single", "separate_per_listing"]),
     }),
     agreement: z.object({
       documentId: z.string().min(1).max(500),
@@ -49,7 +58,7 @@ export const entitlementPayloadSchema = z
     order: z.object({
       primaryQuantity: z.number().int().min(1).max(5),
       childQuantity: z.number().int().min(0).max(5),
-      onboardingFeeCents: z.literal(15000),
+      onboardingFeeCents: z.number().int().min(3000).max(15000),
       serviceStartMode: z.enum(["immediate", "scheduled"]),
       serviceStartDate: z.string().date().nullable(),
       currency: z.literal("usd"),
@@ -59,6 +68,28 @@ export const entitlementPayloadSchema = z
     }),
   })
   .superRefine((value, context) => {
+    if (
+      (value.onboardingGroup.billingMode === "single" &&
+        (value.onboardingGroup.accountCount !== 1 ||
+          value.onboardingGroup.accountSequence !== 1 ||
+          value.order.onboardingFeeCents !== 15000 ||
+          value.order.primaryQuantity !==
+            value.onboardingGroup.totalListingCount)) ||
+      (value.onboardingGroup.billingMode === "separate_per_listing" &&
+        (value.onboardingGroup.accountCount !==
+          value.onboardingGroup.totalListingCount ||
+          value.order.primaryQuantity !== 1 ||
+          value.order.onboardingFeeCents *
+            value.onboardingGroup.accountCount !==
+            15000))
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["onboardingGroup"],
+        message:
+          "Billing account allocation conflicts with the onboarding group",
+      })
+    }
     if (value.exp - value.iat > 15 * 60) {
       context.addIssue({
         code: "custom",
@@ -106,6 +137,13 @@ export type StoredEntitlement = {
   stripeAccountId: string
   highLevelLocationId: string
   highLevelContactId: string
+  highLevelOpportunityId: string
+  onboardingGroupId: string
+  billingAccountId: string
+  accountSequence: number
+  accountCount: number
+  totalListingCount: number
+  billingMode: "single" | "separate_per_listing"
   agreementDocumentId: string
   agreementTemplateId: string
   agreementRevision: number

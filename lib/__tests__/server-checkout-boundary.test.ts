@@ -4,7 +4,10 @@ import path from "node:path"
 
 import { describe, expect, it, vi } from "vitest"
 
-import { buildAssemblyHandoffCandidate } from "@/lib/server-checkout/assembly-gate"
+import {
+  buildAssemblyHandoffCandidate,
+  buildGroupAssemblyHandoffCandidate,
+} from "@/lib/server-checkout/assembly-gate"
 import { prepareServerCheckout } from "@/lib/server-checkout/checkout-service.server"
 import type {
   EntitlementPayload,
@@ -14,7 +17,11 @@ import {
   compareEntitlementToStoredRecord,
   verifyEntitlementToken,
 } from "@/lib/server-checkout/entitlement"
-import type { PriceBook, ProviderPrice } from "@/lib/server-checkout/price-book"
+import {
+  resolveCanonicalLineItems,
+  type PriceBook,
+  type ProviderPrice,
+} from "@/lib/server-checkout/price-book"
 import type { CheckoutAttemptRepository } from "@/lib/server-checkout/repository.server"
 import { DbReconciliationLedger } from "@/lib/server-checkout/reconciliation-repository.server"
 import { loadServerPriceBooks } from "@/lib/server-checkout/server-price-books.server"
@@ -44,7 +51,19 @@ function entitlement(
     nbf: 1787846400,
     exp: 1787847300,
     environment: "isolated_fixture",
-    highLevel: { locationId: "loc_123", contactId: "contact_123" },
+    highLevel: {
+      locationId: "loc_123",
+      contactId: "contact_123",
+      opportunityId: "opportunity_123",
+    },
+    onboardingGroup: {
+      id: "22222222-2222-4222-8222-222222222222",
+      billingAccountId: "33333333-3333-4333-8333-333333333333",
+      accountSequence: 1,
+      accountCount: 1,
+      totalListingCount: 2,
+      billingMode: "single",
+    },
     agreement: {
       documentId: "doc_123",
       templateId: "template_123",
@@ -54,7 +73,7 @@ function entitlement(
     },
     order: {
       primaryQuantity: 2,
-      childQuantity: 1,
+      childQuantity: 0,
       onboardingFeeCents: 15000,
       serviceStartMode: "scheduled",
       serviceStartDate: "2026-09-15",
@@ -90,6 +109,13 @@ function stored(payload = entitlement()): StoredEntitlement {
     stripeAccountId: payload.order.stripeAccountId,
     highLevelLocationId: payload.highLevel.locationId,
     highLevelContactId: payload.highLevel.contactId,
+    highLevelOpportunityId: payload.highLevel.opportunityId,
+    onboardingGroupId: payload.onboardingGroup.id,
+    billingAccountId: payload.onboardingGroup.billingAccountId,
+    accountSequence: payload.onboardingGroup.accountSequence,
+    accountCount: payload.onboardingGroup.accountCount,
+    totalListingCount: payload.onboardingGroup.totalListingCount,
+    billingMode: payload.onboardingGroup.billingMode,
     agreementDocumentId: payload.agreement.documentId,
     agreementTemplateId: payload.agreement.templateId,
     agreementRevision: payload.agreement.revision,
@@ -133,12 +159,25 @@ const priceBook: PriceBook = {
     kind: "one_time",
     interval: null,
   },
+  onboardingAllocations: {
+    7500: {
+      priceId: "price_onboarding_75",
+      productMarker: "rf_onboarding",
+      unitAmount: 7500,
+      currency: "usd",
+      kind: "one_time",
+      interval: null,
+    },
+  },
 }
 
 function inspectPrice(priceId: string): Promise<ProviderPrice> {
-  const entry = [priceBook.primary, priceBook.child, priceBook.onboarding].find(
-    (item) => item.priceId === priceId
-  )!
+  const entry = [
+    priceBook.primary,
+    priceBook.child,
+    priceBook.onboarding,
+    ...Object.values(priceBook.onboardingAllocations ?? {}),
+  ].find((item) => item?.priceId === priceId)!
   return Promise.resolve({
     ...entry,
     active: true,
@@ -200,12 +239,21 @@ describe("server-owned checkout preparation", () => {
       RF_CHECKOUT_STRIPE_ACCOUNT_ID: "acct_fixture",
       RF_CHECKOUT_STRIPE_MODE: "test",
       RF_CHECKOUT_V1_PRIMARY_PRICE_ID: "price_primary",
+      RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID: "price_referral_primary",
       RF_CHECKOUT_V1_CHILD_PRICE_ID: "price_child",
       RF_CHECKOUT_V1_ONBOARDING_PRICE_ID: "price_onboarding",
+      RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID: "price_onboarding_75",
+      RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID: "price_onboarding_50",
+      RF_CHECKOUT_V1_ONBOARDING_3750_PRICE_ID: "price_onboarding_3750",
+      RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID: "price_onboarding_30",
     })
     expect(books["rf-standard-usd-v1"].primary.unitAmount).toBe(35000)
     expect(books["rf-standard-usd-v1"].child.unitAmount).toBe(5000)
     expect(books["rf-standard-usd-v1"].onboarding.unitAmount).toBe(15000)
+    expect(books["rf-referral-320-usd-v1"].primary.unitAmount).toBe(32000)
+    expect(
+      books["rf-standard-usd-v1"].onboardingAllocations?.[3750]?.unitAmount
+    ).toBe(3750)
     expect(() => loadServerPriceBooks({})).toThrow(
       "RF_CHECKOUT_STRIPE_MODE is not configured"
     )
@@ -258,14 +306,11 @@ describe("server-owned checkout preparation", () => {
     expect(provider.createCheckout).toHaveBeenCalledWith(
       expect.objectContaining({
         idempotencyKey: "rf-checkout-fixture-g1",
+        onboardingGroupId: "22222222-2222-4222-8222-222222222222",
+        billingAccountId: "33333333-3333-4333-8333-333333333333",
+        accountSequence: 1,
+        highLevelOpportunityId: "opportunity_123",
         lineItems: [
-          {
-            priceId: "price_child",
-            quantity: 1,
-            kind: "recurring",
-            unitAmount: 5000,
-            currency: "usd",
-          },
           {
             priceId: "price_onboarding",
             quantity: 1,
@@ -283,6 +328,48 @@ describe("server-owned checkout preparation", () => {
         ],
       })
     )
+  })
+
+  it("uses the allowlisted allocated fee price for a separate billing account", async () => {
+    const separate = entitlement({
+      onboardingGroup: {
+        id: "22222222-2222-4222-8222-222222222222",
+        billingAccountId: "44444444-4444-4444-8444-444444444444",
+        accountSequence: 1,
+        accountCount: 2,
+        totalListingCount: 2,
+        billingMode: "separate_per_listing",
+      },
+      order: {
+        ...entitlement().order,
+        primaryQuantity: 1,
+        childQuantity: 0,
+        onboardingFeeCents: 7500,
+      },
+    })
+    await expect(
+      resolveCanonicalLineItems({
+        entitlement: separate,
+        priceBooks: { [priceBook.version]: priceBook },
+        inspectPrice,
+        allowProvisionalFixturePolicy: true,
+      })
+    ).resolves.toEqual([
+      {
+        priceId: "price_onboarding_75",
+        quantity: 1,
+        kind: "one_time",
+        unitAmount: 7500,
+        currency: "usd",
+      },
+      {
+        priceId: "price_primary",
+        quantity: 1,
+        kind: "recurring",
+        unitAmount: 35000,
+        currency: "usd",
+      },
+    ])
   })
 
   it("fails closed on tax outside the explicitly provisional isolated fixture", async () => {
@@ -434,8 +521,11 @@ describe("provider reconciliation", () => {
     environment: "isolated_fixture",
     customerId: "cus_fixture",
     entitlementId: "entitlement_1",
+    onboardingGroupId: "22222222-2222-4222-8222-222222222222",
+    billingAccountId: "33333333-3333-4333-8333-333333333333",
     agreementDocumentId: "doc_123",
     highLevelContactId: "contact_123",
+    highLevelOpportunityId: "opportunity_123",
     serviceStartMode: "scheduled",
     serviceStartDate: "2026-09-15",
     lines,
@@ -460,8 +550,11 @@ describe("provider reconciliation", () => {
     livemode: checkout.livemode,
     environment: checkout.environment,
     entitlementId: checkout.entitlementId,
+    onboardingGroupId: checkout.onboardingGroupId,
+    billingAccountId: checkout.billingAccountId,
     agreementDocumentId: checkout.agreementDocumentId,
     highLevelContactId: checkout.highLevelContactId,
+    highLevelOpportunityId: checkout.highLevelOpportunityId,
     serviceStartMode: checkout.serviceStartMode,
     serviceStartDate: checkout.serviceStartDate,
     lines,
@@ -704,6 +797,56 @@ describe("legal gates and structural boundaries", () => {
     ).toThrow("Only the current active agreement revision")
   })
 
+  it("blocks consolidated Assembly until every billing account is current and verified", () => {
+    const accounts = [1, 2].map((sequence) => ({
+      billingAccountId: `account_${sequence}`,
+      checkoutAttemptId: `attempt_${sequence}`,
+      checkoutState: "ghl_onboarding_unlocked" as const,
+      entitlementStatus: "active" as const,
+      agreementRevision: 1,
+      currentAgreementRevision: 1,
+      hasOwnedException: false,
+      hasIdentityConflict: false,
+      hasProviderConflict: false,
+    }))
+    expect(
+      buildGroupAssemblyHandoffCandidate({
+        onboardingRunId: "run_group",
+        onboardingGroupId: "group_1",
+        expectedBillingAccountCount: 2,
+        expectedListingCount: 2,
+        finalOnboardingSubmittedAt: "2026-09-03T20:00:00.000Z",
+        accounts,
+      })
+    ).toMatchObject({
+      dedupeKey: "rf.onboarding.v1:run_group",
+      billingAccountIds: ["account_1", "account_2"],
+    })
+    expect(() =>
+      buildGroupAssemblyHandoffCandidate({
+        onboardingRunId: "run_group",
+        onboardingGroupId: "group_1",
+        expectedBillingAccountCount: 2,
+        expectedListingCount: 2,
+        finalOnboardingSubmittedAt: "2026-09-03T20:00:00.000Z",
+        accounts: accounts.slice(0, 1),
+      })
+    ).toThrow("Every expected billing account")
+    expect(() =>
+      buildGroupAssemblyHandoffCandidate({
+        onboardingRunId: "run_group",
+        onboardingGroupId: "group_1",
+        expectedBillingAccountCount: 2,
+        expectedListingCount: 2,
+        finalOnboardingSubmittedAt: "2026-09-03T20:00:00.000Z",
+        accounts: [
+          accounts[0],
+          { ...accounts[1], checkoutState: "payment_failed" },
+        ],
+      })
+    ).toThrow("Checkout has not passed")
+  })
+
   it("keeps provider code free of GHL and Assembly clients and leaves the GHL worker disabled", () => {
     const root = path.join(process.cwd(), "lib/server-checkout")
     const files = readdirSync(root).filter((name) =>
@@ -746,7 +889,7 @@ describe("legal gates and structural boundaries", () => {
     const sql = readFileSync(
       path.join(
         process.cwd(),
-        "supabase/migrations/088_server_checkout_boundary.sql"
+        "supabase/migrations/20260903190000_server_checkout_boundary.sql"
       ),
       "utf8"
     )
@@ -764,7 +907,7 @@ describe("legal gates and structural boundaries", () => {
     expect(sql).toContain("stripe_initial_invoice_id")
     expect(sql).toContain("record_server_checkout_event_conflict")
     expect(sql).toContain("enforce_final_assembly_handoff_gate_trigger")
-    expect(sql.match(/ENABLE ROW LEVEL SECURITY/g)?.length).toBe(6)
+    expect(sql.match(/ENABLE ROW LEVEL SECURITY/g)?.length).toBe(7)
     expect(sql).toContain(
       "REVOKE ALL ON TABLE public.server_checkout_attempts FROM PUBLIC, anon, authenticated"
     )
@@ -780,7 +923,7 @@ describe("legal gates and structural boundaries", () => {
     const sql = readFileSync(
       path.join(
         process.cwd(),
-        "supabase/migrations/088_server_checkout_boundary.sql"
+        "supabase/migrations/20260903190000_server_checkout_boundary.sql"
       ),
       "utf8"
     )
@@ -821,5 +964,33 @@ describe("legal gates and structural boundaries", () => {
       )
     )
     expect(billingMigrationPairs).toEqual(billingApplicationPairs)
+  })
+
+  it("adds per-account commercial authority and an all-accounts Assembly gate", () => {
+    const sql = readFileSync(
+      path.join(
+        process.cwd(),
+        "supabase/migrations/20260903200000_multi_business_onboarding.sql"
+      ),
+      "utf8"
+    )
+    expect(sql).toContain("CREATE TABLE public.onboarding_commercial_groups")
+    expect(sql).toContain("CREATE TABLE public.onboarding_billing_accounts")
+    expect(sql).toContain("highlevel_opportunity_id")
+    expect(sql).toContain("onboarding_fee_total_cents = 15000")
+    expect(sql).toContain(
+      "monthly_amount_cents = monthly_rate_cents * listing_quantity"
+    )
+    expect(sql).toContain(
+      "agreement_entitlements_one_active_billing_account_revision"
+    )
+    expect(sql).toContain("onboarding_group_commercially_complete")
+    expect(sql).toContain(
+      "Every billing account must be signed and payment-verified"
+    )
+    expect(sql).toContain("populate_multi_business_checkout_outbox_trigger")
+    expect(sql).toContain("ENABLE ROW LEVEL SECURITY")
+    expect(sql).toContain("TO service_role")
+    expect(sql).not.toMatch(/api\.assembly\.com|STRIPE_SECRET_KEY/)
   })
 })

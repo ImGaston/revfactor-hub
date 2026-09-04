@@ -321,6 +321,14 @@ GoHighLevel is intended to replace the vibecoded scheduler and own lead capture,
 - A disposable PostgreSQL rehearsal passed 087→088 forward, transactional rollback, forward-again, 20 concurrent claims, replay/out-of-order conflict, RLS/grants/signatures, immutability, service-billing transitions, GHL outbox atomicity, and the final Assembly gate. No production or shared database was contacted.
 - Review contract and diagrams: `docs/ghl/RF-AUTO-001_SERVER_CHECKOUT_BOUNDARY.md`.
 
+### RF-AUTO-001 multi-business extension (Draft/Test, 2026-09-03)
+
+- The unwired V2 Worker contract supports `single` and `separate_per_listing`. Separate mode freezes one ordered legal business, GHL Opportunity, agreement, Stripe customer/subscription, and checkout per property under one signer/group; mixed grouping remains rejected.
+- The browser supplies no commercial authority. The server freezes `$350` standard or group-wide `$320` referral pricing and divides the one `$150` group onboarding fee exactly across 1–5 billing accounts. Stable group/account identities plus Durable Object compare-and-swap stages prevent duplicate Opportunity/template/link paths.
+- Two new unpublished Opportunity-native templates, seven Opportunity fields, and the inert six-stage `RevFactor Onboarding Accounts — DRAFT` pipeline now exist and their exact IDs are recorded in `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`. The current funnel still calls the older Worker; no template, funnel, workflow, or Worker was published or deployed.
+- Unapplied migrations `20260903190000_server_checkout_boundary.sql` and `20260903200000_multi_business_onboarding.sql` add account-scoped entitlements, billing relationships, provider identity projection, and an all-accounts Assembly gate. Disposable PostgreSQL forward/rollback/forward-again rehearsal passed; no shared database was touched.
+- Full design and remaining gates: `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`.
+
 ## Landing Page to Pipeline Webhook (implemented 2026-07-09)
 
 Generic lead intake for landing-page forms (e.g. the home email-capture field). External contract: `docs/webhook-pipeline-integration.md` (rewritten 2026-07-10; the old version documented `project_name`/`full_name` as required, which the code never enforced).

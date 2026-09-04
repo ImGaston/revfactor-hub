@@ -19,6 +19,9 @@ export type PriceBook = {
   primary: PriceBookEntry
   child: PriceBookEntry
   onboarding: PriceBookEntry
+  onboardingAllocations?: Readonly<
+    Partial<Record<3000 | 3750 | 5000 | 7500 | 15000, PriceBookEntry>>
+  >
 }
 
 export type ProviderPrice = PriceBookEntry & {
@@ -90,7 +93,24 @@ export async function resolveCanonicalLineItems(input: {
     )
   }
 
-  for (const entry of [book.primary, book.child, book.onboarding]) {
+  const onboarding =
+    book.onboardingAllocations?.[
+      entitlement.order.onboardingFeeCents as 3000 | 3750 | 5000 | 7500 | 15000
+    ] ??
+    (entitlement.order.onboardingFeeCents === book.onboarding.unitAmount
+      ? book.onboarding
+      : null)
+  if (
+    !onboarding ||
+    onboarding.unitAmount !== entitlement.order.onboardingFeeCents
+  ) {
+    throw new CheckoutBoundaryError(
+      "price_book_mismatch",
+      "Allocated onboarding fee is not allowlisted"
+    )
+  }
+
+  for (const entry of [book.primary, book.child, onboarding]) {
     const provider = await input.inspectPrice(entry.priceId)
     const expectedLiveMode = book.environment === "live"
     if (
@@ -119,11 +139,11 @@ export async function resolveCanonicalLineItems(input: {
       currency: book.primary.currency,
     },
     {
-      priceId: book.onboarding.priceId,
+      priceId: onboarding.priceId,
       quantity: 1,
       kind: "one_time",
-      unitAmount: book.onboarding.unitAmount,
-      currency: book.onboarding.currency,
+      unitAmount: onboarding.unitAmount,
+      currency: onboarding.currency,
     },
   ]
   if (entitlement.order.childQuantity > 0) {

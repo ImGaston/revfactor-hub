@@ -91,6 +91,33 @@ export function compareEntitlementToStoredRecord(
     ["GHL location", payload.highLevel.locationId, stored.highLevelLocationId],
     ["GHL contact", payload.highLevel.contactId, stored.highLevelContactId],
     [
+      "GHL opportunity",
+      payload.highLevel.opportunityId,
+      stored.highLevelOpportunityId,
+    ],
+    ["onboarding group", payload.onboardingGroup.id, stored.onboardingGroupId],
+    [
+      "billing account",
+      payload.onboardingGroup.billingAccountId,
+      stored.billingAccountId,
+    ],
+    [
+      "account sequence",
+      payload.onboardingGroup.accountSequence,
+      stored.accountSequence,
+    ],
+    [
+      "account count",
+      payload.onboardingGroup.accountCount,
+      stored.accountCount,
+    ],
+    [
+      "total listing count",
+      payload.onboardingGroup.totalListingCount,
+      stored.totalListingCount,
+    ],
+    ["billing mode", payload.onboardingGroup.billingMode, stored.billingMode],
+    [
       "agreement document",
       payload.agreement.documentId,
       stored.agreementDocumentId,
@@ -160,6 +187,9 @@ export function agreementRevisionIdentity(payload: EntitlementPayload): string {
         payload.agreement.documentId,
         payload.agreement.revision,
         payload.agreement.contentSha256,
+        payload.onboardingGroup.id,
+        payload.onboardingGroup.billingAccountId,
+        payload.highLevel.opportunityId,
         payload.jti,
       ].join(":")
     )

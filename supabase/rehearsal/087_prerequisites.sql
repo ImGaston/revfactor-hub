@@ -1,5 +1,5 @@
 -- Disposable-only prerequisites used to execute the real local migration 087
--- followed by migration 088. These are deliberately minimal schema stubs, not
+-- followed by the timestamped RF-AUTO-001 checkout migration. These are deliberately minimal schema stubs, not
 -- a production migration or a substitute for the canonical migration history.
 
 DO $$
@@ -20,6 +20,12 @@ CREATE TABLE public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 );
 
+CREATE TABLE public.role_permissions (
+  role TEXT NOT NULL,
+  resource TEXT NOT NULL,
+  action TEXT NOT NULL
+);
+
 CREATE OR REPLACE FUNCTION public.get_my_role()
 RETURNS TEXT
 LANGUAGE sql
@@ -38,6 +44,13 @@ AS $$ SELECT FALSE $$;
 
 CREATE TABLE public.clients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+);
+
+CREATE TABLE public.listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID REFERENCES public.clients(id),
+  name TEXT NOT NULL DEFAULT '',
+  stripe_subscription_id TEXT
 );
 
 CREATE TABLE public.onboarding_runs (
@@ -68,6 +81,21 @@ CREATE TABLE public.onboarding_run_tasks (
   client_submitted_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (run_id, task_key)
+);
+
+CREATE TABLE public.onboarding_run_listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES public.onboarding_runs(id),
+  external_key TEXT NOT NULL,
+  listing_kind TEXT NOT NULL DEFAULT 'primary',
+  sequence INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (run_id, external_key)
+);
+
+CREATE TABLE public.client_stripe_customers (
+  client_id UUID NOT NULL REFERENCES public.clients(id),
+  stripe_customer_id TEXT NOT NULL UNIQUE,
+  PRIMARY KEY (client_id, stripe_customer_id)
 );
 
 CREATE OR REPLACE FUNCTION public.normalize_client_onboarding_submission(UUID, JSONB)

@@ -1,9 +1,32 @@
--- 088 — RF-AUTO-001 server-created checkout boundary (UNAPPLIED)
+-- 20260903190000 — RF-AUTO-001 server-created checkout boundary (UNAPPLIED)
 --
 -- This migration is additive and intentionally fail-closed. It creates the
 -- canonical agreement entitlement, checkout-attempt, provider-event and GHL
 -- outbox ledgers. It does not create a public endpoint, drain an outbox, apply
 -- a Stripe resource, or trigger downstream provisioning.
+
+ALTER TABLE public.clients
+  ADD COLUMN IF NOT EXISTS ghl_contact_id TEXT UNIQUE;
+
+ALTER TABLE public.onboarding_runs
+  ADD COLUMN IF NOT EXISTS source_system TEXT NOT NULL DEFAULT 'hub'
+    CHECK (source_system IN ('hub', 'ghl'));
+
+CREATE TABLE public.onboarding_handoff_outbox (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  run_id UUID NOT NULL REFERENCES public.onboarding_runs(id) ON DELETE RESTRICT,
+  event_key TEXT NOT NULL UNIQUE,
+  payload JSONB NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+  state TEXT NOT NULL DEFAULT 'pending'
+    CHECK (state IN ('pending', 'processing', 'delivered', 'failed', 'dead_letter')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  available_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  locked_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE public.agreement_entitlements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -236,6 +259,7 @@ ALTER TABLE public.server_checkout_service_billing_transitions ENABLE ROW LEVEL 
 ALTER TABLE public.server_checkout_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.server_checkout_provider_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ghl_checkout_sync_outbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.onboarding_handoff_outbox ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Super admins can view agreement entitlements"
   ON public.agreement_entitlements FOR SELECT TO authenticated
@@ -255,6 +279,9 @@ CREATE POLICY "Super admins can view checkout provider events"
 CREATE POLICY "Super admins can view GHL checkout outbox"
   ON public.ghl_checkout_sync_outbox FOR SELECT TO authenticated
   USING (public.get_my_role() = 'super_admin');
+CREATE POLICY "Super admins can view onboarding handoff outbox"
+  ON public.onboarding_handoff_outbox FOR SELECT TO authenticated
+  USING (public.get_my_role() = 'super_admin');
 
 REVOKE ALL ON TABLE public.agreement_entitlements FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.server_checkout_state_transitions FROM PUBLIC, anon, authenticated;
@@ -262,18 +289,21 @@ REVOKE ALL ON TABLE public.server_checkout_service_billing_transitions FROM PUBL
 REVOKE ALL ON TABLE public.server_checkout_attempts FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.server_checkout_provider_events FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.ghl_checkout_sync_outbox FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.onboarding_handoff_outbox FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON TABLE public.agreement_entitlements TO authenticated;
 GRANT SELECT ON TABLE public.server_checkout_state_transitions TO authenticated;
 GRANT SELECT ON TABLE public.server_checkout_service_billing_transitions TO authenticated;
 GRANT SELECT ON TABLE public.server_checkout_attempts TO authenticated;
 GRANT SELECT ON TABLE public.server_checkout_provider_events TO authenticated;
 GRANT SELECT ON TABLE public.ghl_checkout_sync_outbox TO authenticated;
+GRANT SELECT ON TABLE public.onboarding_handoff_outbox TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.agreement_entitlements TO service_role;
 GRANT SELECT ON TABLE public.server_checkout_state_transitions TO service_role;
 GRANT SELECT ON TABLE public.server_checkout_service_billing_transitions TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.server_checkout_attempts TO service_role;
 GRANT SELECT, INSERT ON TABLE public.server_checkout_provider_events TO service_role;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.ghl_checkout_sync_outbox TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.onboarding_handoff_outbox TO service_role;
 
 CREATE OR REPLACE FUNCTION public.enforce_server_checkout_transition()
 RETURNS TRIGGER
@@ -972,4 +1002,4 @@ GRANT EXECUTE ON FUNCTION public.record_server_checkout_event_conflict(TEXT, TEX
   TO service_role;
 
 COMMENT ON TABLE public.ghl_checkout_sync_outbox IS
-  'Draft/Test ledger only. No worker is enabled by migration 088.';
+  'Draft/Test ledger only. No worker is enabled by this migration.';
