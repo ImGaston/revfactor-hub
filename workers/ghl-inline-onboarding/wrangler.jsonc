@@ -4,6 +4,20 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
   "workers_dev": true,
+  "exports": {
+    "AgreementClaimCoordinator": {
+      "type": "durable-object",
+      "storage": "sqlite",
+    },
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGREEMENT_CLAIMS",
+        "class_name": "AgreementClaimCoordinator",
+      },
+    ],
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,
@@ -11,13 +25,21 @@
   "env": {
     "staging": {
       "name": "revfactor-ghl-inline-onboarding-staging",
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AGREEMENT_CLAIMS",
+            "class_name": "AgreementClaimCoordinator",
+          },
+        ],
+      },
       "vars": {
         "HIGHLEVEL_LOCATION_ID": "ErABPRqWbMyIicvzvCFt",
-        "HIGHLEVEL_ONBOARDING_TEMPLATE_ID": "6a88b36bf6fb5d14abd2fbfe",
-        "HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_ID": "6a89a4cff6fb5d14abe08d13",
+        "HIGHLEVEL_ONBOARDING_TEMPLATE_ID": "6a919f20ede3dcd490eee0c9",
+        "HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_ID": "6a91a6095a4408090a88e8f4",
         "HIGHLEVEL_ONBOARDING_SENDER_USER_ID": "1WgQNxn4PlbERLBzGG6o",
-        "HIGHLEVEL_ONBOARDING_TEMPLATE_NAME": "RevFactor_Service_Agreement",
-        "HIGHLEVEL_ONBOARDING_CHILD_TEMPLATE_NAME": "RevFactor_Service_Agreement_With_Child_Listings",
+        "HIGHLEVEL_ONBOARDING_TEMPLATE_NAME": "RevFactor_Service_Agreement_Standard_Immediate_Start_NATIVE_DRAFT_v3",
+        "HIGHLEVEL_ONBOARDING_REFERRAL_TEMPLATE_NAME": "RevFactor_Service_Agreement_Referral_320_NATIVE_DRAFT_v1",
         "HIGHLEVEL_DOCUMENT_SIGNING_BASE_URL": "https://links.revfactor.io",
         "HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN": "https://links.revfactor.io",
       },
