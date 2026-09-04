@@ -41,7 +41,20 @@ export function buildPriceLabsUpdate(
   listing: PriceLabsListing,
   syncedAt: string
 ): Record<string, unknown> {
+  const latitude = parseNullableNumber(listing.latitude)
+  const longitude = parseNullableNumber(listing.longitude)
+  const location =
+    latitude !== null && longitude !== null && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
+      ? {
+          location_latitude: latitude,
+          location_longitude: longitude,
+          location_source: "pricelabs",
+          location_observed_at: syncedAt,
+        }
+      : {}
+
   return {
+    ...location,
     pl_base_price: parseNullableNumber(listing.base),
     pl_min_price: parseNullableNumber(listing.min),
     pl_max_price: parseNullableNumber(listing.max),
