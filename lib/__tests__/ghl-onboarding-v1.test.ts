@@ -155,6 +155,16 @@ describe("GHL V1 acceptance and property reuse", () => {
     expect(submitJourney(j, "2026-09-04T13:00:00Z").stage).toBe("submitted")
     expect(j.software?.airbnb).toBe("need_help")
   })
+  it("lets an owner request PMS guidance before knowing the system name", () => {
+    const j = ready()
+    j.software = {
+      pmsName: null,
+      pms: "need_help",
+      airbnb: "need_help",
+      pricelabs: "need_help",
+    }
+    expect(submitJourney(j, "2026-09-04T13:00:00Z").stage).toBe("submitted")
+  })
   it("rejects a forged paid timestamp without bound provider identities or signed scope", () => {
     const j = ready()
     j.accounts[0].invoiceId = null

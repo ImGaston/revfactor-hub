@@ -76,8 +76,8 @@ export const SoftwareSchema = z
   })
   .strict()
   .refine(
-    (v) => v.pms === "not_applicable" || !!v.pmsName,
-    "Name the PMS or choose not applicable"
+    (v) => v.pms !== "done" || !!v.pmsName,
+    "Name the PMS when confirming it is connected"
   )
 
 export const BillingAccountSchema = z

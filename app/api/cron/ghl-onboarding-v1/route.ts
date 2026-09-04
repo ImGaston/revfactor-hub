@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const ok =
     assembly.state !== "unavailable" &&
     assembly.state !== "not_configured" &&
+    assembly.state !== "portal_compatibility_required" &&
     assembly.failed === 0 &&
     !["unavailable", "failed"].includes(progress.status)
   return NextResponse.json(

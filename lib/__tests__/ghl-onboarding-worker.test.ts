@@ -22,6 +22,7 @@ const now = Date.parse("2026-09-04T12:00:00Z")
 const config: AssemblyWorkerConfig = {
   enabled: true,
   assemblyEnabled: true,
+  portalCompatible: true,
   apiKey: "test",
   portalId: "portal",
   ownerField: "owner",
@@ -157,6 +158,14 @@ function setup() {
 }
 
 beforeEach(() => vi.restoreAllMocks())
+it("will not claim or invite before the deployed portal supports accepted V1", async () => {
+  const r = await processAssemblyJobs({
+    config: { ...config, portalCompatible: false },
+  })
+  expect(r.state).toBe("portal_compatibility_required")
+  expect(r.claimed).toBe(0)
+})
+
 describe("bounded Assembly worker", () => {
   it("defaults both enablement gates off and never claims jobs", async () => {
     const h = setup()

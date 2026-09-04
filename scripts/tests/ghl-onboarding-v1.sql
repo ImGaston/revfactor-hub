@@ -622,7 +622,7 @@ BEGIN
   );
   PERFORM pg_temp.assert_true(
     (SELECT COUNT(*) = 1 FROM public.onboarding_runs
-     WHERE external_key = 'ghl-v1:10000000-0000-0000-0000-000000000003'),
+     WHERE external_key = 'ghl-v1-10000000-0000-0000-0000-000000000003'),
     'relink created a duplicate operational run'
   );
 

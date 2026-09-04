@@ -64,6 +64,7 @@ export type AssemblyWorkerRepository = {
 export type AssemblyWorkerConfig = {
   enabled: boolean
   assemblyEnabled: boolean
+  portalCompatible: boolean
   apiKey?: string
   portalId?: string
   ownerField?: string
@@ -75,6 +76,7 @@ export function assemblyWorkerConfig(
   return {
     enabled: env.GHL_V1_ENABLED === "true",
     assemblyEnabled: env.GHL_V1_ASSEMBLY_ENABLED === "true",
+    portalCompatible: env.GHL_V1_PORTAL_COMPATIBILITY_VERIFIED === "true",
     apiKey: env.ASSEMBLY_API_KEY,
     portalId: env.GHL_V1_ASSEMBLY_PORTAL_ID,
     ownerField: env.GHL_V1_ASSEMBLY_OWNER_FIELD,
@@ -273,6 +275,8 @@ export async function processAssemblyJobs(
     ].every((v) => v?.trim())
   )
     return { ...counts, state: "not_configured" as const }
+  if (!config.portalCompatible)
+    return { ...counts, state: "portal_compatibility_required" as const }
   const repository =
     dependencies?.repository ?? createAssemblyWorkerRepository()
   const apiFactory =

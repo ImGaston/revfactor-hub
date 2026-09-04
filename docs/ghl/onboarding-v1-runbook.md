@@ -1,6 +1,6 @@
 # Native GHL V1 deployment and recovery
 
-Production remains disabled. No migrations, Hub deployment, customer entry links, payment setup or live invitations have been changed by this branch. GHL provider changes are additive native draft assets documented in the separate GHL workspace.
+Production remains disabled. No production migrations, production deployment, customer entry links, payment setup or live invitations have been changed by this branch. The GitHub draft PR has a successful protected Vercel preview build; its deployment protection prevents unauthenticated browser endpoint testing. GHL provider changes are additive native draft assets documented in the separate GHL workspace.
 
 ## Credential/deployment discovery
 
@@ -10,10 +10,10 @@ The connected Vercel account exposes `revfactor-onboarding-app` with Assembly an
 
 1. Review/apply new migrations in filename order to an isolated staging database with the legacy Hub schema present. Run the rollback SQL suite in `scripts/tests/ghl-onboarding-v1.sql`. Never use a production DB for destructive fixture bootstrap.
 2. Configure server secrets and IDs from `onboarding-v1.env.example`. Set the real post-payment GHL owner and Hub team profile (Fede fallback) deliberately. Do not infer a person from their name.
-3. Keep all four enablement flags false on initial deployment. The Hub is on Vercel Hobby, which rejected five-minute cron definitions during the first preview attempt. The branch preserves existing daily crons and provides `scripts/ghl-onboarding-v1-tick.mjs` for an external deterministic scheduler (for example, the existing Atlas operations host). Configure that runner every five minutes only after credentials and gates are ready. No external schedule is installed yet; inactive handlers do not access provider/customer state.
+3. Keep all enablement flags false on initial deployment. The Hub is on Vercel Hobby, which rejected five-minute cron definitions during the first preview attempt. The branch preserves existing daily crons and provides `scripts/ghl-onboarding-v1-tick.mjs` for an external deterministic scheduler (for example, the existing Atlas operations host). Configure that runner every five minutes only after credentials and gates are ready. No external schedule is installed yet; inactive handlers do not access provider/customer state.
 4. Prove real native agreement field IDs for legal name and every property address. `GHL_V1_CONTRACT_FIELDS_JSON` is `{legalNameFieldId,propertyAddressFieldIds}`. If IDs vary across templates, implement a reviewed template-specific map before launch. No unverified aliases are accepted.
 5. Prove the actual Stripe PaymentIntent metadata key correlating to the bound GHL invoice, initial invoice item amounts/quantity/price IDs, exact USD totals and test/live modes. A native draft/template label does not make a payment a test payment.
-6. Prepare Assembly company text custom fields for the owner external key and itemized property identity. Configure their API keys, plus the correct portal. Existing email/company ambiguity goes to review. Do not bypass that review to force a match.
+6. First deploy/test the Assembly Custom App compatibility change: the legacy app reads only `draft_payload`, can reconstruct blank answers, reopen old questions, and trigger PDF publication. V1 must render accepted data read-only, reject legacy writes, and keep the internal queue usable. Leave `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=false` until that is proven; the worker will not claim/invite without it. Prepare Assembly company text custom fields for the owner external key and itemized property identity. Configure their API keys, plus the correct portal. Existing email/company ambiguity goes to review. Do not bypass that review to force a match.
 7. Use exact native GHL host origins for CORS. Mount the secure adapter where it can safely hydrate/intercept the native controls. Keep token in fragment only until POST exchange, then memory; no URL query PII or browser storage. No raw note/contract/customer payload logging.
 8. Enable in staging only after the native host/submit interception is proven. Run all pilot cases in `PROJECT-PLAN.md`, then cut over the agent SMS entry link and approved native workflow routers. Existing published flows remain untouched until this evidence exists.
 9. Only enable Granola after private API keys and the trusted appointment mirror are ready. See `granola-importer.md`. A workspace key may not cover private rep notes. No folder filing is required.
@@ -64,3 +64,7 @@ The versioned journey and event log provide context for later Grokbot/LLM steps.
 - [HighLevel contact appointments](https://marketplace.gohighlevel.com/docs/ghl/contacts/get-appointments-for-contact/index.html)
 - [HighLevel opportunity](https://marketplace.gohighlevel.com/docs/ghl/opportunities/get-opportunity/)
 - [Assembly OpenAPI](https://assembly.com/docs/api-reference/openapi.json)
+
+## Assembly application review artifact
+
+See [compatibility provenance and release gates](assembly-v1/COMPATIBILITY.md) and [patch](assembly-v1/assembly-v1-compatibility.patch). The patch is against captured current working files in the separate app, not a verified production source snapshot. It has 12 passing targeted tests plus TypeScript/ESLint. Reconcile the deployed source before release. The existing team screens do not yet support V1 operational tasks; implement and test team review/verification before launch. Keep `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=false` until the deployed client experience passes the documented synthetic pilot.

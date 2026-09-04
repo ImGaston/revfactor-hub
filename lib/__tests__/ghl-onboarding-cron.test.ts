@@ -55,6 +55,11 @@ describe("GHL V1 cron protection and subsystem isolation", () => {
   it("reports incomplete configuration or a progress failure", async () => {
     handlers.assembly.mockResolvedValue({ state: "not_configured", failed: 0 })
     expect((await GET(request())).status).toBe(503)
+    handlers.assembly.mockResolvedValue({
+      state: "portal_compatibility_required",
+      failed: 0,
+    })
+    expect((await GET(request())).status).toBe(503)
     handlers.assembly.mockResolvedValue({ state: "disabled", failed: 0 })
     handlers.progress.mockRejectedValue(Error("private response body"))
     expect((await GET(request())).status).toBe(503)

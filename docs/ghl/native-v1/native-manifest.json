@@ -1,0 +1,245 @@
+{
+  "version": "rf.ghl.native.v1.draft",
+  "locationId": "ErABPRqWbMyIicvzvCFt",
+  "objectKey": "custom_objects.revfactor_listings",
+  "propertySurveyId": "VvcWqrwmq7wESZSfFBme",
+  "commercialFormIdPreserved": "qzu4Ec3pKKF4Zb2yG4uh",
+  "accountSurveyId": "CfTInIn60HazWmPD1Zf9",
+  "releaseReady": false,
+  "fields": [
+    {
+      "id": "BvxmARSSjpjbp48NaUch",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_journey_id",
+      "name": "V1 Journey ID",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "nnUO16lIpNcxhYHrSqRI",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_id",
+      "name": "V1 Property ID",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "MHGXM4RFYDNp6iUjm1Ta",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_expected_revision",
+      "name": "V1 Expected Revision",
+      "dataType": "NUMERICAL"
+    },
+    {
+      "id": "gUycOvauH6FXYeEdlgNo",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_submission_id",
+      "name": "V1 Submission ID",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "OGyYSQCYbuI6vxg0ieni",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_street",
+      "name": "Property street address",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "bppbuXQoq6O5zO4CYOZN",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_unit",
+      "name": "Property unit",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "QoQJUpAsHG9C5Mzkb5YF",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_city",
+      "name": "Property city",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "d9UHvDeWnVGoc8us7mb7",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_region",
+      "name": "Property state or region",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "K170RCtELoIyu3IbZOkh",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_postal_code",
+      "name": "Property postal code",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "ZJ5AI9LCqQ9hsVT8DCNG",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_country",
+      "name": "Property country",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "FxWTKaMZcYt2lXAV3BEz",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_main_goal",
+      "name": "What matters most for this property?",
+      "dataType": "RADIO"
+    },
+    {
+      "id": "4yKWa3nqO5pK3ZTMemqS",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_pricing_restrictions",
+      "name": "Firm pricing restrictions",
+      "dataType": "RADIO"
+    },
+    {
+      "id": "L3o5PbaX78PhvzVKMCi4",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_restriction_details",
+      "name": "Your restrictions or owner-use plans",
+      "dataType": "LARGE_TEXT"
+    },
+    {
+      "id": "5KiZrzDmWy2nOumJ2rIl",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_cleaning_fee_status",
+      "name": "Cleaning fee",
+      "dataType": "RADIO"
+    },
+    {
+      "id": "ZDKDI27ADG9KA0iWrnNv",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_confirmation",
+      "name": "Confirm this property",
+      "dataType": "RADIO"
+    },
+    {
+      "id": "BiJOXBKZzLWgWtJ05iLb",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_minimum_stay",
+      "name": "V1 Minimum Stay",
+      "dataType": "NUMERICAL"
+    }
+  ],
+  "verifiedQueryKeys": {
+    "listing_name": "BTVvr4WB4I1LqmgF8sRg",
+    "property_street_address": "OGyYSQCYbuI6vxg0ieni",
+    "v1_journey_id": "BvxmARSSjpjbp48NaUch",
+    "v1_property_id": "nnUO16lIpNcxhYHrSqRI"
+  },
+  "contextEndpoint": "https://hub.revfactor.io/api/public/highlevel/onboarding-v1/context",
+  "contextTransport": "POST Authorization Bearer, token from fragment, no PII query",
+  "adapterInstalled": false,
+  "nativeRecordUpdateVerified": false,
+  "contactAssociationVerified": false,
+  "resumeVerified": false,
+  "contactProgressFields": [
+    {
+      "id": "vkey7G3F8jD7Qb4eAz7u",
+      "name": "RF V1 Journey ID",
+      "fieldKey": "contact.rf_v1_journey_id",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "y91XjIDDT1v5qNzVZ0EN",
+      "name": "RF V1 Stage",
+      "fieldKey": "contact.rf_v1_stage",
+      "dataType": "TEXT"
+    },
+    {
+      "id": "dbDZjlxZ6aSEbbmCmy5j",
+      "name": "RF V1 Missing Requirements",
+      "fieldKey": "contact.rf_v1_missing_requirements",
+      "dataType": "LARGE_TEXT"
+    },
+    {
+      "id": "vrMb2MQ4uAWvJaT2cZof",
+      "name": "RF V1 Revision",
+      "fieldKey": "contact.rf_v1_revision",
+      "dataType": "NUMERICAL"
+    },
+    {
+      "id": "wCHyhIeB9t7DweYT0Ofu",
+      "name": "RF V1 Next Action",
+      "fieldKey": "contact.rf_v1_next_action",
+      "dataType": "TEXT"
+    }
+  ],
+  "slides": [
+    {
+      "name": "Confirm property",
+      "fields": 15
+    },
+    {
+      "name": "Goals and restrictions",
+      "fields": 7
+    }
+  ],
+  "conditions": [
+    {
+      "if": "Listing status = Live",
+      "hide": "Launch date",
+      "previewVerified": true
+    },
+    {
+      "if": "Listing status = Not live yet",
+      "hide": "Airbnb listing URL",
+      "previewVerified": true
+    }
+  ],
+  "saveEndpoint": "https://hub.revfactor.io/api/public/highlevel/onboarding-v1/save",
+  "contractScopeFieldsVerified": false,
+  "signedDocumentConfig": "GHL_V1_CONTRACT_FIELDS_JSON",
+  "accountFields": [
+    {
+      "id": "NHMjbW45XlxYskaNPg9d",
+      "name": "RF V1 PMS Setup",
+      "fieldKey": "contact.rf_v1_pms_setup",
+      "dataType": "RADIO",
+      "picklistOptions": [
+        "Done",
+        "Need help",
+        "Not applicable"
+      ]
+    },
+    {
+      "id": "c4E5XFx2lqPI9UK6iKyb",
+      "name": "RF V1 Airbnb Setup",
+      "fieldKey": "contact.rf_v1_airbnb_setup",
+      "dataType": "RADIO",
+      "picklistOptions": [
+        "Done",
+        "Need help"
+      ]
+    },
+    {
+      "id": "QOSdb67f7oqo9HE40nfG",
+      "name": "RF V1 PriceLabs Setup",
+      "fieldKey": "contact.rf_v1_pricelabs_setup",
+      "dataType": "RADIO",
+      "picklistOptions": [
+        "Done",
+        "Need help"
+      ]
+    },
+    {
+      "id": "mbhZi7wTgwuVNxUeQFCA",
+      "name": "RF V1 Expectations Acknowledgement",
+      "fieldKey": "contact.rf_v1_expectations_acknowledgement",
+      "dataType": "RADIO",
+      "picklistOptions": [
+        "I understand and confirm",
+        "I need help before submitting"
+      ]
+    },
+    {
+      "id": "vPRNpHwEQhBRYdB52eX2",
+      "name": "RF V1 Final Review",
+      "fieldKey": "contact.rf_v1_final_review",
+      "dataType": "RADIO",
+      "picklistOptions": [
+        "I reviewed all properties and want to submit onboarding",
+        "I still need to review my properties"
+      ]
+    }
+  ],
+  "accountSlides": [
+    {
+      "name": "Software setup",
+      "fields": 7,
+      "nativeHtmlGuide": true
+    },
+    {
+      "name": "Expectations and final review",
+      "fields": 2
+    }
+  ],
+  "sameDocumentScriptVerified": true,
+  "syntheticDetachedSubmitCancellationVerified": true,
+  "actualNativeSubmitInterceptionVerified": false,
+  "accountEmailNativeId": "email",
+  "accountEmailHiddenSupported": false
+}

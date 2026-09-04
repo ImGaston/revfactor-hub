@@ -13,8 +13,8 @@ These are engineering estimates from the current draft, conditional on credentia
 | Priority / milestone | Work and acceptance | Current state | Target |
 |---|---|---|---|
 | P0 — preserve commercial/property identity | Stable property UUIDs, assisted billing, signed document + invoice + Stripe verification, replay/revision guards | Implemented; synthetic tests pass; actual document field/Stripe correlation mapping remains unverified | Day 1 |
-| P0 — native client experience | Property review, essential preferences, account software guide, final submit; no duplicate questions | Property draft created; secure native mounting, submit interception, upsert and resume still need provider proof | Days 1–2 |
-| P0 — reliable portal handoff | Frozen submission, one company/client, durable write intents, independent activation, internal tasks | Implemented; fresh local SQL integration suite passes; credentials/custom fields required for live test | Days 2–3 |
+| P0 — native client experience | Property review, essential preferences, account software guide, final submit; no duplicate questions | Both native drafts and adapter snapshots created; same-document script execution proved; real submit, upsert and resume still need provider proof | Days 1–2 |
+| P0 — reliable portal handoff | Frozen submission, one company/client, durable write intents, independent activation, internal tasks | Backend implemented; SQL suite passes. Portal compatibility patch prepared; team task review/verification UI and live pilot remain pending | Days 2–3 |
 | P1 — post-call context + recovery | Direct Granola API, trusted call matching, internal summary, 24h/72h recovery and 7-day human follow-up | Importer implemented; appointment mapping/credentials absent. Native reminder wiring remains pending | Days 2–3 |
 | P0 — pilot and cutover | Three cases, failure/retry/opt-out checks, actual native contract/payment/forms/Assembly walkthrough | Not started. Keep current entry points until all gates pass | Day 4, or next available pilot window |
 
@@ -80,10 +80,14 @@ flowchart TD
 
 ## Verification completed
 
-- 504 tests across 61 files pass.
+- 506 tests across 61 files pass.
 - Required TypeScript check and targeted ESLint pass.
 - All six migrations apply to a fresh local PostgreSQL fixture schema; rollback integration suite passes, including portal handoff, owned tasks, stale leases, duplicate invoices, pause/resume and RLS.
 - Native draft visual/conditional tests are recorded in the GHL implementation workspace; they do not yet prove a real submission.
+
+The native review snapshots are in `docs/ghl/native-v1/`. The separate Assembly application patch and its baseline/deployment provenance are in `docs/ghl/assembly-v1/`; 12 targeted compatibility tests, TypeScript and ESLint pass. Both native adapter test scripts also pass. These are additional to the 506 Hub tests.
+
+The existing Assembly and Hub team screens do not yet support the new operational task records. A usable V1 task review and verification path must be implemented and tested before launch. The client compatibility patch must be reconciled with the actual deployed source and released separately; the invitation worker stays gated until its behavior is verified.
 
 ## Remaining launch gates
 

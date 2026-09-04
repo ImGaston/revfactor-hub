@@ -31,7 +31,7 @@ begin
  end if;
  insert into public.onboarding_runs(client_id,external_key,run_type,status,current_step,assembly_company_id,assembly_client_id,
     primary_listing_entitlement,child_listing_entitlement,has_pms,pms_name,has_pricelabs,draft_payload,submitted_payload,submitted_at)
- values(client_uuid,'ghl-v1:'||j.id::text,
+ values(client_uuid,'ghl-v1-'||j.id::text,
     case when exists(select 1 from public.onboarding_runs where client_id=client_uuid) then 'additional_property' else 'initial' end,
     'submitted','review',j.assembly_company_id,j.assembly_client_id,jsonb_array_length(j.submitted_snapshot->'properties'),0,
     j.submitted_snapshot#>>'{software,pms}'<>'not_applicable',j.submitted_snapshot#>>'{software,pmsName}',
