@@ -472,3 +472,7 @@ Decisions that shape the removal:
 # 2026-09-03 — University reconciliation remains pure until activation gate
 
 The official university source slice now includes a side-effect-free reconciliation engine. It deterministically selects canonical observations, retains corroborating evidence/conflicts, classifies date/status changes, and only reports missing future occurrences for explicitly complete snapshots. Supabase persistence, durable run/delta storage, source activation, and commercial actions remain separate follow-up work behind the RF-INTEL-001 production migration gate.
+
+# 2026-09-04 — Market Map Reuses Revocable Scoped API Keys
+
+The external Grok map needs a server-to-server feed because its preview has no Hub session. Reuse the existing `api_keys` scheme with a dedicated `market-map:read` scope instead of introducing a shared Hub environment secret: Hub stores only the SHA-256 digest, while the consumer keeps the one-time plaintext token in its server-only `HUB_MARKET_MAP_TOKEN` environment. `/api/market-map` continues to accept authenticated Hub sessions for internal use. The machine path reads with the admin client only after scoped verification, making its existing explicit redacted projections the security boundary; it introduces no write path, market activation, ingestion, pricing, or automation behavior.

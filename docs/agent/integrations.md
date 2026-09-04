@@ -362,6 +362,13 @@ The Hub's only outbound API. Consumer: the external marketing team's tracking st
 - Outcome (migration 044): `outcome` = `won` (`assembly_client_id` set) → `lost` (`lost_at` set) → `open`, won taking precedence. `is_won` kept as a back-compat alias; `lost_reason` exposed at top level; `msclkid` inside `attribution`. Won timestamped by `converted_at` (written by `createAssemblyClientForLead`); lost by `lost_at`/`lost_reason` (written by `markLeadLost`).
 - Rate limiting is an in-memory token bucket (60 req/min per key) returning 429 + `Retry-After`. It is per serverless instance and resets on cold start — a courtesy guard, not a hard global limit.
 
+## Market Map Feed (outbound, implemented 2026-09-04)
+
+- `GET /api/market-map` keeps its Hub-session path (`market_signals:view`) and also accepts a server-side `Authorization: Bearer rvf_live_…` key scoped only to `market-map:read`.
+- The external map stores the plaintext key as the server-only `HUB_MARKET_MAP_TOKEN` and calls Hub through its own proxy. The browser never calls Hub directly and never receives the bearer key.
+- Hub stores only the key's SHA-256 digest in `api_keys`; revocation is immediate and does not require a Hub redeploy. The bearer path uses the admin client, so the route's explicit listing/market/locality projections are the security boundary.
+- The response remains read-only and redacted: opaque map key, city/state/country, coordinates/provenance, and reviewed market/locality labels only. It excludes street addresses, client names, Airbnb URLs, raw listing/provider IDs, and credentials.
+
 # Market Signals
 
 - Migration `076_market_signals_foundation.sql` defines the source registry, normalized events/provider records, immutable versions/evidence, market impacts, and append-only review decisions. It was applied to the linked `revfactorHub` Supabase project on 2026-08-21. Five pilot markets and one disabled PredictHQ Events source per market were seeded; applying the migration made no external request. Migration 077 updates the Smokies registry to the reviewed 10-mile Sevierville / Pigeon Forge / Gatlinburg corridor. Migration 078 makes market and coordinate-membership readiness agent-managed.

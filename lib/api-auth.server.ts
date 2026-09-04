@@ -2,7 +2,7 @@
 import { createHash, randomBytes } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-export const API_SCOPES = ["leads:read"] as const
+export const API_SCOPES = ["leads:read", "market-map:read"] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
 const KEY_PREFIX = "rvf_live_"
@@ -20,7 +20,11 @@ export type VerifyResult =
   | { ok: true; context: ApiKeyContext }
   | { ok: false; status: 401 | 403; error: string }
 
-export function generateApiKey(): { plaintext: string; prefix: string; hash: string } {
+export function generateApiKey(): {
+  plaintext: string
+  prefix: string
+  hash: string
+} {
   const plaintext = KEY_PREFIX + randomBytes(32).toString("hex")
   return {
     plaintext,
@@ -49,16 +53,24 @@ export function hasScope(scopes: string[], needed: ApiScope): boolean {
  */
 export async function verifyApiKey(
   request: Request,
-  requiredScope: ApiScope,
+  requiredScope: ApiScope
 ): Promise<VerifyResult> {
   const header = request.headers.get("authorization")
   if (!header?.startsWith("Bearer ")) {
-    return { ok: false, status: 401, error: "Missing or malformed Authorization header" }
+    return {
+      ok: false,
+      status: 401,
+      error: "Missing or malformed Authorization header",
+    }
   }
 
   const token = header.slice("Bearer ".length).trim()
   if (!token) {
-    return { ok: false, status: 401, error: "Missing or malformed Authorization header" }
+    return {
+      ok: false,
+      status: 401,
+      error: "Missing or malformed Authorization header",
+    }
   }
 
   const supabase = createAdminClient()
@@ -74,7 +86,11 @@ export async function verifyApiKey(
   }
 
   if (!hasScope(key.scopes, requiredScope)) {
-    return { ok: false, status: 403, error: `API key is missing the ${requiredScope} scope` }
+    return {
+      ok: false,
+      status: 403,
+      error: `API key is missing the ${requiredScope} scope`,
+    }
   }
 
   touchLastUsed(key.id, key.last_used_at)
@@ -84,13 +100,15 @@ export async function verifyApiKey(
 
 /** Fire-and-forget, throttled: never block the response on usage bookkeeping. */
 function touchLastUsed(keyId: string, lastUsedAt: string | null): void {
-  if (lastUsedAt && Date.now() - Date.parse(lastUsedAt) < LAST_USED_THROTTLE_MS) return
+  if (lastUsedAt && Date.now() - Date.parse(lastUsedAt) < LAST_USED_THROTTLE_MS)
+    return
 
   void createAdminClient()
     .from("api_keys")
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", keyId)
     .then(({ error }) => {
-      if (error) console.warn("[api-auth] last_used_at update failed:", error.message)
+      if (error)
+        console.warn("[api-auth] last_used_at update failed:", error.message)
     })
 }
