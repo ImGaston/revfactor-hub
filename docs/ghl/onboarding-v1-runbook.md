@@ -4,13 +4,13 @@ Production remains disabled. No migrations, Hub deployment, customer entry links
 
 ## Credential/deployment discovery
 
-The connected Vercel account exposes `revfactor-onboarding-app` with Assembly and Stripe production secrets already configured (values were not read). Granola is absent there. The Hub deployment is not listed in that account, so its deployment access remains unresolved. Do not relink this Hub checkout to the existing onboarding app: that would replace a different application.
+The connected Vercel account exposes `revfactor-onboarding-app` with Assembly and Stripe production secrets already configured (values were not read). Granola is absent there. Vercel refuses export of the production Secret values. The Hub project is `gastons-projects-2e2a16eb/revfactor-hub`, outside the connected account, so its deployment/secret access remains unresolved. Do not relink this Hub checkout to the existing onboarding app: that would replace a different application.
 
 ## Configuration and deployment
 
 1. Review/apply new migrations in filename order to an isolated staging database with the legacy Hub schema present. Run the rollback SQL suite in `scripts/tests/ghl-onboarding-v1.sql`. Never use a production DB for destructive fixture bootstrap.
 2. Configure server secrets and IDs from `onboarding-v1.env.example`. Set the real post-payment GHL owner and Hub team profile (Fede fallback) deliberately. Do not infer a person from their name.
-3. Keep all four enablement flags false on initial deployment. The added Vercel cron definitions call protected endpoints every five minutes; inactive handlers do not access provider/customer state. Verify the deployment plan supports that frequency.
+3. Keep all four enablement flags false on initial deployment. The Hub is on Vercel Hobby, which rejected five-minute cron definitions during the first preview attempt. The branch preserves existing daily crons and provides `scripts/ghl-onboarding-v1-tick.mjs` for an external deterministic scheduler (for example, the existing Atlas operations host). Configure that runner every five minutes only after credentials and gates are ready. No external schedule is installed yet; inactive handlers do not access provider/customer state.
 4. Prove real native agreement field IDs for legal name and every property address. `GHL_V1_CONTRACT_FIELDS_JSON` is `{legalNameFieldId,propertyAddressFieldIds}`. If IDs vary across templates, implement a reviewed template-specific map before launch. No unverified aliases are accepted.
 5. Prove the actual Stripe PaymentIntent metadata key correlating to the bound GHL invoice, initial invoice item amounts/quantity/price IDs, exact USD totals and test/live modes. A native draft/template label does not make a payment a test payment.
 6. Prepare Assembly company text custom fields for the owner external key and itemized property identity. Configure their API keys, plus the correct portal. Existing email/company ambiguity goes to review. Do not bypass that review to force a match.

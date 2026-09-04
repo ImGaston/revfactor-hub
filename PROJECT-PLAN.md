@@ -87,4 +87,4 @@ flowchart TD
 
 ## Remaining launch gates
 
-See `docs/ghl/onboarding-v1-runbook.md` for exact configuration and evidence. Native drafts and passing unit tests are not end-to-end readiness. Do not flip enablement or move the salesperson SMS entry link until the secure native save path, real signed-document fields, payment correlation, correct owner assignment and Assembly handoff are demonstrated.
+The Hub Vercel Hobby plan rejected five-minute cron configuration. Those entries were removed; the external scheduler runner is ready but unscheduled. See `docs/ghl/onboarding-v1-runbook.md` for exact configuration and evidence. Native drafts and passing unit tests are not end-to-end readiness. Do not flip enablement or move the salesperson SMS entry link until the secure native save path, real signed-document fields, payment correlation, correct owner assignment and Assembly handoff are demonstrated.
