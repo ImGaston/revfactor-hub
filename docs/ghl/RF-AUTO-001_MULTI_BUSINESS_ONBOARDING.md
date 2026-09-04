@@ -12,7 +12,49 @@ Status: **implemented as inert Draft/Test code; not deployed, wired, published, 
 - The group has one `$150.00` onboarding fee. Separate mode allocates it exactly as `$75.00`, `$50.00`, `$37.50`, or `$30.00` for 2, 3, 4, or 5 accounts.
 - Every immediate-start checkout contains that account's allocated fee plus its first month.
 - Child listings and deferred start are not part of this journey.
-- Tax remains fail-closed until a configured tax policy replaces `policy_blocked`.
+- Federico approved no tax collection for this checkout on 2026-09-03. Test and
+  live entitlements must use the explicit `configured_no_collection` policy;
+  `policy_blocked` remains the default and fails closed.
+- Stripe Checkout sets `automatic_tax.enabled=false`; it does not infer tax
+  exemption and does not accept a browser-provided tax setting.
+
+## Connected-system clarification
+
+The RevFactor GHL sub-account has Stripe connected and contains the native
+`$350` Primary Listing and `$150` Onboarding Fee products. That connection is
+valid for GHL-native payment elements, but it cannot provide credentials to the
+server-created checkout boundary. The Hub adapter therefore remains disabled
+until its own Stripe Test credential, account ID, and allowlisted Price IDs are
+configured. Separate billing also needs fixed one-time Price IDs for `$75`,
+`$50`, `$37.50`, and `$30`; the browser and GHL Opportunity may never invent
+those amounts.
+
+The current GHL Coupons inventory was empty during the 2026-09-03 read-only
+audit. Referral-code authority for this journey is the Worker's secret
+allowlist, not a GHL coupon and not a client-submitted rate.
+
+## Implemented continuation boundary
+
+- The GHL start adapter stores only an opaque, 24-hour resume token in
+  same-origin session storage plus a secure `.revfactor.io` cookie so the
+  token can survive the intentional `start.revfactor.io` →
+  `links.revfactor.io` signing-domain transition.
+- The continuation adapter calls `/v2/groups/resume`; it never submits prices,
+  quantities, template IDs, Stripe IDs, or payment state.
+- The Worker verifies the exact GHL document ID/name/revision, signed/completed
+  status, and the bound Contact recipient's `hasCompleted` result.
+- Worker-to-Hub checkout and status calls are HMAC authenticated.
+- Hub atomically freezes the group, billing account, and entitlement, issues a
+  15-minute Ed25519 token, and creates an idempotent Stripe subscription-mode
+  Checkout Session.
+- Stripe automatic tax and promotion codes are explicitly disabled. The exact
+  monthly Price and allocated one-time fee Price come from the server allowlist.
+- A signed Stripe webhook plus canonical Session, Subscription, Invoice,
+  InvoicePayment/PaymentIntent, line-item, account, environment, amount, and
+  currency retrieval is required before the account can complete.
+- The Worker advances to the next agreement only after the Hub ledger reports
+  provider-verified completion. The final onboarding URL remains deliberately
+  unconfigured, so no group can reach Assembly or Hub provisioning yet.
 
 ## Authority boundary
 
@@ -92,7 +134,8 @@ The server price book now requires two recurring prices (`$350`, `$320`) and fiv
 ## Remaining cutover gates
 
 1. Legal review of the allocated-onboarding-fee wording.
-2. Professional tax determination and explicit configuration.
+2. Configure the approved `configured_no_collection` policy in the isolated
+   Stripe Test environment and verify that no tax is added.
 3. Configure staging-only secrets and deploy only an isolated Worker with non-production credentials.
 4. Run generated-document QA with isolated GHL contacts and Stripe Test resources under a separately approved scope.
 5. Capture desktop/mobile evidence for 1–5 single and 2–5 separate flows, standard and referral.

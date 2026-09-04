@@ -9,7 +9,6 @@ type ServerPriceBookEnvironment = {
   RF_CHECKOUT_STRIPE_MODE?: string
   RF_CHECKOUT_V1_PRIMARY_PRICE_ID?: string
   RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID?: string
-  RF_CHECKOUT_V1_CHILD_PRICE_ID?: string
   RF_CHECKOUT_V1_ONBOARDING_PRICE_ID?: string
   RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID?: string
   RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID?: string
@@ -44,7 +43,6 @@ export function loadServerPriceBooks(
       process.env.RF_CHECKOUT_V1_PRIMARY_PRICE_ID,
     RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID:
       process.env.RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID,
-    RF_CHECKOUT_V1_CHILD_PRICE_ID: process.env.RF_CHECKOUT_V1_CHILD_PRICE_ID,
     RF_CHECKOUT_V1_ONBOARDING_PRICE_ID:
       process.env.RF_CHECKOUT_V1_ONBOARDING_PRICE_ID,
     RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID:
@@ -117,14 +115,6 @@ export function loadServerPriceBooks(
       priceId: required(serverEnvironment, "RF_CHECKOUT_V1_PRIMARY_PRICE_ID"),
       productMarker: "revfactor_primary_listing",
       unitAmount: 35000,
-      currency: "usd",
-      kind: "recurring",
-      interval: "month",
-    },
-    child: {
-      priceId: required(serverEnvironment, "RF_CHECKOUT_V1_CHILD_PRICE_ID"),
-      productMarker: "revfactor_child_listing",
-      unitAmount: 5000,
       currency: "usd",
       kind: "recurring",
       interval: "month",

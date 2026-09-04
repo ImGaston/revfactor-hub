@@ -1,6 +1,6 @@
 # GHL inline onboarding adapter
 
-This Worker is the draft same-tab adapter for the RevFactor GHL start page. GHL remains the client-facing surface and the owner of the agreement/signature experience. The legacy `/` and `/quote` routes remain unchanged for recoverability. The new, unwired `/v2/groups/start` and `/v2/groups/quote` routes add one-business and separate-business-per-property groups.
+This Worker is the draft same-tab adapter for the RevFactor GHL start page. GHL remains the client-facing surface and the owner of the agreement/signature experience. The legacy `/` and `/quote` routes remain unchanged for recoverability. The new, unwired `/v2/groups/start`, `/v2/groups/quote`, and `/v2/groups/resume` routes add one-business and separate-business-per-property groups.
 
 - normalize and validate the immediate-start, primary-listings-only request;
 - resolve an optional referral code against the server-side allowlist;
@@ -20,9 +20,11 @@ The legacy route still points to these unpublished native GHL templates:
 
 `HIGHLEVEL_ONBOARDING_REFERRAL_CODES` is a comma-separated Worker secret. Never place referral codes in `wrangler.jsonc`, the GHL page, browser JavaScript, logs, or screenshots. A blank code selects standard pricing; an unknown non-empty code fails closed.
 
-The `/v2/groups/quote` route calculates all per-account values without calling GHL. `/v2/groups/start` creates only the currently actionable Opportunity/agreement and returns an HMAC-authenticated one-hour resume token plus a server-controlled `nextAction`. Child listings, deferred start, and mixed billing groups are rejected.
+The `/v2/groups/quote` route calculates all per-account values without calling GHL. `/v2/groups/start` creates only the currently actionable Opportunity/agreement and returns an HMAC-authenticated 24-hour resume token plus a server-controlled `nextAction`. Child listings, deferred start, and mixed billing groups are rejected.
 
-The V2 staging variables now record the exact unpublished Opportunity-native template, pipeline/stage, and seven Opportunity-field IDs listed in `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`. The HMAC resume secret and referral-code allowlist remain absent; `/v2/groups/start` therefore fails closed until separately authorized staging secrets are configured.
+The V2 staging variables now record the exact unpublished Opportunity-native template, pipeline/stage, and seven Opportunity-field IDs listed in `docs/ghl/RF-AUTO-001_MULTI_BUSINESS_ONBOARDING.md`. The HMAC resume secret, Worker-to-Hub HMAC secret, Hub API URL, final native onboarding URL, and referral-code allowlist remain absent or deliberately unconfigured. The group journey therefore fails closed until a reviewed staging configuration is supplied. The GHL Stripe connection does not expose a Stripe secret or authorize the Hub checkout adapter; that adapter uses a distinct server-only credential and a versioned Price-ID allowlist.
+
+`/v2/groups/resume` accepts only the opaque resume token. It retrieves the exact GHL document, requires a completed/signed status, the expected document name and revision, and `hasCompleted=true` for the bound Contact before it asks Hub for a checkout. Worker-to-Hub bodies use an expiring HMAC signature. Hub calculates and persists the authoritative commercial entitlement, while Stripe webhook retrieval is the only payment-completion authority.
 
 ## Replay and concurrency contract
 

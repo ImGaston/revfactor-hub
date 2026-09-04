@@ -11,6 +11,9 @@ import { network } from "./setup"
 const API = "https://services.leadconnectorhq.com"
 const testEnv = Object.assign(Object.create(env as unknown as WorkerEnv), {
   HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET: "unit-test-resume-secret",
+  HUB_ONBOARDING_API_BASE_URL: "https://hub.example",
+  HUB_ONBOARDING_INTERNAL_HMAC_SECRET: "unit-test-hub-secret",
+  HIGHLEVEL_ONBOARDING_FINAL_URL: "https://links.revfactor.io/final-onboarding",
 }) as WorkerEnv
 
 function groupBody(overrides: Record<string, unknown> = {}) {
@@ -41,6 +44,20 @@ function submit(body = groupBody()) {
   )
 }
 
+function resume(resumeToken: string) {
+  return worker.fetch(
+    new Request("https://worker.example/v2/groups/resume", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: testEnv.HIGHLEVEL_ONBOARDING_ALLOWED_ORIGIN,
+      },
+      body: JSON.stringify({ resumeToken }),
+    }),
+    testEnv
+  )
+}
+
 function installGroupHarness(contactId: string) {
   const opportunities: Array<Record<string, unknown>> = []
   const opportunityCreates: Array<Record<string, unknown>> = []
@@ -48,6 +65,7 @@ function installGroupHarness(contactId: string) {
   const linkCreates: Array<Record<string, unknown>> = []
   let draftVisible = false
   let sentName: string | null = null
+  let signed = false
 
   network.use(
     http.post(`${API}/contacts/upsert`, async () => {
@@ -82,8 +100,11 @@ function installGroupHarness(contactId: string) {
         ? {
             documentId: "document-group-1",
             name: sentName,
-            status: "sent",
-            recipients: [{ id: contactId }],
+            status: signed ? "completed" : "sent",
+            documentRevision: 2,
+            updatedAt: "2026-09-03T20:00:00.000Z",
+            opportunityId: "opp-1",
+            recipients: [{ id: contactId, hasCompleted: signed }],
             links: [
               {
                 referenceId: "reference-group-1",
@@ -116,11 +137,19 @@ function installGroupHarness(contactId: string) {
     })
   )
 
-  return { opportunityCreates, templateCreates, linkCreates }
+  return {
+    opportunityCreates,
+    templateCreates,
+    linkCreates,
+    markSigned() {
+      signed = true
+    },
+  }
 }
 
 describe("multi-business GHL draft orchestration", () => {
   it("issues a bound, expiring and tamper-evident resume token", async () => {
+    const groupFingerprint = "a".repeat(64)
     const tokenEnv = {
       ...testEnv,
       HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET: "unit-test-resume-secret",
@@ -128,37 +157,37 @@ describe("multi-business GHL draft orchestration", () => {
     const token = await issueGroupResumeToken(
       tokenEnv,
       "contact-resume",
-      "group-resume"
+      groupFingerprint
     )
     await expect(
       verifyGroupResumeToken(
         tokenEnv,
         token,
-        { contactId: "contact-resume", groupFingerprint: "group-resume" },
+        { contactId: "contact-resume", groupFingerprint },
         Math.floor(Date.now() / 1000)
       )
     ).resolves.toMatchObject({
       contactId: "contact-resume",
-      groupFingerprint: "group-resume",
+      groupFingerprint,
     })
     await expect(
       verifyGroupResumeToken(tokenEnv, `${token.slice(0, -1)}x`, {
         contactId: "contact-resume",
-        groupFingerprint: "group-resume",
+        groupFingerprint,
       })
     ).rejects.toThrow("Invalid onboarding resume token")
     await expect(
       verifyGroupResumeToken(tokenEnv, token, {
         contactId: "different-contact",
-        groupFingerprint: "group-resume",
+        groupFingerprint,
       })
     ).rejects.toThrow("Invalid or expired onboarding resume token")
     await expect(
       verifyGroupResumeToken(
         tokenEnv,
         token,
-        { contactId: "contact-resume", groupFingerprint: "group-resume" },
-        Math.floor(Date.now() / 1000) + 60 * 60 + 1
+        { contactId: "contact-resume", groupFingerprint },
+        Math.floor(Date.now() / 1000) + 24 * 60 * 60 + 1
       )
     ).rejects.toThrow("Invalid or expired onboarding resume token")
   })
@@ -253,6 +282,73 @@ describe("multi-business GHL draft orchestration", () => {
         onboardingFeeCents: 3750,
         initialCheckoutTotalCents: 38750,
       })),
+    })
+  })
+
+  it("verifies the signed agreement, prepares payment, then unlocks the group", async () => {
+    const harness = installGroupHarness("contact-group-resume")
+    const checkoutBodies: Array<Record<string, unknown>> = []
+    network.use(
+      http.post(
+        "https://hub.example/api/internal/onboarding/checkout",
+        async ({ request }) => {
+          expect(request.headers.get("x-rf-signature")).toMatch(
+            /^v1=[a-f0-9]{64}$/
+          )
+          checkoutBodies.push((await request.json()) as Record<string, unknown>)
+          return HttpResponse.json({
+            success: true,
+            checkoutSessionId: "cs_test_group_1",
+            checkoutUrl: "https://checkout.stripe.test/cs_test_group_1",
+          })
+        }
+      ),
+      http.post("https://hub.example/api/internal/onboarding/status", () =>
+        HttpResponse.json({
+          success: true,
+          state: "complete",
+          stripeCustomerId: "cus_group_1",
+          stripeSubscriptionId: "sub_group_1",
+        })
+      )
+    )
+    const started = await submit(
+      groupBody({
+        billingMode: "single",
+        legalBusinessNames: ["Portfolio LLC"],
+      })
+    )
+    expect(started.status).toBe(200)
+    const startPayload = (await started.json()) as { resumeToken: string }
+    harness.markSigned()
+
+    const payment = await resume(startPayload.resumeToken)
+    expect(payment.status).toBe(200)
+    await expect(payment.json()).resolves.toMatchObject({
+      nextAction: {
+        kind: "payment",
+        accountSequence: 1,
+        url: "https://checkout.stripe.test/cs_test_group_1",
+      },
+    })
+    expect(checkoutBodies).toHaveLength(1)
+    expect(checkoutBodies[0]).toMatchObject({
+      documentId: "document-group-1",
+      documentRevision: 2,
+      account: {
+        listingQuantity: 2,
+        onboardingFeeCents: 15000,
+        initialCheckoutTotalCents: 85000,
+      },
+    })
+
+    const completed = await resume(startPayload.resumeToken)
+    expect(completed.status).toBe(200)
+    await expect(completed.json()).resolves.toMatchObject({
+      nextAction: {
+        kind: "onboarding",
+        url: testEnv.HIGHLEVEL_ONBOARDING_FINAL_URL,
+      },
     })
   })
 })

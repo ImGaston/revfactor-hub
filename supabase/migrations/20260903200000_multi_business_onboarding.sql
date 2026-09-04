@@ -8,6 +8,8 @@ CREATE TABLE public.onboarding_commercial_groups (
   external_key TEXT NOT NULL UNIQUE CHECK (external_key ~ '^rfg_[a-f0-9]{32,64}$'),
   highlevel_location_id TEXT NOT NULL,
   highlevel_contact_id TEXT NOT NULL,
+  signer_name TEXT NOT NULL CHECK (char_length(btrim(signer_name)) BETWEEN 2 AND 255),
+  signer_email TEXT NOT NULL CHECK (signer_email = lower(btrim(signer_email)) AND signer_email LIKE '%_@_%._%'),
   billing_mode TEXT NOT NULL CHECK (billing_mode IN ('single', 'separate_per_listing')),
   total_listing_count INTEGER NOT NULL CHECK (total_listing_count BETWEEN 1 AND 5),
   billing_account_count INTEGER NOT NULL CHECK (billing_account_count BETWEEN 1 AND 5),
@@ -15,7 +17,7 @@ CREATE TABLE public.onboarding_commercial_groups (
   onboarding_fee_total_cents INTEGER NOT NULL CHECK (onboarding_fee_total_cents = 15000),
   currency TEXT NOT NULL CHECK (currency = 'usd'),
   tax_policy TEXT NOT NULL DEFAULT 'policy_blocked'
-    CHECK (tax_policy IN ('policy_blocked', 'configured')),
+    CHECK (tax_policy IN ('policy_blocked', 'configured_no_collection')),
   state TEXT NOT NULL DEFAULT 'agreement_pending'
     CHECK (state IN (
       'agreement_pending', 'payment_pending', 'partially_complete',
@@ -350,7 +352,7 @@ AS $$
     SELECT 1
     FROM public.onboarding_commercial_groups group_row
     WHERE group_row.id = p_group_id
-      AND group_row.tax_policy = 'configured'
+      AND group_row.tax_policy = 'configured_no_collection'
       AND group_row.client_id IS NOT NULL
       AND group_row.onboarding_run_id IS NOT NULL
       AND (
@@ -466,6 +468,280 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.issue_onboarding_account_entitlement(
+  p_group_fingerprint TEXT,
+  p_highlevel_location_id TEXT,
+  p_highlevel_contact_id TEXT,
+  p_signer_name TEXT,
+  p_signer_email TEXT,
+  p_billing_mode TEXT,
+  p_total_listing_count INTEGER,
+  p_pricing_program TEXT,
+  p_account_sequence INTEGER,
+  p_legal_business_name TEXT,
+  p_highlevel_opportunity_id TEXT,
+  p_listing_quantity INTEGER,
+  p_monthly_rate_cents INTEGER,
+  p_monthly_amount_cents INTEGER,
+  p_onboarding_fee_cents INTEGER,
+  p_initial_checkout_total_cents INTEGER,
+  p_agreement_document_id TEXT,
+  p_agreement_template_id TEXT,
+  p_agreement_revision INTEGER,
+  p_agreement_content_sha256 TEXT,
+  p_signed_at TIMESTAMPTZ,
+  p_entitlement_jti TEXT,
+  p_environment TEXT,
+  p_stripe_account_id TEXT,
+  p_price_book_version TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  group_row public.onboarding_commercial_groups%ROWTYPE;
+  account_row public.onboarding_billing_accounts%ROWTYPE;
+  entitlement_row public.agreement_entitlements%ROWTYPE;
+  expected_account_count INTEGER;
+BEGIN
+  IF p_group_fingerprint !~ '^[a-f0-9]{64}$'
+     OR p_billing_mode NOT IN ('single', 'separate_per_listing')
+     OR p_total_listing_count NOT BETWEEN 1 AND 5
+     OR p_pricing_program NOT IN ('Regular', 'Referral')
+     OR p_account_sequence NOT BETWEEN 1 AND 5
+     OR p_agreement_revision <= 0
+     OR p_agreement_content_sha256 !~ '^[a-f0-9]{64}$'
+     OR p_environment NOT IN ('test', 'live')
+     OR p_signed_at > now() + INTERVAL '5 minutes' THEN
+    RAISE EXCEPTION 'Invalid onboarding account entitlement input' USING ERRCODE = '22023';
+  END IF;
+  expected_account_count := CASE
+    WHEN p_billing_mode = 'single' THEN 1
+    ELSE p_total_listing_count
+  END;
+  IF p_account_sequence > expected_account_count
+     OR (p_billing_mode = 'single' AND (
+       p_listing_quantity <> p_total_listing_count
+       OR p_onboarding_fee_cents <> 15000
+     ))
+     OR (p_billing_mode = 'separate_per_listing' AND (
+       p_listing_quantity <> 1
+       OR p_onboarding_fee_cents * expected_account_count <> 15000
+     ))
+     OR p_monthly_amount_cents <> p_monthly_rate_cents * p_listing_quantity
+     OR p_initial_checkout_total_cents <> p_monthly_amount_cents + p_onboarding_fee_cents
+     OR (p_pricing_program = 'Regular' AND p_monthly_rate_cents <> 35000)
+     OR (p_pricing_program = 'Referral' AND p_monthly_rate_cents <> 32000) THEN
+    RAISE EXCEPTION 'Commercial values conflict with the approved price book' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_group_fingerprint, 0));
+  INSERT INTO public.onboarding_commercial_groups (
+    external_key, highlevel_location_id, highlevel_contact_id,
+    signer_name, signer_email, billing_mode, total_listing_count,
+    billing_account_count, pricing_program, onboarding_fee_total_cents,
+    currency, tax_policy, state
+  ) VALUES (
+    'rfg_' || p_group_fingerprint, p_highlevel_location_id,
+    p_highlevel_contact_id, btrim(p_signer_name), lower(btrim(p_signer_email)),
+    p_billing_mode, p_total_listing_count, expected_account_count,
+    p_pricing_program, 15000, 'usd', 'configured_no_collection',
+    'payment_pending'
+  ) ON CONFLICT (external_key) DO NOTHING;
+
+  SELECT * INTO group_row
+  FROM public.onboarding_commercial_groups
+  WHERE external_key = 'rfg_' || p_group_fingerprint
+  FOR UPDATE;
+  IF group_row.highlevel_location_id IS DISTINCT FROM p_highlevel_location_id
+     OR group_row.highlevel_contact_id IS DISTINCT FROM p_highlevel_contact_id
+     OR group_row.signer_name IS DISTINCT FROM btrim(p_signer_name)
+     OR group_row.signer_email IS DISTINCT FROM lower(btrim(p_signer_email))
+     OR group_row.billing_mode IS DISTINCT FROM p_billing_mode
+     OR group_row.total_listing_count IS DISTINCT FROM p_total_listing_count
+     OR group_row.billing_account_count IS DISTINCT FROM expected_account_count
+     OR group_row.pricing_program IS DISTINCT FROM p_pricing_program
+     OR group_row.onboarding_fee_total_cents <> 15000
+     OR group_row.currency <> 'usd'
+     OR group_row.tax_policy <> 'configured_no_collection' THEN
+    RAISE EXCEPTION 'Onboarding group conflicts with frozen authority' USING ERRCODE = '23505';
+  END IF;
+
+  INSERT INTO public.onboarding_billing_accounts (
+    group_id, sequence, highlevel_opportunity_id, legal_business_name,
+    normalized_legal_business_name, listing_quantity, pricing_program,
+    monthly_rate_cents, monthly_amount_cents, onboarding_fee_cents,
+    initial_checkout_total_cents, state
+  ) VALUES (
+    group_row.id, p_account_sequence, p_highlevel_opportunity_id,
+    btrim(p_legal_business_name), lower(regexp_replace(btrim(p_legal_business_name), '\s+', ' ', 'g')),
+    p_listing_quantity, p_pricing_program, p_monthly_rate_cents,
+    p_monthly_amount_cents, p_onboarding_fee_cents,
+    p_initial_checkout_total_cents, 'agreement_signed'
+  ) ON CONFLICT (group_id, sequence) DO NOTHING;
+
+  SELECT * INTO account_row
+  FROM public.onboarding_billing_accounts
+  WHERE group_id = group_row.id AND sequence = p_account_sequence
+  FOR UPDATE;
+  IF account_row.highlevel_opportunity_id IS DISTINCT FROM p_highlevel_opportunity_id
+     OR account_row.legal_business_name IS DISTINCT FROM btrim(p_legal_business_name)
+     OR account_row.listing_quantity IS DISTINCT FROM p_listing_quantity
+     OR account_row.pricing_program IS DISTINCT FROM p_pricing_program
+     OR account_row.monthly_rate_cents IS DISTINCT FROM p_monthly_rate_cents
+     OR account_row.monthly_amount_cents IS DISTINCT FROM p_monthly_amount_cents
+     OR account_row.onboarding_fee_cents IS DISTINCT FROM p_onboarding_fee_cents
+     OR account_row.initial_checkout_total_cents IS DISTINCT FROM p_initial_checkout_total_cents THEN
+    RAISE EXCEPTION 'Billing account conflicts with frozen authority' USING ERRCODE = '23505';
+  END IF;
+
+  INSERT INTO public.agreement_entitlements (
+    jti, status, environment, stripe_account_id, highlevel_location_id,
+    highlevel_contact_id, highlevel_opportunity_id, onboarding_group_id,
+    billing_account_id, account_sequence, account_count, total_listing_count,
+    billing_mode, agreement_document_id, agreement_template_id,
+    agreement_revision, agreement_content_sha256, signed_at, expires_at,
+    primary_quantity, child_quantity, onboarding_fee_cents,
+    service_start_mode, service_start_date, currency, price_book_version,
+    tax_policy
+  ) VALUES (
+    p_entitlement_jti, 'active', p_environment, p_stripe_account_id,
+    p_highlevel_location_id, p_highlevel_contact_id,
+    p_highlevel_opportunity_id, group_row.id, account_row.id,
+    p_account_sequence, expected_account_count, p_total_listing_count,
+    p_billing_mode, p_agreement_document_id, p_agreement_template_id,
+    p_agreement_revision, p_agreement_content_sha256, p_signed_at,
+    p_signed_at + INTERVAL '7 days', p_listing_quantity, 0,
+    p_onboarding_fee_cents, 'immediate', NULL, 'usd',
+    p_price_book_version, 'configured_no_collection'
+  ) ON CONFLICT (jti) DO NOTHING;
+
+  SELECT * INTO entitlement_row
+  FROM public.agreement_entitlements
+  WHERE jti = p_entitlement_jti
+  FOR UPDATE;
+  IF entitlement_row.billing_account_id IS DISTINCT FROM account_row.id
+     OR entitlement_row.onboarding_group_id IS DISTINCT FROM group_row.id
+     OR entitlement_row.agreement_document_id IS DISTINCT FROM p_agreement_document_id
+     OR entitlement_row.agreement_revision IS DISTINCT FROM p_agreement_revision
+     OR entitlement_row.agreement_content_sha256 IS DISTINCT FROM p_agreement_content_sha256
+     OR entitlement_row.status <> 'active' THEN
+    RAISE EXCEPTION 'Agreement entitlement conflicts with frozen authority' USING ERRCODE = '23505';
+  END IF;
+  IF account_row.agreement_entitlement_id IS NULL THEN
+    UPDATE public.onboarding_billing_accounts
+    SET agreement_entitlement_id = entitlement_row.id, updated_at = now()
+    WHERE id = account_row.id;
+  ELSIF account_row.agreement_entitlement_id IS DISTINCT FROM entitlement_row.id THEN
+    RAISE EXCEPTION 'Billing account has a different entitlement' USING ERRCODE = '23505';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'groupId', group_row.id,
+    'billingAccountId', account_row.id,
+    'entitlementId', entitlement_row.id,
+    'jti', entitlement_row.jti,
+    'expiresAt', entitlement_row.expires_at
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.mark_onboarding_account_payment_pending(
+  p_billing_account_id UUID,
+  p_checkout_session_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  account_row public.onboarding_billing_accounts%ROWTYPE;
+  attempt_row public.server_checkout_attempts%ROWTYPE;
+BEGIN
+  SELECT * INTO account_row FROM public.onboarding_billing_accounts
+  WHERE id = p_billing_account_id FOR UPDATE;
+  SELECT attempt.* INTO attempt_row
+  FROM public.server_checkout_attempts attempt
+  JOIN public.agreement_entitlements entitlement
+    ON entitlement.id = attempt.entitlement_id
+  WHERE entitlement.billing_account_id = p_billing_account_id
+    AND attempt.checkout_session_id = p_checkout_session_id
+    AND attempt.state = 'session_open'
+  FOR SHARE OF attempt;
+  IF account_row.id IS NULL OR attempt_row.id IS NULL THEN
+    RAISE EXCEPTION 'Checkout is not bound to this billing account' USING ERRCODE = '55000';
+  END IF;
+  IF account_row.state = 'agreement_signed' THEN
+    UPDATE public.onboarding_billing_accounts SET state = 'payment_pending', updated_at = now()
+    WHERE id = account_row.id RETURNING * INTO account_row;
+  ELSIF account_row.state NOT IN ('payment_pending', 'payment_verified', 'complete') THEN
+    RAISE EXCEPTION 'Billing account cannot enter payment pending' USING ERRCODE = '55000';
+  END IF;
+  RETURN jsonb_build_object('billingAccountId', account_row.id, 'state', account_row.state);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.reconcile_onboarding_account_checkout(
+  p_group_external_key TEXT,
+  p_account_sequence INTEGER
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  account_row public.onboarding_billing_accounts%ROWTYPE;
+  attempt_row public.server_checkout_attempts%ROWTYPE;
+BEGIN
+  SELECT account.* INTO account_row
+  FROM public.onboarding_billing_accounts account
+  JOIN public.onboarding_commercial_groups group_row ON group_row.id = account.group_id
+  WHERE group_row.external_key = p_group_external_key
+    AND account.sequence = p_account_sequence
+  FOR UPDATE OF account;
+  IF account_row.id IS NULL THEN
+    RETURN NULL;
+  END IF;
+  SELECT attempt.* INTO attempt_row
+  FROM public.server_checkout_attempts attempt
+  JOIN public.agreement_entitlements entitlement ON entitlement.id = attempt.entitlement_id
+  WHERE entitlement.billing_account_id = account_row.id
+    AND entitlement.status = 'active'
+  ORDER BY attempt.generation DESC LIMIT 1
+  FOR SHARE OF attempt;
+  IF attempt_row.id IS NOT NULL
+     AND attempt_row.state IN ('payment_verified', 'ghl_sync_pending', 'ghl_onboarding_unlocked', 'service_billing_active')
+     AND attempt_row.failure_code IS NULL
+     AND attempt_row.stripe_customer_id IS NOT NULL
+     AND attempt_row.stripe_subscription_id IS NOT NULL THEN
+    IF account_row.state = 'payment_pending' THEN
+      UPDATE public.onboarding_billing_accounts
+      SET state = 'payment_verified', stripe_customer_id = attempt_row.stripe_customer_id,
+          stripe_subscription_id = attempt_row.stripe_subscription_id, updated_at = now()
+      WHERE id = account_row.id RETURNING * INTO account_row;
+    END IF;
+    IF account_row.state = 'payment_verified' THEN
+      UPDATE public.onboarding_billing_accounts
+      SET state = 'complete', completed_at = COALESCE(completed_at, now()), updated_at = now()
+      WHERE id = account_row.id RETURNING * INTO account_row;
+    END IF;
+  END IF;
+  RETURN jsonb_build_object(
+    'billingAccountId', account_row.id,
+    'state', account_row.state,
+    'checkoutSessionId', attempt_row.checkout_session_id,
+    'checkoutUrl', attempt_row.checkout_url,
+    'stripeCustomerId', account_row.stripe_customer_id,
+    'stripeSubscriptionId', account_row.stripe_subscription_id,
+    'failureCode', attempt_row.failure_code
+  );
+END;
+$$;
+
 ALTER TABLE public.onboarding_commercial_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.onboarding_billing_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.onboarding_billing_account_transitions ENABLE ROW LEVEL SECURITY;
@@ -487,6 +763,9 @@ REVOKE ALL ON FUNCTION public.enforce_onboarding_billing_account() FROM PUBLIC, 
 REVOKE ALL ON FUNCTION public.onboarding_group_commercially_complete(UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.populate_multi_business_checkout_outbox() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.get_server_checkout_expected(TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.issue_onboarding_account_entitlement(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, INTEGER, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, TEXT, INTEGER, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.mark_onboarding_account_payment_pending(UUID, TEXT) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.reconcile_onboarding_account_checkout(TEXT, INTEGER) FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON TABLE public.onboarding_commercial_groups TO authenticated;
 GRANT SELECT ON TABLE public.onboarding_billing_accounts TO authenticated;
 GRANT SELECT ON TABLE public.onboarding_billing_account_transitions TO authenticated;
@@ -497,6 +776,9 @@ GRANT EXECUTE ON FUNCTION public.enforce_onboarding_billing_account() TO service
 GRANT EXECUTE ON FUNCTION public.onboarding_group_commercially_complete(UUID) TO service_role;
 GRANT EXECUTE ON FUNCTION public.populate_multi_business_checkout_outbox() TO service_role;
 GRANT EXECUTE ON FUNCTION public.get_server_checkout_expected(TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.issue_onboarding_account_entitlement(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, TEXT, INTEGER, TEXT, TEXT, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, TEXT, TEXT, INTEGER, TEXT, TIMESTAMPTZ, TEXT, TEXT, TEXT, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.mark_onboarding_account_payment_pending(UUID, TEXT) TO service_role;
+GRANT EXECUTE ON FUNCTION public.reconcile_onboarding_account_checkout(TEXT, INTEGER) TO service_role;
 
 COMMENT ON TABLE public.onboarding_commercial_groups IS
   'One signer/session and one consolidated Hub/Assembly onboarding run; commercial effects remain disabled until application wiring is explicitly enabled.';

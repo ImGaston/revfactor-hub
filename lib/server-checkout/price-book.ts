@@ -17,7 +17,7 @@ export type PriceBook = {
   stripeAccountId: string
   environment: "isolated_fixture" | "test" | "live"
   primary: PriceBookEntry
-  child: PriceBookEntry
+  child?: PriceBookEntry
   onboarding: PriceBookEntry
   onboardingAllocations?: Readonly<
     Partial<Record<3000 | 3750 | 5000 | 7500 | 15000, PriceBookEntry>>
@@ -66,6 +66,15 @@ export async function resolveCanonicalLineItems(input: {
       "Tax policy has not been approved"
     )
   }
+  if (
+    entitlement.order.taxPolicy === "configured_no_collection" &&
+    entitlement.environment === "isolated_fixture"
+  ) {
+    throw new CheckoutBoundaryError(
+      "environment_mismatch",
+      "Configured commercial policy cannot be used by isolated fixtures"
+    )
+  }
 
   const book = input.priceBooks[entitlement.order.priceBookVersion]
   if (!book || book.version !== entitlement.order.priceBookVersion) {
@@ -110,7 +119,17 @@ export async function resolveCanonicalLineItems(input: {
     )
   }
 
-  for (const entry of [book.primary, book.child, onboarding]) {
+  const entries = [book.primary, onboarding]
+  if (entitlement.order.childQuantity > 0) {
+    if (!book.child) {
+      throw new CheckoutBoundaryError(
+        "price_book_mismatch",
+        "Child-listing pricing is not available in this journey"
+      )
+    }
+    entries.push(book.child)
+  }
+  for (const entry of entries) {
     const provider = await input.inspectPrice(entry.priceId)
     const expectedLiveMode = book.environment === "live"
     if (
@@ -147,6 +166,12 @@ export async function resolveCanonicalLineItems(input: {
     },
   ]
   if (entitlement.order.childQuantity > 0) {
+    if (!book.child) {
+      throw new CheckoutBoundaryError(
+        "price_book_mismatch",
+        "Child-listing pricing is not available in this journey"
+      )
+    }
     lines.splice(1, 0, {
       priceId: book.child.priceId,
       quantity: entitlement.order.childQuantity,

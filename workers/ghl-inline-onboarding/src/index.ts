@@ -41,7 +41,10 @@ export type Env = {
   HIGHLEVEL_OPPORTUNITY_ONBOARDING_FEE_FIELD_ID?: string
   HIGHLEVEL_OPPORTUNITY_INITIAL_TOTAL_FIELD_ID?: string
   HIGHLEVEL_ONBOARDING_CONTINUATION_URL?: string
+  HIGHLEVEL_ONBOARDING_FINAL_URL?: string
   HIGHLEVEL_ONBOARDING_RESUME_HMAC_SECRET?: string
+  HUB_ONBOARDING_API_BASE_URL?: string
+  HUB_ONBOARDING_INTERNAL_HMAC_SECRET?: string
   AGREEMENT_CLAIMS: DurableObjectNamespace<AgreementClaimCoordinator>
 }
 
@@ -67,7 +70,10 @@ type GhlDocument = {
   name?: unknown
   status?: unknown
   createdAt?: unknown
-  recipients?: Array<{ id?: unknown }>
+  updatedAt?: unknown
+  documentRevision?: unknown
+  opportunityId?: unknown
+  recipients?: Array<{ id?: unknown; hasCompleted?: unknown }>
   links?: DocumentLink[]
 }
 
@@ -207,6 +213,18 @@ export type OnboardingGroupResult =
       stage: GroupClaimStage | GroupAccountStage
       retryAfterSeconds: number
     }
+  | { outcome: "conflict"; message: string }
+
+export type OnboardingGroupResumeResult =
+  | {
+      outcome: "ready"
+      nextAction:
+        | { kind: "agreement"; accountSequence: number; url: string }
+        | { kind: "payment"; accountSequence: number; url: string }
+        | { kind: "onboarding"; url: string }
+        | { kind: "awaiting_provider"; accountSequence: number }
+    }
+  | { outcome: "manual_review"; accountSequence: number }
   | { outcome: "conflict"; message: string }
 
 const GHL_API = "https://services.leadconnectorhq.com"
@@ -733,6 +751,57 @@ async function createBillingOpportunity(input: {
     throw new Error("HighLevel returned no opportunity ID")
   }
   return payload.opportunity.id
+}
+
+function bytesToHex(bytes: ArrayBuffer) {
+  return Array.from(new Uint8Array(bytes), (byte) =>
+    byte.toString(16).padStart(2, "0")
+  ).join("")
+}
+
+async function hubOnboardingPost(
+  env: Env,
+  path: "/api/internal/onboarding/checkout" | "/api/internal/onboarding/status",
+  payload: Record<string, unknown>
+) {
+  const baseUrl = requiredGroupConfig(env, "HUB_ONBOARDING_API_BASE_URL")
+  if (!baseUrl.startsWith("https://")) {
+    throw new Error("Hub onboarding API must use HTTPS")
+  }
+  const secret = requiredGroupConfig(env, "HUB_ONBOARDING_INTERNAL_HMAC_SECRET")
+  const body = JSON.stringify(payload)
+  const timestamp = String(Math.floor(Date.now() / 1000))
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  )
+  const signature = bytesToHex(
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(`${timestamp}.${body}`)
+    )
+  )
+  const response = await fetch(`${baseUrl.replace(/\/$/, "")}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-rf-timestamp": timestamp,
+      "x-rf-signature": `v1=${signature}`,
+    },
+    body,
+  })
+  if (!response.ok) {
+    throw new Error(`Hub onboarding request failed (${response.status})`)
+  }
+  const result: unknown = await response.json()
+  if (!isRecord(result) || result.success !== true) {
+    throw new Error("Hub onboarding returned an invalid response")
+  }
+  return result
 }
 
 function matchesAgreementName(name: string, agreementName: string) {
@@ -1446,6 +1515,281 @@ export class AgreementClaimCoordinator extends DurableObject<Env> {
     return this.groupPending(fingerprint, row.sequence, row.stage)
   }
 
+  async resumeOnboardingGroup(request: {
+    contactId: string
+    groupFingerprint: string
+  }): Promise<OnboardingGroupResumeResult> {
+    const groupRow = this.groupRow()
+    if (
+      !groupRow ||
+      groupRow.fingerprint !== request.groupFingerprint ||
+      groupRow.stage === "conflict"
+    ) {
+      return {
+        outcome: "conflict",
+        message:
+          "This signer already has a different active onboarding group. Contact RevFactor before continuing.",
+      }
+    }
+    const group = JSON.parse(groupRow.group_json) as FrozenOnboardingGroup
+    if (group.contactId !== request.contactId) {
+      return {
+        outcome: "conflict",
+        message:
+          "This signer already has a different active onboarding group. Contact RevFactor before continuing.",
+      }
+    }
+    let row = this.groupAccounts().find(
+      (candidate) => candidate.stage !== "complete"
+    )
+    if (!row) {
+      if (groupRow.stage !== "complete")
+        this.transitionGroup(groupRow, "complete")
+      return {
+        outcome: "ready",
+        nextAction: {
+          kind: "onboarding",
+          url: requiredGroupConfig(this.env, "HIGHLEVEL_ONBOARDING_FINAL_URL"),
+        },
+      }
+    }
+    const account = JSON.parse(row.account_json) as FrozenBillingAccount
+
+    if (row.stage === "manual_review") {
+      return { outcome: "manual_review", accountSequence: row.sequence }
+    }
+    if (row.stage === "agreement_pending" && row.document_id) {
+      let documents: GhlDocument[]
+      try {
+        documents = await listAllDocuments(this.env)
+      } catch {
+        return {
+          outcome: "ready",
+          nextAction: {
+            kind: "awaiting_provider",
+            accountSequence: row.sequence,
+          },
+        }
+      }
+      const matches = documents.filter(
+        (document) => document.documentId === row!.document_id
+      )
+      if (matches.length !== 1) {
+        return {
+          outcome: "ready",
+          nextAction: {
+            kind: "awaiting_provider",
+            accountSequence: row.sequence,
+          },
+        }
+      }
+      const document = matches[0]
+      const revision = Number(document.documentRevision)
+      const signedAt =
+        typeof document.updatedAt === "string" ? document.updatedAt : ""
+      const signed = ["completed", "accepted", "signed"].includes(
+        String(document.status)
+      )
+      const recipientSigned = document.recipients?.some(
+        (recipient) =>
+          recipient.id === request.contactId && recipient.hasCompleted === true
+      )
+      const exactName =
+        document.name ===
+        this.groupDocumentName(group, groupRow.fingerprint, account)
+      const opportunityMatches =
+        document.opportunityId === undefined ||
+        document.opportunityId === row.opportunity_id
+      if (!signed || !recipientSigned) {
+        return {
+          outcome: "ready",
+          nextAction: {
+            kind: "agreement",
+            accountSequence: row.sequence,
+            url: row.signing_url!,
+          },
+        }
+      }
+      if (
+        !exactName ||
+        !opportunityMatches ||
+        !Number.isSafeInteger(revision) ||
+        revision < 1 ||
+        !Number.isFinite(Date.parse(signedAt))
+      ) {
+        const review = this.transitionGroupAccount(row, "manual_review", {
+          errorCode: "signed_agreement_identity_conflict",
+        })
+        return {
+          outcome: "manual_review",
+          accountSequence: review?.sequence ?? row.sequence,
+        }
+      }
+      const advanced = this.transitionGroupAccount(row, "agreement_signed")
+      if (advanced) row = advanced
+      else {
+        row = this.groupAccounts()[account.sequence - 1]
+      }
+    }
+
+    if (
+      row.stage === "agreement_signed" &&
+      row.opportunity_id &&
+      row.document_id
+    ) {
+      const documents = await listAllDocuments(this.env)
+      const document = documents.find(
+        (candidate) => candidate.documentId === row!.document_id
+      )
+      if (!document) {
+        return {
+          outcome: "ready",
+          nextAction: {
+            kind: "awaiting_provider",
+            accountSequence: row.sequence,
+          },
+        }
+      }
+      const checkout = await hubOnboardingPost(
+        this.env,
+        "/api/internal/onboarding/checkout",
+        {
+          groupFingerprint: groupRow.fingerprint,
+          billingMode: group.billingMode,
+          contactName: group.contactName,
+          email: group.email,
+          totalListingCount: group.totalListingCount,
+          pricingProgram: group.pricingProgram,
+          contactId: group.contactId,
+          opportunityId: row.opportunity_id,
+          documentId: row.document_id,
+          documentRevision: Number(document.documentRevision),
+          signedAt: document.updatedAt,
+          account: {
+            sequence: account.sequence,
+            legalBusinessName: account.legalBusinessName,
+            listingQuantity: account.listingQuantity,
+            monthlyRateCents: account.monthlyRateCents,
+            monthlyAmountCents: account.monthlyAmountCents,
+            onboardingFeeCents: account.onboardingFeeCents,
+            initialCheckoutTotalCents: account.initialCheckoutTotalCents,
+          },
+        }
+      )
+      if (
+        typeof checkout.checkoutUrl !== "string" ||
+        typeof checkout.checkoutSessionId !== "string"
+      ) {
+        throw new Error("Hub did not return a canonical checkout")
+      }
+      const pending = this.transitionGroupAccount(row, "payment_pending", {
+        checkoutUrl: checkout.checkoutUrl,
+      })
+      if (pending) row = pending
+      else row = this.groupAccounts()[account.sequence - 1]
+      return {
+        outcome: "ready",
+        nextAction: {
+          kind: "payment",
+          accountSequence: row.sequence,
+          url: row.checkout_url ?? checkout.checkoutUrl,
+        },
+      }
+    }
+
+    if (row.stage === "payment_pending") {
+      const status = await hubOnboardingPost(
+        this.env,
+        "/api/internal/onboarding/status",
+        {
+          groupFingerprint: groupRow.fingerprint,
+          accountSequence: row.sequence,
+        }
+      )
+      if (
+        status.state === "complete" &&
+        typeof status.stripeCustomerId === "string" &&
+        typeof status.stripeSubscriptionId === "string"
+      ) {
+        const verified = this.transitionGroupAccount(row, "payment_verified", {
+          stripeCustomerId: status.stripeCustomerId,
+          stripeSubscriptionId: status.stripeSubscriptionId,
+        })
+        if (verified) row = verified
+        else row = this.groupAccounts()[account.sequence - 1]
+      } else {
+        return {
+          outcome: "ready",
+          nextAction: row.checkout_url
+            ? {
+                kind: "payment",
+                accountSequence: row.sequence,
+                url: row.checkout_url,
+              }
+            : {
+                kind: "awaiting_provider",
+                accountSequence: row.sequence,
+              },
+        }
+      }
+    }
+
+    if (row.stage === "payment_verified") {
+      const completed = this.transitionGroupAccount(row, "complete")
+      if (!completed) {
+        return {
+          outcome: "ready",
+          nextAction: {
+            kind: "awaiting_provider",
+            accountSequence: row.sequence,
+          },
+        }
+      }
+    }
+
+    const next = await this.processOnboardingGroup({
+      contactId: group.contactId,
+      input: {
+        billingMode: group.billingMode,
+        contactName: group.contactName,
+        email: group.email,
+        phone: null,
+        totalListingCount: group.totalListingCount,
+        legalBusinessNames: group.accounts.map(
+          (candidate) => candidate.legalBusinessName
+        ),
+        pricingProgram: group.pricingProgram,
+      },
+    })
+    if (next.outcome === "conflict") return next
+    if (next.outcome === "ready") {
+      return {
+        outcome: "ready",
+        nextAction: {
+          kind: "agreement",
+          accountSequence: next.accountSequence,
+          url: next.signingUrl,
+        },
+      }
+    }
+    if (next.stage === "complete") {
+      return {
+        outcome: "ready",
+        nextAction: {
+          kind: "onboarding",
+          url: requiredGroupConfig(this.env, "HIGHLEVEL_ONBOARDING_FINAL_URL"),
+        },
+      }
+    }
+    return {
+      outcome: "ready",
+      nextAction: {
+        kind: "awaiting_provider",
+        accountSequence: next.accountSequence,
+      },
+    }
+  }
+
   // This RPC is intentionally not exposed by the public fetch handler. A
   // server-side GHL/Stripe verifier may call it only after provider retrieval.
   async applyVerifiedAccountProgress(input: {
@@ -1796,7 +2140,7 @@ export async function issueGroupResumeToken(
       v: 1,
       c: contactId,
       g: groupFingerprint,
-      exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
     })
   )
     .replaceAll("+", "-")
@@ -1827,6 +2171,37 @@ function decodeBase64Url(value: string) {
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/")
   const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")
   return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0))
+}
+
+export function readGroupResumeTokenClaims(token: string) {
+  if (token.length > 4096) throw new Error("Invalid onboarding resume token")
+  const parts = token.split(".")
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error("Invalid onboarding resume token")
+  }
+  let payload: unknown
+  try {
+    payload = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[0])))
+  } catch {
+    throw new Error("Invalid onboarding resume token")
+  }
+  if (
+    !isRecord(payload) ||
+    payload.v !== 1 ||
+    typeof payload.c !== "string" ||
+    payload.c.length < 1 ||
+    payload.c.length > 100 ||
+    typeof payload.g !== "string" ||
+    !/^[a-f0-9]{64}$/.test(payload.g) ||
+    !Number.isSafeInteger(payload.exp)
+  ) {
+    throw new Error("Invalid onboarding resume token")
+  }
+  return {
+    contactId: payload.c,
+    groupFingerprint: payload.g,
+    expiresAt: Number(payload.exp),
+  }
 }
 
 export async function verifyGroupResumeToken(
@@ -1863,27 +2238,15 @@ export async function verifyGroupResumeToken(
   }
   if (!verified) throw new Error("Invalid onboarding resume token")
 
-  let payload: unknown
-  try {
-    payload = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[0])))
-  } catch {
-    throw new Error("Invalid onboarding resume token")
-  }
+  const payload = readGroupResumeTokenClaims(token)
   if (
-    !isRecord(payload) ||
-    payload.v !== 1 ||
-    payload.c !== expected.contactId ||
-    payload.g !== expected.groupFingerprint ||
-    !Number.isSafeInteger(payload.exp) ||
-    Number(payload.exp) <= nowSeconds
+    payload.contactId !== expected.contactId ||
+    payload.groupFingerprint !== expected.groupFingerprint ||
+    payload.expiresAt <= nowSeconds
   ) {
     throw new Error("Invalid or expired onboarding resume token")
   }
-  return {
-    contactId: payload.c,
-    groupFingerprint: payload.g,
-    expiresAt: Number(payload.exp),
-  }
+  return payload
 }
 
 const worker = {
@@ -1902,6 +2265,37 @@ const worker = {
     try {
       const body = await request.json()
       const pathname = new URL(request.url).pathname
+      if (pathname === "/v2/groups/resume") {
+        if (!isRecord(body) || typeof body.resumeToken !== "string") {
+          throw new Error("Invalid onboarding resume token")
+        }
+        const claims = readGroupResumeTokenClaims(body.resumeToken)
+        await verifyGroupResumeToken(env, body.resumeToken, {
+          contactId: claims.contactId,
+          groupFingerprint: claims.groupFingerprint,
+        })
+        const result = await env.AGREEMENT_CLAIMS.getByName(
+          `group:${claims.contactId}`
+        ).resumeOnboardingGroup({
+          contactId: claims.contactId,
+          groupFingerprint: claims.groupFingerprint,
+        })
+        if (result.outcome === "conflict") {
+          return json(env, { error: result.message }, 409)
+        }
+        if (result.outcome === "manual_review") {
+          return json(
+            env,
+            {
+              error:
+                "This onboarding needs a RevFactor review before it can continue.",
+              accountSequence: result.accountSequence,
+            },
+            409
+          )
+        }
+        return json(env, { success: true, nextAction: result.nextAction })
+      }
       if (pathname === "/v2/groups/quote") {
         if (!isRecord(body)) throw new Error("Invalid submission")
         const billingMode = body.billingMode

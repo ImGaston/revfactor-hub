@@ -16,9 +16,77 @@ BEGIN
     END IF;
   END LOOP;
   IF has_table_privilege('authenticated', 'public.onboarding_billing_accounts', 'INSERT')
-     OR has_function_privilege('authenticated', 'public.onboarding_group_commercially_complete(uuid)', 'EXECUTE') THEN
+     OR has_function_privilege('authenticated', 'public.onboarding_group_commercially_complete(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.reconcile_onboarding_account_checkout(text,integer)', 'EXECUTE') THEN
     RAISE EXCEPTION 'Multi-business write authority escaped the service role';
   END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+  issued JSONB;
+  v_group UUID;
+  v_account UUID;
+  v_entitlement UUID;
+  v_attempt UUID;
+  v_status JSONB;
+  v_lines JSONB;
+BEGIN
+  issued := public.issue_onboarding_account_entitlement(
+    repeat('d', 64), 'loc_issue', 'contact_issue',
+    'Issue Test Signer', 'issue@example.com', 'single', 2, 'Regular',
+    1, 'Portfolio LLC', 'opp_issue', 2, 35000, 70000, 15000, 85000,
+    'doc_issue', 'template_issue', 2, repeat('e', 64), now(),
+    'issue-entitlement-revision-0001', 'test', 'acct_issue',
+    'rf-standard-usd-v1'
+  );
+  v_group := (issued->>'groupId')::UUID;
+  v_account := (issued->>'billingAccountId')::UUID;
+  v_entitlement := (issued->>'entitlementId')::UUID;
+  IF v_group IS NULL OR v_account IS NULL OR v_entitlement IS NULL THEN
+    RAISE EXCEPTION 'Atomic entitlement issuance returned no canonical IDs';
+  END IF;
+
+  v_lines := jsonb_build_array(
+    jsonb_build_object('priceId', 'price_onboarding', 'quantity', 1, 'kind', 'one_time', 'unitAmount', 15000, 'currency', 'usd'),
+    jsonb_build_object('priceId', 'price_primary', 'quantity', 2, 'kind', 'recurring', 'unitAmount', 35000, 'currency', 'usd')
+  );
+  SELECT id INTO v_attempt FROM public.claim_server_checkout_attempt(
+    v_entitlement, md5('issue-account') || md5('issue-checkout'), v_lines
+  );
+  PERFORM public.attach_server_checkout_session(
+    v_attempt, 'session_creating', 'cs_issue', 'https://checkout.invalid/issue'
+  );
+  PERFORM public.mark_onboarding_account_payment_pending(v_account, 'cs_issue');
+  PERFORM public.transition_server_checkout_attempt(v_attempt, 'session_open', 'checkout_completed_unverified');
+  PERFORM public.transition_server_checkout_attempt(v_attempt, 'checkout_completed_unverified', 'provider_reconciling');
+  UPDATE public.server_checkout_attempts
+  SET state = 'payment_verified', stripe_customer_id = 'cus_issue',
+      stripe_subscription_id = 'sub_issue', stripe_initial_invoice_id = 'in_issue',
+      stripe_payment_intent_id = 'pi_issue', service_billing_state = 'active'
+  WHERE id = v_attempt;
+  v_status := public.reconcile_onboarding_account_checkout(
+    'rfg_' || repeat('d', 64), 1
+  );
+  IF v_status->>'state' <> 'complete'
+     OR v_status->>'stripeCustomerId' <> 'cus_issue'
+     OR v_status->>'stripeSubscriptionId' <> 'sub_issue' THEN
+    RAISE EXCEPTION 'Provider-verified checkout did not complete the billing account';
+  END IF;
+
+  BEGIN
+    PERFORM public.issue_onboarding_account_entitlement(
+      repeat('d', 64), 'loc_issue', 'contact_issue',
+      'Issue Test Signer', 'issue@example.com', 'single', 2, 'Regular',
+      1, 'Portfolio LLC', 'opp_issue', 2, 35000, 70000, 7500, 77500,
+      'doc_issue', 'template_issue', 2, repeat('e', 64), now(),
+      'issue-entitlement-revision-0001', 'test', 'acct_issue',
+      'rf-standard-usd-v1'
+    );
+    RAISE EXCEPTION 'Tampered onboarding fee unexpectedly passed issuance';
+  EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+  END;
 END;
 $$;
 
@@ -44,12 +112,14 @@ BEGIN
   ) RETURNING id INTO v_run;
   INSERT INTO public.onboarding_commercial_groups (
     external_key, highlevel_location_id, highlevel_contact_id,
+    signer_name, signer_email,
     billing_mode, total_listing_count, billing_account_count,
     pricing_program, onboarding_fee_total_cents, currency, tax_policy,
     client_id, onboarding_run_id
   ) VALUES (
     'rfg_' || repeat('c', 32), 'loc_multi', 'contact_multi_rehearsal',
-    'separate_per_listing', 2, 2, 'Regular', 15000, 'usd', 'configured',
+    'Rehearsal Signer', 'signer@example.com',
+    'separate_per_listing', 2, 2, 'Regular', 15000, 'usd', 'configured_no_collection',
     v_client, v_run
   ) RETURNING id INTO v_group;
   UPDATE public.onboarding_runs SET commercial_group_id = v_group WHERE id = v_run;

@@ -54,7 +54,7 @@ CREATE TABLE public.agreement_entitlements (
   currency TEXT NOT NULL CHECK (currency = 'usd'),
   price_book_version TEXT NOT NULL,
   tax_policy TEXT NOT NULL DEFAULT 'policy_blocked'
-    CHECK (tax_policy IN ('policy_blocked', 'provisional_fixture_only')),
+    CHECK (tax_policy IN ('policy_blocked', 'provisional_fixture_only', 'configured_no_collection')),
   owned_exception_code TEXT,
   owned_exception_approver UUID REFERENCES public.profiles(id) ON DELETE RESTRICT,
   onboarding_run_id UUID UNIQUE REFERENCES public.onboarding_runs(id) ON DELETE RESTRICT,
@@ -66,7 +66,11 @@ CREATE TABLE public.agreement_entitlements (
     (service_start_mode = 'immediate' AND service_start_date IS NULL)
     OR (service_start_mode = 'scheduled' AND service_start_date IS NOT NULL)
   ),
-  CHECK (tax_policy = 'policy_blocked' OR environment = 'isolated_fixture'),
+  CHECK (
+    tax_policy = 'policy_blocked'
+    OR (tax_policy = 'provisional_fixture_only' AND environment = 'isolated_fixture')
+    OR (tax_policy = 'configured_no_collection' AND environment IN ('test', 'live'))
+  ),
   CHECK (environment <> 'isolated_fixture' OR stripe_account_id LIKE 'fixture:%'),
   CHECK (
     (owned_exception_code IS NULL AND owned_exception_approver IS NULL)
@@ -523,10 +527,12 @@ BEGIN
   IF entitlement.status <> 'active' OR entitlement.expires_at <= now() THEN
     RAISE EXCEPTION 'Agreement entitlement is inactive' USING ERRCODE = '55000';
   END IF;
-  -- PROVISIONAL — NOT BUSINESS APPROVAL. Only isolated fixtures may pass until
-  -- an approved tax policy replaces this constraint in a later migration.
-  IF entitlement.tax_policy <> 'provisional_fixture_only'
-     OR entitlement.environment <> 'isolated_fixture' THEN
+  IF NOT (
+    (entitlement.tax_policy = 'provisional_fixture_only'
+      AND entitlement.environment = 'isolated_fixture')
+    OR (entitlement.tax_policy = 'configured_no_collection'
+      AND entitlement.environment IN ('test', 'live'))
+  ) THEN
     RAISE EXCEPTION 'Checkout policy is blocked' USING ERRCODE = '55000';
   END IF;
   IF entitlement.owned_exception_code IS NOT NULL THEN
@@ -614,6 +620,18 @@ SET search_path = public
 AS $$
 DECLARE saved public.server_checkout_attempts%ROWTYPE;
 BEGIN
+  SELECT * INTO saved
+  FROM public.server_checkout_attempts
+  WHERE id = p_attempt_id
+  FOR UPDATE;
+  IF saved.id IS NULL THEN
+    RAISE EXCEPTION 'Checkout attempt is not attachable' USING ERRCODE = 'P0002';
+  END IF;
+  IF saved.state = 'session_open'
+     AND saved.checkout_session_id = p_checkout_session_id
+     AND saved.checkout_url = p_checkout_url THEN
+    RETURN saved;
+  END IF;
   UPDATE public.server_checkout_attempts
   SET checkout_session_id = p_checkout_session_id,
       checkout_url = p_checkout_url,
@@ -624,7 +642,7 @@ BEGIN
     AND p_expected_state = 'session_creating'
     AND checkout_session_id IS NULL
   RETURNING * INTO saved;
-  IF saved.id IS NULL THEN
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Checkout attempt is not attachable' USING ERRCODE = '40001';
   END IF;
   RETURN saved;

@@ -64,7 +64,11 @@ export const entitlementPayloadSchema = z
       currency: z.literal("usd"),
       priceBookVersion: z.string().min(1).max(50),
       stripeAccountId: z.string().min(3).max(100),
-      taxPolicy: z.enum(["policy_blocked", "provisional_fixture_only"]),
+      taxPolicy: z.enum([
+        "policy_blocked",
+        "provisional_fixture_only",
+        "configured_no_collection",
+      ]),
     }),
   })
   .superRefine((value, context) => {
@@ -155,7 +159,10 @@ export type StoredEntitlement = {
   serviceStartDate: string | null
   currency: "usd"
   priceBookVersion: string
-  taxPolicy: "policy_blocked" | "provisional_fixture_only"
+  taxPolicy:
+    | "policy_blocked"
+    | "provisional_fixture_only"
+    | "configured_no_collection"
 }
 
 export class CheckoutBoundaryError extends Error {

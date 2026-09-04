@@ -259,6 +259,7 @@
           }
           submit.textContent = "Opening your agreement…"
           sessionStorage.setItem("rfOnboardingResumeToken", data.resumeToken)
+          document.cookie = `rf_onboarding_resume=${encodeURIComponent(data.resumeToken)}; Max-Age=86400; Path=/; Domain=.revfactor.io; Secure; SameSite=Lax`
           window.location.assign(data.nextAction.url)
         } catch (error) {
           errorBox.textContent =

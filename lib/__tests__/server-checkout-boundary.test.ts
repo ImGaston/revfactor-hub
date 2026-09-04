@@ -240,7 +240,6 @@ describe("server-owned checkout preparation", () => {
       RF_CHECKOUT_STRIPE_MODE: "test",
       RF_CHECKOUT_V1_PRIMARY_PRICE_ID: "price_primary",
       RF_CHECKOUT_V1_REFERRAL_PRIMARY_PRICE_ID: "price_referral_primary",
-      RF_CHECKOUT_V1_CHILD_PRICE_ID: "price_child",
       RF_CHECKOUT_V1_ONBOARDING_PRICE_ID: "price_onboarding",
       RF_CHECKOUT_V1_ONBOARDING_75_PRICE_ID: "price_onboarding_75",
       RF_CHECKOUT_V1_ONBOARDING_50_PRICE_ID: "price_onboarding_50",
@@ -248,7 +247,7 @@ describe("server-owned checkout preparation", () => {
       RF_CHECKOUT_V1_ONBOARDING_30_PRICE_ID: "price_onboarding_30",
     })
     expect(books["rf-standard-usd-v1"].primary.unitAmount).toBe(35000)
-    expect(books["rf-standard-usd-v1"].child.unitAmount).toBe(5000)
+    expect(books["rf-standard-usd-v1"].child).toBeUndefined()
     expect(books["rf-standard-usd-v1"].onboarding.unitAmount).toBe(15000)
     expect(books["rf-referral-320-usd-v1"].primary.unitAmount).toBe(32000)
     expect(
@@ -847,7 +846,7 @@ describe("legal gates and structural boundaries", () => {
     ).toThrow("Checkout has not passed")
   })
 
-  it("keeps provider code free of GHL and Assembly clients and leaves the GHL worker disabled", () => {
+  it("keeps provider reconciliation free of GHL and Assembly clients and leaves the GHL worker disabled", () => {
     const root = path.join(process.cwd(), "lib/server-checkout")
     const files = readdirSync(root).filter((name) =>
       statSync(path.join(root, name)).isFile()
@@ -862,7 +861,7 @@ describe("legal gates and structural boundaries", () => {
     expect(webhook).not.toMatch(
       /highlevel-onboarding|lib\/assembly|setHighLevelContact|addHighLevelContactTags/
     )
-    expect(sources.join("\n")).not.toContain("STRIPE_SECRET_KEY")
+    expect(sources.join("\n")).not.toMatch(/sk_(test|live)_[A-Za-z0-9]/)
     expect(
       readFileSync(path.join(root, "ghl-sync-outbox.ts"), "utf8")
     ).toContain("GHL_CHECKOUT_SYNC_WORKER_ENABLED = false")
@@ -915,7 +914,8 @@ describe("legal gates and structural boundaries", () => {
       "GRANT EXECUTE ON FUNCTION public.reconcile_server_checkout_event"
     )
     expect(sql).toContain("TO service_role")
-    expect(sql).toContain("entitlement.environment <> 'isolated_fixture'")
+    expect(sql).toContain("entitlement.tax_policy = 'configured_no_collection'")
+    expect(sql).toContain("entitlement.environment IN ('test', 'live')")
     expect(sql).not.toMatch(/api\.assembly\.com|ASSEMBLY_API_KEY/)
   })
 
