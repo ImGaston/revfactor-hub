@@ -1,6 +1,6 @@
 # Submarket definition review
 
-Generated 2026-09-04T08:17:31.196Z from active Hub listings with coordinates. This is a read-only recommendation; no market or membership rows were written.
+Generated 2026-09-04T08:27:35.448Z from active Hub listings with coordinates. This is a read-only recommendation; no market or membership rows were written.
 
 | Proposed market | State | Evidence | Coordinates | Suggested radius | Confidence |
 |---|---:|---:|---:|---:|---|

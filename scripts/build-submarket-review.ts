@@ -29,7 +29,11 @@ async function main() {
     const center = withCoords.length ? { latitude: withCoords.reduce((s, r) => s + r.location_latitude!, 0) / withCoords.length, longitude: withCoords.reduce((s, r) => s + r.location_longitude!, 0) / withCoords.length } : null
     const distances = center ? withCoords.map((row) => distance(row, center)!).filter(Number.isFinite) : []
     const radius = distances.length ? Math.min(150, Math.max(5, Math.ceil(Math.max(...distances) + 3))) : null
-    return { ...definition, proposed_market_kind: definition.slug.includes("lake-lure") ? "destination" : definition.slug.includes("eastern") ? "mixed" : "urban", center, radius_miles: radius, evidence_count: evidence.length, coordinate_count: withCoords.length, confidence: withCoords.length >= 3 ? "medium" : withCoords.length ? "low" : "unresolved", listing_points: evidence.map((row) => ({ city: row.city, state: row.state, latitude: row.location_latitude, longitude: row.location_longitude, has_coordinates: row.location_latitude !== null && row.location_longitude !== null })) }
+    const classifications = rows.filter((row) => row.state === definition.state).map((row) => {
+      const miles = center ? distance(row, center) : null
+      return { city: row.city, state: row.state, latitude: row.location_latitude, longitude: row.location_longitude, distance_miles: miles, classification: miles === null ? "unresolved" : miles <= (radius ?? 0) ? "inside" : "outside" }
+    })
+    return { ...definition, proposed_market_kind: definition.slug.includes("lake-lure") ? "destination" : definition.slug.includes("eastern") ? "mixed" : "urban", center, radius_miles: radius, evidence_count: evidence.length, coordinate_count: withCoords.length, confidence: withCoords.length >= 3 ? "medium" : withCoords.length ? "low" : "unresolved", listing_points: classifications }
   })
   const exceptions = rows.filter((row) => !definitions.some((d) => d.state === row.state && d.cities.includes(row.city ?? ""))).map((row) => ({ city: row.city, state: row.state, has_coordinates: row.location_latitude !== null && row.location_longitude !== null, classification: "outside-target-clusters" }))
   await writeFile("artifacts/market-registry-review.json", JSON.stringify({ version: 1, generated_at: new Date().toISOString(), read_only: true, source: "Hub listings coordinates", markets, exceptions }, null, 2) + "\n")

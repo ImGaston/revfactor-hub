@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated_at": "2026-09-04T08:17:31.195Z",
+  "generated_at": "2026-09-04T08:27:35.445Z",
   "read_only": true,
   "source": "Hub listings coordinates",
   "markets": [
@@ -29,18 +29,84 @@
       "confidence": "low",
       "listing_points": [
         {
+          "city": "Kill Devil Hills",
+          "state": "NC",
+          "latitude": 36.03319,
+          "longitude": -75.677514,
+          "distance_miles": 384.00039584009465,
+          "classification": "outside"
+        },
+        {
           "city": "Fairview",
           "state": "NC",
           "latitude": 35.52707,
           "longitude": -82.423747,
-          "has_coordinates": true
+          "distance_miles": 4.574678388806501,
+          "classification": "inside"
+        },
+        {
+          "city": "Kill Devil Hills",
+          "state": "NC",
+          "latitude": 36.032418,
+          "longitude": -75.677446,
+          "distance_miles": 384.0009063922988,
+          "classification": "outside"
+        },
+        {
+          "city": "Charlotte",
+          "state": "NC",
+          "latitude": 35.203996,
+          "longitude": -80.71397,
+          "distance_miles": 102.47003452960308,
+          "classification": "outside"
+        },
+        {
+          "city": "North Myrtle Beach",
+          "state": "NC",
+          "latitude": 33.817453,
+          "longitude": -78.674887,
+          "distance_miles": 246.23110817180455,
+          "classification": "outside"
         },
         {
           "city": "Avery Creek",
           "state": "NC",
           "latitude": 35.467525,
           "longitude": -82.569052,
-          "has_coordinates": true
+          "distance_miles": 4.576031297113574,
+          "classification": "inside"
+        },
+        {
+          "city": "Cary",
+          "state": "NC",
+          "latitude": 35.763819,
+          "longitude": -78.768033,
+          "distance_miles": 210.17455487926455,
+          "classification": "outside"
+        },
+        {
+          "city": "Lake Lure",
+          "state": "NC",
+          "latitude": 35.446898,
+          "longitude": -82.164885,
+          "distance_miles": 18.97640795200823,
+          "classification": "outside"
+        },
+        {
+          "city": "Charlotte",
+          "state": "NC",
+          "latitude": 35.326669,
+          "longitude": -80.906499,
+          "distance_miles": 90.30166596388356,
+          "classification": "outside"
+        },
+        {
+          "city": "North Myrtle Beach",
+          "state": "NC",
+          "latitude": 33.834311,
+          "longitude": -78.62461,
+          "distance_miles": 248.19330862247264,
+          "classification": "outside"
         }
       ]
     },
@@ -65,11 +131,84 @@
       "confidence": "low",
       "listing_points": [
         {
+          "city": "Kill Devil Hills",
+          "state": "NC",
+          "latitude": 36.03319,
+          "longitude": -75.677514,
+          "distance_miles": 365.9993381171824,
+          "classification": "outside"
+        },
+        {
+          "city": "Fairview",
+          "state": "NC",
+          "latitude": 35.52707,
+          "longitude": -82.423747,
+          "distance_miles": 15.58125550247723,
+          "classification": "outside"
+        },
+        {
+          "city": "Kill Devil Hills",
+          "state": "NC",
+          "latitude": 36.032418,
+          "longitude": -75.677446,
+          "distance_miles": 365.9989909374437,
+          "classification": "outside"
+        },
+        {
+          "city": "Charlotte",
+          "state": "NC",
+          "latitude": 35.203996,
+          "longitude": -80.71397,
+          "distance_miles": 83.49422830291623,
+          "classification": "outside"
+        },
+        {
+          "city": "North Myrtle Beach",
+          "state": "NC",
+          "latitude": 33.817453,
+          "longitude": -78.674887,
+          "distance_miles": 228.10436748038356,
+          "classification": "outside"
+        },
+        {
+          "city": "Avery Creek",
+          "state": "NC",
+          "latitude": 35.467525,
+          "longitude": -82.569052,
+          "distance_miles": 22.791095680309763,
+          "classification": "outside"
+        },
+        {
+          "city": "Cary",
+          "state": "NC",
+          "latitude": 35.763819,
+          "longitude": -78.768033,
+          "distance_miles": 192.06429907506782,
+          "classification": "outside"
+        },
+        {
           "city": "Lake Lure",
           "state": "NC",
           "latitude": 35.446898,
           "longitude": -82.164885,
-          "has_coordinates": true
+          "distance_miles": 0,
+          "classification": "inside"
+        },
+        {
+          "city": "Charlotte",
+          "state": "NC",
+          "latitude": 35.326669,
+          "longitude": -80.906499,
+          "distance_miles": 71.36846586293508,
+          "classification": "outside"
+        },
+        {
+          "city": "North Myrtle Beach",
+          "state": "NC",
+          "latitude": 33.834311,
+          "longitude": -78.62461,
+          "distance_miles": 230.00995970219313,
+          "classification": "outside"
         }
       ]
     },
@@ -94,11 +233,356 @@
       "confidence": "low",
       "listing_points": [
         {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.723801,
+          "longitude": -83.525101,
+          "distance_miles": 28.791197801203843,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.793015,
+          "longitude": -83.452562,
+          "distance_miles": 29.565061702341477,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.723499,
+          "longitude": -83.526451,
+          "distance_miles": 28.746051430357973,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.7173,
+          "longitude": -83.537598,
+          "distance_miles": 28.54620703380208,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.721761,
+          "longitude": -83.5348,
+          "distance_miles": 28.464241712674916,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.838004,
+          "longitude": -83.590864,
+          "distance_miles": 21.26633297796564,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.721298,
+          "longitude": -83.523697,
+          "distance_miles": 28.96201643084309,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.717999,
+          "longitude": -83.543503,
+          "distance_miles": 28.265192741352873,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.76032,
+          "longitude": -83.647066,
+          "distance_miles": 22.035132663742015,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.838829,
+          "longitude": -83.590612,
+          "distance_miles": 21.250878264350973,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.719487,
+          "longitude": -83.535272,
+          "distance_miles": 28.546135284842485,
+          "classification": "outside"
+        },
+        {
           "city": "Knoxville",
           "state": "TN",
           "latitude": 35.987908,
           "longitude": -83.922778,
-          "has_coordinates": true
+          "distance_miles": 0,
+          "classification": "inside"
+        },
+        {
+          "city": "Pigeon Forge",
+          "state": "TN",
+          "latitude": 35.786609,
+          "longitude": -83.580141,
+          "distance_miles": 23.692085892421385,
+          "classification": "outside"
+        },
+        {
+          "city": "Pittman Center",
+          "state": "TN",
+          "latitude": 35.755068,
+          "longitude": -83.391232,
+          "distance_miles": 33.83046962276581,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.7243,
+          "longitude": -83.5298,
+          "distance_miles": 28.566098237779865,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.709906,
+          "longitude": -83.497159,
+          "distance_miles": 30.612632860216483,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.7957,
+          "longitude": -83.625198,
+          "distance_miles": 21.302961361864703,
+          "classification": "outside"
+        },
+        {
+          "city": "Pigeon Forge",
+          "state": "TN",
+          "latitude": 35.798565,
+          "longitude": -83.541665,
+          "distance_miles": 25.024139608067724,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.729606,
+          "longitude": -83.667409,
+          "distance_miles": 22.869311986042337,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.721599,
+          "longitude": -83.5265,
+          "distance_miles": 28.827751902891357,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.7118,
+          "longitude": -83.551102,
+          "distance_miles": 28.235029182970862,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.719756,
+          "longitude": -83.537226,
+          "distance_miles": 28.45090376078121,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.83904,
+          "longitude": -83.590248,
+          "distance_miles": 21.26161864552889,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.899008,
+          "longitude": -83.597081,
+          "distance_miles": 19.22634601015811,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.717602,
+          "longitude": -83.540001,
+          "distance_miles": 28.430912564513005,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.72673,
+          "longitude": -83.529638,
+          "distance_miles": 28.466097295363646,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.706898,
+          "longitude": -83.559959,
+          "distance_miles": 28.104733607935287,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.794177,
+          "longitude": -83.485114,
+          "distance_miles": 27.91650825748392,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.729696,
+          "longitude": -83.528738,
+          "distance_miles": 28.37548062643005,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.721603,
+          "longitude": -83.534814,
+          "distance_miles": 28.470713777877855,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.774749,
+          "longitude": -83.442721,
+          "distance_miles": 30.64542252871949,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.71729,
+          "longitude": -83.532846,
+          "distance_miles": 28.748278562710542,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.794719,
+          "longitude": -83.648312,
+          "distance_miles": 20.351832269804625,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.717799,
+          "longitude": -83.531393,
+          "distance_miles": 28.787269979779996,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.718998,
+          "longitude": -83.538338,
+          "distance_miles": 28.43794175791627,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.72443,
+          "longitude": -83.522136,
+          "distance_miles": 28.89234681311769,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.794403,
+          "longitude": -83.485702,
+          "distance_miles": 27.88010764413166,
+          "classification": "outside"
+        },
+        {
+          "city": "Pigeon Forge",
+          "state": "TN",
+          "latitude": 35.797011,
+          "longitude": -83.580954,
+          "distance_miles": 23.238923154234175,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.722072,
+          "longitude": -83.533109,
+          "distance_miles": 28.52271462286514,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.89182,
+          "longitude": -83.377377,
+          "distance_miles": 31.223856161275872,
+          "classification": "outside"
+        },
+        {
+          "city": "Pigeon Forge",
+          "state": "TN",
+          "latitude": 35.7514,
+          "longitude": -83.526199,
+          "distance_miles": 27.569339747363024,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.796599,
+          "longitude": -83.664452,
+          "distance_miles": 19.590774910785157,
+          "classification": "outside"
+        },
+        {
+          "city": "Gatlinburg",
+          "state": "TN",
+          "latitude": 35.722537,
+          "longitude": -83.533605,
+          "distance_miles": 28.480726870186697,
+          "classification": "outside"
+        },
+        {
+          "city": "Sevierville",
+          "state": "TN",
+          "latitude": 35.794403,
+          "longitude": -83.485702,
+          "distance_miles": 27.88010764413166,
+          "classification": "outside"
         }
       ]
     },
@@ -133,7 +617,8 @@
           "state": "CT",
           "latitude": 41.705068,
           "longitude": -72.210101,
-          "has_coordinates": true
+          "distance_miles": 0,
+          "classification": "inside"
         }
       ]
     }
