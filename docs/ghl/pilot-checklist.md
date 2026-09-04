@@ -10,12 +10,14 @@ Status: preparation in progress; no test journey activated yet. User approved th
 - GHL documents API rejected a 100-record page (422: maximum 21); authenticated lookup with 21 succeeded. The backend now uses 21-record pages with a total lookup deadline.
 - Assembly production source was recovered and hash-verified from its current Vercel deployment. The compatibility patch is based on that source; 83 tests and a clean production build pass.
 
+- Both native survey hosts are installed with capability guards and native provider writes blocked. Eleven host tests and both adapter scripts pass; actual native-browser synthetic fixtures verified final acceptance, resume and property-unit isolation. See `native-v1/INSTALLATION.md`. This is not real backend pilot evidence.
+
 ## Before creating the test journey
 
 1. Supply the user-controlled test inbox and connect deployment access to `gastons-projects-2e2a16eb/revfactor-hub`. Credentials belong in the secret store, not this checklist.
-2. Prepare the isolated test data/environment, apply the reviewed migrations, configure verified native contract field mapping and Stripe test credentials/correlation, and prove the payment screen is in test mode.
+2. Prepare the isolated test data/environment (the seven reviewed Hub migrations are already applied), configure verified native contract field mapping and Stripe test credentials/correlation, and prove the payment screen is in test mode.
 3. Create the dedicated test contact and its matching sales appointment/opportunity. Record only its nonsecret contact ID in the server setting `GHL_V1_PILOT_CONTACT_IDS`. `GHL_V1_ROLLOUT_MODE=pilot` is the default; missing/unknown mode or an empty pilot list blocks enrollment.
-4. Deploy the native adapter and the Assembly compatibility release with the correct endpoint/origin/session configuration. Verify both before enabling invitation processing.
+4. The native hosts are installed, pointing to the disabled Hub production routes. Configure the reviewed Hub endpoint with exact CORS origin `https://links.revfactor.io`, deploy the Assembly compatibility release, and verify both before enabling invitation processing.
 5. Keep general entry links and broad enrollment unchanged throughout the pilot. Granola summaries are optional and never block onboarding.
 
 ## Walkthrough evidence
@@ -35,3 +37,5 @@ Status: preparation in progress; no test journey activated yet. User approved th
 | Repeat/interruption | No duplicate invoice, journey or invitation; recovery preserves state | Pending |
 
 Repeat after the first pass with two referral properties ($790 initially, $640 monthly) and assisted separate businesses/cards with one setup fee across the group. Keep provider IDs and customer information in the private test ledger, not in public screenshots or a PR.
+
+Signed scope update: a separate unrouted Q1 pilot agreement now has required business/property fields and the existing client-only signature. Pricing is unchanged. Known-data prefill, completed-document API IDs/values and actual payment test mode remain unproven; see [pilot contract evidence](pilot-contract-scope-evidence.md). Keep this template unrouted until those checks pass.

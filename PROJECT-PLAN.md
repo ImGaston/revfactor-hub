@@ -13,7 +13,7 @@ These are engineering estimates from the current draft, conditional on credentia
 | Priority / milestone | Work and acceptance | Current state | Target |
 |---|---|---|---|
 | P0 — preserve commercial/property identity | Stable property UUIDs, assisted billing, signed document + invoice + Stripe verification, replay/revision guards | Implemented; synthetic tests pass; actual document field/Stripe correlation mapping remains unverified | Day 1 |
-| P0 — native client experience | Property review, essential preferences, account software guide, final submit; no duplicate questions | Both native drafts and adapter snapshots created; same-document script execution proved; real submit, upsert and resume still need provider proof | Days 1–2 |
+| P0 — native client experience | Property review, essential preferences, account software guide, final submit; no duplicate questions | Guarded hosts installed in both native drafts; synthetic native submit/resume/unit-isolation checks pass. Actual Hub pilot save/resume pending; native provider upsert deliberately blocked | Days 1–2 |
 | P0 — reliable portal handoff | Frozen submission, one company/client, durable write intents, independent activation, internal tasks | Backend and team review implemented; seven database migrations applied. Exact-production portal patch prepared; application deployment and live pilot remain pending | Days 2–3 |
 | P1 — post-call context + recovery | Direct Granola API, trusted call matching, internal summary, 24h/72h recovery and 7-day human follow-up | Importer implemented; appointment mapping/credentials absent. Native reminder wiring remains pending | Days 2–3 |
 | P0 — pilot and cutover | Three cases, failure/retry/opt-out checks, actual native contract/payment/forms/Assembly walkthrough | Not started. Keep current entry points until all gates pass | Day 4, or next available pilot window |
@@ -83,7 +83,7 @@ flowchart TD
 - 523 tests across 64 files pass.
 - Required TypeScript check and targeted ESLint pass.
 - All seven migrations apply to a fresh local PostgreSQL fixture schema; both rollback integration suites pass, including portal handoff, owned tasks, stale leases, duplicate invoices, pause/resume and RLS.
-- Native draft visual/conditional tests are recorded in the GHL implementation workspace; they do not yet prove a real submission.
+- Eleven native host tests and both adapter scripts pass. Actual native-browser synthetic fixtures prove guarded navigation/submission, unit isolation and saved-state resume. Final installed hosts reject missing capabilities and contain no fixture. A real Hub-backed submission remains untested.
 
 The native review snapshots are in `docs/ghl/native-v1/`. The separate Assembly application patch and its verified production provenance are in `docs/ghl/assembly-v1/`; all 83 app tests, TypeScript and a clean build pass. Native adapter tests also pass separately from the 523 Hub tests.
 

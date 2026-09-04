@@ -1,0 +1,6 @@
+{
+  "emailVisible": false,
+  "emailWrapperHidden": true,
+  "fixture": "{\"calls\":[],\"stage\":\"onboarding\",\"revision\":1,\"nativeWriteAttempts\":0,\"nativeBubbleHandlers\":0,\"writePaths\":[],\"units\":[\"A\",\"B\"]}",
+  "title": "Software and final review — synthetic@example.invalid"
+}

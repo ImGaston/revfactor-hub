@@ -56,7 +56,7 @@ export function hydrateNativeControls(document, context, propertyId) {
     if(RADIO_FIELDS.has(key)){
       const radios=Array.from(document.querySelectorAll('input[type="radio"]')).filter(el=>el.id.includes('_'+id+'_'));
       if(!radios.length)throw Error('Native control missing: '+key);
-      for(const el of radios){el.checked=value!==''&&el.value===value;el.dispatchEvent(new Event('change',{bubbles:true}));}
+      for(const el of radios){el.checked=value!==''&&el.value===value;if(el.checked)el.dispatchEvent(new Event('change',{bubbles:true}));}
     }else{
       const el=document.getElementById(id);
       if(!el) throw Error('Native control missing: '+key);

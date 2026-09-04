@@ -394,3 +394,7 @@ This draft introduces an opt-in scheduled Assembly provisioning path separate fr
 ## 2026-09-04 — Live GHL document pagination limit
 
 The authenticated v3 `GET /proposals/document` endpoint returns HTTP 422 for `limit=100` with the message that limit must not exceed 21. A `limit=21` request succeeds. V1 uses 21-record pages, exact bound document-ID matching and a 25-second overall lookup budget. This is a live-provider finding; the public API reference currently lists a numeric limit without the maximum.
+
+## 2026-09-04 — Native GHL host behavior
+
+Both V1 survey scripts are installed; client origin is `https://links.revfactor.io`, backend origin is `https://hub.revfactor.io` (runtime still disabled). The native footer is outside `form#_builder-form`; capture the form parent boundary. Next emits a native tracking POST even when partial contact creation is disabled, so the host blocks native provider writes. Hydration dispatches radio change only for the checked choice. Native email rerender resets visible input, so show authenticated email read-only in the host. No GHL object upsert is used; Hub owns persisted answers. See `docs/ghl/native-v1/INSTALLATION.md`.

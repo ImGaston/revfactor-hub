@@ -1,0 +1,48 @@
+{
+  "blocks": "4",
+  "fixture": {
+    "calls": [
+      {
+        "action": "property",
+        "propertyId": "22222222-2222-4222-8222-222222222222",
+        "revision": 1
+      },
+      {
+        "action": "property",
+        "propertyId": "22222222-2222-4222-8222-222222222222",
+        "revision": 2
+      },
+      {
+        "action": "preferences",
+        "propertyIds": [
+          "22222222-2222-4222-8222-222222222222"
+        ],
+        "revision": 3
+      },
+      {
+        "action": "property",
+        "propertyId": "22222222-2222-4222-8222-222222222222",
+        "revision": 4
+      },
+      {
+        "action": "preferences",
+        "propertyIds": [
+          "22222222-2222-4222-8222-222222222222"
+        ],
+        "revision": 5
+      }
+    ],
+    "nativeBubbleHandlers": 0,
+    "nativeWriteAttempts": 0,
+    "revision": 6,
+    "stage": "onboarding",
+    "units": [
+      "A",
+      "B"
+    ],
+    "writePaths": []
+  },
+  "hashCleared": true,
+  "requestSubmit": "blocked",
+  "transports": "1"
+}

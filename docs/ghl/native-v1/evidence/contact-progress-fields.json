@@ -1,0 +1,32 @@
+[
+  {
+    "id": "vkey7G3F8jD7Qb4eAz7u",
+    "name": "RF V1 Journey ID",
+    "fieldKey": "contact.rf_v1_journey_id",
+    "dataType": "TEXT"
+  },
+  {
+    "id": "y91XjIDDT1v5qNzVZ0EN",
+    "name": "RF V1 Stage",
+    "fieldKey": "contact.rf_v1_stage",
+    "dataType": "TEXT"
+  },
+  {
+    "id": "dbDZjlxZ6aSEbbmCmy5j",
+    "name": "RF V1 Missing Requirements",
+    "fieldKey": "contact.rf_v1_missing_requirements",
+    "dataType": "LARGE_TEXT"
+  },
+  {
+    "id": "vrMb2MQ4uAWvJaT2cZof",
+    "name": "RF V1 Revision",
+    "fieldKey": "contact.rf_v1_revision",
+    "dataType": "NUMERICAL"
+  },
+  {
+    "id": "wCHyhIeB9t7DweYT0Ofu",
+    "name": "RF V1 Next Action",
+    "fieldKey": "contact.rf_v1_next_action",
+    "dataType": "TEXT"
+  }
+]

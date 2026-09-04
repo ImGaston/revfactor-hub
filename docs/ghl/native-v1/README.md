@@ -1,26 +1,29 @@
-# Native GHL draft review snapshot — 2026-09-04
+# Native GHL V1 onboarding
 
-These are reviewable source snapshots of the new native GHL assets. They are not installed adapters or live client entry points. The live GHL records remain authoritative for provider state; the dedicated GHL workspace holds the full implementation log.
+The property and account hosts are **installed in the two native drafts**, with guarded Hub saves. Production Hub routes remain disabled pending the controlled pilot. Existing commercial and older onboarding assets are preserved.
 
-| Draft | Native survey ID |
-|---|---|
-| Property review and essential preferences | `VvcWqrwmq7wESZSfFBme` |
-| Software setup and explicit final review | `CfTInIn60HazWmPD1Zf9` |
+- Property survey: `VvcWqrwmq7wESZSfFBme` — 22 native controls across two slides; signed address reused; one minimum-stay question.
+- Software/final review: `CfTInIn60HazWmPD1Zf9` — native software statuses, guide, expectations and explicit final review.
+- Native source: `native-host.mjs`, property/account adapters and `dist/*-host.html`.
+- IDs, installed hashes and settings: `native-manifest.json`.
+- Current installation, configuration, resume semantics and pilot gates: [INSTALLATION.md](INSTALLATION.md).
 
-The property draft uses one minimum-stay field. Saved preferences, identity and account setup have explicit prefill mappings; review/confirmation choices are never silently checked. Need-help answers do not require invented values.
+## Verified
 
-Same-document custom JavaScript execution was verified in the native survey with a detached synthetic submit event. This proves a feasible place to run the adapter. It does not prove real GHL submit ordering, framework state persistence, property upsert, contact association or resume. Those remain required pilot checks.
+Eleven DOM/session tests cover native footer interception, provider transport blocking, identity binding, corrupted capability handling, revision conflicts, exact retries, saved-state resume and final acceptance. Both adapter test scripts pass.
 
-Run local adapter checks with `node docs/ghl/native-v1/native-property-adapter.test.mjs` and `node docs/ghl/native-v1/native-account-adapter.test.mjs`.
+Actual native-browser synthetic fixtures verified hydration across slides; real final click, Enter and requestSubmit interception; same-name property switching between units A/B; shared account setup and final `submitted` state. No provider request reached the fixture transport after the final guard. Native Next tracking POSTs were blocked separately by the installed provider guard.
 
-The existing commercial templates and published workflows were preserved. Use [the rollout runbook](../onboarding-v1-runbook.md) and [the implementation plan](../../../PROJECT-PLAN.md) before wiring any entry link, script, payment or invitation.
+Both final installed hosts were checked without a capability: guard installed, native inputs disabled, no fixture code present. The account’s known email appears as a read-only context summary so it is not requested again.
 
-## Property draft
+## Runtime boundary
 
-![Single minimum-stay field in the native property draft](property-single-minimum-stay.png)
+Native GHL fields remain the client input UI. Hub is the canonical journey/property store. Native GHL form submission and object upsert are deliberately blocked; any future GHL object projection must be a reviewed server worker. Hidden IDs cannot authorize a save.
 
-## Software draft
+Resume by reopening the original unexpired link, which loads accepted backend state. The capability stays in memory and is removed from the fragment. Native local drafts, sticky contacts and partial-contact creation are OFF on these two V1 drafts. Unsaved edits do not survive reload.
 
-![Native software checklist draft](account-guide-desktop.png)
+A real allowed pilot save/resume has not run: it requires the agreed test inbox/contact, accessible reviewed Hub deployment, exact CORS origin and pilot allowlist. Contract/payment and Assembly gates remain owned by the backend release process. No customer record, send, payment or Assembly effect was performed by this lane.
 
-The software guide still needs the validated account-invitation instructions/destinations before launch; this screenshot is a checklist draft, not a complete setup guide. Native required email must be securely prefilled and reviewed during the pilot.
+## Evidence
+
+`evidence/native-property-host-proof.json`, `native-account-host-proof.json`, `native-email-summary-proof.json`, and `native-host-installed-proof.json` distinguish synthetic flow proof from final installed state. Screenshots and the earlier schema/feasibility evidence are retained in `evidence/`.

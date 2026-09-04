@@ -34,7 +34,7 @@ export function hydrateAccountControls(document,context){
   if(['pms','airbnb','pricelabs','expectations','finalReview'].includes(key)){
    const controls=Array.from(document.querySelectorAll('input[type="radio"]')).filter(el=>el.id.includes('_'+id+'_'));
    if(!controls.length)throw Error('Native account control missing: '+key);
-   for(const el of controls){el.checked=value!==''&&el.value===value;el.dispatchEvent(new Event('change',{bubbles:true}));}
+   for(const el of controls){el.checked=value!==''&&el.value===value;if(el.checked)el.dispatchEvent(new Event('change',{bubbles:true}));}
   }else{
    const el=document.getElementById(id);if(!el)throw Error('Native account control missing: '+key);
    const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value')?.set;

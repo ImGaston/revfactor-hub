@@ -1,0 +1,18 @@
+{
+  "id": "BiJOXBKZzLWgWtJ05iLb",
+  "standard": false,
+  "locationId": "ErABPRqWbMyIicvzvCFt",
+  "fieldKey": "custom_objects.revfactor_listings.rf_v1_minimum_stay",
+  "name": "V1 Minimum Stay",
+  "dataType": "NUMERICAL",
+  "description": "Optional firm minimum stay in whole nights, from 1 to 365. Leave blank when there is no firm limit.",
+  "position": 1850,
+  "parentId": "FxN1JfQTAuIWT0dF1BEl",
+  "objectKey": "custom_objects.revfactor_listings",
+  "scopes": [],
+  "dateAdded": "2026-09-04T21:38:35.008Z",
+  "dateUpdated": {
+    "_seconds": 1788557915,
+    "_nanoseconds": 8000000
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "property": {
+    "allInputsDisabled": true,
+    "fixturePresent": false,
+    "fixtureScriptPresent": false,
+    "guard": "installed",
+    "host": "rf.native.host.1",
+    "status": "Review your propertyOpen your original onboarding link to resume"
+  },
+  "account": {
+    "allInputsDisabled": true,
+    "fixturePresent": false,
+    "fixtureScriptPresent": false,
+    "guard": "installed",
+    "host": "rf.native.host.1",
+    "status": "Software and final reviewOpen your original onboarding link to resume"
+  }
+}

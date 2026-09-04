@@ -112,7 +112,7 @@
   },
   "contextEndpoint": "https://hub.revfactor.io/api/public/highlevel/onboarding-v1/context",
   "contextTransport": "POST Authorization Bearer, token from fragment, no PII query",
-  "adapterInstalled": false,
+  "adapterInstalled": true,
   "nativeRecordUpdateVerified": false,
   "contactAssociationVerified": false,
   "resumeVerified": false,
@@ -239,7 +239,45 @@
   ],
   "sameDocumentScriptVerified": true,
   "syntheticDetachedSubmitCancellationVerified": true,
-  "actualNativeSubmitInterceptionVerified": false,
+  "actualNativeSubmitInterceptionVerified": true,
   "accountEmailNativeId": "email",
-  "accountEmailHiddenSupported": false
+  "accountEmailHiddenSupported": false,
+  "nativeHostVersion": "rf.native.host.1",
+  "nativeRecordUpdateRequired": false,
+  "canonicalStore": "Hub onboarding V1 journey ledger",
+  "realHubSaveVerified": false,
+  "realHubResumeVerified": false,
+  "resumeMethod": "Reopen original capability link; latest accepted context; no native/local storage draft",
+  "accountEmailPresentation": "Read-only authenticated context summary; native email wrapper hidden by glue",
+  "providerWriteGuardInstalled": true,
+  "nativeDraftSettings": {
+    "property": {
+      "saveProgress": false,
+      "partialContacts": false,
+      "stickyContact": false
+    },
+    "account": {
+      "saveProgress": false,
+      "partialContacts": false,
+      "stickyContact": false
+    }
+  },
+  "hostApiOrigin": "https://hub.revfactor.io",
+  "nativeFooterGuardRoot": ".ghl-form-wrap (form parent)",
+  "pilotReady": false,
+  "installedHosts": [
+    {
+      "kind": "property",
+      "file": "dist/property-host.html",
+      "sha256": "3afc81390201dba74739a4a201d4cd609fdb816ae6c44acada5f3244a2de8cf9",
+      "fixture": false
+    },
+    {
+      "kind": "account",
+      "file": "dist/account-host.html",
+      "sha256": "5e3ac2fea3cd7b97debda216ab193a90d5104bf62b792b6c7f05a1247b6736fb",
+      "fixture": false
+    }
+  ],
+  "syntheticResumeVerified": true
 }
