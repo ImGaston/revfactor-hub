@@ -1,13 +1,16 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import {
   LayoutGrid,
   Table as TableIcon,
   Search,
   ArrowUp,
   ArrowDown,
+  ShieldCheck,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -137,6 +140,12 @@ export function OnboardingView({
               ? "No clients currently onboarding."
               : `${filteredSorted.length} of ${clients.length} client${clients.length === 1 ? "" : "s"}`}
           </p>
+          <Button className="mt-3" variant="outline" size="sm" asChild>
+            <Link href="/onboarding/v1">
+              <ShieldCheck />
+              V1 team review
+            </Link>
+          </Button>
         </div>
         <div className="flex items-center rounded-md border p-0.5">
           <button

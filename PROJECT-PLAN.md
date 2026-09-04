@@ -14,7 +14,7 @@ These are engineering estimates from the current draft, conditional on credentia
 |---|---|---|---|
 | P0 — preserve commercial/property identity | Stable property UUIDs, assisted billing, signed document + invoice + Stripe verification, replay/revision guards | Implemented; synthetic tests pass; actual document field/Stripe correlation mapping remains unverified | Day 1 |
 | P0 — native client experience | Property review, essential preferences, account software guide, final submit; no duplicate questions | Both native drafts and adapter snapshots created; same-document script execution proved; real submit, upsert and resume still need provider proof | Days 1–2 |
-| P0 — reliable portal handoff | Frozen submission, one company/client, durable write intents, independent activation, internal tasks | Backend implemented; SQL suite passes. Portal compatibility patch prepared; team task review/verification UI and live pilot remain pending | Days 2–3 |
+| P0 — reliable portal handoff | Frozen submission, one company/client, durable write intents, independent activation, internal tasks | Backend and team review implemented; seven database migrations applied. Exact-production portal patch prepared; application deployment and live pilot remain pending | Days 2–3 |
 | P1 — post-call context + recovery | Direct Granola API, trusted call matching, internal summary, 24h/72h recovery and 7-day human follow-up | Importer implemented; appointment mapping/credentials absent. Native reminder wiring remains pending | Days 2–3 |
 | P0 — pilot and cutover | Three cases, failure/retry/opt-out checks, actual native contract/payment/forms/Assembly walkthrough | Not started. Keep current entry points until all gates pass | Day 4, or next available pilot window |
 
@@ -80,15 +80,21 @@ flowchart TD
 
 ## Verification completed
 
-- 506 tests across 61 files pass.
+- 523 tests across 64 files pass.
 - Required TypeScript check and targeted ESLint pass.
-- All six migrations apply to a fresh local PostgreSQL fixture schema; rollback integration suite passes, including portal handoff, owned tasks, stale leases, duplicate invoices, pause/resume and RLS.
+- All seven migrations apply to a fresh local PostgreSQL fixture schema; both rollback integration suites pass, including portal handoff, owned tasks, stale leases, duplicate invoices, pause/resume and RLS.
 - Native draft visual/conditional tests are recorded in the GHL implementation workspace; they do not yet prove a real submission.
 
-The native review snapshots are in `docs/ghl/native-v1/`. The separate Assembly application patch and its baseline/deployment provenance are in `docs/ghl/assembly-v1/`; 12 targeted compatibility tests, TypeScript and ESLint pass. Both native adapter test scripts also pass. These are additional to the 506 Hub tests.
+The native review snapshots are in `docs/ghl/native-v1/`. The separate Assembly application patch and its verified production provenance are in `docs/ghl/assembly-v1/`; all 83 app tests, TypeScript and a clean build pass. Native adapter tests also pass separately from the 523 Hub tests.
 
-The existing Assembly and Hub team screens do not yet support the new operational task records. A usable V1 task review and verification path must be implemented and tested before launch. The client compatibility patch must be reconciled with the actual deployed source and released separately; the invitation worker stays gated until its behavior is verified.
+The new Hub `/onboarding/v1` team review/verification path is implemented and locally tested, including readable accepted context and mobile layout. Its database migration is applied; the application still needs deployment and an authenticated walkthrough. The Assembly compatibility patch now targets the recovered, hash-verified production source and passes 83 tests and a clean build; deploy and verify it separately before enabling invitations.
 
 ## Remaining launch gates
 
 The Hub Vercel Hobby plan rejected five-minute cron configuration. Those entries were removed; the external scheduler runner is ready but unscheduled. See `docs/ghl/onboarding-v1-runbook.md` for exact configuration and evidence. Native drafts and passing unit tests are not end-to-end readiness. Do not flip enablement or move the salesperson SMS entry link until the secure native save path, real signed-document fields, payment correlation, correct owner assignment and Assembly handoff are demonstrated.
+
+## Controlled pilot and future assistance — 2026-09-04
+
+Federico approved the native draft experience and requested activation/testing. The next release is a controlled end-to-end pilot, using a dedicated contact and an inbox he controls; the inbox and Hub deployment-team access are pending. Do not treat draft appearance or unit tests as a completed pilot.
+
+Optional assisted onboarding calls are a future enhancement. Proposed behavior: a customer can request/book help from the incomplete step, and the assigned team member opens the same journey, sees accepted contract/property details and saved answers, and helps complete only the missing information. Booking is optional, does not restart onboarding, does not change signed scope or billing, and does not declare software verified or portal active. Scheduling provider/calendar, availability, call length and offer criteria remain undecided; V1 has no booking integration.

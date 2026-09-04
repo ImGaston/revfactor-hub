@@ -141,3 +141,9 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `lib/granola/`: direct API importer with deterministic eligible appointment matching.
 - `scripts/tests/ghl-onboarding-v1.sql`: transaction/rollback PostgreSQL integration suite for the new ledger.
 - Deployment/runbook and gate checklist: `docs/ghl/onboarding-v1-runbook.md`; product scope/flow/timeline: `PROJECT-PLAN.md`.
+
+## 2026-09-04 — V1 onboarding team review and controlled pilot
+
+`/onboarding/v1` reads a permission-gated, explicit SQL projection of accepted property/software context from the immutable V1 journey snapshot. Mobile uses stacked cards; desktop uses a task table. The server action requires `onboarding:edit`; the verification RPC repeats that check, compares the expected task timestamp, locks journey then task, and records immutable actor/time/evidence together with verification. A trigger blocks unaudited verification and V1 task identity moves; ordinary legacy tasks retain their behavior. `ghl_onboarding_task_verifications_v1` is the new audit table. The existing `/onboarding` page links to the new screen.
+
+`GHL_V1_ROLLOUT_MODE` defaults to `pilot`; `GHL_V1_PILOT_CONTACT_IDS` is an exact server-side allowlist enforced for enrollment, client access and provider workers. The seven V1 migrations are applied to the independently confirmed production Hub database, with zero journeys/jobs at verification. Application activation and a real pilot remain pending. See `docs/ghl/pilot-checklist.md` and `pilot-database-deployment.json`.

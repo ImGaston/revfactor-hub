@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest"
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest"
 const mocks = vi.hoisted(() => ({ db: vi.fn(), row: vi.fn(), apply: vi.fn() }))
 vi.mock("server-only", () => ({}))
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.db }))
@@ -56,6 +56,8 @@ const journey = JourneySchema.parse({
   ],
 })
 beforeEach(() => {
+  vi.stubEnv("GHL_V1_ROLLOUT_MODE", "pilot")
+  vi.stubEnv("GHL_V1_PILOT_CONTACT_IDS", "contact")
   vi.clearAllMocks()
   vi.stubEnv("GHL_V1_ENABLED", "true")
   vi.stubEnv("GHL_V1_ALLOWED_ORIGINS", "https://onboard.example.invalid")
@@ -171,3 +173,5 @@ describe("opaque native questionnaire capability", () => {
     ).toBe(false)
   })
 })
+
+afterEach(() => vi.unstubAllEnvs())

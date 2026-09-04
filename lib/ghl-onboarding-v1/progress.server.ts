@@ -2,6 +2,7 @@ import "server-only"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { JourneySchema, missingRequirements } from "./domain"
 import { highlevelFetch, requiredEnv } from "./providers.server"
+import { assertRolloutContact } from "./rollout"
 
 /** Internal CRM fields only. Never sends a message or enrolls a contact. */
 export async function projectGhlProgress() {
@@ -44,6 +45,7 @@ export async function projectGhlProgress() {
     if (readError || !row) throw new Error("progress_journey_unavailable")
     revision = row.revision
     const journey = JourneySchema.parse(row.payload)
+    assertRolloutContact(journey.contactId)
     const { data: others, error: otherError } = await db
       .from("ghl_onboarding_journeys")
       .select("id,created_at,stage")
@@ -119,6 +121,8 @@ export async function projectGhlProgress() {
     const permanent =
       [
         "progress_ambiguous_journey",
+        "pilot_contact_not_allowed",
+        "rollout_configuration_invalid",
         "progress_contact_mismatch",
         "signed_property_correction_requires_review",
       ].includes(code) ||

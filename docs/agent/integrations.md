@@ -390,3 +390,7 @@ The Hub's only outbound API. Consumer: the external marketing team's tracking st
 ## GHL V1 handoff and Granola (not live)
 
 This draft introduces an opt-in scheduled Assembly provisioning path separate from the existing on-demand Assembly UI. Default-disabled feature flags independently gate journey endpoints, Assembly writes, GHL progress writes and Granola reads. Native GHL document `fillableFields` must prove legal name and itemized addresses; exact invoice/Stripe linkage must be configured from real provider evidence. Assembly create/invite intents persist before writes and uncertain outcomes require reconciliation. Portal first login is separate from software verification. Granola keys remain server-side; only summaries are projected into private persistence, not transcripts/private notes or outbound CRM messages. Trusted sales appointment mapping is explicitly required. See the V1 runbook for deployment gates and recovery.
+
+## 2026-09-04 — Live GHL document pagination limit
+
+The authenticated v3 `GET /proposals/document` endpoint returns HTTP 422 for `limit=100` with the message that limit must not exceed 21. A `limit=21` request succeeds. V1 uses 21-record pages, exact bound document-ID matching and a 25-second overall lookup budget. This is a live-provider finding; the public API reference currently lists a numeric limit without the maximum.

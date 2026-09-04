@@ -1,0 +1,551 @@
+{
+  "deploymentId": "dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7",
+  "projectId": "prj_lUfk2kJlOQUjhmr9qrxLB3zs0Rox",
+  "teamId": "team_KH7QkxPBByGDKOyHqid6lH3h",
+  "files": [
+    {
+      "path": "app/api/health/ready/route.ts",
+      "deploymentFileId": "89a034b9646daee7212e33ade41869c474e25708",
+      "sha256": "a07912815f230a725206a3ea4489d6b57d66aab43781cf070d4dd97bea14c564",
+      "bytes": 452
+    },
+    {
+      "path": "app/api/internal/onboarding/handoff/route.ts",
+      "deploymentFileId": "f74c557bb8e35c543013169474682353fc3fd2b2",
+      "sha256": "d3e1c4bf862e472a204fb6663c47031194bcd0f8d1e53aca8328e606f23b26a2",
+      "bytes": 2516
+    },
+    {
+      "path": "app/api/internal/onboarding/route.ts",
+      "deploymentFileId": "a3984d4807cab024b0aea010397da9481613875d",
+      "sha256": "df817e38226b6a269205de1a148a49956cf76286ab7ed7b52d47276eed1b397b",
+      "bytes": 2811
+    },
+    {
+      "path": "app/api/onboarding/attachments/route.ts",
+      "deploymentFileId": "38fe7ab5f5e3e5cf190859afcaa99e58d0856f36",
+      "sha256": "9eb5451c8bec852fdfef86f3fa4191dfb85f1edf95cb745a7e7bc1b30eca1a50",
+      "bytes": 3886
+    },
+    {
+      "path": "app/api/onboarding/route.ts",
+      "deploymentFileId": "10d56f521955970befcddc1f72c944eabfe599a5",
+      "sha256": "401cc4c493fe10271607c4f6d6065c4e43b2b39af27f86fa973d1b97616fafc6",
+      "bytes": 5198
+    },
+    {
+      "path": "app/api/pilot/ghl/checkout/route.ts",
+      "deploymentFileId": "4ce7eee8fc3485d5744e618c0c743ce273a358dd",
+      "sha256": "1bbbf0a53e2e31079537ed087f79ad07ccb5d21b1b8c47fefc6f6069463726d3",
+      "bytes": 3740
+    },
+    {
+      "path": "app/api/pilot/ghl/ready/route.ts",
+      "deploymentFileId": "a4806b19459b39bee792387e09e9800ea6a0b18b",
+      "sha256": "5ef7ef33395e6097204d4835d424b3c3050ff4feca454d56954bf8ba17848335",
+      "bytes": 720
+    },
+    {
+      "path": "app/api/pilot/ghl/signup/route.ts",
+      "deploymentFileId": "c839fdae66357895eb8a95fda62fda6d442614ae",
+      "sha256": "69505acf7ff349922bc0bf693111a5fbc8a75b68945505c1469373f2425cd7ad",
+      "bytes": 4441
+    },
+    {
+      "path": "app/api/signup/quote/route.ts",
+      "deploymentFileId": "12ae74fb35e8f8793696dbc0c761c0842997fe2f",
+      "sha256": "7e179160c77d83d6d9fa46cb5a405509cc9a244bf2886728cbd748312955956a",
+      "bytes": 1411
+    },
+    {
+      "path": "app/api/signup/start/route.ts",
+      "deploymentFileId": "2461c826a5f3ceb1125071046415527884137597",
+      "sha256": "7113d1cb7c8725aec493774fb61394bf2bbb14443356a58dbfbd35acb248753f",
+      "bytes": 2841
+    },
+    {
+      "path": "app/api/signup/status/route.ts",
+      "deploymentFileId": "04f9a387977dfb001b303bd9555993c2e05bbb33",
+      "sha256": "f0516d2160ac89231a664d17d6c60286bbc7503caf093597feabc4cbdcea83c2",
+      "bytes": 5027
+    },
+    {
+      "path": "app/api/webhooks/ghl/native-payment/route.ts",
+      "deploymentFileId": "b7f7980aa64dfb5aac943bf00536ddc38e880bc7",
+      "sha256": "ad530af99e0767044447a373db15f67d793c35f63f20cb8166a613ad7f43888b",
+      "bytes": 2891
+    },
+    {
+      "path": "app/api/webhooks/stripe/route.ts",
+      "deploymentFileId": "ad4db6c2650ef85a192aefde55ecf5c91d300ae4",
+      "sha256": "69d8fb8a069b593952fcb306570f163a9f6a353d07de1fe1dc43e73efd0788a8",
+      "bytes": 2363
+    },
+    {
+      "path": "app/error.tsx",
+      "deploymentFileId": "2d9c13c0f05baff9ba82370568a7f379331e60d0",
+      "sha256": "e3f6677cf16dd65bd3eb50cd769ce79953a73c59af1ef024294c8e3a611c1dcb",
+      "bytes": 757
+    },
+    {
+      "path": "app/globals.css",
+      "deploymentFileId": "2f724754198f9ef5cb02e31b34ef4ede1dc3acc3",
+      "sha256": "cb25ab64f255104d2e237bb0421c307876aff5cd0b14b7bfbbe31bda159eba2b",
+      "bytes": 73196
+    },
+    {
+      "path": "app/internal/page.tsx",
+      "deploymentFileId": "bf2249b400558350909a331b4a74e5bfb1375570",
+      "sha256": "94b566f5b2b5633b67da5640419c6005945edce6d3858004bfd08beddc182eb5",
+      "bytes": 694
+    },
+    {
+      "path": "app/layout.tsx",
+      "deploymentFileId": "205ed81d717a89a6eb8dc2854fa2f6d3283a4eb5",
+      "sha256": "d39df7efefe2f45d1fc5b5453b7cec9fc220b36bb22a40415948d079bb5b90e7",
+      "bytes": 880
+    },
+    {
+      "path": "app/loading.tsx",
+      "deploymentFileId": "884aeebb5c4dbb92c150c8236f363eb7c6e20e57",
+      "sha256": "1cfe96bd989f2fcd44302f7b61eadfcc1f1635a932cacab98c1bbbc277de78c3",
+      "bytes": 120
+    },
+    {
+      "path": "app/page.tsx",
+      "deploymentFileId": "92fff1c6dd7dd24ce27c47ee164583ce6c358c00",
+      "sha256": "affa1bebfe4210bee8f2ecceccaa4c40ec901edb98b69fe59cfb15f362ca1648",
+      "bytes": 697
+    },
+    {
+      "path": "app/sandbox/internal/page.tsx",
+      "deploymentFileId": "b086de11aa6a40ac735dc79edb5b63671c45e520",
+      "sha256": "3998d71a3e4aafa932c1b408cc5962f9292e78034c34ac360aa1d4a80b592f8e",
+      "bytes": 812
+    },
+    {
+      "path": "app/sandbox/page.tsx",
+      "deploymentFileId": "27533e616e9c99757e0c4d3e2bf9e120221ec1bf",
+      "sha256": "889d3187722bc13c5ec457a5081d53c5ed13c303c1f792330bbaef9939a57dd8",
+      "bytes": 808
+    },
+    {
+      "path": "app/sandbox/start/page.tsx",
+      "deploymentFileId": "1a3b0f000c1a701587bfe65f8c990a682f4b4d2e",
+      "sha256": "8e81d66731f0f8c3238deafc6118065b747df4cdc303286da3d12fc8b88212b4",
+      "bytes": 461
+    },
+    {
+      "path": "app/start/ghl-pilot/page.tsx",
+      "deploymentFileId": "80e66931978a801e909bd544f7a7edd1e9a9f749",
+      "sha256": "274a5692af45b3105456f5f1b59a289e2e5ddaf7b9e1b81638667c0da35af7ca",
+      "bytes": 615
+    },
+    {
+      "path": "app/start/page.tsx",
+      "deploymentFileId": "47a7f7bf330bfe8a07ee8d2d73e22f1122076b59",
+      "sha256": "b9bda63f3c34b8ded5064ac0d0c49f198ceb1d0be398d158944ec91e29642ffa",
+      "bytes": 904
+    },
+    {
+      "path": "components/access-gate.tsx",
+      "deploymentFileId": "9f826944c2b518a66a2989255f272ee791cce951",
+      "sha256": "9941fdc746c907c77ad25dd64084d3bb82d062d88f84807b6246e8d80185bf06",
+      "bytes": 1461
+    },
+    {
+      "path": "components/app-loading.tsx",
+      "deploymentFileId": "21306a0327f6a69d9bb80de52827ed1d1cb6e9d2",
+      "sha256": "3756c28b2d696318891ecb786e0589affd7fd77d8674188d3035bec1b21ab174",
+      "bytes": 1072
+    },
+    {
+      "path": "components/client-onboarding-app.tsx",
+      "deploymentFileId": "b6bfd962647a566e7749509f99d0b221572fe6ba",
+      "sha256": "152cc1f5496ae1a79ec412b07783a9d6bcf012ec2cdb6c632d1f01d20de0fa41",
+      "bytes": 84824
+    },
+    {
+      "path": "components/internal-console.tsx",
+      "deploymentFileId": "3b4faca9366fe9542546af9fcd66a0dcfb235b8c",
+      "sha256": "9b584872ec8eed7c9a6e13e9955b602d72db153a13fef8c056a00982b02fe261",
+      "bytes": 26748
+    },
+    {
+      "path": "components/progress.tsx",
+      "deploymentFileId": "479973cc45795139666e820a359bcdecc223d4e3",
+      "sha256": "1269887f74797e9d2669edd8ffd59b86937a4373a6edb573938d17b5db000dcf",
+      "bytes": 495
+    },
+    {
+      "path": "components/sandbox-toolbar.tsx",
+      "deploymentFileId": "c80f5945dbc4d629af8227d856b5637ccf5ea7df",
+      "sha256": "6591812073e36dfd6330571efe8bf649ae150e7bbf1d049adfa7669ba1e0c357",
+      "bytes": 1716
+    },
+    {
+      "path": "components/signup-flow.tsx",
+      "deploymentFileId": "bb9d1624901fca52adacc6d63ce11c2f1e716b61",
+      "sha256": "c225ca92138021630075b03bb147f9dcf6214a7ad334422bfa591531557e4278",
+      "bytes": 33875
+    },
+    {
+      "path": "eslint.config.mjs",
+      "deploymentFileId": "e41cd1972421bf0d1dcddb59882af66cabcfcd71",
+      "sha256": "1cf457c20649731964b1bb8780f9c4184b5ac8b79e45e1d1fade348866311fe2",
+      "bytes": 308
+    },
+    {
+      "path": "lib/app-context.ts",
+      "deploymentFileId": "00361dca9b79f01bfe4546b5055a81661504396a",
+      "sha256": "7d39c7ce1f6a7adc30ae3cfd320e0dc21ff404fa972a1fbefeb301426a24a4d0",
+      "bytes": 468
+    },
+    {
+      "path": "lib/assembly-bridge.ts",
+      "deploymentFileId": "181848e120aa3d77d67fa9f892da7d5311ae7045",
+      "sha256": "be39ecff5acdd8b9dcc2ff78053133b2e08c61debf732755d76e27ec93ace56f",
+      "bytes": 776
+    },
+    {
+      "path": "lib/assembly-credentials.server.ts",
+      "deploymentFileId": "70cd93e434c7aeab16029f1b8605ba419e6c7eff",
+      "sha256": "3b6e3052b92db9757f2232cb728764cda4bd2a221a8b7047df0d84603ffbc0a4",
+      "bytes": 578
+    },
+    {
+      "path": "lib/assembly-files.server.ts",
+      "deploymentFileId": "5df47afd0c18de9ee7add0ad32ccfdd58f5b1eff",
+      "sha256": "99b2c468ac5d38f070413fe9f994f8c7fddae678d657e67b1c5e871a2eb4f481",
+      "bytes": 3887
+    },
+    {
+      "path": "lib/assembly-notifications.server.ts",
+      "deploymentFileId": "1868205a7b85edc3655d0768c6253de30a5c32ac",
+      "sha256": "8fbdf2208abbd1babc9cbb68c9f7730f5c4cfc8358b04e5253b34b9ae24c149c",
+      "bytes": 2463
+    },
+    {
+      "path": "lib/assembly-session.ts",
+      "deploymentFileId": "0f1fb26b51b4c91feadd963dff422f84cd4e450c",
+      "sha256": "2f643c1c26b1b3f97064c66d2e9bd36d78b2b411acdfeb2d66111e1b693f0d1d",
+      "bytes": 4251
+    },
+    {
+      "path": "lib/assembly-signup.server.ts",
+      "deploymentFileId": "79ad3df2e63239ea49bba88b4d9c03adcae6005f",
+      "sha256": "5e4d747de496f368e74bf5dcce34f27e6adcfa229c68e9e824edd14c9f0b7f92",
+      "bytes": 3901
+    },
+    {
+      "path": "lib/ghl-native-payment.test.ts",
+      "deploymentFileId": "9f7c41f2349928dbc3bef98e022bd81822924e87",
+      "sha256": "0cb24d22bb385f852b5ef9de54b3c686947ffeb041acc03f9a0afa845d5fb1f7",
+      "bytes": 2408
+    },
+    {
+      "path": "lib/ghl-native-payment.ts",
+      "deploymentFileId": "77f7f4bc1073003cb57a74ea65e4c0456bbeda31",
+      "sha256": "dd58b955fadd1744c7ef507ffc9dc8ce6f4fe79063c901f5cfa768e6c5f52275",
+      "bytes": 4100
+    },
+    {
+      "path": "lib/handoff-pdf.test.ts",
+      "deploymentFileId": "20b2c67b34c871e27584674032cdb989845b6d01",
+      "sha256": "53d746b4b25dd2dedc81868baac90bf1c91db23b6df42665c2d874264e421667",
+      "bytes": 2389
+    },
+    {
+      "path": "lib/handoff-pdf.ts",
+      "deploymentFileId": "a506194a1df6fce32f599ade9cc412f6f15dca06",
+      "sha256": "5ab402b398a9fe6fca54ebcb963e67d437e49bc781a754fc9c1963d042501df8",
+      "bytes": 17432
+    },
+    {
+      "path": "lib/highlevel-pilot.server.ts",
+      "deploymentFileId": "87b406757442574c2c7a67d8296d1d1a93f82ec0",
+      "sha256": "31470102080ac31e272ec6645ae6f9a60218d999b8b5e06e78aafac82ae7b4fb",
+      "bytes": 3282
+    },
+    {
+      "path": "lib/hub-contract.test.ts",
+      "deploymentFileId": "9a90113bf67105424e398c4b4bdb059bca463835",
+      "sha256": "b39cf7e6c9692552e9bec146290f1fb7f9a309ffd5e5d25c0be102dfb9d22b51",
+      "bytes": 2964
+    },
+    {
+      "path": "lib/hub-contract.ts",
+      "deploymentFileId": "f825bb888e1ff388ed1149b89fc9a9b002e4e9ab",
+      "sha256": "29bd503127009662af59eb82c046e02b73e2646cca4819a781c9ca92e24c332f",
+      "bytes": 5785
+    },
+    {
+      "path": "lib/hub-persistence.server.ts",
+      "deploymentFileId": "071c8044e1e9d7f0b6f93a0f955929b8eb41a1c7",
+      "sha256": "276db333142b1a399e88a4176f3c4107a5d04ab95a2b36ec7e3e4fe610e17545",
+      "bytes": 32650
+    },
+    {
+      "path": "lib/internal-access.test.ts",
+      "deploymentFileId": "bfb2def8d69a3b54c226621c86bf451780947a6d",
+      "sha256": "830cd5c07c575a0ad6ddcc4262e5d8a21a3b367de9af5b93c67cfedafe7b8323",
+      "bytes": 2119
+    },
+    {
+      "path": "lib/internal-access.ts",
+      "deploymentFileId": "93fd6b5497b6ac987fddb38a97d06873f31814a0",
+      "sha256": "1aecdd644972fa43e29e0ab52448c217d2e8b7720e822a8720af68b1f0a3602f",
+      "bytes": 642
+    },
+    {
+      "path": "lib/mock-data.ts",
+      "deploymentFileId": "d371c65c2fc8a855647d4b83498fa97360b68aec",
+      "sha256": "b42c7403cf77bdc46a476bda29072543a1860f241f793f56a340304ff37e4a1f",
+      "bytes": 6211
+    },
+    {
+      "path": "lib/onboarding-defaults.ts",
+      "deploymentFileId": "1e7428e9d895f4642d4d7b16fd5cbc31da33d855",
+      "sha256": "ab21759cae3c6b80e2eae68e1dacaf18f62ced3067dce1e94d402696305e9ffa",
+      "bytes": 4726
+    },
+    {
+      "path": "lib/onboarding-schema.test.ts",
+      "deploymentFileId": "f76581f54e246955a65b2ce0ba69062ea04ba6f4",
+      "sha256": "3635bc995e782830f9a9abde22d6ad0688bbd6705eb922fc3b05580e31590940",
+      "bytes": 1560
+    },
+    {
+      "path": "lib/onboarding-schema.ts",
+      "deploymentFileId": "f5ea2090f46c4a5e3014fc0172af0a77cbf259fe",
+      "sha256": "7b994db0ac86451bf3c32b5b4a1a8af7fbed0f67dcd4a5db5e6aa8438032f787",
+      "bytes": 5339
+    },
+    {
+      "path": "lib/onboarding-state.test.ts",
+      "deploymentFileId": "2c1965d76c2985e82ded49b313af4b2c562e3c6e",
+      "sha256": "a4305c9dbca07acb135dafaaaeb5f7de11c1af14a19ee8806749160b5716b116",
+      "bytes": 6941
+    },
+    {
+      "path": "lib/onboarding-state.ts",
+      "deploymentFileId": "5d5ac889f0fe4f9f2a4a8a1bffeb5686f1bf41cc",
+      "sha256": "c13007749442a3fc23aecfec455b314a1ce483beff893632425a8b2ae968b36b",
+      "bytes": 21570
+    },
+    {
+      "path": "lib/onboarding-values.test.ts",
+      "deploymentFileId": "c967b6d6c2eb5aa259a8d1b44abed070da3dc512",
+      "sha256": "a026959a0381992b4717df767545ad2996a3826e9061f3c0b5a4b202a5ba8533",
+      "bytes": 528
+    },
+    {
+      "path": "lib/onboarding-values.ts",
+      "deploymentFileId": "558242d37dc6815e6e32a87049420ecb9c23608a",
+      "sha256": "9948726f52a80bb952745295feb8070f523fca69b36cd7b0dee1a1e87ff21c31",
+      "bytes": 746
+    },
+    {
+      "path": "lib/runtime-readiness.server.ts",
+      "deploymentFileId": "d4e816fc76a2c3e3dece5ecfece94a6940bdbb61",
+      "sha256": "d17d1bf04006b895dac111b844a2eeaab3aa6e9525bb2d61e481b55f8151ff59",
+      "bytes": 2781
+    },
+    {
+      "path": "lib/signup-contract.test.ts",
+      "deploymentFileId": "37e634dce0e92bd03ce5ab959c475297f7bc44d7",
+      "sha256": "49c03fb379024c7a84a85d7275baed7f1fceff39dc74fc5be322548f252b3000",
+      "bytes": 6003
+    },
+    {
+      "path": "lib/signup-contract.ts",
+      "deploymentFileId": "76921c0c221a37d452b2135863a2a0637c8886e0",
+      "sha256": "89484794a7e1ba1920efe6af37d313cf94165836f564d14031b7cdb6d17fece1",
+      "bytes": 6323
+    },
+    {
+      "path": "lib/signup-pricing.test.ts",
+      "deploymentFileId": "a669ef8da0dcc08c91780521faf32fc0a8ea8899",
+      "sha256": "00dba8e51525ea109ad60694841cf2fe744d73c9028089014eb2738a33cb4482",
+      "bytes": 4654
+    },
+    {
+      "path": "lib/signup-pricing.ts",
+      "deploymentFileId": "552ff974c62becaef0f9fb75274ad18d6110d91c",
+      "sha256": "3f12ed0414ebe8a009e1ff4099ac0e6b0e81d839356b580ebd585fcf1778984d",
+      "bytes": 5126
+    },
+    {
+      "path": "lib/signup-service-start.test.ts",
+      "deploymentFileId": "f6e9cbe23ea37e9d12a91e339990691015bb2d0a",
+      "sha256": "6a278cd325a6597945543275b140c7943a0b38bff60d421fb46f0a015acf6f6e",
+      "bytes": 1387
+    },
+    {
+      "path": "lib/signup-service-start.ts",
+      "deploymentFileId": "d95c8d1c38f1d772326e5db8496495f2143eca8b",
+      "sha256": "8c57e8bfde3aa204282c5ac9d2fd7147fc8888f7a1cadda2f7e79d0e42f7b16e",
+      "bytes": 2294
+    },
+    {
+      "path": "lib/signup-token.server.ts",
+      "deploymentFileId": "3bab22c83fa2fe1d542a389acb1c5bdd31b0dd63",
+      "sha256": "167ee40c1768c2458733dba3a85d1f35b1c238c755536ca61e30825d2c739d66",
+      "bytes": 353
+    },
+    {
+      "path": "lib/software-access.test.ts",
+      "deploymentFileId": "2a8b11a65f3c89fe5aef9bcb2b595f2addc7c2e1",
+      "sha256": "77c7d492ebede88a619c7c932d8d651744d23c4c3fcdfbe6915c98499a2dc590",
+      "bytes": 764
+    },
+    {
+      "path": "lib/stripe-checkout.test.ts",
+      "deploymentFileId": "ec08fe29c6db318814979b16605edac5294b0507",
+      "sha256": "d154c6920528b3dc9ed75a58523c051eb2c79db74fc6576a653bc6eb8a6e0e3a",
+      "bytes": 5283
+    },
+    {
+      "path": "lib/stripe-checkout.ts",
+      "deploymentFileId": "d66d7efbabc470133a640a1862748c65eee75fa8",
+      "sha256": "d52d0436f1292e777395c53cd98cc98e81109d337f14496a6dc7e56ea644639d",
+      "bytes": 3406
+    },
+    {
+      "path": "lib/stripe-webhook.test.ts",
+      "deploymentFileId": "e6f8a4dab6dc585ab1b6fd17ac322be0d6b879cb",
+      "sha256": "d9b3d2c44b74a464bc08ff685ecc77bf71e26dd0fafac961eda888e96b165922",
+      "bytes": 1698
+    },
+    {
+      "path": "lib/stripe-webhook.ts",
+      "deploymentFileId": "1a2ce259f823bc62c2f8f85e336c51d971c17c11",
+      "sha256": "937ba8c06c54d01150d4e6a00c6338d20c98b829d4795b6e6b5d3985a3e3ec47",
+      "bytes": 1757
+    },
+    {
+      "path": "lib/stripe.server.ts",
+      "deploymentFileId": "d2d7295393838d470b4072184548ea5a08c4126e",
+      "sha256": "9e2a2fd444b51f173a32b29e4b6e1eae7ab8928e67357b7626ef03a393cf15f6",
+      "bytes": 491
+    },
+    {
+      "path": "next-env.d.ts",
+      "deploymentFileId": "9bfff799abb9a4d30186f7a8b68f91ac35157611",
+      "sha256": "7b550dda9686c16f36a17bf9051d5dbf31e98555b30d114ac49fc49a1e712651",
+      "bytes": 247
+    },
+    {
+      "path": "next.config.ts",
+      "deploymentFileId": "28d2dff59e301a9efe711b198a59231a3b86b3c5",
+      "sha256": "b53f69bfc2163ec861d848076176652a6b6c73816d62c6462defccbf1ea95dac",
+      "bytes": 1335
+    },
+    {
+      "path": "package-lock.json",
+      "deploymentFileId": "e06de10edb7b6b64b6777d730c6f49ab147ae6b2",
+      "sha256": "17b5e586f92bfa27117124ec25929c80a81b1cd70940eccae2b99b49f9d0f0bb",
+      "bytes": 265377
+    },
+    {
+      "path": "package.json",
+      "deploymentFileId": "0ff34aa18e3f469301218c8005922712461ff2ad",
+      "sha256": "88b4c94c6219fee5f47b90fc1f0710b340d660309160163ac8359c30c7b3852f",
+      "bytes": 953
+    },
+    {
+      "path": "public/images/revfactor-hero.webp",
+      "deploymentFileId": "ede1c2af4520e5203fbb8405a55d3b03474d5258",
+      "sha256": "9e9a73ba27e24adf5f26a3dad74299d31d466c9f649dd7c64f1b831d78959338",
+      "bytes": 475368
+    },
+    {
+      "path": "public/logos/airbnb.png",
+      "deploymentFileId": "262c53525c8e778add616a2b7ef3bd3ae6625fff",
+      "sha256": "c3535bf86195433d06cd6eb602e227cd033ad11edc002fab82d93b03a58a78a7",
+      "bytes": 37031
+    },
+    {
+      "path": "public/logos/guesty.svg",
+      "deploymentFileId": "d087b5a9f3cd0ab16956bb77c543c2657131d262",
+      "sha256": "8be9a660eda36c7cd55a709ed4107c9f48c9514bd14c2871a0233b179e77f5e5",
+      "bytes": 4005
+    },
+    {
+      "path": "public/logos/hospitable.svg",
+      "deploymentFileId": "6dea3ab5d7fd3c398c91186e549101cd04e9cdb7",
+      "sha256": "5d8324f67bee96e619de3bdab9cd5a4b6c179851b1d0dcd85dfb46887ebd7494",
+      "bytes": 10688
+    },
+    {
+      "path": "public/logos/hostaway.svg",
+      "deploymentFileId": "21167df2152d8eb153111a01fc52728df8fb620c",
+      "sha256": "247556ce3f415c156a1236a401c77e347c3c60d4cca52d8dcef14fbb5256db93",
+      "bytes": 9497
+    },
+    {
+      "path": "public/logos/hostfully.svg",
+      "deploymentFileId": "250867f31a3adedb8ad579b513e9f63bbe2ba815",
+      "sha256": "fd900cd5e2896486ca1412197f8f204d6381e4df9d7729419018d6ad7edcc9a6",
+      "bytes": 4397
+    },
+    {
+      "path": "public/logos/lodgify.svg",
+      "deploymentFileId": "565368bc0a107e0734600feaa058c197170a21bf",
+      "sha256": "d882af6a0187cdfefca523215e6d1a5d9049af318d10c2d226145de5d88f3cd1",
+      "bytes": 3311
+    },
+    {
+      "path": "public/logos/ownerrez.svg",
+      "deploymentFileId": "7d7948b52353f4296bbcb3b9401f739d146629c8",
+      "sha256": "a81b21be8340e4ca81d2a7e112aa39688ae095dcb898e8c467a9820b087c5b9b",
+      "bytes": 6116
+    },
+    {
+      "path": "public/logos/pricelabs.png",
+      "deploymentFileId": "2f42cdbc19d86468e57cc29f20944661f3e1c3a9",
+      "sha256": "86a7fbec3e6d1e437e77932583cf5d2bb7657251ce734528a5ef0f27d1d575cf",
+      "bytes": 20590
+    },
+    {
+      "path": "scripts/generate-handoff-samples.ts",
+      "deploymentFileId": "cc9b3ddacafc6570deb9775f1001a1e4cb6e0fac",
+      "sha256": "0a15100cd748b5c25b611341dd706e5c195ba5e1b81bfbabd39545821397f1f9",
+      "bytes": 2841
+    },
+    {
+      "path": "tsconfig.json",
+      "deploymentFileId": "db1e457b8c96a39e8107ffe3e3c2c4408a5a18d8",
+      "sha256": "9eb8f2a353f7792e200b15a9f8d9aa8940631d2b363bddb151e68cccaa6a501a",
+      "bytes": 719
+    },
+    {
+      "path": "vitest.config.ts",
+      "deploymentFileId": "d07326e3a9f8faf0ee56d19f72d6fd0090333846",
+      "sha256": "c791e39848aeef5d811b7d7186cfef80fb596fe254312bcd88748ec13818f07d",
+      "bytes": 260
+    }
+  ],
+  "excluded": [
+    ".env.example",
+    "README.md",
+    "docs/design-system.md",
+    "docs/production-runbook.md",
+    "output/pdf/revfactor-client-launch-plan-sample.pdf",
+    "output/pdf/revfactor-internal-pricing-handoff-sample.pdf",
+    "supabase/.temp/cli-latest",
+    "supabase/.temp/gotrue-version",
+    "supabase/.temp/linked-project.json",
+    "supabase/.temp/pooler-url",
+    "supabase/.temp/postgres-version",
+    "supabase/.temp/project-ref",
+    "supabase/.temp/rest-version",
+    "supabase/.temp/storage-migration",
+    "supabase/.temp/storage-version",
+    "supabase/migrations/20260728084500_signup_service_start.sql",
+    "supabase/migrations/20260728090000_shared_admin_onboarding_review.sql",
+    "supabase/migrations/20260728092000_admin_verify_pending_task.sql",
+    "supabase/migrations/20260811125500_backfill_admin_verification_tasks.sql",
+    "tsconfig.tsbuildinfo"
+  ]
+}

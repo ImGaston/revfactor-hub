@@ -1,3 +1,5 @@
+> Superseded for deployment: use [the verified production release](PRODUCTION-RELEASE.md) and `assembly-v1-production-compatibility.patch`. The original working-tree patch below is retained only as historical provenance.
+
 # Assembly V1 compatibility patch — review artifact
 
 This patch adapts the existing Assembly operational Custom App to an already-accepted GHL V1 onboarding record. It does not change `/start`, signup, checkout, or recreate a customer questionnaire.

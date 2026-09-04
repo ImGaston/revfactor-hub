@@ -6,6 +6,7 @@ import {
   timingSafeEqual,
 } from "node:crypto"
 import { z } from "zod"
+import { assertRolloutContact } from "./rollout"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   AddressSchema,
@@ -150,10 +151,13 @@ export async function loadJourney(journeyId: string) {
     .maybeSingle()
   if (error) throw new Error("journey_storage_unavailable")
   if (!data) throw new Error("journey_not_found")
-  return { ...data, payload: JourneySchema.parse(data.payload) }
+  const payload = JourneySchema.parse(data.payload)
+  assertRolloutContact(payload.contactId)
+  return { ...data, payload }
 }
 
 export async function beginJourney(input: z.infer<typeof BeginSchema>) {
+  assertRolloutContact(input.contactId)
   const db = createAdminClient()
   const runKey = `ghl-v1:${input.contactId}:${input.appointmentId}`
   const { data: existing, error: lookupError } = await db
@@ -373,8 +377,10 @@ export async function getClientContext(token: string) {
     .gt("context_expires_at", new Date().toISOString())
     .maybeSingle()
   if (error || !data) throw new Error("invalid_context")
+  const journey = JourneySchema.parse(data.payload)
+  assertRolloutContact(journey.contactId)
   return {
-    ...clientContext(JourneySchema.parse(data.payload)),
+    ...clientContext(journey),
     revision: data.revision,
   }
 }

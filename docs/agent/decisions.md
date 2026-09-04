@@ -480,3 +480,7 @@ The external Grok map needs a server-to-server feed because its preview has no H
 ## 2026-09-04 — Native GHL pre-Assembly onboarding V1 (draft implementation)
 
 Create a pre-Assembly journey instead of requiring an Assembly identity to collect property details. Native GHL owns client UI/contracts/payments; Hub owns revisioned state, authenticated commercial verification and immutable submission. One owner workspace spans assisted billing entities. Opaque expiring capabilities authorize only one questionnaire, never payment truth. Signed property identity cannot silently change. Direct Granola API summaries are internal and never block signup. No LLM runtime path. Production stays disabled until native save/upsert, actual signed-field/payment mapping and pilot handoff proof. See PROJECT-PLAN.md and docs/ghl/onboarding-v1-runbook.md.
+
+## 2026-09-04 — Optional assisted onboarding calls after V1
+
+User approved the native draft experience and controlled activation/testing. Future onboarding calls should be optional assistance on the existing journey, reusing known property details and saved answers. They are not a mandatory signup gate. Booking mechanics/calendar and operating policy remain future decisions; no calls were booked or scheduler enabled.

@@ -1,6 +1,6 @@
 # Native GHL V1 deployment and recovery
 
-Production remains disabled. No production migrations, production deployment, customer entry links, payment setup or live invitations have been changed by this branch. The GitHub draft PR has a successful protected Vercel preview build; its deployment protection prevents unauthenticated browser endpoint testing. GHL provider changes are additive native draft assets documented in the separate GHL workspace.
+Production remains disabled. The seven reviewed database migrations were applied to the confirmed Hub database on 2026-09-04; no application production deployment, customer entry link, payment setup or live invitation has been changed. New journey/job counts remain zero. See `pilot-database-deployment.json`. The GitHub draft PR has a successful protected Vercel preview build; its deployment protection prevents unauthenticated browser endpoint testing. GHL provider changes are additive native draft assets documented in the separate GHL workspace.
 
 ## Credential/deployment discovery
 
@@ -67,4 +67,16 @@ The versioned journey and event log provide context for later Grokbot/LLM steps.
 
 ## Assembly application review artifact
 
-See [compatibility provenance and release gates](assembly-v1/COMPATIBILITY.md) and [patch](assembly-v1/assembly-v1-compatibility.patch). The patch is against captured current working files in the separate app, not a verified production source snapshot. It has 12 passing targeted tests plus TypeScript/ESLint. Reconcile the deployed source before release. The existing team screens do not yet support V1 operational tasks; implement and test team review/verification before launch. Keep `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=false` until the deployed client experience passes the documented synthetic pilot.
+See [compatibility provenance and release gates](assembly-v1/COMPATIBILITY.md) and [patch](assembly-v1/assembly-v1-compatibility.patch). That original working-tree patch is superseded for deployment by the production-relative patch in `assembly-v1/PRODUCTION-RELEASE.md`; the exact deployed source is now recovered and verified. The new `/onboarding/v1` team screen and verification RPC are implemented and locally tested; deploy and test the authenticated screen before launch. Keep `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=false` until the deployed client experience passes the documented synthetic pilot.
+
+## Controlled pilot update — 2026-09-04
+
+`GHL_V1_ROLLOUT_MODE` defaults to `pilot`. `GHL_V1_PILOT_CONTACT_IDS` is an exact server-side allowlist; empty lists and unknown modes block new journeys and client access. Assembly and CRM projection also refuse contacts outside this allowlist. General rollout requires a deliberate later `live` setting in addition to the existing feature gates.
+
+All seven database migrations are applied to `xpfjjcwgbjsdxdhyrcxd` after fresh local migration and rollback-suite verification. Deployed Hub public configuration and authenticated Supabase metadata independently confirmed this target. No pilot contact or journey has been created. The V1 team review implementation is at `/onboarding/v1`, with accepted context, owned tasks and immutable human verification evidence; it still needs the app deployment and authenticated live walkthrough.
+
+Assembly source provenance is resolved: [the production-relative release](assembly-v1/PRODUCTION-RELEASE.md) uses hash-verified deployment source and passes 83 tests and a clean build. The old working-tree patch is retained only for history. The production-relative patch is not deployed yet.
+
+The live GHL documents endpoint accepts at most 21 records per page; `limit=100` returns 422. The backend now respects that cap and a total lookup deadline. Discovery calendars and both post-payment owner identities were verified and reflected in the environment example.
+
+The controlled pilot checklist is [here](pilot-checklist.md). Test inbox, Hub Vercel deployment access, provider test configuration and authenticated end-to-end evidence remain pending. Optional onboarding calls are recorded as future assistance on the same journey; no booking integration is enabled.

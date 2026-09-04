@@ -17,7 +17,7 @@ export async function highlevelFetch(
   const response = await fetch(`https://services.leadconnectorhq.com${path}`, {
     ...init,
     cache: "no-store",
-    signal: AbortSignal.timeout(15000),
+    signal: init?.signal ?? AbortSignal.timeout(15000),
     headers: {
       Authorization: `Bearer ${requiredEnv("HIGHLEVEL_API_KEY")}`,
       Version: "v3",
@@ -31,15 +31,21 @@ export async function highlevelFetch(
 }
 export async function readDocument(documentId: string) {
   const locationId = requiredEnv("HIGHLEVEL_LOCATION_ID")
-  for (let skip = 0; skip < 1000; skip += 100) {
+  // The live v3 API rejects limit > 21 (422), although the reference omits it.
+  const pageSize = 21
+  const deadline = Date.now() + 25000
+  for (let skip = 0; skip < 1000; skip += pageSize) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) throw new Error("document_lookup_deadline")
     const payload = (await highlevelFetch(
-      `/proposals/document?${new URLSearchParams({ locationId, limit: "100", skip: String(skip) })}`
+      `/proposals/document?${new URLSearchParams({ locationId, limit: String(pageSize), skip: String(skip) })}`,
+      { signal: AbortSignal.timeout(Math.min(15000, remaining)) }
     )) as { documents?: Array<{ documentId?: string }>; total?: number }
     if (!Array.isArray(payload.documents))
       throw new Error("invalid_document_list")
     const found = payload.documents.find((d) => d.documentId === documentId)
     if (found) return found
-    if (payload.documents.length < 100) break
+    if (payload.documents.length < pageSize) break
   }
   throw new Error("bound_document_not_found")
 }

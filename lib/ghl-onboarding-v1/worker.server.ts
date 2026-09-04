@@ -1,5 +1,6 @@
 import "server-only"
 import { z } from "zod"
+import { assertRolloutContact } from "./rollout"
 import { createAdminClient } from "@/lib/supabase/admin"
 import {
   AddressSchema,
@@ -190,6 +191,11 @@ export async function runAssemblyJob(
   }
 ): Promise<ProvisionResult> {
   const row = await dependencies.repository.acceptedJourney(job.journey_id)
+  try {
+    assertRolloutContact(row.snapshot.contactId)
+  } catch {
+    return { status: "manual_review", reason: "assembly_rollout_restricted" }
+  }
   if (
     row.manualTakeover ||
     !["submitted", "portal_invited", "portal_active"].includes(row.stage)

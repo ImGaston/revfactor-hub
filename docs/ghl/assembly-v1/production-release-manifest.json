@@ -1,0 +1,373 @@
+{
+  "baseDeploymentId": "dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7",
+  "changedFiles": [
+    "app/api/onboarding/route.ts",
+    "components/client-onboarding-app.tsx",
+    "lib/hub-persistence.server.ts",
+    "lib/ghl-accepted-handoff.ts",
+    "components/accepted-onboarding-summary.tsx",
+    "lib/ghl-accepted-handoff.test.ts"
+  ],
+  "files": [
+    {
+      "path": "app/api/health/ready/route.ts",
+      "sha256": "a07912815f230a725206a3ea4489d6b57d66aab43781cf070d4dd97bea14c564"
+    },
+    {
+      "path": "app/api/internal/onboarding/handoff/route.ts",
+      "sha256": "d3e1c4bf862e472a204fb6663c47031194bcd0f8d1e53aca8328e606f23b26a2"
+    },
+    {
+      "path": "app/api/internal/onboarding/route.ts",
+      "sha256": "df817e38226b6a269205de1a148a49956cf76286ab7ed7b52d47276eed1b397b"
+    },
+    {
+      "path": "app/api/onboarding/attachments/route.ts",
+      "sha256": "9eb5451c8bec852fdfef86f3fa4191dfb85f1edf95cb745a7e7bc1b30eca1a50"
+    },
+    {
+      "path": "app/api/onboarding/route.ts",
+      "sha256": "3aac4e3f877796f1d79de0d585fe334e9601b55a5f582e0c9fa8baf9b0bc95f7"
+    },
+    {
+      "path": "app/api/pilot/ghl/checkout/route.ts",
+      "sha256": "1bbbf0a53e2e31079537ed087f79ad07ccb5d21b1b8c47fefc6f6069463726d3"
+    },
+    {
+      "path": "app/api/pilot/ghl/ready/route.ts",
+      "sha256": "5ef7ef33395e6097204d4835d424b3c3050ff4feca454d56954bf8ba17848335"
+    },
+    {
+      "path": "app/api/pilot/ghl/signup/route.ts",
+      "sha256": "69505acf7ff349922bc0bf693111a5fbc8a75b68945505c1469373f2425cd7ad"
+    },
+    {
+      "path": "app/api/signup/quote/route.ts",
+      "sha256": "7e179160c77d83d6d9fa46cb5a405509cc9a244bf2886728cbd748312955956a"
+    },
+    {
+      "path": "app/api/signup/start/route.ts",
+      "sha256": "7113d1cb7c8725aec493774fb61394bf2bbb14443356a58dbfbd35acb248753f"
+    },
+    {
+      "path": "app/api/signup/status/route.ts",
+      "sha256": "f0516d2160ac89231a664d17d6c60286bbc7503caf093597feabc4cbdcea83c2"
+    },
+    {
+      "path": "app/api/webhooks/ghl/native-payment/route.ts",
+      "sha256": "ad530af99e0767044447a373db15f67d793c35f63f20cb8166a613ad7f43888b"
+    },
+    {
+      "path": "app/api/webhooks/stripe/route.ts",
+      "sha256": "69d8fb8a069b593952fcb306570f163a9f6a353d07de1fe1dc43e73efd0788a8"
+    },
+    {
+      "path": "app/error.tsx",
+      "sha256": "e3f6677cf16dd65bd3eb50cd769ce79953a73c59af1ef024294c8e3a611c1dcb"
+    },
+    {
+      "path": "app/globals.css",
+      "sha256": "cb25ab64f255104d2e237bb0421c307876aff5cd0b14b7bfbbe31bda159eba2b"
+    },
+    {
+      "path": "app/internal/page.tsx",
+      "sha256": "94b566f5b2b5633b67da5640419c6005945edce6d3858004bfd08beddc182eb5"
+    },
+    {
+      "path": "app/layout.tsx",
+      "sha256": "d39df7efefe2f45d1fc5b5453b7cec9fc220b36bb22a40415948d079bb5b90e7"
+    },
+    {
+      "path": "app/loading.tsx",
+      "sha256": "1cfe96bd989f2fcd44302f7b61eadfcc1f1635a932cacab98c1bbbc277de78c3"
+    },
+    {
+      "path": "app/page.tsx",
+      "sha256": "affa1bebfe4210bee8f2ecceccaa4c40ec901edb98b69fe59cfb15f362ca1648"
+    },
+    {
+      "path": "app/sandbox/internal/page.tsx",
+      "sha256": "3998d71a3e4aafa932c1b408cc5962f9292e78034c34ac360aa1d4a80b592f8e"
+    },
+    {
+      "path": "app/sandbox/page.tsx",
+      "sha256": "889d3187722bc13c5ec457a5081d53c5ed13c303c1f792330bbaef9939a57dd8"
+    },
+    {
+      "path": "app/sandbox/start/page.tsx",
+      "sha256": "8e81d66731f0f8c3238deafc6118065b747df4cdc303286da3d12fc8b88212b4"
+    },
+    {
+      "path": "app/start/ghl-pilot/page.tsx",
+      "sha256": "274a5692af45b3105456f5f1b59a289e2e5ddaf7b9e1b81638667c0da35af7ca"
+    },
+    {
+      "path": "app/start/page.tsx",
+      "sha256": "b9bda63f3c34b8ded5064ac0d0c49f198ceb1d0be398d158944ec91e29642ffa"
+    },
+    {
+      "path": "components/access-gate.tsx",
+      "sha256": "9941fdc746c907c77ad25dd64084d3bb82d062d88f84807b6246e8d80185bf06"
+    },
+    {
+      "path": "components/app-loading.tsx",
+      "sha256": "3756c28b2d696318891ecb786e0589affd7fd77d8674188d3035bec1b21ab174"
+    },
+    {
+      "path": "components/client-onboarding-app.tsx",
+      "sha256": "84633d23121e619eae770eba094e1c71d96ff35b79309276ebbf1e03a359223c"
+    },
+    {
+      "path": "components/internal-console.tsx",
+      "sha256": "9b584872ec8eed7c9a6e13e9955b602d72db153a13fef8c056a00982b02fe261"
+    },
+    {
+      "path": "components/progress.tsx",
+      "sha256": "1269887f74797e9d2669edd8ffd59b86937a4373a6edb573938d17b5db000dcf"
+    },
+    {
+      "path": "components/sandbox-toolbar.tsx",
+      "sha256": "6591812073e36dfd6330571efe8bf649ae150e7bbf1d049adfa7669ba1e0c357"
+    },
+    {
+      "path": "components/signup-flow.tsx",
+      "sha256": "c225ca92138021630075b03bb147f9dcf6214a7ad334422bfa591531557e4278"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "1cf457c20649731964b1bb8780f9c4184b5ac8b79e45e1d1fade348866311fe2"
+    },
+    {
+      "path": "lib/app-context.ts",
+      "sha256": "7d39c7ce1f6a7adc30ae3cfd320e0dc21ff404fa972a1fbefeb301426a24a4d0"
+    },
+    {
+      "path": "lib/assembly-bridge.ts",
+      "sha256": "be39ecff5acdd8b9dcc2ff78053133b2e08c61debf732755d76e27ec93ace56f"
+    },
+    {
+      "path": "lib/assembly-credentials.server.ts",
+      "sha256": "3b6e3052b92db9757f2232cb728764cda4bd2a221a8b7047df0d84603ffbc0a4"
+    },
+    {
+      "path": "lib/assembly-files.server.ts",
+      "sha256": "99b2c468ac5d38f070413fe9f994f8c7fddae678d657e67b1c5e871a2eb4f481"
+    },
+    {
+      "path": "lib/assembly-notifications.server.ts",
+      "sha256": "8fbdf2208abbd1babc9cbb68c9f7730f5c4cfc8358b04e5253b34b9ae24c149c"
+    },
+    {
+      "path": "lib/assembly-session.ts",
+      "sha256": "2f643c1c26b1b3f97064c66d2e9bd36d78b2b411acdfeb2d66111e1b693f0d1d"
+    },
+    {
+      "path": "lib/assembly-signup.server.ts",
+      "sha256": "5e4d747de496f368e74bf5dcce34f27e6adcfa229c68e9e824edd14c9f0b7f92"
+    },
+    {
+      "path": "lib/ghl-native-payment.test.ts",
+      "sha256": "0cb24d22bb385f852b5ef9de54b3c686947ffeb041acc03f9a0afa845d5fb1f7"
+    },
+    {
+      "path": "lib/ghl-native-payment.ts",
+      "sha256": "dd58b955fadd1744c7ef507ffc9dc8ce6f4fe79063c901f5cfa768e6c5f52275"
+    },
+    {
+      "path": "lib/handoff-pdf.test.ts",
+      "sha256": "53d746b4b25dd2dedc81868baac90bf1c91db23b6df42665c2d874264e421667"
+    },
+    {
+      "path": "lib/handoff-pdf.ts",
+      "sha256": "5ab402b398a9fe6fca54ebcb963e67d437e49bc781a754fc9c1963d042501df8"
+    },
+    {
+      "path": "lib/highlevel-pilot.server.ts",
+      "sha256": "31470102080ac31e272ec6645ae6f9a60218d999b8b5e06e78aafac82ae7b4fb"
+    },
+    {
+      "path": "lib/hub-contract.test.ts",
+      "sha256": "b39cf7e6c9692552e9bec146290f1fb7f9a309ffd5e5d25c0be102dfb9d22b51"
+    },
+    {
+      "path": "lib/hub-contract.ts",
+      "sha256": "29bd503127009662af59eb82c046e02b73e2646cca4819a781c9ca92e24c332f"
+    },
+    {
+      "path": "lib/hub-persistence.server.ts",
+      "sha256": "99f34c7004fb2b7abf327eb6c72141c64c87d65980b9e4c2da9038aea7cca5d0"
+    },
+    {
+      "path": "lib/internal-access.test.ts",
+      "sha256": "830cd5c07c575a0ad6ddcc4262e5d8a21a3b367de9af5b93c67cfedafe7b8323"
+    },
+    {
+      "path": "lib/internal-access.ts",
+      "sha256": "1aecdd644972fa43e29e0ab52448c217d2e8b7720e822a8720af68b1f0a3602f"
+    },
+    {
+      "path": "lib/mock-data.ts",
+      "sha256": "b42c7403cf77bdc46a476bda29072543a1860f241f793f56a340304ff37e4a1f"
+    },
+    {
+      "path": "lib/onboarding-defaults.ts",
+      "sha256": "ab21759cae3c6b80e2eae68e1dacaf18f62ced3067dce1e94d402696305e9ffa"
+    },
+    {
+      "path": "lib/onboarding-schema.test.ts",
+      "sha256": "3635bc995e782830f9a9abde22d6ad0688bbd6705eb922fc3b05580e31590940"
+    },
+    {
+      "path": "lib/onboarding-schema.ts",
+      "sha256": "7b994db0ac86451bf3c32b5b4a1a8af7fbed0f67dcd4a5db5e6aa8438032f787"
+    },
+    {
+      "path": "lib/onboarding-state.test.ts",
+      "sha256": "a4305c9dbca07acb135dafaaaeb5f7de11c1af14a19ee8806749160b5716b116"
+    },
+    {
+      "path": "lib/onboarding-state.ts",
+      "sha256": "c13007749442a3fc23aecfec455b314a1ce483beff893632425a8b2ae968b36b"
+    },
+    {
+      "path": "lib/onboarding-values.test.ts",
+      "sha256": "a026959a0381992b4717df767545ad2996a3826e9061f3c0b5a4b202a5ba8533"
+    },
+    {
+      "path": "lib/onboarding-values.ts",
+      "sha256": "9948726f52a80bb952745295feb8070f523fca69b36cd7b0dee1a1e87ff21c31"
+    },
+    {
+      "path": "lib/runtime-readiness.server.ts",
+      "sha256": "d17d1bf04006b895dac111b844a2eeaab3aa6e9525bb2d61e481b55f8151ff59"
+    },
+    {
+      "path": "lib/signup-contract.test.ts",
+      "sha256": "49c03fb379024c7a84a85d7275baed7f1fceff39dc74fc5be322548f252b3000"
+    },
+    {
+      "path": "lib/signup-contract.ts",
+      "sha256": "89484794a7e1ba1920efe6af37d313cf94165836f564d14031b7cdb6d17fece1"
+    },
+    {
+      "path": "lib/signup-pricing.test.ts",
+      "sha256": "00dba8e51525ea109ad60694841cf2fe744d73c9028089014eb2738a33cb4482"
+    },
+    {
+      "path": "lib/signup-pricing.ts",
+      "sha256": "3f12ed0414ebe8a009e1ff4099ac0e6b0e81d839356b580ebd585fcf1778984d"
+    },
+    {
+      "path": "lib/signup-service-start.test.ts",
+      "sha256": "6a278cd325a6597945543275b140c7943a0b38bff60d421fb46f0a015acf6f6e"
+    },
+    {
+      "path": "lib/signup-service-start.ts",
+      "sha256": "8c57e8bfde3aa204282c5ac9d2fd7147fc8888f7a1cadda2f7e79d0e42f7b16e"
+    },
+    {
+      "path": "lib/signup-token.server.ts",
+      "sha256": "167ee40c1768c2458733dba3a85d1f35b1c238c755536ca61e30825d2c739d66"
+    },
+    {
+      "path": "lib/software-access.test.ts",
+      "sha256": "77c7d492ebede88a619c7c932d8d651744d23c4c3fcdfbe6915c98499a2dc590"
+    },
+    {
+      "path": "lib/stripe-checkout.test.ts",
+      "sha256": "d154c6920528b3dc9ed75a58523c051eb2c79db74fc6576a653bc6eb8a6e0e3a"
+    },
+    {
+      "path": "lib/stripe-checkout.ts",
+      "sha256": "d52d0436f1292e777395c53cd98cc98e81109d337f14496a6dc7e56ea644639d"
+    },
+    {
+      "path": "lib/stripe-webhook.test.ts",
+      "sha256": "d9b3d2c44b74a464bc08ff685ecc77bf71e26dd0fafac961eda888e96b165922"
+    },
+    {
+      "path": "lib/stripe-webhook.ts",
+      "sha256": "937ba8c06c54d01150d4e6a00c6338d20c98b829d4795b6e6b5d3985a3e3ec47"
+    },
+    {
+      "path": "lib/stripe.server.ts",
+      "sha256": "9e2a2fd444b51f173a32b29e4b6e1eae7ab8928e67357b7626ef03a393cf15f6"
+    },
+    {
+      "path": "next-env.d.ts",
+      "sha256": "7b550dda9686c16f36a17bf9051d5dbf31e98555b30d114ac49fc49a1e712651"
+    },
+    {
+      "path": "next.config.ts",
+      "sha256": "b53f69bfc2163ec861d848076176652a6b6c73816d62c6462defccbf1ea95dac"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "17b5e586f92bfa27117124ec25929c80a81b1cd70940eccae2b99b49f9d0f0bb"
+    },
+    {
+      "path": "package.json",
+      "sha256": "88b4c94c6219fee5f47b90fc1f0710b340d660309160163ac8359c30c7b3852f"
+    },
+    {
+      "path": "public/images/revfactor-hero.webp",
+      "sha256": "9e9a73ba27e24adf5f26a3dad74299d31d466c9f649dd7c64f1b831d78959338"
+    },
+    {
+      "path": "public/logos/airbnb.png",
+      "sha256": "c3535bf86195433d06cd6eb602e227cd033ad11edc002fab82d93b03a58a78a7"
+    },
+    {
+      "path": "public/logos/guesty.svg",
+      "sha256": "8be9a660eda36c7cd55a709ed4107c9f48c9514bd14c2871a0233b179e77f5e5"
+    },
+    {
+      "path": "public/logos/hospitable.svg",
+      "sha256": "5d8324f67bee96e619de3bdab9cd5a4b6c179851b1d0dcd85dfb46887ebd7494"
+    },
+    {
+      "path": "public/logos/hostaway.svg",
+      "sha256": "247556ce3f415c156a1236a401c77e347c3c60d4cca52d8dcef14fbb5256db93"
+    },
+    {
+      "path": "public/logos/hostfully.svg",
+      "sha256": "fd900cd5e2896486ca1412197f8f204d6381e4df9d7729419018d6ad7edcc9a6"
+    },
+    {
+      "path": "public/logos/lodgify.svg",
+      "sha256": "d882af6a0187cdfefca523215e6d1a5d9049af318d10c2d226145de5d88f3cd1"
+    },
+    {
+      "path": "public/logos/ownerrez.svg",
+      "sha256": "a81b21be8340e4ca81d2a7e112aa39688ae095dcb898e8c467a9820b087c5b9b"
+    },
+    {
+      "path": "public/logos/pricelabs.png",
+      "sha256": "86a7fbec3e6d1e437e77932583cf5d2bb7657251ce734528a5ef0f27d1d575cf"
+    },
+    {
+      "path": "scripts/generate-handoff-samples.ts",
+      "sha256": "0a15100cd748b5c25b611341dd706e5c195ba5e1b81bfbabd39545821397f1f9"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "9eb8f2a353f7792e200b15a9f8d9aa8940631d2b363bddb151e68cccaa6a501a"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "c791e39848aeef5d811b7d7186cfef80fb596fe254312bcd88748ec13818f07d"
+    },
+    {
+      "path": "lib/ghl-accepted-handoff.ts",
+      "sha256": "cb45da80884dfbede384e3f285144cf6d9dac60fa44c93d0ebf9bfabb9971a28"
+    },
+    {
+      "path": "components/accepted-onboarding-summary.tsx",
+      "sha256": "8c06f256eff56a05f5c16848143fbc865ff3e9253f5a5b6ec34cd6501ed4e7fd"
+    },
+    {
+      "path": "lib/ghl-accepted-handoff.test.ts",
+      "sha256": "1091373729254f894d8b14c2f8fd300421a6292c345f86233604ebc1498117c0"
+    }
+  ]
+}

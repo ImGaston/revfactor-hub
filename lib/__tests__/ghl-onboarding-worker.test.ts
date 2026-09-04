@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 vi.mock("server-only", () => ({}))
 import { JourneySchema, propertySnapshot } from "@/lib/ghl-onboarding-v1/domain"
 import {
@@ -157,7 +157,12 @@ function setup() {
   return { row, job, repository, api, deps }
 }
 
-beforeEach(() => vi.restoreAllMocks())
+beforeEach(() => {
+  vi.restoreAllMocks()
+  vi.stubEnv("GHL_V1_ROLLOUT_MODE", "pilot")
+  vi.stubEnv("GHL_V1_PILOT_CONTACT_IDS", "contact")
+})
+afterEach(() => vi.unstubAllEnvs())
 it("will not claim or invite before the deployed portal supports accepted V1", async () => {
   const r = await processAssemblyJobs({
     config: { ...config, portalCompatible: false },
@@ -321,4 +326,16 @@ describe("bounded Assembly worker", () => {
       reason: "assembly_request_failed",
     })
   })
+})
+
+it("never calls Assembly for a contact outside the controlled pilot", async () => {
+  vi.stubEnv("GHL_V1_PILOT_CONTACT_IDS", "other-contact")
+  const h = setup()
+  h.job.kind = "assembly_provision"
+  expect(await runAssemblyJob(h.job, h.deps)).toEqual({
+    status: "manual_review",
+    reason: "assembly_rollout_restricted",
+  })
+  for (const method of Object.values(h.api))
+    expect(method).not.toHaveBeenCalled()
 })

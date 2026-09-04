@@ -66,6 +66,8 @@ let current = {
 let others: { id: string; stage: string; created_at: string }[] = []
 let leaseExists = true
 beforeEach(() => {
+  vi.stubEnv("GHL_V1_ROLLOUT_MODE", "pilot")
+  vi.stubEnv("GHL_V1_PILOT_CONTACT_IDS", "contact")
   vi.stubEnv("GHL_V1_ENABLED", "true")
   vi.stubEnv("GHL_V1_PROGRESS_ENABLED", "true")
   current = {
@@ -76,12 +78,10 @@ beforeEach(() => {
   }
   others = []
   leaseExists = true
-  mocks.rpc
-    .mockReset()
-    .mockImplementation(async (name: string) => ({
-      data: name === "claim_ghl_onboarding_job" ? [job] : true,
-      error: null,
-    }))
+  mocks.rpc.mockReset().mockImplementation(async (name: string) => ({
+    data: name === "claim_ghl_onboarding_job" ? [job] : true,
+    error: null,
+  }))
   mocks.highlevel
     .mockReset()
     .mockResolvedValue({ contact: { id: "contact", locationId: "location" } })
@@ -210,4 +210,10 @@ describe("GHL progress projection recovery", () => {
       /secret-token|owner@example|private-payload/
     )
   })
+})
+
+it("does not read or write CRM for a contact outside the pilot", async () => {
+  vi.stubEnv("GHL_V1_PILOT_CONTACT_IDS", "other-contact")
+  expect(await projectGhlProgress()).toMatchObject({ status: "manual_review" })
+  expect(mocks.highlevel).not.toHaveBeenCalled()
 })

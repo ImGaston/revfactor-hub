@@ -1,0 +1,401 @@
+--- a/app/api/onboarding/route.ts
++++ b/app/api/onboarding/route.ts
+@@ -2,7 +2,7 @@
+ import { resolveAppAccess } from "@/lib/assembly-session";
+ import {
+   HubPersistenceError,
+-  loadHubOnboardingState,
++  loadHubOnboardingView,
+   saveHubOnboardingState
+ } from "@/lib/hub-persistence.server";
+ import { parseClientSavedState } from "@/lib/onboarding-schema";
+@@ -80,7 +80,9 @@
+   }
+ 
+   try {
+-    const state = await loadHubOnboardingState(viewer, requestedRunId);
++    const view = await loadHubOnboardingView(viewer, requestedRunId);
++    if (view.kind === "ghl-v1") return json(view);
++    const state = view.state;
+     const launchPlan = state.submitted
+       ? await publishLaunchPlan(viewer, getBearerToken(request) as string, state)
+       : { file: null, warning: "" };
+--- a/components/client-onboarding-app.tsx
++++ b/components/client-onboarding-app.tsx
+@@ -1,6 +1,8 @@
+ "use client";
+ 
+ import Image from "next/image";
++import type { AcceptedGhlHandoff } from "@/lib/ghl-accepted-handoff";
++import { AcceptedOnboardingSummary } from "@/components/accepted-onboarding-summary";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import {
+   AlertCircle,
+@@ -144,6 +146,7 @@
+   const [state, setState] = useState<SavedState>(() => viewer.mode === "preview"
+     ? createPreviewState(viewer.companyId)
+     : createDefaultState(viewer.companyId));
++  const [acceptedHandoff, setAcceptedHandoff] = useState<AcceptedGhlHandoff | null>(null);
+   const [hydrated, setHydrated] = useState(false);
+   const [saveStatus, setSaveStatus] = useState<"loading" | "saving" | "saved" | "error">("loading");
+   const [savedAt, setSavedAt] = useState<string>("");
+@@ -191,11 +194,23 @@
+           cache: "no-store"
+         });
+         const result = await response.json() as {
++          kind?: "ghl-v1";
++          handoff?: AcceptedGhlHandoff;
+           state?: SavedState;
+           error?: string;
+           launchPlan?: { warning?: string };
+         };
++        if (response.ok && result.kind === "ghl-v1" && result.handoff) {
++          if (!cancelled) {
++            setAcceptedHandoff(result.handoff);
++            pendingState.current = null;
++            setHydrated(true);
++            setSaveStatus("saved");
++          }
++          return;
++        }
+         if (!response.ok || !result.state) throw new Error(result.error || "Onboarding data is unavailable.");
++        setAcceptedHandoff(null);
+         lastSavedPayload.current = JSON.stringify(result.state);
+         pendingState.current = result.state;
+         if (!cancelled) {
+@@ -220,7 +235,7 @@
+   }, [loadAttempt, sessionToken, viewer.companyId, viewer.mode]);
+ 
+   useEffect(() => {
+-    if (!hydrated || loadError) return;
++    if (!hydrated || loadError || acceptedHandoff) return;
+     pendingState.current = workflowState;
+     const serialized = JSON.stringify(workflowState);
+     if (serialized === lastSavedPayload.current) return;
+@@ -299,7 +314,7 @@
+       }
+     }, 450);
+     return () => window.clearTimeout(timeout);
+-  }, [hydrated, loadError, sessionToken, workflowState, viewer.mode]);
++  }, [acceptedHandoff, hydrated, loadError, sessionToken, workflowState, viewer.mode]);
+ 
+   const activeIndex = steps.findIndex((step) => step.id === state.activeStep);
+   const activeStep = steps[activeIndex] ?? steps[0];
+@@ -401,6 +416,7 @@
+   }
+ 
+   if (!hydrated) return <AppLoading />;
++  if (acceptedHandoff && !loadError) return <AcceptedOnboardingSummary handoff={acceptedHandoff} onOpenMessages={requestHelp} notice={notice} />;
+ 
+   if (loadError) {
+     return (
+--- a/lib/hub-persistence.server.ts
++++ b/lib/hub-persistence.server.ts
+@@ -1,4 +1,5 @@
+ import "server-only";
++import { isGhlV1Run, parseAcceptedGhlHandoff, type AcceptedGhlHandoff } from "@/lib/ghl-accepted-handoff";
+ 
+ import type { AppViewer } from "@/lib/app-context";
+ import { createDefaultState, reconcileSavedState } from "@/lib/onboarding-defaults";
+@@ -48,6 +49,8 @@
+   primary_listing_entitlement: number;
+   child_listing_entitlement: number;
+   draft_payload: unknown;
++  submitted_payload: unknown;
++  submitted_at: string | null;
+ };
+ 
+ type HubAttachmentRow = {
+@@ -377,7 +380,7 @@
+ async function findHubRun(viewer: AppViewer, requestedRunId?: string) {
+   const clientId = await resolveHubClientId(viewer);
+   const params = new URLSearchParams({
+-    select: "id,external_key,revision,status,current_step,primary_listing_entitlement,child_listing_entitlement,draft_payload",
++    select: "id,external_key,revision,status,current_step,primary_listing_entitlement,child_listing_entitlement,draft_payload,submitted_payload,submitted_at",
+     client_id: `eq.${clientId}`,
+     status: "neq.archived",
+     order: "created_at.desc",
+@@ -391,12 +394,26 @@
+   return run;
+ }
+ 
++/** V1 is a read-only accepted handoff, never a synthetic legacy form draft. */
++export async function loadHubOnboardingView(viewer: AppViewer, requestedRunId?: string): Promise<
++  { kind: "ghl-v1"; handoff: AcceptedGhlHandoff } | { kind: "legacy"; state: SavedState }
++> {
++  if (viewer.mode !== "assembly") throw new HubPersistenceError("invalid", "An Assembly session is required.");
++  const run = await findHubRun(viewer, requestedRunId);
++  if (isGhlV1Run(run)) {
++    try { return { kind: "ghl-v1", handoff: parseAcceptedGhlHandoff(run) }; }
++    catch { throw new HubPersistenceError("invalid", "Your accepted onboarding summary is temporarily unavailable. Please contact the team."); }
++  }
++  return { kind: "legacy", state: await loadHubOnboardingState(viewer, requestedRunId) };
++}
++
+ export async function loadHubOnboardingState(viewer: AppViewer, requestedRunId?: string): Promise<SavedState> {
+   if (viewer.mode !== "assembly") {
+     throw new HubPersistenceError("invalid", "Hub persistence requires an Assembly session.");
+   }
+ 
+   const run = await findHubRun(viewer, requestedRunId);
++  if (isGhlV1Run(run)) throw new HubPersistenceError("locked", "This onboarding information has already been submitted. Its accepted information cannot be edited here.");
+   if (run.primary_listing_entitlement < 1) {
+     throw new HubPersistenceError("run-not-found", "This onboarding run is waiting for its Stripe entitlement.");
+   }
+@@ -442,7 +459,7 @@
+   attachment: { id: string; name: string; contentType: string; byteSize: number }
+ ) {
+   const run = await findHubRun(viewer, runId);
+-  if (run.status !== "draft") {
++  if (isGhlV1Run(run) || run.status !== "draft") {
+     throw new HubPersistenceError("locked", "Submitted onboarding files cannot be changed.");
+   }
+   const params = new URLSearchParams({ on_conflict: "run_id,assembly_file_id" });
+@@ -467,7 +484,7 @@
+   assemblyFileId: string
+ ) {
+   const run = await findHubRun(viewer, runId);
+-  if (run.status !== "draft") {
++  if (isGhlV1Run(run) || run.status !== "draft") {
+     throw new HubPersistenceError("locked", "Submitted onboarding files cannot be changed.");
+   }
+   const params = new URLSearchParams({
+@@ -554,9 +571,11 @@
+     select: "id,client_id,external_key,run_type,status,current_step,assembly_company_id,primary_listing_entitlement,child_listing_entitlement,draft_payload,submitted_payload,revision,last_saved_at,submitted_at,created_at",
+     status: "neq.archived",
+     order: "last_saved_at.desc",
++    external_key: "not.like.ghl-v1*",
+     limit: "100"
+   });
+-  const runs = await hubRequest<HubInternalRunRow[]>(`/onboarding_runs?${runParams}`);
++  // V1 records need their dedicated team review path; never reinterpret them as legacy answers.
++  const runs = (await hubRequest<HubInternalRunRow[]>(`/onboarding_runs?${runParams}`)).filter((run) => !isGhlV1Run(run));
+   if (runs.length === 0) return [];
+ 
+   const runIds = runs.map((run) => run.id);
+@@ -644,6 +663,9 @@
+   if (viewer.mode !== "assembly" || viewer.surface !== "internal" || !viewer.internalUserId) {
+     throw new HubPersistenceError("invalid", "An Assembly internal-user session is required.");
+   }
++  const [targetRun] = await hubRequest<HubRunRow[]>(`/onboarding_runs?${new URLSearchParams({ select: "external_key,submitted_payload", id: `eq.${runId}`, limit: "1" })}`);
++  if (!targetRun) throw new HubPersistenceError("run-not-found", "Onboarding run not found.");
++  if (isGhlV1Run(targetRun)) throw new HubPersistenceError("locked", "This accepted onboarding requires the current team review process. Contact its operations owner.");
+   if (!initialTasks.some((task) => task.id === taskKey)) {
+     throw new HubPersistenceError("invalid", "Unknown onboarding task.");
+   }
+@@ -671,6 +693,7 @@
+   }
+ 
+   const previousRun = await findHubRun(viewer, state.runId);
++  if (isGhlV1Run(previousRun)) throw new HubPersistenceError("locked", "This onboarding information has already been submitted. Contact the team to request a correction.");
+   const previous = previousRun.draft_payload && typeof previousRun.draft_payload === "object"
+     ? previousRun.draft_payload as Partial<SavedState>
+     : {};
+--- /dev/null
++++ b/lib/ghl-accepted-handoff.ts
+@@ -0,0 +1,36 @@
++import { z } from "zod";
++
++export type GhlV1RunIdentity = { external_key: string; submitted_payload: unknown };
++export function isGhlV1Run(run: GhlV1RunIdentity) {
++  const payload = run.submitted_payload;
++  return /^ghl-v1[:-]/.test(run.external_key)
++    || !!(payload && typeof payload === "object" && "version" in payload && payload.version === "rf.onboarding.v1");
++}
++const money = z.discriminatedUnion("mode", [
++  z.object({ mode: z.literal("specified"), value: z.number().finite().min(0) }),
++  z.object({ mode: z.literal("guidance") }), z.object({ mode: z.literal("none") })
++]);
++const stay = z.discriminatedUnion("mode", [
++  z.object({ mode: z.literal("specified"), nights: z.number().int().min(1).max(365) }),
++  z.object({ mode: z.literal("guidance") }), z.object({ mode: z.literal("none") })
++]);
++const acceptedPayload = z.object({
++  version: z.literal("rf.onboarding.v1"), journeyId: z.string().uuid(),
++  properties: z.array(z.object({
++    id: z.string().uuid(), name: z.string().min(1),
++    address: z.object({ street: z.string().min(1), unit: z.string().default(""), city: z.string().min(1), region: z.string(), postalCode: z.string(), country: z.string().length(2) }),
++    listingUrl: z.string().url().refine((url) => ["https:", "http:"].includes(new URL(url).protocol)).nullable(),
++    status: z.enum(["live", "pre_launch"]), targetLaunchDate: z.string().date().nullable(), identityConfirmed: z.literal(true),
++    preferences: z.object({ goal: z.enum(["revenue", "occupancy", "balanced", "guidance"]), minimumNightly: money, cleaningFee: money, minimumStay: stay, operatingConstraints: z.string() })
++  })).min(1).max(5),
++  software: z.object({ pmsName: z.string().nullable(), pms: z.enum(["done", "need_help", "not_applicable"]), airbnb: z.enum(["done", "need_help"]), pricelabs: z.enum(["done", "need_help"]) }),
++  expectationsAcknowledged: z.literal(true)
++});
++export type AcceptedGhlHandoff = z.infer<typeof acceptedPayload> & { submittedAt: string | null };
++export function parseAcceptedGhlHandoff(run: GhlV1RunIdentity & { status: string; submitted_at: string | null }): AcceptedGhlHandoff {
++  if (!["submitted", "in_review", "ready_for_launch", "live"].includes(run.status)) throw new Error("accepted_handoff_not_available");
++  const parsed = acceptedPayload.safeParse(run.submitted_payload);
++  if (!parsed.success || new Set(parsed.data.properties.map((p) => p.id)).size !== parsed.data.properties.length) throw new Error("accepted_handoff_invalid");
++  // Explicit schema projection strips pricing contracts, provider IDs, and internal notes.
++  return { ...parsed.data, submittedAt: run.submitted_at };
++}
+--- /dev/null
++++ b/components/accepted-onboarding-summary.tsx
+@@ -0,0 +1,45 @@
++import { ArrowRight } from "lucide-react";
++import type { AcceptedGhlHandoff } from "@/lib/ghl-accepted-handoff";
++
++export function AcceptedOnboardingSummary({ handoff: acceptedHandoff, onOpenMessages: requestHelp, notice }: {
++  handoff: AcceptedGhlHandoff; onOpenMessages: () => void; notice?: string;
++}) {
++    const goalLabels = { revenue: "Revenue", occupancy: "Occupancy", balanced: "Balanced revenue and occupancy", guidance: "Guidance requested" };
++    const statusLabel = { done: "Access shared — team verification pending", need_help: "Setup help requested", not_applicable: "Not applicable — team confirmation pending" };
++    const moneyLabel = (value: AcceptedGhlHandoff["properties"][number]["preferences"]["minimumNightly"]) => value.mode === "specified" ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value.value) : value.mode === "guidance" ? "Guidance requested" : "No firm restriction";
++    return (
++      <main className="app-shell">
++        <nav className="brand-nav" aria-label="RevFactor onboarding summary"><span className="wordmark">revfactor</span><span className="nav-pill soft">Information received</span></nav>
++        <section className="access-gate-panel" style={{ width: "min(100% - 32px, 900px)", margin: "32px auto", textAlign: "left" }}>
++          <p className="eyebrow">Your accepted onboarding</p>
++          <h1>Your property information is complete</h1>
++          <p>We have your onboarding information. You do not need to enter it again. Contact your team in Assembly Messages for software setup help or corrections.</p>
++          {acceptedHandoff.properties.map((property) => (
++            <section key={property.id} style={{ padding: "24px 0", borderTop: "1px solid #ddd" }} aria-label={property.name}>
++              <h2>{property.name}</h2>
++              <p>{Object.values(property.address).filter(Boolean).join(", ")}</p>
++              {property.listingUrl ? <p><a href={property.listingUrl} target="_blank" rel="noopener noreferrer">View your listing</a></p> : null}
++              <dl>
++                <dt>Property status</dt><dd>{property.status === "live" ? "Live" : "Preparing to launch"}</dd>
++                {property.status === "pre_launch" && property.targetLaunchDate ? <><dt>Target launch date</dt><dd>{new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(`${property.targetLaunchDate}T00:00:00Z`))}</dd></> : null}
++                <dt>Goal</dt><dd>{goalLabels[property.preferences.goal]}</dd>
++                <dt>Minimum nightly price</dt><dd>{moneyLabel(property.preferences.minimumNightly)}</dd>
++                <dt>Cleaning fee</dt><dd>{moneyLabel(property.preferences.cleaningFee)}</dd>
++                <dt>Minimum stay</dt><dd>{property.preferences.minimumStay.mode === "specified" ? `${property.preferences.minimumStay.nights} nights` : property.preferences.minimumStay.mode === "guidance" ? "Guidance requested" : "No firm restriction"}</dd>
++                {property.preferences.operatingConstraints ? <><dt>Operating constraints</dt><dd>{property.preferences.operatingConstraints}</dd></> : null}
++              </dl>
++            </section>
++          ))}
++          <section style={{ padding: "24px 0", borderTop: "1px solid #ddd" }} aria-label="Software setup">
++            <h2>Software setup</h2>
++            <p>{acceptedHandoff.software.pmsName || "PMS"}: {statusLabel[acceptedHandoff.software.pms]}</p>
++            <p>Airbnb: {statusLabel[acceptedHandoff.software.airbnb]}</p>
++            <p>PriceLabs: {statusLabel[acceptedHandoff.software.pricelabs]}</p>
++            <p>These are your submitted setup statuses. Access verification is separate from this information.</p>
++          </section>
++          <button className="primary-button" onClick={requestHelp}>Open Assembly Messages <ArrowRight size={16} /></button>
++          {notice ? <p role="status">{notice}</p> : null}
++        </section>
++      </main>
++    );
++}
+--- /dev/null
++++ b/lib/ghl-accepted-handoff.test.ts
+@@ -0,0 +1,118 @@
++import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
++import { createElement } from "react";
++import { renderToStaticMarkup } from "react-dom/server";
++vi.mock("server-only", () => ({}));
++const effects = vi.hoisted(() => ({ pdf: vi.fn(), upload: vi.fn() }));
++vi.mock("@/lib/assembly-session", () => ({ resolveAppAccess: async () => ({ ok: true, viewer: { mode: "assembly", surface: "client", companyId: "company", clientId: "client", workspaceId: "workspace", displayName: "Example Owner" } }) }));
++vi.mock("@/lib/assembly-notifications.server", () => ({ dispatchSubmissionNotifications: vi.fn() }));
++vi.mock("@/lib/assembly-files.server", () => ({ uploadClientLaunchPlan: effects.upload }));
++vi.mock("@/lib/handoff-pdf", () => ({ buildHandoffPdf: effects.pdf }));
++import { NextRequest } from "next/server";
++import { GET } from "@/app/api/onboarding/route";
++import { isGhlV1Run, parseAcceptedGhlHandoff } from "@/lib/ghl-accepted-handoff";
++import { AcceptedOnboardingSummary } from "@/components/accepted-onboarding-summary";
++import { loadHubInternalOnboardingQueue, loadHubOnboardingState, recordHubOnboardingAttachment, saveHubOnboardingState, verifyHubInternalOnboardingTask } from "@/lib/hub-persistence.server";
++import { createDefaultState } from "@/lib/onboarding-defaults";
++
++const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
++function run() {
++  return { id: id(1), external_key: `ghl-v1-${id(2)}`, client_id: "hub-client", revision: 1, status: "submitted", current_step: "review", primary_listing_entitlement: 1, child_listing_entitlement: 0, draft_payload: {}, submitted_at: "2026-09-04T12:00:00Z", submitted_payload: {
++    version: "rf.onboarding.v1", journeyId: id(2), expectationsAcknowledged: true,
++    properties: [{ id: id(3), name: "Property One", address: { street: "1 Example Street", unit: "", city: "Austin", region: "TX", postalCode: "00000", country: "US" }, listingUrl: "https://example.com/property", status: "live", targetLaunchDate: null, identityConfirmed: true, preferences: { goal: "guidance", minimumNightly: { mode: "guidance" }, cleaningFee: { mode: "specified", value: 150 }, minimumStay: { mode: "none" }, operatingConstraints: "Contact us before changing owner stays." }, billingAccountId: "private-billing-id" }],
++    software: { pmsName: null, pms: "not_applicable", airbnb: "need_help", pricelabs: "done" }, accounts: [{ secret: "private-commercial-data" }]
++  } };
++}
++const viewer = { mode: "assembly" as const, surface: "client" as const, companyId: "company", clientId: "client", workspaceId: "workspace", displayName: "Example Owner" };
++let rows: Array<Omit<ReturnType<typeof run>, "draft_payload" | "submitted_payload"> & { draft_payload: unknown; submitted_payload: unknown }> = [run()];
++let fetchMock = vi.fn<typeof fetch>();
++beforeEach(() => {
++  rows = [run()];
++  vi.stubEnv("REVFACTOR_SUPABASE_URL", "https://hub.invalid");
++  vi.stubEnv("REVFACTOR_SUPABASE_SERVICE_ROLE_KEY", "test-key");
++  effects.pdf.mockReset(); effects.upload.mockReset();
++  fetchMock = vi.fn<typeof fetch>(async (url) => {
++    const path = new URL(String(url)).pathname;
++    if (path.endsWith("/clients")) return Response.json([{ id: "hub-client", name: "Example Owner", assembly_company_id: "company" }]);
++    if (path.endsWith("/onboarding_runs")) return Response.json(rows);
++    return Response.json([]);
++  });
++  vi.stubGlobal("fetch", fetchMock);
++});
++afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
++
++describe("accepted GHL handoff compatibility", () => {
++  it("recognizes both identifier formats and the explicit payload version", () => {
++    expect(isGhlV1Run(run())).toBe(true);
++    expect(isGhlV1Run({ ...run(), external_key: `ghl-v1:${id(2)}` })).toBe(true);
++    expect(isGhlV1Run({ ...run(), external_key: "unusual-but-versioned" })).toBe(true);
++  });
++  it("projects accepted property answers without commercial or provider data", () => {
++    const result = parseAcceptedGhlHandoff(run());
++    expect(result.properties[0].address.street).toBe("1 Example Street");
++    expect(JSON.stringify(result)).not.toMatch(/billingAccountId|accounts|private-commercial/);
++  });
++  it("rejects malformed or draft V1 records instead of fabricating legacy answers", () => {
++    expect(() => parseAcceptedGhlHandoff({ ...run(), status: "draft" })).toThrow();
++    expect(() => parseAcceptedGhlHandoff({ ...run(), submitted_payload: {} })).toThrow();
++  });
++  it("returns the accepted view before any legacy PDF generation/upload", async () => {
++    const response = await GET(new NextRequest("https://example.com/api/onboarding", { headers: { authorization: "Bearer assembly-token" } }));
++    expect(response.status).toBe(200);
++    expect(await response.json()).toMatchObject({ kind: "ghl-v1", handoff: { properties: [{ name: "Property One" }] } });
++    expect(effects.pdf).not.toHaveBeenCalled();
++    expect(effects.upload).not.toHaveBeenCalled();
++    expect(fetchMock.mock.calls.every((call) => !call[1]?.method || call[1].method === "GET")).toBe(true);
++  });
++  it("handles the old colon run ID without invoking the legacy run schema", async () => {
++    rows[0].external_key = `ghl-v1:${id(2)}`;
++    const response = await GET(new NextRequest("https://example.com/api/onboarding", { headers: { authorization: "Bearer assembly-token" } }));
++    expect(response.status).toBe(200);
++    expect(effects.pdf).not.toHaveBeenCalled();
++  });
++  it("does not route V1 through the legacy saved-state loader", async () => {
++    await expect(loadHubOnboardingState(viewer)).rejects.toMatchObject({ code: "locked" });
++  });
++  it("rejects a legacy form save for an accepted V1 run before any RPC", async () => {
++    await expect(saveHubOnboardingState(viewer, createDefaultState("company", rows[0].external_key))).rejects.toMatchObject({ code: "locked" });
++    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "POST")).toBe(false);
++  });
++  it("rejects legacy attachment and verification mutations for V1", async () => {
++    await expect(recordHubOnboardingAttachment(viewer, rows[0].external_key, { id: "file", name: "x.pdf", contentType: "application/pdf", byteSize: 10 })).rejects.toMatchObject({ code: "locked" });
++    await expect(verifyHubInternalOnboardingTask({ ...viewer, surface: "internal", internalUserId: "team" }, rows[0].id, "pms")).rejects.toMatchObject({ code: "locked" });
++    expect(fetchMock.mock.calls.some((call) => call[1]?.method === "POST")).toBe(false);
++  });
++  it("excludes V1 before legacy queue parsing without failing the queue", async () => {
++    const result = await loadHubInternalOnboardingQueue({ ...viewer, surface: "internal", internalUserId: "team" });
++    expect(result).toEqual([]);
++    const query = fetchMock.mock.calls.map((call) => new URL(String(call[0]))).find((url) => url.pathname.endsWith("onboarding_runs"));
++    expect(query?.searchParams.get("external_key")).toBe("not.like.ghl-v1*");
++  });
++  it("keeps legacy clients in a mixed internal queue", async () => {
++    rows.push({ ...run(), id: id(99), external_key: "initial-existing", status: "draft", draft_payload: createDefaultState("company", "initial-existing"), submitted_payload: null });
++    const result = await loadHubInternalOnboardingQueue({ ...viewer, surface: "internal", internalUserId: "team" });
++    expect(result).toHaveLength(1);
++    expect(result[0].externalKey).toBe("initial-existing");
++    expect(result[0].state.runId).toBe("initial-existing");
++  });
++  it("renders prelaunch timing and human goal labels", () => {
++    const handoff = parseAcceptedGhlHandoff(run());
++    handoff.properties[0].status = "pre_launch";
++    handoff.properties[0].targetLaunchDate = "2026-10-15";
++    handoff.properties[0].preferences.goal = "balanced";
++    const html = renderToStaticMarkup(createElement(AcceptedOnboardingSummary, { handoff, onOpenMessages: () => undefined }));
++    expect(html).toContain("Preparing to launch");
++    expect(html).toContain("October 15, 2026");
++    expect(html).toContain("Balanced revenue and occupancy");
++  });
++  it("renders accepted properties and pending setup with no questionnaire inputs", () => {
++    const html = renderToStaticMarkup(createElement(AcceptedOnboardingSummary, { handoff: parseAcceptedGhlHandoff(run()), onOpenMessages: () => undefined }));
++    expect(html).toContain("Property One");
++    expect(html).toContain("1 Example Street");
++    expect(html).toContain("Setup help requested");
++    expect(html).toContain("Live");
++    expect(html).not.toContain("GHL");
++    expect(html).toContain("team verification pending");
++    expect(html).not.toMatch(/<input|<textarea|<select|<form/);
++    expect(html.match(/1 Example Street/g)).toHaveLength(1);
++  });
++});
