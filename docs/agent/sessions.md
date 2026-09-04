@@ -731,3 +731,7 @@ On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), adde
 
 - Extended the existing hashed, revocable `api_keys` scheme with the `market-map:read` scope. `/api/market-map` now accepts either a Hub session with `market_signals:view` or a server-side bearer key, while preserving the same explicit redacted projections and response contract.
 - The external map keeps the plaintext key only in its server-only `HUB_MARKET_MAP_TOKEN` environment variable and calls Hub through its own proxy. Hub stores only the SHA-256 digest, so rotation and revocation do not require a Hub environment change or expose the bearer token to client JavaScript.
+
+## 2026-09-04 — GHL post-call V1 implementation
+
+Built the isolated `codex/ghl-post-call-v1` draft: pre-Assembly journey, secure native-form context/save, commercial and owner identity verification, explicit acceptance, direct Granola importer, durable Assembly provisioning/activation, owned operational tasks and CRM progress. Added native GHL draft assets in the dedicated GHL workspace. TypeScript, targeted regression tests and local PostgreSQL rollback tests validate backend boundaries; no migrations/deployment/customer entry cutover yet. Native submit/upsert/resume, actual contract/payment fields, credentials and pilot remain launch gates. Updated plan, flow diagram, runbook and environment example.

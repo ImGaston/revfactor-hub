@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/sync-stripe",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/ghl-onboarding-v1",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/granola-import",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
