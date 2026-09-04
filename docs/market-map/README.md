@@ -1,10 +1,15 @@
 # RevFactor Market Map data contract
 
-The internal map consumes `GET /api/market-map` while authenticated with the
-`market_signals:view` permission. The response is read-only and intentionally
-redacted: it contains coordinates, city/state, assignment labels, provenance,
-and an opaque `map_key`; it never contains street addresses, client names,
-Airbnb URLs, or provider listing IDs.
+The internal map consumes `GET /api/market-map`. Hub users authenticate with a
+Supabase session carrying `market_signals:view`. Server-side consumers use an
+`Authorization: Bearer rvf_live_...` API key scoped to `market-map:read`. The
+consumer stores that key as `HUB_MARKET_MAP_TOKEN` in its server-only runtime
+and calls the Hub endpoint through its own server-side proxy; it must never
+expose the key to browser JavaScript, rendered HTML, logs, or the map payload.
+
+The response is read-only and intentionally redacted: it contains coordinates,
+city/state, assignment labels, provenance, and an opaque `map_key`; it never
+contains street addresses, client names, Airbnb URLs, or provider listing IDs.
 
 ```json
 {

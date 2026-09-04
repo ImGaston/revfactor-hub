@@ -726,3 +726,8 @@ Short rolling summaries of substantive agent work. Keep entries compact and dele
 # 2026-09-03 — Reconciliation build slice
 
 On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), added and tested `lib/market-signals/reconciliation.ts` plus four deterministic Vitest cases. Updated the university source audit and added `docs/market-signals/university-reconciliation-handoff.md`. No database, environment, provider, schedule, or pricing changes were made. Next step is review/integration of durable reconciliation run and delta persistence after the foundation production migration is approved.
+
+# 2026-09-04 — Market-map server-to-server authentication
+
+- Extended the existing hashed, revocable `api_keys` scheme with the `market-map:read` scope. `/api/market-map` now accepts either a Hub session with `market_signals:view` or a server-side bearer key, while preserving the same explicit redacted projections and response contract.
+- The external map keeps the plaintext key only in its server-only `HUB_MARKET_MAP_TOKEN` environment variable and calls Hub through its own proxy. Hub stores only the SHA-256 digest, so rotation and revocation do not require a Hub environment change or expose the bearer token to client JavaScript.
