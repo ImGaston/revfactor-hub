@@ -31,3 +31,7 @@ Keyboard review caught an existing overly broad Enter guard. It now suppresses d
 ## Installed verification
 
 Both final hosts were saved through the GHL builder and cold-reloaded. The recorded hashes match the build; `rf.native.design.1` and the submission guard are present, while synthetic fixtures are absent. Without a personal capability the native fields are disabled and the blank form/footer are hidden. Enter toggles Help. Actual native-widget synthetic checks preserved the saved property address/read-only fields, selected-property indicator and guarded Next; the account sidebar advanced to Final review. Native provider writes reaching transport remained zero. Desktop (1731px) and mobile (390px) checks found no horizontal overflow. See `evidence/native-design-final-proof.json` and `native-design-*-desktop.png` / `native-design-*-mobile.png`.
+
+## Official brand mark
+
+The sidebar uses the user-provided `RevFactor_Favicon_Bone.png`, preserved unchanged at `assets/revfactor-mark-bone.png`. The build embeds the transparent PNG directly in both hosts, avoiding an external image-host dependency. The placeholder RF monogram is removed. The official mark is contained at 38×51px on desktop and 30×40px on mobile, beside the existing RevFactor name.

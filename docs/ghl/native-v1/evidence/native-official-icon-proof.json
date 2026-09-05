@@ -1,0 +1,131 @@
+{
+  "capturedAt": "2026-09-05T01:31:53.916Z",
+  "installedSourceSha256": {
+    "property": "b9c08a875ee0669ae756a589647a842f2d8dfe636b399a70bf6a53978bec0e87",
+    "account": "f3f11ded821dd3939a8523d52d8d6f0a59ab2499da5737ffaa9fe73e74f6adba"
+  },
+  "property": {
+    "desktop": {
+      "fixture": false,
+      "guard": "installed",
+      "icon": {
+        "border": "0px",
+        "complete": true,
+        "height": "51px",
+        "naturalHeight": 2664,
+        "naturalWidth": 1986,
+        "objectFit": "contain",
+        "rect": {
+          "bottom": 128,
+          "height": 51,
+          "left": 262.5,
+          "right": 300.5,
+          "top": 77,
+          "width": 38,
+          "x": 262.5,
+          "y": 77
+        },
+        "width": "38px"
+      },
+      "presentation": "rf.native.design.1",
+      "url": "https://links.revfactor.io/widget/survey/VvcWqrwmq7wESZSfFBme",
+      "viewport": {
+        "height": 1197,
+        "scrollWidth": 1627,
+        "width": 1627
+      }
+    },
+    "mobile": {
+      "fixture": false,
+      "guard": "installed",
+      "icon": {
+        "border": "0px",
+        "complete": true,
+        "height": "40px",
+        "naturalHeight": 2664,
+        "naturalWidth": 1986,
+        "objectFit": "contain",
+        "rect": {
+          "bottom": 72,
+          "height": 40,
+          "left": 24,
+          "right": 54,
+          "top": 32,
+          "width": 30,
+          "x": 24,
+          "y": 32
+        },
+        "width": "30px"
+      },
+      "presentation": "rf.native.design.1",
+      "url": "https://links.revfactor.io/widget/survey/VvcWqrwmq7wESZSfFBme",
+      "viewport": {
+        "height": 844,
+        "scrollWidth": 375,
+        "width": 390
+      }
+    }
+  },
+  "account": {
+    "desktop": {
+      "fixture": false,
+      "guard": "installed",
+      "icon": {
+        "border": "0px",
+        "complete": true,
+        "height": "51px",
+        "naturalHeight": 2664,
+        "naturalWidth": 1986,
+        "objectFit": "contain",
+        "rect": {
+          "bottom": 128,
+          "height": 51,
+          "left": 262.5,
+          "right": 300.5,
+          "top": 77,
+          "width": 38,
+          "x": 262.5,
+          "y": 77
+        },
+        "width": "38px"
+      },
+      "presentation": "rf.native.design.1",
+      "url": "https://links.revfactor.io/widget/survey/CfTInIn60HazWmPD1Zf9",
+      "viewport": {
+        "height": 1197,
+        "scrollWidth": 1627,
+        "width": 1627
+      }
+    },
+    "mobile": {
+      "fixture": false,
+      "guard": "installed",
+      "icon": {
+        "border": "0px",
+        "complete": true,
+        "height": "40px",
+        "naturalHeight": 2664,
+        "naturalWidth": 1986,
+        "objectFit": "contain",
+        "rect": {
+          "bottom": 72,
+          "height": 40,
+          "left": 24,
+          "right": 54,
+          "top": 32,
+          "width": 30,
+          "x": 24,
+          "y": 32
+        },
+        "width": "30px"
+      },
+      "presentation": "rf.native.design.1",
+      "url": "https://links.revfactor.io/widget/survey/CfTInIn60HazWmPD1Zf9",
+      "viewport": {
+        "height": 844,
+        "scrollWidth": 375,
+        "width": 390
+      }
+    }
+  }
+}

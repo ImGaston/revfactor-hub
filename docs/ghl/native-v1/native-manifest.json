@@ -269,18 +269,20 @@
     {
       "kind": "property",
       "file": "dist/property-host.html",
-      "sha256": "079a4c49d359a75120135644a4b9680747cb129137838ab448d9e9b576d9ea7a",
+      "sha256": "b9c08a875ee0669ae756a589647a842f2d8dfe636b399a70bf6a53978bec0e87",
       "fixture": false
     },
     {
       "kind": "account",
       "file": "dist/account-host.html",
-      "sha256": "85746b38a078ce75cb6915810f13fc902bd71d4f683a82634e4698bc73081e73",
+      "sha256": "f3f11ded821dd3939a8523d52d8d6f0a59ab2499da5737ffaa9fe73e74f6adba",
       "fixture": false
     }
   ],
   "syntheticResumeVerified": true,
   "presentationVersion": "rf.native.design.1",
   "presentationInstalled": true,
-  "presentationEvidence": "evidence/native-design-final-proof.json"
+  "presentationEvidence": "evidence/native-design-final-proof.json",
+  "brandMarkAsset": "assets/revfactor-mark-bone.png",
+  "brandMarkEvidence": "evidence/native-official-icon-proof.json"
 }

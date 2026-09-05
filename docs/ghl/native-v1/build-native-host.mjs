@@ -4,7 +4,8 @@ import {validateHostConfig} from './native-host.mjs';
 const directory=fileURLToPath(new URL('.',import.meta.url));
 const apiOrigin=process.env.RF_NATIVE_REVIEWED_API_ORIGIN||'https://hub.revfactor.io';
 // Deployment-time configuration only. URL/query/fragment cannot choose endpoints.
-const common={apiOrigin,allowedApiOrigins:[apiOrigin],nativeOrigin:'https://links.revfactor.io',propertySurveyId:'VvcWqrwmq7wESZSfFBme',accountSurveyId:'CfTInIn60HazWmPD1Zf9'};
+const brandMarkDataUrl='data:image/png;base64,'+(await readFile(directory+'assets/revfactor-mark-bone.png')).toString('base64');
+const common={brandMarkDataUrl,apiOrigin,allowedApiOrigins:[apiOrigin],nativeOrigin:'https://links.revfactor.io',propertySurveyId:'VvcWqrwmq7wESZSfFBme',accountSurveyId:'CfTInIn60HazWmPD1Zf9'};
 const files=['native-presentation.mjs','native-property-adapter.mjs','native-account-adapter.mjs','native-host.mjs'];
 let source='';for(const file of files)source+=(await readFile(directory+file,'utf8')).replace(/^import .*;\n/gm,'').replace(/^export /gm,'')+'\n';
 await mkdir(directory+'dist',{recursive:true});
