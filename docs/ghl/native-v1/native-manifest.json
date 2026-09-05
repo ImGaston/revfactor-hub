@@ -269,15 +269,18 @@
     {
       "kind": "property",
       "file": "dist/property-host.html",
-      "sha256": "3afc81390201dba74739a4a201d4cd609fdb816ae6c44acada5f3244a2de8cf9",
+      "sha256": "079a4c49d359a75120135644a4b9680747cb129137838ab448d9e9b576d9ea7a",
       "fixture": false
     },
     {
       "kind": "account",
       "file": "dist/account-host.html",
-      "sha256": "5e3ac2fea3cd7b97debda216ab193a90d5104bf62b792b6c7f05a1247b6736fb",
+      "sha256": "85746b38a078ce75cb6915810f13fc902bd71d4f683a82634e4698bc73081e73",
       "fixture": false
     }
   ],
-  "syntheticResumeVerified": true
+  "syntheticResumeVerified": true,
+  "presentationVersion": "rf.native.design.1",
+  "presentationInstalled": true,
+  "presentationEvidence": "evidence/native-design-final-proof.json"
 }

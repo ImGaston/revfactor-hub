@@ -1,3 +1,4 @@
+import {mountOnboardingPresentation} from './native-presentation.mjs';
 import {FIELDS,propertyValues,normalizePreferences} from './native-property-adapter.mjs';
 import {ACCOUNT_FIELDS,accountValues,accountCommand,finalCommand} from './native-account-adapter.mjs';
 
@@ -94,7 +95,7 @@ export function installNativeGuard(win,root,{onNext,onSubmit,isReady,onBlocked})
   if(e.key==='Enter'||e.key===' '){
    const target=e.target?.closest?.(NAV);
    if(target){block(e);if(isReady()){if(target.matches('.ghl-submit-btn'))void onSubmit();else if(target.matches('.ghl-footer-next'))void onNext(()=>{win.queueMicrotask(()=>{replay=target;target.click();replay=null;});});else {replay=target;target.click();replay=null;}}}
-   else if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA')block(e);
+   else if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'&&e.target.closest?.('form'))block(e);
   }
  };
  const submit=e=>{if(e.target===root||root.contains(e.target))block(e);};
@@ -121,11 +122,12 @@ export function mountNativeHost(config,win=window,fetcher=win.fetch.bind(win)){
  const params=new URLSearchParams(win.location.hash.slice(1));let token=params.get('token'),propertyId=params.get('propertyId');
  win.history.replaceState(null,'',win.location.pathname+win.location.search);
  const panel=doc.getElementById('rf-native-status')||doc.createElement('section');panel.id='rf-native-status';panel.setAttribute('aria-live','polite');panel.style.cssText='max-width:760px;margin:20px auto;padding:16px;background:#f4f7fb;border-radius:12px;color:#17233b;font:16px/1.5 system-ui';
- const title=doc.createElement('strong'),message=doc.createElement('p'),nav=doc.createElement('nav');panel.replaceChildren(title,message,nav);
+ const title=doc.createElement('h1'),identity=doc.createElement('p'),message=doc.createElement('p'),nav=doc.createElement('nav');identity.className='rf-property-identity';panel.replaceChildren(title,identity,message,nav);
+ let presentation;
  let form,session,ready=false,busy=false,dirty=false,hydrating=false,hydrated=new WeakSet(),observer;
  let activeWork=null;let formValues={};const ids=config.kind==='property'?FIELDS:ACCOUNT_FIELDS;
  const uuid=()=>win.crypto.randomUUID();
- const say=(text)=>{message.textContent=text;};
+ const say=(text)=>{message.textContent=text;presentation?.sync(session?.context);};
  const capture=()=>{
   for(const [key,id]of Object.entries(ids)){
    const plain=doc.getElementById(id);if(plain)formValues[key]=plain.value;
@@ -145,6 +147,8 @@ export function mountNativeHost(config,win=window,fetcher=win.fetch.bind(win)){
      if(el.type==='radio'){el.checked=value!==''&&el.value===value;if(el.checked)el.dispatchEvent(new win.Event('change',{bubbles:true}));}
      else {const setter=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value')?.set;if(setter)setter.call(el,value);else el.value=value;el.dispatchEvent(new win.Event('input',{bubbles:true}));el.dispatchEvent(new win.Event('change',{bubbles:true}));}
      if(['name','street','unit','city','region','postalCode','country','email','journeyId','propertyId','revision','eventId'].includes(key))el.readOnly=true;
+     if(['name','street','unit','city','region','postalCode','country'].includes(key))el.closest('.form-field-wrapper')?.classList.add('rf-known-identity');
+     if(['journeyId','propertyId','revision','eventId'].includes(key))el.closest('.form-field-wrapper')?.classList.add('rf-code-only');
      if(key==='minimumStay'){el.min='1';el.max='365';el.step='1';}
     }
    }
@@ -152,9 +156,9 @@ export function mountNativeHost(config,win=window,fetcher=win.fetch.bind(win)){
  };
  const navigate=(url)=>{const target=new URL(url);if(target.pathname===win.location.pathname){win.location.replace(url);win.location.reload();}else win.location.assign(url);};
  const renderNavigation=()=>{
-  nav.replaceChildren();if(!session?.context)return;
+  presentation?.sync(session?.context);nav.replaceChildren();if(!session?.context)return;
   for(const [index,p] of session.context.properties.entries()){
-   const button=doc.createElement('button');button.type='button';button.textContent='Review property '+(index+1)+': '+p.name+(p.address.unit?' — unit '+p.address.unit:'');button.style.margin='4px';button.disabled=busy;
+   const button=doc.createElement('button');button.type='button';button.textContent='Review property '+(index+1)+': '+p.name+(p.address.unit?' — unit '+p.address.unit:'');button.style.margin='4px';button.disabled=busy;button.setAttribute('aria-pressed',String(config.kind==='property'&&p.id===propertyId));
    button.addEventListener('click',()=>{if(busy||dirty||session.hasPending){say('Save this step before switching properties.');return;}navigate(session.nativeUrl('property',p.id));});nav.append(button);
   }
   if(config.kind==='property'){
@@ -198,8 +202,10 @@ export function mountNativeHost(config,win=window,fetcher=win.fetch.bind(win)){
   form.before(panel);title.textContent=config.kind==='property'?'Review your property':'Software and final review';say('Loading your saved onboarding details…');
   installNativeGuard(win,form.parentElement,{onNext:next,onSubmit:submit,isReady:()=>ready&&!busy,onBlocked:()=>{doc.documentElement.dataset.rfNativeGuardBlocks=String(Number(doc.documentElement.dataset.rfNativeGuardBlocks||0)+1);}});
   doc.documentElement.dataset.rfNativeGuard='installed';
+  presentation=mountOnboardingPresentation(win,form.parentElement,config,panel);
+  if(config.kind==='property')doc.getElementById('el_'+config.propertySurveyId+'_html_3')?.closest('.form-field-wrapper')?.classList.add('rf-code-only');
   form.addEventListener('input',()=>{if(!hydrating){dirty=true;capture();}});form.addEventListener('change',()=>{if(!hydrating){dirty=true;capture();}});
-  observer=new win.MutationObserver(()=>{setControls();});observer.observe(form,{childList:true,subtree:true});
+  observer=new win.MutationObserver(()=>{setControls();presentation?.sync(session?.context);});observer.observe(form,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class','hidden']});
   lock();
   try{
    if(win.location.origin!==config.nativeOrigin)throw Error('Use the original RevFactor onboarding link.');
@@ -210,8 +216,8 @@ export function mountNativeHost(config,win=window,fetcher=win.fetch.bind(win)){
     formValues={...propertyValues(context,propertyId),...preferenceValues(property.preferences)};
     // Prior confirmation is displayed on resume, never fabricated for a new property.
     formValues.confirmation=property.identityConfirmed?'These property details are correct':'';
-    title.textContent=property.name+' — '+Object.values(property.address).filter(Boolean).join(', ');
-   }else {formValues=accountValues(context);title.textContent='Software and final review — '+context.email;}
+    title.textContent='Review your property';identity.textContent=property.name+' — '+Object.values(property.address).filter(Boolean).join(', ');
+   }else {formValues=accountValues(context);title.textContent='Connect your tools';identity.textContent=context.email;}
    ready=context.stage==='onboarding';setControls();
    if(config.kind==='account'){const email=doc.getElementById('email');if(email){email.value=context.email||'';const wrapper=email.closest('[id^="el_"]');if(wrapper)wrapper.hidden=true;}}
    lock();renderNavigation();dirty=false;

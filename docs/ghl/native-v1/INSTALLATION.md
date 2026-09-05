@@ -70,3 +70,9 @@ node native-account-adapter.test.mjs
 ```
 
 The jsdom package is a local test-only runtime. Override its module path with `RF_NATIVE_JSDOM_MODULE` when using another installed runtime.
+
+## Visual design layer
+
+The approved reference is implemented by `native-presentation.mjs` plus scoped `native-presentation.css`, bundled into the existing hosts. Desktop uses a cedar progress sidebar with sticky content and a white form panel; mobile uses a current-step label and compact rail. Known name/address appear once in the trusted summary, with redundant read-only native wrappers hidden after hydration. Native controls and the form/footer guard boundary stay intact. Help explains existing assistance and resume paths; it does not create a task or schedule a call.
+
+Run `node --test native-host.test.mjs native-presentation.test.mjs` (15 tests) and both adapter scripts. The final visual-installation evidence is separate from the earlier synthetic business-flow evidence and does not establish production pilot readiness.

@@ -488,3 +488,7 @@ User approved the native draft experience and controlled activation/testing. Fut
 ## 2026-09-04 — Native controls with canonical Hub persistence
 
 The installed native questionnaire path intercepts navigation and final submit and saves exclusively through the capability-protected Hub endpoints. Native GHL form writes, including Next telemetry writes, are blocked. This supersedes the earlier native custom-object upsert feasibility gate. Accepted state resumes from the original capability link; native local drafts/sticky contacts/partial contact creation are disabled for these two V1 surveys. Actual native-widget synthetic evidence is distinct from the still-pending real Hub pilot.
+
+## 2026-09-04 — Native onboarding presentation redesign
+
+User approved adapting a five-step sidebar/white-form reference to native GHL using RevFactor colors. Add a scoped presentation layer inside the existing guarded survey wrapper; retain native controls and capture containment. Progress derives from accepted context and the actual native active slide. Mobile uses a compact rail. Help is an explanatory disclosure, not a booking action; optional onboarding calls remain deferred.

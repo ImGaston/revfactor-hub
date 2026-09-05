@@ -98,3 +98,11 @@ test('native telemetry and direct provider write paths cannot reach a transport'
  const xhr=new w.XMLHttpRequest();xhr.open('POST','https://backend.leadconnectorhq.com/forms/submit');assert.throws(()=>xhr.send(''),/disabled/);
  const form=w.document.querySelector('form');guard.blockDirectFormSubmit(form);form.submit();assert.equal(w.document.documentElement.dataset.rfNativeBlockedTransports,'4');w.close();
 });
+
+test('Enter remains available for help and host navigation outside the native form',()=>{
+ const {window}=new JSDOM('<div class="ghl-form-wrap"><aside><details><summary>Need help</summary></details></aside><nav><button>Review property</button></nav><form><input></form></div>');
+ const root=window.document.querySelector('.ghl-form-wrap');
+ installNativeGuard(window,root,{onNext:()=>{},onSubmit:()=>{},isReady:()=>true});
+ for(const selector of ['summary','nav button']){const event=new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});root.querySelector(selector).dispatchEvent(event);assert.equal(event.defaultPrevented,false);}
+ const event=new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});root.querySelector('input').dispatchEvent(event);assert.equal(event.defaultPrevented,true);
+});

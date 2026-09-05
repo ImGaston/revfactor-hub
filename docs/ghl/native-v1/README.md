@@ -27,3 +27,7 @@ A real allowed pilot save/resume has not run: it requires the agreed test inbox/
 ## Evidence
 
 `evidence/native-property-host-proof.json`, `native-account-host-proof.json`, `native-email-summary-proof.json`, and `native-host-installed-proof.json` distinguish synthetic flow proof from final installed state. Screenshots and the earlier schema/feasibility evidence are retained in `evidence/`.
+
+## Visual refresh
+
+The scoped presentation layer adds the approved desktop sidebar, mobile progress rail, known-property summary and help disclosure in RevFactor colors. See [design notes](DESIGN.md). Build includes `native-presentation.mjs` and `native-presentation.css`; run `node --test native-presentation.test.mjs` alongside the existing guard tests. The refreshed host hashes are recorded in `native-manifest.json`; `evidence/native-design-final-proof.json` records cold verification of both installed hosts with no fixture present.
