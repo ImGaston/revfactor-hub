@@ -132,3 +132,22 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `docs/market-signals/market-registry-census.md` — aggregate PriceLabs/Hub inventory census, proposed market/locality clusters, ambiguity flags, and a governed 1000-listing backfill contract.
 - `docs/market-signals/foundation-deployment-runbook.md` — exact five-migration release order, isolated-manifest gate, aggregate verifier, invariants, rollback, and activation boundary.
 - `docs/analysis/event-intelligence/` — aggregate, secret-free August 21, 2026 case-study evidence: PriceLabs portfolio/location profile, five-market PredictHQ sample, executed notebook, validation note, canonical report payload, and verified portable HTML report. Listing names, IDs, notes, and API credentials are excluded.
+
+## Native GHL onboarding V1 (disabled draft)
+
+- `lib/ghl-onboarding-v1/`: provider-bound identity, strict journey/commercial acceptance, capability context/save, control, durable Assembly worker and CRM progress projection.
+- Private `/api/webhooks/highlevel/onboarding-v1`; capability `/api/public/highlevel/onboarding-v1/{context,save}`; protected `/api/cron/{ghl-onboarding-v1,granola-import}`.
+- Additive migrations `20260904*`: journey, commercial binding, events/jobs/checkpoints/exceptions, Granola internal persistence and trusted appointment map, operational normalization and control RPCs.
+- `lib/granola/`: direct API importer with deterministic eligible appointment matching.
+- `scripts/tests/ghl-onboarding-v1.sql`: transaction/rollback PostgreSQL integration suite for the new ledger.
+- Deployment/runbook and gate checklist: `docs/ghl/onboarding-v1-runbook.md`; product scope/flow/timeline: `PROJECT-PLAN.md`.
+
+## 2026-09-04 — V1 onboarding team review and controlled pilot
+
+`/onboarding/v1` reads a permission-gated, explicit SQL projection of accepted property/software context from the immutable V1 journey snapshot. Mobile uses stacked cards; desktop uses a task table. The server action requires `onboarding:edit`; the verification RPC repeats that check, compares the expected task timestamp, locks journey then task, and records immutable actor/time/evidence together with verification. A trigger blocks unaudited verification and V1 task identity moves; ordinary legacy tasks retain their behavior. `ghl_onboarding_task_verifications_v1` is the new audit table. The existing `/onboarding` page links to the new screen.
+
+`GHL_V1_ROLLOUT_MODE` defaults to `pilot`; `GHL_V1_PILOT_CONTACT_IDS` is an exact server-side allowlist enforced for enrollment, client access and provider workers. The seven V1 migrations are applied to the independently confirmed production Hub database, with zero journeys/jobs at verification. Application activation and a real pilot remain pending. See `docs/ghl/pilot-checklist.md` and `pilot-database-deployment.json`.
+
+### Native onboarding presentation
+
+`docs/ghl/native-v1/native-presentation.mjs` and `.css` are bundled into the GHL survey hosts by `build-native-host.mjs`. They provide the responsive sidebar/progress/help layer; `native-host.mjs` still owns capability hydration, guarded navigation and saves. These assets are installed inside GHL and are not a separate Next.js customer route.

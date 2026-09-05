@@ -1,0 +1,42 @@
+> PR review snapshot: the full recovered source and preparation script live at `/Users/fedezimermacbookpro/Documents/revfactor-assembly-v1-compat/`. Run preparation from that directory. This Hub folder contains the patch and provenance manifests, not a second copy of the Assembly app.
+
+# Assembly compatibility release: verified production source
+
+Production source provenance is now resolved. On 2026-09-04, the authenticated official Vercel `GET /v6/deployments/{id}/files` and `GET /v8/deployments/{id}/files/{fileId}` endpoints returned the exact uploaded source for deployment `dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7`. Every recovered file's SHA-1 matches its Vercel file ID. The tree contains 87 normal source/config/static assets. `.env.example`, Supabase temporary configuration, documentation, sample PDFs and incremental build outputs were excluded. No environment secret values were read or exported. Application credential-helper TypeScript is ordinary source code, not exported credentials.
+
+Project: `prj_lUfk2kJlOQUjhmr9qrxLB3zs0Rox`, team `team_KH7QkxPBByGDKOyHqid6lH3h`, name `revfactor-onboarding-app`. Current aliases include `onboarding.revfactor.io` and `revfactor-onboarding-app.vercel.app`. CLI metadata reports git SHA `60fd783d8b4c09287ca2914bfd9a236d7aa8f075` and `gitDirty=1`; recovery confirms that the current dirty local checkout has later changes that are absent in production.
+
+`production-source/` is the unmodified recovered baseline. `production-release/` contains only six changed/new files for accepted onboarding compatibility. `production-source-manifest.json` records source identities and exclusions. `production-release-manifest.json` records release hashes. `assembly-v1-production-compatibility.patch` is the reviewable patch against the actual deployed source. The earlier `assembly-v1-compatibility.patch` is superseded for deployment; it remains an audit artifact against the current local dirty files.
+
+The rebased patch preserves the deployed Assembly-only session behavior. It does not include local GHL signup/session/provisioning changes. Every `/start` and signup route/component matches deployed bytes. Accepted V1 records receive a read-only property/software summary and bypass legacy draft construction, autosave and PDF generation. V1 saves, attachments and legacy task changes are rejected. The legacy internal queue excludes V1 safely; V1 team task review remains a separate implementation and verification gate.
+
+## Validation completed
+
+- Full recovered app suite: 83 tests across 14 files, including 12 compatibility regressions.
+- TypeScript and targeted ESLint passed.
+- `next build --webpack` passed with a clean environment containing no provider credentials. The local build used a dependency symlink; its source package and lock files exactly match deployment. A warning identified the parent artifact's additional lockfile, so deploy only a separately materialized release, never the artifact root.
+- Original local checkout remains untouched. No deployment, client invite, provider mutation, alias change or email occurred.
+- Independently materialized `/Users/fedezimermacbookpro/Documents/revfactor-assembly-v1-release-verified` with fresh `npm ci`: all 83 tests and the default `npm run build` (Turbopack) pass. This removes the dependency-symlink and parent-lockfile caveats for the prepared release. Production alias was rechecked and still points to the same recovered deployment.
+- The unchanged deployed lockfile has npm audit findings (Next.js, sharp, PostCSS and transitive build tooling). No dependency upgrades were mixed into this compatibility patch; root should account for these existing findings in release readiness.
+- No authenticated Assembly iframe/browser test has been performed. The customer compatibility feature flag must remain disabled until that test passes on the installed app.
+
+## Reproducible preparation and controlled test deployment
+
+1. Run `python3 prepare-production-release.py /absolute/path/to/new-clean-release` from this artifact directory. It verifies every source hash first, copies only the 90 reviewed files, adds the verified nonsecret `.vercel/project.json`, and excludes local env/dependencies/build outputs from upload. It refuses to overwrite an existing directory or create a nested release. No original checkout files are used.
+2. In the new directory, run `npm ci`, `npm test`, `npm run typecheck`, and `npm run build`. Re-run lint for the six patch files. Keep the existing project link; do not auto-link another project.
+3. Root must verify preview environment configuration before deploying: exact intended Hub database/schema and controlled Assembly test account, no production signup/payment/webhook/notification secrets inadvertently available to exercised endpoints. Do not pull/export production secrets. This is a separate gate; source provenance alone does not clear it.
+4. Recheck production using `vercel inspect https://revfactor-onboarding-app.vercel.app`. If its deployment ID has changed, recover/reconcile that newer baseline before any production release.
+5. Once the environment gate is cleared, `vercel deploy --target=preview --yes` from the prepared directory creates a preview without moving production aliases. This command has not been run. Use `vercel curl /api/health/ready --deployment <returned-preview-url>` through the existing protection; never disable deployment protection. Production-mode readiness requires existing integration configuration and is not a substitute for authenticated V1 flow verification.
+6. Test an explicitly controlled Assembly account/session against the preview: accepted property identity and address exactly once, software status wording, no old intake controls, no save POST, no PDF/upload, correct company scoping, Messages route, malformed V1 record fails safely, and unaffected ordinary legacy client/internal queue. Verify V1 team task review separately. Do not invite a customer to make this test happen.
+7. Production deployment/promotion and `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=true` remain root-controlled after all pilot/native/DB/team gates pass. Keep `dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7` as the observed rollback reference, rechecking aliases first. No production command is authorized by this artifact.
+
+## 2026-09-04 — Restricted preview deployed
+
+The user explicitly authorized deployment in the continuation task. Verified all 90 source SHA-256 hashes in `/Users/fedezimermacbookpro/Documents/revfactor-assembly-v1-release-verified` against the reviewed manifest and rechecked the production alias before deploying.
+
+- Preview: `dpl_VrAMmWj7bd3wMDiScBdkMTUPapJb`, READY. [Deployment](https://vercel.com/federico-zimermans-projects/revfactor-onboarding-app/VrAMmWj7bd3wMDiScBdkMTUPapJb).
+- Enforced `REVFACTOR_APP_MODE=production` and explicitly configured the confirmed Hub database through authorized server configuration. No Vercel Secret exports were attempted. Existing Assembly app credential stays server-side.
+- Deployment-only overrides blank Stripe payment/webhook, Assembly workspace/general API, notification-recipient, HighLevel API/pilot and native-payment webhook credentials. These are restricted read-only verification settings, not a production configuration; do not promote this deployment.
+- `/api/health/ready` returns production mode, `hub=true`, `schema=true`, `assembly=true`; overall readiness is intentionally false because commercial/send integrations are disabled. `/api/pilot/ghl/ready` reports Stripe unconfigured and HighLevel disabled. `/api/onboarding` without a session returns 401. Browser root displays “Open this app from Assembly.”
+- Production aliases were rechecked after deployment and still point to `dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7`. No client invitation, signup, save, PDF or notification was exercised.
+- Authenticated accepted-V1 portal walkthrough remains pending, so `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED` remains false.

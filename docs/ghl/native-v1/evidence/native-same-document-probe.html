@@ -1,0 +1,13 @@
+<div id="rf-v1-probe">Draft feasibility check pending</div>
+<script>
+(function(){
+ const marker=document.getElementById("rf-v1-probe");
+ const native=document.getElementById("OpPuXQ2VNvurWTvVVWmd");
+ const fixture=document.createElement("form");
+ fixture.addEventListener("submit",function(e){e.preventDefault();e.stopImmediatePropagation();},true);
+ const blocked=!fixture.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}));
+ marker.textContent="Draft proof: script executed; native PMS="+Boolean(native)+"; synthetic submit blocked="+blocked;
+ marker.dataset.sameDocument=String(Boolean(native));
+ marker.dataset.syntheticBlocked=String(blocked);
+})();
+</script>

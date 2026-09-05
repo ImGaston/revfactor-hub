@@ -386,3 +386,19 @@ The Hub's only outbound API. Consumer: the external marketing team's tracking st
 - Every privileged cron route fails closed when `CRON_SECRET` is absent as well as when the bearer value is wrong; a missing deployment variable must never turn a sync endpoint into an unauthenticated route.
 - The daily PriceLabs cron enqueues `inventory_refresh` for every active managed market after its listing/report work. These jobs recalculate vulnerability and fill cached briefs without calling any event provider, so the 90-day PredictHQ beta can be removed or allowed to expire without disabling inventory-only rescoring.
 - GDELT/news and official-feed adapters remain unwired. There is still no external notification, automatic Adjustment mutation, PriceLabs write, PMS write, or OTA write.
+
+## GHL V1 handoff and Granola (not live)
+
+This draft introduces an opt-in scheduled Assembly provisioning path separate from the existing on-demand Assembly UI. Default-disabled feature flags independently gate journey endpoints, Assembly writes, GHL progress writes and Granola reads. Native GHL document `fillableFields` must prove legal name and itemized addresses; exact invoice/Stripe linkage must be configured from real provider evidence. Assembly create/invite intents persist before writes and uncertain outcomes require reconciliation. Portal first login is separate from software verification. Granola keys remain server-side; only summaries are projected into private persistence, not transcripts/private notes or outbound CRM messages. Trusted sales appointment mapping is explicitly required. See the V1 runbook for deployment gates and recovery.
+
+## 2026-09-04 — Live GHL document pagination limit
+
+The authenticated v3 `GET /proposals/document` endpoint returns HTTP 422 for `limit=100` with the message that limit must not exceed 21. A `limit=21` request succeeds. V1 uses 21-record pages, exact bound document-ID matching and a 25-second overall lookup budget. This is a live-provider finding; the public API reference currently lists a numeric limit without the maximum.
+
+## 2026-09-04 — Native GHL host behavior
+
+Both V1 survey scripts are installed; client origin is `https://links.revfactor.io`, backend origin is `https://hub.revfactor.io` (runtime still disabled). The native footer is outside `form#_builder-form`; capture the form parent boundary. Next emits a native tracking POST even when partial contact creation is disabled, so the host blocks native provider writes. Hydration dispatches radio change only for the checked choice. Native email rerender resets visible input, so show authenticated email read-only in the host. No GHL object upsert is used; Hub owns persisted answers. See `docs/ghl/native-v1/INSTALLATION.md`.
+
+## 2026-09-04 — GHL sender-filled draft semantics
+
+Authenticated inspection of a recipient-free, unsigned document draft shows sender-entered TextFields can have `hasCompleted=true`. Keep completed document status and the exact completed signer as independent commercial gates. The observed text field API `fieldId` (`text_field_2`/`text_field_3`) differs from its UUID `id` used by the editor DOM. Manual sender entry survives save and native preview; automated journey prefill and completed-document field mapping remain unverified. See `docs/ghl/pilot-contract-scope-evidence.md`.

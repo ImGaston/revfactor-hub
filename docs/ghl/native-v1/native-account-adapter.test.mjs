@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {accountCommand,finalCommand} from './native-account-adapter.mjs';
+const context={journeyId:'test-journey',revision:1,stage:'onboarding',missing:[],expectationsAcknowledged:true,properties:[{identityConfirmed:true,preferences:{goal:'guidance'}}]};
+assert.deepEqual(accountCommand(context,{pms:'Not applicable',pmsName:'stale name',airbnb:'Need help',pricelabs:'Done',expectations:'I understand and confirm'},'event').software,{pmsName:null,pms:'not_applicable',airbnb:'need_help',pricelabs:'done'});
+assert.throws(()=>accountCommand(context,{pms:'Done',airbnb:'Done',pricelabs:'Done'},'event'),/Name your PMS/);
+assert.deepEqual(accountCommand(context,{pms:'Need help',pmsName:'',airbnb:'Done',pricelabs:'Need help'},'event').software,{pmsName:null,pms:'need_help',airbnb:'done',pricelabs:'need_help'});
+assert.throws(()=>accountCommand(context,{pms:'Not applicable',airbnb:'Not applicable',pricelabs:'Done'},'event'),/each tool/);
+assert.equal(finalCommand(context,'I reviewed all properties and want to submit onboarding','event').action,'submit');
+assert.throws(()=>finalCommand({...context,missing:['property:a:preferences']},'I reviewed all properties and want to submit onboarding','event'),/remaining/);
+assert.throws(()=>finalCommand({...context,properties:[{identityConfirmed:false}]},'I reviewed all properties and want to submit onboarding','event'),/every property/);
+assert.throws(()=>finalCommand(context,'I still need to review my properties','event'),/Review all/);
+console.log('Account adapter tests passed: software status normalization, PMS conditional requirement, explicit final review and complete-property gate.');
+
+const {accountValues,takeAccountFragmentContext}=await import('./native-account-adapter.mjs');
+const hydrated=accountValues({email:'synthetic@example.invalid',journeyId:'j',revision:2,software:{pmsName:'Test PMS',pms:'done',airbnb:'need_help',pricelabs:'done'}});
+assert.equal(hydrated.email,'synthetic@example.invalid');assert.equal(hydrated.pms,'Done');assert.equal(hydrated.expectations,'');assert.equal(hydrated.finalReview,'');
+assert.deepEqual({pmsName:hydrated.pmsName,pms:hydrated.pms,airbnb:hydrated.airbnb,pricelabs:hydrated.pricelabs},{pmsName:'Test PMS',pms:'Done',airbnb:'Need help',pricelabs:'Done'});
+const noPms=accountValues({email:'synthetic@example.invalid',journeyId:'j',revision:2,software:{pmsName:'stale PMS',pms:'not_applicable',airbnb:'done',pricelabs:'need_help'},expectationsAcknowledged:true});
+assert.equal(noPms.pmsName,'');assert.equal(noPms.pms,'Not applicable');assert.equal(noPms.expectations,'');assert.equal(noPms.finalReview,'');
+const unknownPms=accountValues({email:'synthetic@example.invalid',journeyId:'j',revision:2,software:{pmsName:null,pms:'need_help',airbnb:'done',pricelabs:'need_help'}});assert.equal(unknownPms.pms,'Need help');assert.equal(unknownPms.pmsName,'');
+assert.throws(()=>accountValues({journeyId:'j',revision:2,software:{pmsName:null,pms:'done',airbnb:'done',pricelabs:'done'}}),/Saved software setup is invalid/);
+assert.throws(()=>accountValues({journeyId:'j',revision:2,software:{pms:'done',airbnb:'not_applicable',pricelabs:'done'}}),/Saved software setup is invalid/);
+let cleanUrl;assert.deepEqual(takeAccountFragmentContext({hash:'#token=synthetic-token-value',pathname:'/guide',search:''},{replaceState:(_a,_b,url)=>cleanUrl=url}),{token:'synthetic-token-value'});assert.equal(cleanUrl,'/guide');

@@ -1,0 +1,44 @@
+{
+  "projectRef": "xpfjjcwgbjsdxdhyrcxd",
+  "bundleSha256": "a1fcc594818c70c6d6d984c372f0dc1bf801bcb2619e206480058ccc894e0948",
+  "migrations": [
+    {
+      "file": "20260904120000_ghl_native_onboarding_v1.sql",
+      "sha256": "cce8a5012cec8b739e028d20ce35fa5087d6489b337440fc70600d022a8bdbbb"
+    },
+    {
+      "file": "20260904123000_granola_import.sql",
+      "sha256": "1ba49f4bd88f42c7cc31df795d678031fa897c8d96874128babf89901276fa3f"
+    },
+    {
+      "file": "20260904124000_ghl_onboarding_workers.sql",
+      "sha256": "21e2874cc87213b92e3f7ba8659ae148c6620db6f599180e78a4dc374d2e88bf"
+    },
+    {
+      "file": "20260904125000_ghl_onboarding_operations.sql",
+      "sha256": "0174befd17981e5fc7b770068edc4bcf90a6e83f1ca1c294b8bd19bd248dde37"
+    },
+    {
+      "file": "20260904126000_ghl_onboarding_progress.sql",
+      "sha256": "61681ade9a4a6799174bfee2fd91f57fb6a70b40547c54165638c3de18ce632f"
+    },
+    {
+      "file": "20260904127000_ghl_onboarding_control.sql",
+      "sha256": "f91b42d632428e190f22a9056ef54d7aa965c87d52ab3bdb9a14b7228389c35d"
+    },
+    {
+      "file": "20260904128000_ghl_onboarding_team_review.sql",
+      "sha256": "189ed2f299f3d049b1f676c1f734082e5a6f15569aeeb4baef86d56fa73ff34b"
+    }
+  ],
+  "appliedAt": "2026-09-04T23:21:20.366609+00:00",
+  "verification": {
+    "migrationsRecorded": 7,
+    "journeys": 0,
+    "jobs": 0,
+    "verifications": 0,
+    "anonymousReviewAllowed": false,
+    "anonymousVerificationAllowed": false,
+    "verificationGuardPresent": true
+  }
+}

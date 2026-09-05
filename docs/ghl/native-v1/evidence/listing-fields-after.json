@@ -1,0 +1,745 @@
+{
+  "fields": [
+    {
+      "id": "BTVvr4WB4I1LqmgF8sRg",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.listing_name",
+      "name": "Listing name",
+      "dataType": "TEXT",
+      "position": 50,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:41:19.844Z",
+      "dateUpdated": "2026-08-27T18:41:19.844Z"
+    },
+    {
+      "id": "7eVnFHeVyxCuIpnvwmlp",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_listing_submission_id",
+      "name": "RF Listing Submission ID",
+      "dataType": "TEXT",
+      "description": "Stable idempotency key for one listing submission.",
+      "position": 100,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:42:16.240Z",
+      "dateUpdated": "2026-08-27T18:42:16.240Z"
+    },
+    {
+      "id": "e2xaHJJ6Mq7DcI7v5xGp",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.parent_listing_name_or_id",
+      "name": "Parent listing name or ID",
+      "dataType": "TEXT",
+      "description": "Required for child listings; Hub resolves the parent association.",
+      "position": 150,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:42:54.661Z",
+      "dateUpdated": "2026-08-27T18:42:54.661Z"
+    },
+    {
+      "id": "YzlkO3UNX194zAJmnIUy",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.airbnb_listing_url",
+      "name": "Airbnb listing URL",
+      "dataType": "TEXT",
+      "description": "Public listing URL when the listing is live.",
+      "position": 200,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:06.594Z",
+      "dateUpdated": "2026-08-27T18:43:06.594Z"
+    },
+    {
+      "id": "Gkrs3oj9BnRakjH2se4x",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.launch_date",
+      "name": "Launch date",
+      "dataType": "TEXT",
+      "description": "Actual or target launch date in YYYY-MM-DD format.",
+      "position": 250,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:09.679Z",
+      "dateUpdated": "2026-08-27T18:43:09.679Z"
+    },
+    {
+      "id": "6mY8RgGlqKiD8CmBFjEE",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.annual_revenue_target",
+      "name": "Annual revenue target",
+      "dataType": "MONETORY",
+      "description": "Client annual revenue target for this listing.",
+      "position": 300,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:22.925Z",
+      "dateUpdated": "2026-08-27T18:43:22.925Z"
+    },
+    {
+      "id": "bfmZWZPlbFYGoo0GoPG1",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.minimum_nightly_price",
+      "name": "Minimum nightly price",
+      "dataType": "MONETORY",
+      "description": "Approved minimum nightly price for this listing.",
+      "position": 350,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:33.032Z",
+      "dateUpdated": "2026-08-27T18:43:33.032Z"
+    },
+    {
+      "id": "VssKHPZxoXcxafVRS6c5",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.cleaning_cost",
+      "name": "Cleaning cost",
+      "dataType": "MONETORY",
+      "description": "Current cleaning cost for this listing.",
+      "position": 400,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:36.109Z",
+      "dateUpdated": "2026-08-27T18:43:36.109Z"
+    },
+    {
+      "id": "pxbESzMLptrRNbwLysYE",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.minimum_stay__midweek",
+      "name": "Minimum stay - midweek",
+      "dataType": "NUMERICAL",
+      "description": "Preferred minimum midweek stay in nights.",
+      "position": 450,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:39.192Z",
+      "dateUpdated": "2026-08-27T18:43:39.192Z"
+    },
+    {
+      "id": "Sk9U2yOI3UdbVwFt1qbV",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.minimum_stay__weekend",
+      "name": "Minimum stay - weekend",
+      "dataType": "NUMERICAL",
+      "description": "Preferred minimum weekend stay in nights.",
+      "position": 500,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:42.366Z",
+      "dateUpdated": "2026-08-27T18:43:42.366Z"
+    },
+    {
+      "id": "LoLvElIUpVyGRbyA8hPo",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.comparable_listing_urls",
+      "name": "Comparable listing URLs",
+      "dataType": "LARGE_TEXT",
+      "description": "One public comparable-listing URL per line.",
+      "position": 550,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:45.437Z",
+      "dateUpdated": "2026-08-27T18:43:45.437Z"
+    },
+    {
+      "id": "gYYl9776kngrWs198nwU",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.local_events_and_demand_notes",
+      "name": "Local events and demand notes",
+      "dataType": "LARGE_TEXT",
+      "description": "Event, date or recurrence, demand, and listing context.",
+      "position": 600,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:48.477Z",
+      "dateUpdated": "2026-08-27T18:43:48.477Z"
+    },
+    {
+      "id": "7XB8rkqRlpjWPzoTlLYs",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.listing_notes",
+      "name": "Listing notes",
+      "dataType": "LARGE_TEXT",
+      "description": "Safe context only; never passwords, access codes, keys, or card data.",
+      "position": 650,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:43:51.860Z",
+      "dateUpdated": "2026-08-27T18:43:51.860Z"
+    },
+    {
+      "id": "WDxnWROoyvg5TuQe2JHe",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.listing_type",
+      "name": "Listing type",
+      "dataType": "RADIO",
+      "description": "Whether this is a purchased primary or child listing.",
+      "position": 700,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "primary",
+          "label": "Primary"
+        },
+        {
+          "key": "child",
+          "label": "Child"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:44:25.545Z",
+      "dateUpdated": "2026-08-27T18:44:25.545Z"
+    },
+    {
+      "id": "2m0q8g8MbQWxmqqQPZub",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.listing_status",
+      "name": "Listing status",
+      "dataType": "RADIO",
+      "description": "Whether the listing is currently live.",
+      "position": 750,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "live",
+          "label": "Live"
+        },
+        {
+          "key": "not_live_yet",
+          "label": "Not live yet"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:44:41.960Z",
+      "dateUpdated": "2026-08-27T18:44:41.960Z"
+    },
+    {
+      "id": "TwOo0Ett3jEqY53fwX5X",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.child_unit_type",
+      "name": "Child unit type",
+      "dataType": "RADIO",
+      "description": "Required for child listings.",
+      "position": 800,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "separate_unit",
+          "label": "Separate unit"
+        },
+        {
+          "key": "smaller_unit",
+          "label": "Smaller unit"
+        },
+        {
+          "key": "not_sure",
+          "label": "Not sure"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:44:47.099Z",
+      "dateUpdated": "2026-08-27T18:44:47.099Z"
+    },
+    {
+      "id": "Hd6JtxBpsna4eVIUNvCB",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.photos_ready",
+      "name": "Photos ready",
+      "dataType": "RADIO",
+      "description": "Whether approved listing photos are ready.",
+      "position": 850,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "yes",
+          "label": "Yes"
+        },
+        {
+          "key": "no",
+          "label": "No"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:44:51.418Z",
+      "dateUpdated": "2026-08-27T18:44:51.418Z"
+    },
+    {
+      "id": "2K6nxMwcEa6WcTvshQf0",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.airbnb_draft_exists",
+      "name": "Airbnb draft exists",
+      "dataType": "RADIO",
+      "description": "Whether an Airbnb draft or live listing exists.",
+      "position": 900,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "yes",
+          "label": "Yes"
+        },
+        {
+          "key": "no",
+          "label": "No"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:45:15.574Z",
+      "dateUpdated": "2026-08-27T18:45:15.574Z"
+    },
+    {
+      "id": "7GF4TudF6vKqXNw9yOJU",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.calendar_prepared",
+      "name": "Calendar prepared",
+      "dataType": "RADIO",
+      "description": "Whether the availability calendar is prepared.",
+      "position": 950,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "yes",
+          "label": "Yes"
+        },
+        {
+          "key": "no",
+          "label": "No"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:45:20.831Z",
+      "dateUpdated": "2026-08-27T18:45:20.831Z"
+    },
+    {
+      "id": "09ySODsabNKwveGPeRo7",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.cleaning_fee_known",
+      "name": "Cleaning fee known",
+      "dataType": "RADIO",
+      "description": "Whether the cleaning fee is confirmed.",
+      "position": 1000,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "yes",
+          "label": "Yes"
+        },
+        {
+          "key": "no",
+          "label": "No"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-08-27T18:45:27.688Z",
+      "dateUpdated": "2026-08-27T18:45:27.688Z"
+    },
+    {
+      "id": "c3avWfJFR2VirD0rD827",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.record_status",
+      "name": "Record status",
+      "dataType": "SINGLE_OPTIONS",
+      "description": "Controlled lifecycle state for this listing record.",
+      "position": 1050,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "draft",
+          "label": "Draft"
+        },
+        {
+          "key": "submitted",
+          "label": "Submitted"
+        },
+        {
+          "key": "accepted",
+          "label": "Accepted"
+        },
+        {
+          "key": "exception",
+          "label": "Exception"
+        }
+      ],
+      "scopes": [],
+      "dateAdded": "2026-08-27T18:45:49.997Z",
+      "dateUpdated": "2026-08-27T18:45:49.997Z"
+    },
+    {
+      "id": "BvxmARSSjpjbp48NaUch",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_journey_id",
+      "name": "V1 Journey ID",
+      "dataType": "TEXT",
+      "description": "Hub-issued UUID; never establishes authorization.",
+      "position": 1100,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:21.375Z",
+      "dateUpdated": "2026-09-04T21:05:21.375Z"
+    },
+    {
+      "id": "nnUO16lIpNcxhYHrSqRI",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_id",
+      "name": "V1 Property ID",
+      "dataType": "TEXT",
+      "description": "Hub-issued stable UUID; repeated edits target this property only.",
+      "position": 1150,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:22.035Z",
+      "dateUpdated": "2026-09-04T21:05:22.035Z"
+    },
+    {
+      "id": "MHGXM4RFYDNp6iUjm1Ta",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_expected_revision",
+      "name": "V1 Expected Revision",
+      "dataType": "NUMERICAL",
+      "description": "Optimistic concurrency token verified by Hub.",
+      "position": 1200,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:23.182Z",
+      "dateUpdated": "2026-09-04T21:05:23.182Z"
+    },
+    {
+      "id": "gUycOvauH6FXYeEdlgNo",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_submission_id",
+      "name": "V1 Submission ID",
+      "dataType": "TEXT",
+      "description": "Idempotency ID issued for this submission.",
+      "position": 1250,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:23.842Z",
+      "dateUpdated": "2026-09-04T21:05:23.842Z"
+    },
+    {
+      "id": "OGyYSQCYbuI6vxg0ieni",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_street",
+      "name": "Property street address",
+      "dataType": "TEXT",
+      "description": "Property address confirmed before contract; distinct from billing address.",
+      "position": 1300,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:24.516Z",
+      "dateUpdated": "2026-09-04T21:05:24.516Z"
+    },
+    {
+      "id": "bppbuXQoq6O5zO4CYOZN",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_unit",
+      "name": "Property unit",
+      "dataType": "TEXT",
+      "description": "Optional property unit; part of property identity.",
+      "position": 1350,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:25.204Z",
+      "dateUpdated": "2026-09-04T21:05:25.204Z"
+    },
+    {
+      "id": "QoQJUpAsHG9C5Mzkb5YF",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_city",
+      "name": "Property city",
+      "dataType": "TEXT",
+      "description": "Property city confirmed before contract.",
+      "position": 1400,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:25.952Z",
+      "dateUpdated": "2026-09-04T21:05:25.952Z"
+    },
+    {
+      "id": "d9UHvDeWnVGoc8us7mb7",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_region",
+      "name": "Property state or region",
+      "dataType": "TEXT",
+      "description": "Property state or region confirmed before contract.",
+      "position": 1450,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:26.668Z",
+      "dateUpdated": "2026-09-04T21:05:26.668Z"
+    },
+    {
+      "id": "K170RCtELoIyu3IbZOkh",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_postal_code",
+      "name": "Property postal code",
+      "dataType": "TEXT",
+      "description": "Property postal code confirmed before contract.",
+      "position": 1500,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:27.316Z",
+      "dateUpdated": "2026-09-04T21:05:27.316Z"
+    },
+    {
+      "id": "ZJ5AI9LCqQ9hsVT8DCNG",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_country",
+      "name": "Property country",
+      "dataType": "TEXT",
+      "description": "ISO 3166-1 alpha-2 country code confirmed before contract.",
+      "position": 1550,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:27.941Z",
+      "dateUpdated": "2026-09-04T21:05:27.941Z"
+    },
+    {
+      "id": "FxWTKaMZcYt2lXAV3BEz",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_main_goal",
+      "name": "What matters most for this property?",
+      "dataType": "RADIO",
+      "description": "Essential preference; no knowledge quiz.",
+      "position": 1600,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "revenue",
+          "label": "Increase revenue"
+        },
+        {
+          "key": "occupancy",
+          "label": "Improve occupancy"
+        },
+        {
+          "key": "balance",
+          "label": "Balance revenue and occupancy"
+        },
+        {
+          "key": "guidance",
+          "label": "I need guidance"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-09-04T21:05:28.557Z",
+      "dateUpdated": "2026-09-04T21:05:28.557Z"
+    },
+    {
+      "id": "4yKWa3nqO5pK3ZTMemqS",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_pricing_restrictions",
+      "name": "Firm pricing restrictions",
+      "dataType": "RADIO",
+      "description": "Guidance does not authorize live pricing changes.",
+      "position": 1650,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "none",
+          "label": "No firm restrictions"
+        },
+        {
+          "key": "specified",
+          "label": "I have firm restrictions"
+        },
+        {
+          "key": "guidance",
+          "label": "I need guidance"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-09-04T21:05:29.437Z",
+      "dateUpdated": "2026-09-04T21:05:29.437Z"
+    },
+    {
+      "id": "L3o5PbaX78PhvzVKMCi4",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_restriction_details",
+      "name": "Your restrictions or owner-use plans",
+      "dataType": "LARGE_TEXT",
+      "description": "Only material constraints. Optional unless firm restrictions selected.",
+      "position": 1700,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "scopes": [],
+      "dateAdded": "2026-09-04T21:05:30.096Z",
+      "dateUpdated": "2026-09-04T21:05:30.096Z"
+    },
+    {
+      "id": "5KiZrzDmWy2nOumJ2rIl",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_cleaning_fee_status",
+      "name": "Cleaning fee",
+      "dataType": "RADIO",
+      "description": "Avoid requiring invented numbers.",
+      "position": 1750,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "known",
+          "label": "I know the cleaning fee"
+        },
+        {
+          "key": "guidance",
+          "label": "I need guidance"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-09-04T21:05:30.771Z",
+      "dateUpdated": "2026-09-04T21:05:30.771Z"
+    },
+    {
+      "id": "ZDKDI27ADG9KA0iWrnNv",
+      "standard": false,
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_confirmation",
+      "name": "Confirm this property",
+      "dataType": "RADIO",
+      "description": "Explicit property review; Hub validates identity and entitlement.",
+      "position": 1800,
+      "showInForms": true,
+      "parentId": "FxN1JfQTAuIWT0dF1BEl",
+      "objectKey": "custom_objects.revfactor_listings",
+      "options": [
+        {
+          "key": "confirmed",
+          "label": "These property details are correct"
+        },
+        {
+          "key": "correction",
+          "label": "A contracted detail needs correction"
+        }
+      ],
+      "scopes": [],
+      "optionDisplayType": "TEXT_ONLY",
+      "dateAdded": "2026-09-04T21:05:31.452Z",
+      "dateUpdated": "2026-09-04T21:05:31.452Z"
+    }
+  ],
+  "folders": [
+    {
+      "id": "FxN1JfQTAuIWT0dF1BEl",
+      "locationId": "ErABPRqWbMyIicvzvCFt",
+      "objectKey": "custom_objects.revfactor_listings",
+      "name": "RevFactor Listing Info",
+      "position": 100,
+      "standard": false,
+      "dateAdded": "2026-08-27T18:41:19.720Z",
+      "dateUpdated": "2026-08-27T18:41:19.720Z"
+    }
+  ]
+}

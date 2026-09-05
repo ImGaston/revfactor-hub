@@ -1,0 +1,77 @@
+[
+  {
+    "id": "BvxmARSSjpjbp48NaUch",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_journey_id",
+    "name": "V1 Journey ID"
+  },
+  {
+    "id": "nnUO16lIpNcxhYHrSqRI",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_id",
+    "name": "V1 Property ID"
+  },
+  {
+    "id": "MHGXM4RFYDNp6iUjm1Ta",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_expected_revision",
+    "name": "V1 Expected Revision"
+  },
+  {
+    "id": "gUycOvauH6FXYeEdlgNo",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_submission_id",
+    "name": "V1 Submission ID"
+  },
+  {
+    "id": "OGyYSQCYbuI6vxg0ieni",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_street",
+    "name": "Property street address"
+  },
+  {
+    "id": "bppbuXQoq6O5zO4CYOZN",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_unit",
+    "name": "Property unit"
+  },
+  {
+    "id": "QoQJUpAsHG9C5Mzkb5YF",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_city",
+    "name": "Property city"
+  },
+  {
+    "id": "d9UHvDeWnVGoc8us7mb7",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_region",
+    "name": "Property state or region"
+  },
+  {
+    "id": "K170RCtELoIyu3IbZOkh",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_postal_code",
+    "name": "Property postal code"
+  },
+  {
+    "id": "ZJ5AI9LCqQ9hsVT8DCNG",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_country",
+    "name": "Property country"
+  },
+  {
+    "id": "FxWTKaMZcYt2lXAV3BEz",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_main_goal",
+    "name": "What matters most for this property?"
+  },
+  {
+    "id": "4yKWa3nqO5pK3ZTMemqS",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_pricing_restrictions",
+    "name": "Firm pricing restrictions"
+  },
+  {
+    "id": "L3o5PbaX78PhvzVKMCi4",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_restriction_details",
+    "name": "Your restrictions or owner-use plans"
+  },
+  {
+    "id": "5KiZrzDmWy2nOumJ2rIl",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_cleaning_fee_status",
+    "name": "Cleaning fee"
+  },
+  {
+    "id": "ZDKDI27ADG9KA0iWrnNv",
+    "fieldKey": "custom_objects.revfactor_listings.rf_v1_property_confirmation",
+    "name": "Confirm this property"
+  }
+]

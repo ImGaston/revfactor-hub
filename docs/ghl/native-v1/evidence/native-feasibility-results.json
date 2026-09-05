@@ -1,0 +1,19 @@
+{
+  "date": "2026-09-04",
+  "accountSurveyId": "CfTInIn60HazWmPD1Zf9",
+  "htmlScriptPersistedAfterBuilderReload": true,
+  "nativePmsControlFoundInSameDocument": true,
+  "detachedSyntheticSubmitCancelled": true,
+  "actualNativeSubmitAttempted": false,
+  "providerRecordUpsertVerified": false,
+  "diagnosticReplacedWithGuide": true,
+  "finalGuideHasProbeScript": false,
+  "nativeEmailId": "email",
+  "propertySurveyReloadVerifiedSingleMinimumStay": true,
+  "minimumStayFieldId": "BiJOXBKZzLWgWtJ05iLb",
+  "notes": [
+    "No network calls in synthetic probe.",
+    "GHL script saves require Save then Proceed; preview may briefly retain an earlier revision.",
+    "Real submit handler ordering and framework hydration across slides require isolated pilot validation."
+  ]
+}

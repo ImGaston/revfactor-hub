@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-04 — Pilot continuation, protected portal preview and contract probe
+
+- Rechecked Hub deployment access through the connector, CLI and browser; the current account cannot manage the Hub team. The user has already approved the controlled inbox and routine deployment, so the missing gate is service access.
+- Deployed the exact 90-file Assembly compatibility release to a protected preview with confirmed Hub storage, real-session enforcement, and deployment-only suppression of payment/send/notification credentials. Read-only schema checks pass; missing Assembly sessions return 401. Production alias and invitation gates remain unchanged.
+- Created an unsent recipient-free native document probe with invented sender-prefilled business/property values; verified API persistence and native preview rendering. Recorded `fieldId` versus editor `id` and pre-signature `hasCompleted=true` behavior; added a regression rejecting such drafts. Automated prefill/payment proof remains outstanding.
+- Approved inbox already has earlier GHL and Assembly identities; no provider identity was modified or invited. Private sample preparation preserves one stable property UUID; no V1 journey exists. Updated pilot checklist, contract evidence, runbook and Assembly release evidence.
+
 ## 2026-09-03 — Listing status independence in `/listings`
 
 - Corrected the `/listings` status filter to use `listings.status` instead of
@@ -731,3 +738,25 @@ On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), adde
 
 - Extended the existing hashed, revocable `api_keys` scheme with the `market-map:read` scope. `/api/market-map` now accepts either a Hub session with `market_signals:view` or a server-side bearer key, while preserving the same explicit redacted projections and response contract.
 - The external map keeps the plaintext key only in its server-only `HUB_MARKET_MAP_TOKEN` environment variable and calls Hub through its own proxy. Hub stores only the SHA-256 digest, so rotation and revocation do not require a Hub environment change or expose the bearer token to client JavaScript.
+
+## 2026-09-04 — GHL post-call V1 implementation
+
+Built the isolated `codex/ghl-post-call-v1` draft: pre-Assembly journey, secure native-form context/save, commercial and owner identity verification, explicit acceptance, direct Granola importer, durable Assembly provisioning/activation, owned operational tasks and CRM progress. Added native GHL draft assets in the dedicated GHL workspace. TypeScript, targeted regression tests and local PostgreSQL rollback tests validate backend boundaries; no production migrations or customer entry cutover yet. The draft PR preview builds successfully; Vercel Hobby requires external worker scheduling. Native submit/upsert/resume, actual contract/payment fields, credentials and pilot remain launch gates. Updated plan, flow diagram, runbook and environment example.
+
+Assembly compatibility review artifact: `docs/ghl/assembly-v1/` contains the separate app patch and captured baseline provenance; 12 targeted tests pass. Original dirty app checkout preserved. Deployed dirty source remains unverified; V1 team task review/verification UI is not implemented and remains a launch gate.
+
+## 2026-09-04 — Controlled pilot preparation
+
+User approved native drafts and activation/testing; optional assisted onboarding calls recorded for later on the same saved journey. Added exact test-contact rollout guard; fixed actual GHL v3 document pagination rejection (max21). Implemented `/onboarding/v1` with accepted context, ownership, portal distinctions and audited human verification; tested desktop/mobile with synthetic actual-component harness, including responsive stacked cards. 523 Hub tests/64 files, typecheck, focused lint and both PostgreSQL rollback suites pass. Seven additive migrations applied atomically to confirmed `xpfjjcwgbjsdxdhyrcxd`; history7, journey/job/audit counts0, anonymous RPC accessfalse. Assembly exact deployed source recovered and hashverified; production-relative compatibility release passes83tests/cleanbuild and preserves deployed signup source. Test inbox, Hub Vercel team access, native/provider configuration and actual end-to-end walkthrough are still required; no customer test messages/invitations or application production deploy.
+
+## 2026-09-04 — Native hosts installed for controlled pilot
+
+Installed final guarded scripts in both V1 native surveys and checked that no synthetic fixture remains. Eleven host tests plus both adapter scripts pass; native-browser synthetic checks cover property/unit isolation, saved-state resume, final click/keyboard acceptance and blocked provider writes. Documentation now removes the superseded native-upsert gate and records exact CORS origin and original-link resume. These checks did not create a contact/journey, send a message, charge a payment or invite a portal user. Real pilot and application deployment remain pending.
+
+Prepared and cold-reloaded a separate unrouted Q1 pilot agreement with explicit required legal business/property fields; existing template and routes preserved. The new fields are not yet prefilled, editor DOM IDs are not completed-document proof, and payment test mode remains unverified. See `docs/ghl/pilot-contract-scope-evidence.md`. No document was generated/sent/signed or payment taken.
+
+## 2026-09-04 — Native onboarding visual refresh
+
+Added responsive cedar/white onboarding presentation, five-stage progress, a separate known-property summary and persistent help disclosure. Existing native controls and guarded save behavior remain. Twelve host/session tests, three presentation tests and both adapter scripts pass. See `docs/ghl/native-v1/DESIGN.md` and installation evidence for provider visual verification; this does not resolve the separate real pilot/deployment gates.
+
+Final visual release saved and cold-verified in both native GHL surveys; recorded hashes match built hosts, fixture code absent, missing-capability form guarded. Synthetic native Next advances the correct progress stage with zero provider writes reaching transport. Desktop/mobile screenshots reviewed; no horizontal overflow. Source assets synchronized to the dedicated GHL workspace. No contact, message, payment, invitation or workflow change.

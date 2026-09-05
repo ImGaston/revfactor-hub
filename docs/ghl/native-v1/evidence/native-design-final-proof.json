@@ -1,0 +1,68 @@
+{
+  "capturedAt": "2026-09-05T01:00:17.838Z",
+  "installedSourceSha256": {
+    "property": "079a4c49d359a75120135644a4b9680747cb129137838ab448d9e9b576d9ea7a",
+    "account": "85746b38a078ce75cb6915810f13fc902bd71d4f683a82634e4698bc73081e73"
+  },
+  "property": {
+    "allDisabled": true,
+    "fixture": false,
+    "fixtureScript": false,
+    "footerDisplay": "none",
+    "formDisplay": "none",
+    "guard": "installed",
+    "presentation": "rf.native.design.1",
+    "scroll": 1731,
+    "status": "YOUR REVFACTOR WORKSPACE\n\nReview your property\n\nOpen your original onboarding link to resume",
+    "url": "https://links.revfactor.io/widget/survey/VvcWqrwmq7wESZSfFBme",
+    "width": 1731
+  },
+  "account": {
+    "allDisabled": true,
+    "fixture": false,
+    "fixtureScript": false,
+    "footerDisplay": "none",
+    "formDisplay": "none",
+    "guard": "installed",
+    "presentation": "rf.native.design.1",
+    "scroll": 1731,
+    "status": "YOUR REVFACTOR WORKSPACE\n\nConnect your tools\n\nOpen your original onboarding link to resume",
+    "url": "https://links.revfactor.io/widget/survey/CfTInIn60HazWmPD1Zf9",
+    "width": 1731
+  },
+  "mobile": {
+    "guard": "installed",
+    "helpOpen": true,
+    "scroll": 375,
+    "width": 390
+  },
+  "keyboardHelp": {
+    "accountEnterCloses": true,
+    "propertyEnterOpens": true
+  },
+  "fixtureChecks": {
+    "accountNext": {
+      "action": "account",
+      "revision": 2,
+      "nativeWriteAttempts": 0,
+      "nativeBubbleHandlers": 0,
+      "activeStep": 4
+    },
+    "propertyNext": {
+      "action": "property",
+      "propertyId": "22222222-2222-4222-8222-222222222222",
+      "revision": 2,
+      "nativeWriteAttempts": 0,
+      "nativeBubbleHandlers": 0,
+      "activeStep": 2
+    },
+    "propertyKnownNameAddressWrappersHidden": true,
+    "propertyKnownAddressPreservedReadOnly": true,
+    "selectedPropertyAriaPressed": [
+      "true",
+      "false"
+    ],
+    "mobileViewport": 390,
+    "mobileDocumentWidth": 375
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "source": "/Users/fedezimermacbookpro/Documents/Codex/2026-07-01/hi/work/revfactor-onboarding-app",
+  "head": "60fd783d8b4c09287ca2914bfd9a236d7aa8f075",
+  "deployedDirtySourceVerified": false,
+  "copiedTrackedDependencies": [
+    "app/api/onboarding/route.ts",
+    "components/app-loading.tsx",
+    "components/client-onboarding-app.tsx",
+    "components/progress.tsx",
+    "eslint.config.mjs",
+    "lib/app-context.ts",
+    "lib/assembly-bridge.ts",
+    "lib/assembly-files.server.ts",
+    "lib/assembly-notifications.server.ts",
+    "lib/assembly-session.ts",
+    "lib/hub-persistence.server.ts",
+    "lib/mock-data.ts",
+    "lib/onboarding-defaults.ts",
+    "lib/onboarding-schema.ts",
+    "lib/onboarding-state.ts",
+    "lib/onboarding-values.ts",
+    "next-env.d.ts",
+    "next.config.ts",
+    "package-lock.json",
+    "package.json",
+    "tsconfig.json",
+    "vitest.config.ts"
+  ],
+  "readOnlyDependencyLinks": [
+    "lib/signup-service-start.ts",
+    "lib/handoff-pdf.ts",
+    "lib/assembly-credentials.server.ts",
+    "lib/signup-pricing.ts",
+    "lib/signup-contract.ts",
+    "lib/ghl-onboarding-session.server.ts",
+    "lib/ghl-onboarding-token.ts",
+    "lib/internal-access.ts"
+  ],
+  "targetHashes": {
+    "lib/hub-persistence.server.ts": "87d7bf5ce78b8e7bd15fa4b7b12a3da71aac635c4ca23238deb5437b0d939180",
+    "app/api/onboarding/route.ts": "89c67c7a43a4c2846f0343a2411dc63dea019ad2bebe172458fc77bc0c0d1124",
+    "components/client-onboarding-app.tsx": "a03c45bacf2f9c594cb6329b217d536290080781929d1b948fee11775af23ae0"
+  }
+}

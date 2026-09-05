@@ -1,0 +1,32 @@
+{
+  "blocks": "3",
+  "fixture": {
+    "calls": [
+      {
+        "action": "account",
+        "revision": 1
+      },
+      {
+        "action": "account",
+        "revision": 2
+      },
+      {
+        "action": "submit",
+        "revision": 3
+      }
+    ],
+    "nativeBubbleHandlers": 0,
+    "nativeWriteAttempts": 0,
+    "revision": 4,
+    "stage": "submitted",
+    "units": [
+      "A",
+      "B"
+    ],
+    "writePaths": []
+  },
+  "hashCleared": true,
+  "requestSubmit": "blocked",
+  "status": "Software and final reviewYour onboarding has been submitted. The team will verify setup and confirm your portal access.Review property 1: Synthetic same-name property — unit AReview property 2: Synthetic same-name property — unit B",
+  "transports": "2"
+}
