@@ -95,6 +95,6 @@ The Hub Vercel Hobby plan rejected five-minute cron configuration. Those entries
 
 ## Controlled pilot and future assistance — 2026-09-04
 
-Federico approved the native draft experience and requested activation/testing. The next release is a controlled end-to-end pilot, using a dedicated contact and an inbox he controls; the inbox and Hub deployment-team access are pending. Do not treat draft appearance or unit tests as a completed pilot.
+Federico approved the native draft experience and requested activation/testing. The next release is a controlled end-to-end pilot, using a dedicated contact and an inbox he controls; the inbox is approved in the task, while Hub deployment-team access remains blocked. Do not treat draft appearance or unit tests as a completed pilot.
 
 Optional assisted onboarding calls are a future enhancement. Proposed behavior: a customer can request/book help from the incomplete step, and the assigned team member opens the same journey, sees accepted contract/property details and saved answers, and helps complete only the missing information. Booking is optional, does not restart onboarding, does not change signed scope or billing, and does not declare software verified or portal active. Scheduling provider/calendar, availability, call length and offer criteria remain undecided; V1 has no booking integration.

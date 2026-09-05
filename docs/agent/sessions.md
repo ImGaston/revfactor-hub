@@ -1,5 +1,12 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-04 — Pilot continuation, protected portal preview and contract probe
+
+- Rechecked Hub deployment access through the connector, CLI and browser; the current account cannot manage the Hub team. The user has already approved the controlled inbox and routine deployment, so the missing gate is service access.
+- Deployed the exact 90-file Assembly compatibility release to a protected preview with confirmed Hub storage, real-session enforcement, and deployment-only suppression of payment/send/notification credentials. Read-only schema checks pass; missing Assembly sessions return 401. Production alias and invitation gates remain unchanged.
+- Created an unsent recipient-free native document probe with invented sender-prefilled business/property values; verified API persistence and native preview rendering. Recorded `fieldId` versus editor `id` and pre-signature `hasCompleted=true` behavior; added a regression rejecting such drafts. Automated prefill/payment proof remains outstanding.
+- Approved inbox already has earlier GHL and Assembly identities; no provider identity was modified or invited. Private sample preparation preserves one stable property UUID; no V1 journey exists. Updated pilot checklist, contract evidence, runbook and Assembly release evidence.
+
 ## 2026-09-03 — Listing status independence in `/listings`
 
 - Corrected the `/listings` status filter to use `listings.status` instead of

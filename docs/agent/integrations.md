@@ -398,3 +398,7 @@ The authenticated v3 `GET /proposals/document` endpoint returns HTTP 422 for `li
 ## 2026-09-04 — Native GHL host behavior
 
 Both V1 survey scripts are installed; client origin is `https://links.revfactor.io`, backend origin is `https://hub.revfactor.io` (runtime still disabled). The native footer is outside `form#_builder-form`; capture the form parent boundary. Next emits a native tracking POST even when partial contact creation is disabled, so the host blocks native provider writes. Hydration dispatches radio change only for the checked choice. Native email rerender resets visible input, so show authenticated email read-only in the host. No GHL object upsert is used; Hub owns persisted answers. See `docs/ghl/native-v1/INSTALLATION.md`.
+
+## 2026-09-04 — GHL sender-filled draft semantics
+
+Authenticated inspection of a recipient-free, unsigned document draft shows sender-entered TextFields can have `hasCompleted=true`. Keep completed document status and the exact completed signer as independent commercial gates. The observed text field API `fieldId` (`text_field_2`/`text_field_3`) differs from its UUID `id` used by the editor DOM. Manual sender entry survives save and native preview; automated journey prefill and completed-document field mapping remain unverified. See `docs/ghl/pilot-contract-scope-evidence.md`.

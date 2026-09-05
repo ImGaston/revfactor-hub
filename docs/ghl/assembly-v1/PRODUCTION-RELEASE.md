@@ -29,3 +29,14 @@ The rebased patch preserves the deployed Assembly-only session behavior. It does
 5. Once the environment gate is cleared, `vercel deploy --target=preview --yes` from the prepared directory creates a preview without moving production aliases. This command has not been run. Use `vercel curl /api/health/ready --deployment <returned-preview-url>` through the existing protection; never disable deployment protection. Production-mode readiness requires existing integration configuration and is not a substitute for authenticated V1 flow verification.
 6. Test an explicitly controlled Assembly account/session against the preview: accepted property identity and address exactly once, software status wording, no old intake controls, no save POST, no PDF/upload, correct company scoping, Messages route, malformed V1 record fails safely, and unaffected ordinary legacy client/internal queue. Verify V1 team task review separately. Do not invite a customer to make this test happen.
 7. Production deployment/promotion and `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED=true` remain root-controlled after all pilot/native/DB/team gates pass. Keep `dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7` as the observed rollback reference, rechecking aliases first. No production command is authorized by this artifact.
+
+## 2026-09-04 — Restricted preview deployed
+
+The user explicitly authorized deployment in the continuation task. Verified all 90 source SHA-256 hashes in `/Users/fedezimermacbookpro/Documents/revfactor-assembly-v1-release-verified` against the reviewed manifest and rechecked the production alias before deploying.
+
+- Preview: `dpl_VrAMmWj7bd3wMDiScBdkMTUPapJb`, READY. [Deployment](https://vercel.com/federico-zimermans-projects/revfactor-onboarding-app/VrAMmWj7bd3wMDiScBdkMTUPapJb).
+- Enforced `REVFACTOR_APP_MODE=production` and explicitly configured the confirmed Hub database through authorized server configuration. No Vercel Secret exports were attempted. Existing Assembly app credential stays server-side.
+- Deployment-only overrides blank Stripe payment/webhook, Assembly workspace/general API, notification-recipient, HighLevel API/pilot and native-payment webhook credentials. These are restricted read-only verification settings, not a production configuration; do not promote this deployment.
+- `/api/health/ready` returns production mode, `hub=true`, `schema=true`, `assembly=true`; overall readiness is intentionally false because commercial/send integrations are disabled. `/api/pilot/ghl/ready` reports Stripe unconfigured and HighLevel disabled. `/api/onboarding` without a session returns 401. Browser root displays “Open this app from Assembly.”
+- Production aliases were rechecked after deployment and still point to `dpl_F4CSKrTjiyhNuHGJp4y7PXw9nhu7`. No client invitation, signup, save, PDF or notification was exercised.
+- Authenticated accepted-V1 portal walkthrough remains pending, so `GHL_V1_PORTAL_COMPATIBILITY_VERIFIED` remains false.

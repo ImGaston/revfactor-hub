@@ -79,7 +79,7 @@ Assembly source provenance is resolved: [the production-relative release](assemb
 
 The live GHL documents endpoint accepts at most 21 records per page; `limit=100` returns 422. The backend now respects that cap and a total lookup deadline. Discovery calendars and both post-payment owner identities were verified and reflected in the environment example.
 
-The controlled pilot checklist is [here](pilot-checklist.md). Test inbox, Hub Vercel deployment access, provider test configuration and authenticated end-to-end evidence remain pending. Optional onboarding calls are recorded as future assistance on the same journey; no booking integration is enabled.
+The controlled pilot checklist is [here](pilot-checklist.md). The controlled inbox is approved in the task. Hub Vercel deployment access, provider test configuration and authenticated end-to-end evidence remain pending. Optional onboarding calls are recorded as future assistance on the same journey; no booking integration is enabled.
 
 ## Installed native questionnaire hosts
 
@@ -88,3 +88,7 @@ Both V1 native surveys now contain the final `rf.native.host.1` scripts pointed 
 Eleven host tests and both adapter scripts pass. Synthetic tests in the actual native widgets verified final click/keyboard interception, selected-radio hydration, immutable property/unit binding, explicit account acceptance and resume. Final installed widgets reject missing capabilities and contain no fixture. Reopen the original unexpired link to resume accepted data; an ordinary reload cannot recover the memory-only token or unsaved edits. Actual Hub-backed pilot, contract prefill/payment proof, portal deployment and entry/reminder wiring remain pending.
 
 Signed scope update: a separate unrouted Q1 pilot agreement now has required business/property fields and the existing client-only signature. Pricing is unchanged. Known-data prefill, completed-document API IDs/values and actual payment test mode remain unproven; see [pilot contract evidence](pilot-contract-scope-evidence.md). Keep this template unrouted until those checks pass.
+
+## Protected Assembly preview continuation
+
+The exact-source compatibility release now has a protected preview, with deployment-only overrides disabling payment/send/notification integrations and enforcing production Assembly sessions. See `assembly-v1/PRODUCTION-RELEASE.md` and the pilot checklist for evidence. Do not promote this restricted preview: a production release must use the intended production environment after authenticated compatibility verification. Hub access still fails through the connector (403), CLI (team absent), and signed-in browser (404); a local Vercel OIDC runtime token is not CLI deployment authorization.

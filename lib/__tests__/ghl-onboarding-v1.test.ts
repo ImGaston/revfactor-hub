@@ -233,6 +233,14 @@ describe("GHL V1 acceptance and property reuse", () => {
   })
 })
 describe("GHL commercial evidence", () => {
+  it("rejects sender-prefilled draft fields even when HighLevel marks them completed", () => {
+    const e = evidence()
+    // Live GHL draft probe: sender-filled TextFields already have hasCompleted=true.
+    // Field completion must never replace document and recipient signature evidence.
+    e.document.status = ["draft"]
+    expect(e.document.fillableFields.every((field) => field.hasCompleted)).toBe(true)
+    expect(() => verifyCommercialEvidence(e)).toThrow("agreement_not_completed")
+  })
   it.each([
     [1, false, 50000],
     [3, false, 120000],
