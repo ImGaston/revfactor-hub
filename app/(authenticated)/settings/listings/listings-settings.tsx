@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  FlaskConical,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -56,6 +57,9 @@ import {
   AIRBNB_CANCELLATION_POLICY_LABELS,
   type AirbnbCancellationPolicy,
 } from "@/lib/airbnb-cancellation-foundation"
+import { StatusBadge } from "@/components/status-badge"
+import { TEST_STATUS } from "@/lib/status"
+import { matchesListingStatus, type ListingStatusFilter } from "@/lib/listing-status"
 
 type SettingsListing = {
   id: string
@@ -76,7 +80,6 @@ type SettingsListing = {
   timezone: string | null
 }
 
-type StatusFilter = "all" | "active" | "inactive"
 type ListingSyncRunResult = {
   status: "synced" | "not_found" | "failed"
   syncedAt: string | null
@@ -101,7 +104,7 @@ export function ListingsSettings({
 }) {
   const router = useRouter()
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("active")
+  const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>("active")
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
   const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -116,13 +119,16 @@ export function ListingsSettings({
   const [, startTransition] = useTransition()
 
   const statusCounts = useMemo(() => {
+    // "active" is the default view and includes test listings, like /listings.
     let active = 0
+    let test = 0
     let inactive = 0
     for (const l of listings) {
+      if (matchesListingStatus(l.status, "active")) active++
+      if (l.status === TEST_STATUS) test++
       if (l.status === "inactive") inactive++
-      else active++
     }
-    return { all: listings.length, active, inactive }
+    return { all: listings.length, active, test, inactive }
   }, [listings])
 
   const clientNames = useMemo(() => {
@@ -140,7 +146,7 @@ export function ListingsSettings({
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return listings.filter((l) => {
-      if (statusFilter !== "all" && l.status !== statusFilter) return false
+      if (!matchesListingStatus(l.status, statusFilter)) return false
       if (
         q &&
         !l.name.toLowerCase().includes(q) &&
@@ -337,7 +343,7 @@ export function ListingsSettings({
         </div>
 
         <div className="flex items-center gap-1 border-b">
-          {(["active", "inactive", "all"] as StatusFilter[]).map((s) => (
+          {(["active", "test", "inactive", "all"] as ListingStatusFilter[]).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -350,6 +356,7 @@ export function ListingsSettings({
             >
               <span className="flex items-center gap-1.5">
                 {s === "active" && <Eye className="size-3.5" />}
+                {s === "test" && <FlaskConical className="size-3.5" />}
                 {s === "inactive" && <EyeOff className="size-3.5" />}
                 {s}
                 <Badge
@@ -585,18 +592,24 @@ export function ListingsSettings({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <Switch
-                          checked={isActive}
-                          onCheckedChange={(checked) =>
-                            handleToggleStatus(listing, checked)
-                          }
-                          aria-label={`Toggle ${listing.name} status`}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {isActive ? "Active" : "Hidden"}
-                        </span>
-                      </label>
+                      {listing.status === TEST_STATUS ? (
+                        // Test is not a visibility toggle: change it from the
+                        // edit dialog so it can't be flipped by accident.
+                        <StatusBadge status={listing.status} />
+                      ) : (
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <Switch
+                            checked={isActive}
+                            onCheckedChange={(checked) =>
+                              handleToggleStatus(listing, checked)
+                            }
+                            aria-label={`Toggle ${listing.name} status`}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {isActive ? "Active" : "Hidden"}
+                          </span>
+                        </label>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">

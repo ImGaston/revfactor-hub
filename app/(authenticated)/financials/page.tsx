@@ -6,6 +6,7 @@ import { isAssemblyConfigured } from "@/lib/assembly"
 import { getClientLifetimeValue } from "@/lib/client-lifetime-value"
 import { FinancialsView } from "./financials-view"
 import type { StripeSubscriptionSummary } from "@/lib/stripe"
+import { TEST_STATUS } from "@/lib/status"
 
 type StripeSubscriptionRow = {
   id: string
@@ -90,6 +91,7 @@ export default async function FinancialsPage() {
       .select(
         "id, name, email, stripe_customer_id, assembly_link, assembly_client_id, assembly_company_id"
       )
+      .neq("status", TEST_STATUS)
       .order("name"),
     supabase
       .from("listings")

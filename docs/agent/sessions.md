@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-09 — `test` status for clients and listings
+
+Added `test` to `clients.status` and `listings.status` (timestamp migration `20260909120000_test_status.sql`, applied to production: CHECKs widened, 086 trigger ignores test transitions, Info RM Test + its four Fede listings marked and linked). New `lib/status.ts` (constants, labels, badge maps, `listingCascadeForClientStatus`) and `components/status-badge.tsx` replace six duplicated status maps. Aggregations now exclude test: dashboard total clients, `lib/monthly-summary.ts` (both loaders), `lib/monthly-pacing.ts` (new pure `excludeTestListings` over `report_listings.hub_listing_id`), `lib/wins-detection.server.ts`, financials clients list and Stripe auto-link. Visibility kept: `/clients` default chips include Test, `/listings` "Active" view includes test plus a "Test listings" option, Settings > Listings gets a Test tab (badge instead of Switch), Test option in client/listing dialogs and onboarding selects, command palette lists test listings. Both client→listing cascade sites share the new rule; the Assembly-link path preserves test. Tests: `status`, `listing-status`, `monthly-pacing`, `test-status-migration`. Docs: conventions, project-map, decisions.
+
 ## 2026-09-03 — Listing status independence in `/listings`
 
 - Corrected the `/listings` status filter to use `listings.status` instead of

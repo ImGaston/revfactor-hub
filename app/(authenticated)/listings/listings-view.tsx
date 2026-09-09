@@ -74,6 +74,8 @@ import {
 import { getListingsExportData } from "@/app/(authenticated)/listings/export-actions"
 import { ListingDialog } from "@/app/(authenticated)/settings/listings/listing-dialog"
 import { deleteListingAction } from "@/app/(authenticated)/settings/listings/actions"
+import { STATUS_BADGE_CLASS } from "@/lib/status"
+import { StatusBadge } from "@/components/status-badge"
 
 export type FlatListing = {
   id: string
@@ -109,14 +111,6 @@ type ListingFormData = {
 
 type SortField = "name" | "client_name" | "city" | "state"
 type SortDir = "asc" | "desc"
-
-const clientStatusColor: Record<string, string> = {
-  active:
-    "bg-green-500/10 text-green-700 border-green-300 dark:text-green-400 dark:border-green-700",
-  onboarding:
-    "bg-blue-500/10 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700",
-  inactive: "bg-muted text-muted-foreground border-border",
-}
 
 export function ListingsView({
   listings,
@@ -356,6 +350,7 @@ export function ListingsView({
             <SelectGroup>
               <SelectItem value="active">Active listings</SelectItem>
               <SelectItem value="inactive">Inactive listings</SelectItem>
+              <SelectItem value="test">Test listings</SelectItem>
               <SelectItem value="all">All listing statuses</SelectItem>
             </SelectGroup>
           </SelectContent>
@@ -524,7 +519,7 @@ export function ListingsView({
                             variant="outline"
                             className={cn(
                               "text-[9px] capitalize shrink-0",
-                              clientStatusColor[listing.client_status] ?? ""
+                              STATUS_BADGE_CLASS[listing.client_status] ?? ""
                             )}
                           >
                             {listing.client_status}
@@ -549,14 +544,7 @@ export function ListingsView({
                     {listing.state ?? "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant={
-                        listing.status === "active" ? "default" : "secondary"
-                      }
-                      className="capitalize"
-                    >
-                      {listing.status}
-                    </Badge>
+                    <StatusBadge status={listing.status} />
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {listing.airbnb_link ? (

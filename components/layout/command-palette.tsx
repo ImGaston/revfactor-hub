@@ -21,6 +21,7 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { checkPermission, type Resource } from "@/lib/permissions"
 import type { Profile } from "@/lib/supabase/profile"
+import { TEST_STATUS } from "@/lib/status"
 
 // ---------------------------------------------------------------------------
 // Recent searches (localStorage)
@@ -123,7 +124,7 @@ export function CommandPalette({
           ? supabase.from("clients").select("id, name, email, status").order("name")
           : Promise.resolve({ data: null }),
         canViewListings
-          ? supabase.from("listings").select("id, name, city, state, clients(name)").eq("status", "active").order("name")
+          ? supabase.from("listings").select("id, name, city, state, clients(name)").in("status", ["active", TEST_STATUS]).order("name")
           : Promise.resolve({ data: null }),
       ])
 

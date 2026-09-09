@@ -265,6 +265,9 @@ export function ListingDialog({
                     <SelectItem value="inactive">
                       Inactive — hidden, only shown here
                     </SelectItem>
+                    <SelectItem value="test">
+                      Test — synced and visible, excluded from analyses
+                    </SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

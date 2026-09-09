@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Client } from "@/lib/types"
 import { resolveProfile } from "@/lib/types"
+import { StatusBadge } from "@/components/status-badge"
 
 function occColor(occ: number, marketOcc: number | null): "green" | "amber" | "red" | "blue" {
   if (marketOcc == null || marketOcc === 0) return occ > 0 ? "green" : "amber"
@@ -62,12 +63,6 @@ function ListingKPI({
       </span>
     </div>
   )
-}
-
-const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-  active: "default",
-  onboarding: "secondary",
-  inactive: "outline",
 }
 
 function InfoRow({
@@ -145,12 +140,7 @@ export function ClientDetail({
       <div className="flex shrink-0 items-start justify-between gap-2 p-4 pb-0">
         <div>
           <h2 className="text-lg font-semibold">{client.name}</h2>
-          <Badge
-            variant={statusVariant[client.status] ?? "outline"}
-            className="mt-1"
-          >
-            {client.status}
-          </Badge>
+          <StatusBadge status={client.status} />
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="size-8">
           <X className="size-4" />

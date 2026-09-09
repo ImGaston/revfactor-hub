@@ -173,6 +173,7 @@ export function ClientDialog({
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="onboarding">Onboarding</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="test">Test — internal, excluded from analyses</SelectItem>
                 </SelectContent>
               </Select>
             </div>

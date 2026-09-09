@@ -16,6 +16,7 @@ import {
   isValidIanaTimezone,
   type AirbnbCancellationPolicy,
 } from "@/lib/airbnb-cancellation-foundation"
+import { LISTING_STATUSES, type ListingStatus } from "@/lib/status"
 
 type ListingInput = {
   client_id: string | null
@@ -96,8 +97,11 @@ export async function deleteListingAction(id: string) {
 
 export async function updateListingStatusAction(
   id: string,
-  status: "active" | "inactive"
+  status: ListingStatus
 ) {
+  if (!LISTING_STATUSES.includes(status)) {
+    return { error: `Invalid status: ${status}` }
+  }
   const supabase = await createClient()
   const { error } = await supabase
     .from("listings")

@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/lib/supabase/server"
 import { clientStatusPatch } from "@/lib/clients"
+import { CLIENT_STATUSES, listingCascadeForClientStatus } from "@/lib/status"
 
 // ─── Update client status ─────────────────────────────
 
-const VALID_STATUSES = ["active", "onboarding", "inactive"] as const
+const VALID_STATUSES = CLIENT_STATUSES
 
 export async function updateClientStatus(
   clientId: string,
@@ -40,11 +41,15 @@ export async function updateClientStatus(
 
   if (error) return { error: error.message }
 
-  if (status === "inactive") {
-    await supabase
+  // inactive takes every listing; test takes only the active ones (shared rule).
+  const cascade = listingCascadeForClientStatus(status)
+  if (cascade) {
+    let q = supabase
       .from("listings")
-      .update({ status: "inactive" })
+      .update({ status: cascade.set })
       .eq("client_id", clientId)
+    if (cascade.onlyFrom) q = q.eq("status", cascade.onlyFrom)
+    await q
   }
 
   revalidatePath("/onboarding")

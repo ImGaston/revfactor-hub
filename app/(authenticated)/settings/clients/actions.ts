@@ -11,6 +11,7 @@ import {
   assemblyCompanyMessagesUrl,
 } from "@/lib/assembly"
 import { clientStatusPatch } from "@/lib/clients"
+import { TEST_STATUS, isTestStatus, listingCascadeForClientStatus } from "@/lib/status"
 
 type ClientInput = {
   name: string
@@ -120,7 +121,12 @@ export async function importAssemblyClientForOnboardingAction(
         assembly_client_id: assemblyClient.id,
         assembly_company_id: assemblyCompanyId,
         assembly_link: assemblyLink,
-        status: client.status === "active" ? "active" : "onboarding",
+        // Linking Assembly never demotes an active client nor promotes a test one.
+        status: isTestStatus(client.status)
+          ? TEST_STATUS
+          : client.status === "active"
+            ? "active"
+            : "onboarding",
       })
       .eq("id", client.id)
       .select(clientFields)
@@ -228,11 +234,15 @@ export async function updateClientAction(id: string, input: ClientInput) {
   const { error } = await supabase.from("clients").update(input).eq("id", id)
   if (error) return { error: error.message }
 
-  if (input.status === "inactive") {
-    const { error: listingsError } = await supabase
+  // inactive takes every listing; test takes only the active ones (shared rule).
+  const cascade = listingCascadeForClientStatus(input.status)
+  if (cascade) {
+    let q = supabase
       .from("listings")
-      .update({ status: "inactive" })
+      .update({ status: cascade.set })
       .eq("client_id", id)
+    if (cascade.onlyFrom) q = q.eq("status", cascade.onlyFrom)
+    const { error: listingsError } = await q
     if (listingsError) return { error: listingsError.message }
   }
 

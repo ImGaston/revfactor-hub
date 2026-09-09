@@ -11,8 +11,9 @@ import { escapeCSV, downloadCSV } from "@/lib/csv"
 import { getClientsExportData } from "@/app/(authenticated)/clients/export-actions"
 import type { ClientListItem } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { CLIENT_STATUSES, TEST_STATUS } from "@/lib/status"
 
-const statuses = ["active", "onboarding", "inactive"] as const
+const statuses = CLIENT_STATUSES
 
 export function ClientsView({
   clients,
@@ -23,7 +24,8 @@ export function ClientsView({
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<Set<string>>(
-    new Set(["active", "onboarding"])
+    // Test clients stay visible by default; they are only excluded from analyses.
+    new Set(["active", "onboarding", TEST_STATUS])
   )
   const [view, setView] = useState<"cards" | "table">("table")
   const [exporting, setExporting] = useState(false)

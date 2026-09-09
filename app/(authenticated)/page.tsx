@@ -7,6 +7,7 @@ import {
   getMonthlySummaryListings,
 } from "@/lib/monthly-summary"
 import { DashboardView } from "./dashboard-view"
+import { TEST_STATUS } from "@/lib/status"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -23,7 +24,8 @@ export default async function DashboardPage() {
     summaryListings,
     clientRows,
   ] = await Promise.all([
-    supabase.from("clients").select("*", { count: "exact", head: true }),
+    // Test clients are excluded from every KPI (lib/status.ts TEST_STATUS).
+    supabase.from("clients").select("*", { count: "exact", head: true }).neq("status", TEST_STATUS),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("clients").select("*", { count: "exact", head: true }).eq("status", "onboarding"),
     supabase.from("listings").select("*", { count: "exact", head: true }).eq("status", "active"),

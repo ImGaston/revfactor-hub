@@ -2,14 +2,8 @@
 
 import Link from "next/link"
 import { Building2 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import type { ClientListItem } from "@/lib/types"
-
-const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-  active: "default",
-  onboarding: "secondary",
-  inactive: "outline",
-}
+import { StatusBadge } from "@/components/status-badge"
 
 export function ClientCard({
   client,
@@ -25,9 +19,7 @@ export function ClientCard({
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium leading-tight">{client.name}</h3>
-        <Badge variant={statusVariant[client.status] ?? "outline"}>
-          {client.status}
-        </Badge>
+        <StatusBadge status={client.status} />
       </div>
       <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
         <span className="flex items-center gap-1">

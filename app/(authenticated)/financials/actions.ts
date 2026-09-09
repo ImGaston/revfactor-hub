@@ -19,6 +19,7 @@ import {
   type ClassifiedBankRow,
   type RawBankRow,
 } from "@/lib/bank-import"
+import { TEST_STATUS } from "@/lib/status"
 
 type ListingAllocationInput = {
   listingId: string
@@ -333,6 +334,7 @@ export async function autoLinkStripeCustomers() {
     .from("clients")
     .select("id, email, stripe_customer_id")
     .not("email", "is", null)
+    .neq("status", TEST_STATUS)
 
   if (clientsError) return { error: clientsError.message, linked: 0 }
   if (!clients || clients.length === 0) return { error: null, linked: 0 }

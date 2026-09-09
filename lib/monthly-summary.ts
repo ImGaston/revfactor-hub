@@ -5,6 +5,7 @@
 // timezone math anywhere.
 
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { TEST_STATUS } from "@/lib/status"
 
 export type MonthlySummaryListing = {
   id: string
@@ -41,6 +42,7 @@ export async function getMonthlySummaryListings(
     .select(
       "id, name, status, initial_setup_date, deactivated_date, clients:clients_basic(id, name)"
     )
+    .neq("status", TEST_STATUS)
     .order("name")
 
   if (error) return []
@@ -69,6 +71,7 @@ export async function getClientsEvolutionRows(
   const { data, error } = await supabase
     .from("clients")
     .select("id, name, status, onboarding_date, ending_date")
+    .neq("status", TEST_STATUS)
 
   if (error) return []
 

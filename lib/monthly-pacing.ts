@@ -17,6 +17,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getLatestCompletedRun } from "@/lib/report-builder/queries"
+import { TEST_STATUS } from "@/lib/status"
 
 export type MonthlyPacingBucket =
   | "pickup_7d"
@@ -107,6 +108,7 @@ async function fetchAllMetrics(
 
 type ListingRow = {
   listing_id: string
+  hub_listing_id: string | null
   listing_name: string | null
   city: string | null
   group_name: string | null
@@ -135,23 +137,35 @@ export async function getMonthlyPacingSource(
   const run = await getLatestCompletedRun(supabase)
   if (!run) return { listings: [], metrics: [], runCompletedAt: null }
 
-  const [listingsRes, metricsRes] = await Promise.all([
+  const [listingsRes, metricsRes, testRes] = await Promise.all([
     // report_listings is one row per listing (well under the 1000 cap).
     supabase
       .from("report_listings")
-      .select("listing_id, listing_name, city, group_name, hub_client_id, clients(name)"),
+      .select(
+        "listing_id, hub_listing_id, listing_name, city, group_name, hub_client_id, clients(name)"
+      ),
     fetchAllMetrics(supabase, run.id),
+    // Test listings keep syncing into report_listings so their detail pages
+    // work, but they must never enter the portfolio average.
+    supabase.from("listings").select("id").eq("status", TEST_STATUS),
   ])
 
   // Never let a missing pickup column (migration 036), RLS gap, or join error
   // take down the dashboard — degrade to the empty state instead.
-  if (listingsRes.error || metricsRes.error) {
+  if (listingsRes.error || metricsRes.error || testRes.error) {
     return { listings: [], metrics: [], runCompletedAt: run.completed_at }
   }
 
-  const listings: MonthlyPacingListing[] = (
-    (listingsRes.data as ListingRow[] | null) ?? []
-  ).map((l) => {
+  const testHubIds = new Set(
+    ((testRes.data as { id: string }[] | null) ?? []).map((r) => r.id)
+  )
+  const kept = excludeTestListings(
+    (listingsRes.data as ListingRow[] | null) ?? [],
+    (metricsRes.data as MetricRow[] | null) ?? [],
+    testHubIds
+  )
+
+  const listings: MonthlyPacingListing[] = kept.listings.map((l) => {
     const client = Array.isArray(l.clients) ? l.clients[0] : l.clients
     return {
       id: l.listing_id,
@@ -162,9 +176,7 @@ export async function getMonthlyPacingSource(
     }
   })
 
-  const metrics: MonthlyPacingMetric[] = (
-    (metricsRes.data as MetricRow[] | null) ?? []
-  ).map((m) => ({
+  const metrics: MonthlyPacingMetric[] = kept.metrics.map((m) => ({
     listing_id: m.listing_id,
     period: m.period,
     occupancy_pct: m.adjusted_occupancy_pct,
@@ -174,6 +186,30 @@ export async function getMonthlyPacingSource(
   }))
 
   return { listings, metrics, runCompletedAt: run.completed_at }
+}
+
+/**
+ * Drop report listings whose hub listing is `test`, and the metric rows keyed
+ * by their PriceLabs id, so neither the numerator nor the listing-count
+ * denominator of the portfolio average sees test data. Pure so it can be
+ * unit-tested; report listings without a hub linkage are kept untouched.
+ */
+export function excludeTestListings<
+  L extends { listing_id: string; hub_listing_id: string | null },
+  M extends { listing_id: string },
+>(listings: L[], metrics: M[], testHubIds: Set<string>): { listings: L[]; metrics: M[] } {
+  if (testHubIds.size === 0) return { listings, metrics }
+  const droppedPlIds = new Set<string>()
+  const keptListings = listings.filter((l) => {
+    const isTest = l.hub_listing_id !== null && testHubIds.has(l.hub_listing_id)
+    if (isTest) droppedPlIds.add(l.listing_id)
+    return !isTest
+  })
+  const keptMetrics =
+    droppedPlIds.size === 0
+      ? metrics
+      : metrics.filter((m) => !droppedPlIds.has(m.listing_id))
+  return { listings: keptListings, metrics: keptMetrics }
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10

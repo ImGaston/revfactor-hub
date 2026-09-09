@@ -56,6 +56,7 @@ import { ExportReservationsDialog } from "./export-reservations-dialog"
 import { PricingDashboardButton } from "./pricing-dashboard-button"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { ClientDialog } from "@/app/(authenticated)/settings/clients/client-dialog"
+import { StatusBadge } from "@/components/status-badge"
 
 /**
  * Color based on listing occupancy vs market occupancy:
@@ -126,12 +127,6 @@ function ListingKPI({
       </span>
     </div>
   )
-}
-
-const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-  active: "default",
-  onboarding: "secondary",
-  inactive: "outline",
 }
 
 function InfoRow({
@@ -354,11 +349,7 @@ export function ClientDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">
             {client.name}
           </h1>
-          <Badge
-            variant={statusVariant[client.status] ?? "outline"}
-          >
-            {client.status}
-          </Badge>
+          <StatusBadge status={client.status} />
           <Button
             variant="outline"
             size="sm"

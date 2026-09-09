@@ -42,6 +42,7 @@ import { toggleOnboardingStep, updateClientStatus } from "./actions"
 import { OnboardingComments } from "./onboarding-comments"
 import { cn } from "@/lib/utils"
 import type { OnboardingTemplate, OnboardingProgress } from "@/lib/types"
+import { CLIENT_STATUSES, statusLabel } from "@/lib/status"
 
 type ClientRow = {
   id: string
@@ -61,11 +62,10 @@ type Props = {
   isSuperAdmin: boolean
 }
 
-const STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "onboarding", label: "Onboarding" },
-  { value: "inactive", label: "Inactive" },
-] as const
+const STATUS_OPTIONS = CLIENT_STATUSES.map((value) => ({
+  value,
+  label: statusLabel(value),
+}))
 
 function formatDate(iso: string | null) {
   if (!iso) return "—"

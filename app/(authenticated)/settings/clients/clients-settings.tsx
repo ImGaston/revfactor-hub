@@ -7,7 +7,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { DatabaseImportIcon } from "@hugeicons/core-free-icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -61,6 +60,7 @@ import {
   linkAssemblyClientAction,
   unlinkAssemblyClientAction,
 } from "./actions"
+import { StatusBadge } from "@/components/status-badge"
 
 type SettingsClient = {
   id: string
@@ -80,12 +80,6 @@ type SettingsClient = {
   pms_name: string | null
   has_vrbo: boolean
   listingCount: number
-}
-
-const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-  active: "default",
-  onboarding: "secondary",
-  inactive: "outline",
 }
 
 export function ClientsSettings({
@@ -207,6 +201,7 @@ export function ClientsSettings({
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="onboarding">Onboarding</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="test">Test</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground whitespace-nowrap">
@@ -257,9 +252,7 @@ export function ClientsSettings({
                 <TableRow key={client.id}>
                   <TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[client.status] ?? "outline"}>
-                      {client.status}
-                    </Badge>
+                    <StatusBadge status={client.status} />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {client.email ?? "—"}

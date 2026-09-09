@@ -18,14 +18,7 @@ import {
 import { updateClientEmailAction } from "@/app/(authenticated)/settings/clients/actions"
 import { cn } from "@/lib/utils"
 import type { ClientListItem } from "@/lib/types"
-
-const statusColor: Record<string, string> = {
-  active: "bg-green-500/10 text-green-700 border-green-300 dark:text-green-400 dark:border-green-700",
-  onboarding: "bg-blue-500/10 text-blue-700 border-blue-300 dark:text-blue-400 dark:border-blue-700",
-  inactive: "bg-muted text-muted-foreground border-border",
-  paused: "bg-yellow-500/10 text-yellow-700 border-yellow-300 dark:text-yellow-400 dark:border-yellow-700",
-  churned: "bg-red-500/10 text-red-700 border-red-300 dark:text-red-400 dark:border-red-700",
-}
+import { STATUS_BADGE_CLASS } from "@/lib/status"
 
 type SortField = "name" | "status" | "listings" | "tasks" | "onboarding_date" | "ending_date"
 type SortDir = "asc" | "desc"
@@ -232,7 +225,7 @@ export function ClientsTable({
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className={`text-[10px] capitalize ${statusColor[client.status] ?? ""}`}
+                      className={`text-[10px] capitalize ${STATUS_BADGE_CLASS[client.status] ?? ""}`}
                     >
                       {client.status}
                     </Badge>

@@ -26,6 +26,7 @@ import {
   type WinEvidence,
   type WinPeriod,
 } from "@/lib/wins"
+import { isTestStatus } from "@/lib/status"
 
 const METRICS_PAGE_SIZE = 1000
 
@@ -252,7 +253,17 @@ export async function runWinsDetection(
     const stalenessDays = daysBetween(asOf, new Date().toISOString().slice(0, 10))
     const runCurrency = (reportRun ? "USD" : "USD") as string
 
-    const built = pickupRows.map((row) => {
+    // Test listings/clients are synced like real ones but never become win
+    // candidates (lib/status.ts TEST_STATUS).
+    const analyzableRows = pickupRows.filter((row) => {
+      const listing = row.hub_listing_id ? listingById.get(row.hub_listing_id) : undefined
+      if (isTestStatus(listing?.status as string | undefined)) return false
+      const clientId = row.client_id ?? (listing?.client_id as string | null) ?? null
+      const client = clientId ? clientById.get(clientId) : undefined
+      return !isTestStatus(client?.status as string | undefined)
+    })
+
+    const built = analyzableRows.map((row) => {
       const plId = row.pricelabs_listing_id
       const reasonCodes: string[] = []
 
