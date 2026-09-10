@@ -31,6 +31,7 @@ import {
   BOOKING_WINDOWS,
   adjustmentShareUrl,
   adjustmentTypeOptions,
+  type AdjustmentTypeGroup,
   type AdjustmentTypeSetting,
 } from "@/lib/adjustments"
 import type { Adjustment, AdjustmentType } from "@/lib/types"
@@ -82,6 +83,24 @@ export function AdjustmentDialog({
 
   const config = ADJUSTMENT_TYPE_CONFIG[adjustmentType as AdjustmentType] ?? null
   const isSetup = adjustmentType === "setup"
+
+  // Type visibility follows the creator group: hostpricing users are locked to
+  // their group, an Agent-origin ticket uses the Agent column of Settings >
+  // Adjustment Types, everything else is the internal team.
+  const typeGroup: AdjustmentTypeGroup = lockOriginToHostpricing
+    ? "hostpricing"
+    : origin === "agent"
+      ? "agent"
+      : "internal"
+  const typeOptions = adjustmentTypeOptions(typeGroup, adjustment?.type, typeSettings)
+
+  // Switching origin can hide the chosen type — clear it instead of leaving
+  // the Select showing a value that is no longer in the list.
+  useEffect(() => {
+    if (adjustmentType && !typeOptions.some((t) => t.value === adjustmentType))
+      setAdjustmentType("")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeGroup, typeSettings])
 
   useEffect(() => {
     if (open && !clients) {
@@ -305,7 +324,7 @@ export function AdjustmentDialog({
                   <SelectValue placeholder="What changes?" />
                 </SelectTrigger>
                 <SelectContent>
-                  {adjustmentTypeOptions(lockOriginToHostpricing, adjustment?.type, typeSettings).map((t) => (
+                  {typeOptions.map((t) => (
                     <SelectItem key={t.value} value={t.value}>
                       {t.label}
                     </SelectItem>

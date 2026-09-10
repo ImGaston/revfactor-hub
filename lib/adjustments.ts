@@ -36,18 +36,28 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
 // UI-level filter only — the server accepts any valid type.
 export const INTERNAL_ONLY_TYPES: AdjustmentType[] = ["setup"]
 
+// Types an AI agent may file when adjustment_type_settings has not loaded.
+// Agents are fail-closed: the DB column `agent_enabled` defaults to FALSE and
+// a type without a settings row is treated as disabled for agents.
+export const AGENT_DEFAULT_TYPES: AdjustmentType[] = ["pricing_flexibility"]
+
+// Creator groups whose type visibility is managed in Settings > Adjustment Types
+export type AdjustmentTypeGroup = "internal" | "hostpricing" | "agent"
+
 // Row shape of adjustment_type_settings (migration 073)
 export type AdjustmentTypeSetting = {
   type: string
   internal_enabled: boolean
   hostpricing_enabled: boolean
+  agent_enabled: boolean
 }
 
 // `currentType` keeps the edit-mode Select from rendering blank if a
 // now-hidden type ends up on an editable ticket. Types without a settings
-// row default to visible for both groups (matches the table's defaults).
+// row default to visible for internal/hostpricing (matches the table's
+// defaults) and hidden for agent (fail-closed).
 export function adjustmentTypeOptions(
-  isHostpricing: boolean,
+  group: AdjustmentTypeGroup,
   currentType?: string,
   settings?: AdjustmentTypeSetting[] | null
 ): { value: AdjustmentType; label: string }[] {
@@ -56,20 +66,34 @@ export function adjustmentTypeOptions(
     return ADJUSTMENT_TYPES.filter((t) => {
       if (t.value === currentType) return true
       const row = byType.get(t.value)
-      if (!row) return true
-      return isHostpricing ? row.hostpricing_enabled : row.internal_enabled
+      if (!row) return group !== "agent"
+      return adjustmentTypeEnabledFor(row, group)
     })
   }
-  if (!isHostpricing) return ADJUSTMENT_TYPES
+  if (group === "internal") return ADJUSTMENT_TYPES
+  if (group === "agent")
+    return ADJUSTMENT_TYPES.filter(
+      (t) => AGENT_DEFAULT_TYPES.includes(t.value) || t.value === currentType
+    )
   return ADJUSTMENT_TYPES.filter(
     (t) => !INTERNAL_ONLY_TYPES.includes(t.value) || t.value === currentType
   )
+}
+
+export function adjustmentTypeEnabledFor(
+  row: AdjustmentTypeSetting,
+  group: AdjustmentTypeGroup
+): boolean {
+  if (group === "internal") return row.internal_enabled
+  if (group === "hostpricing") return row.hostpricing_enabled
+  return row.agent_enabled
 }
 
 export const ADJUSTMENT_ORIGINS: { value: AdjustmentOrigin; label: string }[] = [
   { value: "internal", label: "Internal" },
   { value: "client", label: "Client" },
   { value: "hostpricing", label: "HostPricing" },
+  { value: "agent", label: "Agent" },
 ]
 
 export const ADJUSTMENT_STATUSES: { value: AdjustmentStatus; label: string }[] = [
@@ -140,6 +164,7 @@ export const URGENCY_BADGE: Record<string, string> = {
 export const ORIGIN_BADGE: Record<string, string> = {
   client: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
   hostpricing: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+  agent: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
 }
 
 export const STATUS_BADGE: Record<string, string> = {

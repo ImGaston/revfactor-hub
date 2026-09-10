@@ -10,7 +10,7 @@ export default async function AdjustmentTypesSettingsPage() {
   const supabase = await createClient()
   const { data: settings } = await supabase
     .from("adjustment_type_settings")
-    .select("type, internal_enabled, hostpricing_enabled")
+    .select("type, internal_enabled, hostpricing_enabled, agent_enabled")
 
   return <AdjustmentTypesManager settings={settings ?? []} />
 }

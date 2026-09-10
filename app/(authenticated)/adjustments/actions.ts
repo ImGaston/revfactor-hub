@@ -507,7 +507,7 @@ export async function getAdjustmentFormOptions() {
         .order("name"),
       supabase
         .from("adjustment_type_settings")
-        .select("type, internal_enabled, hostpricing_enabled"),
+        .select("type, internal_enabled, hostpricing_enabled, agent_enabled"),
     ])
 
   if (error) return { error: error.message, clients: [], typeSettings: [] }

@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-10 — `agent` origin for Adjustments
+
+Added a fourth adjustment origin `agent` (label "Agent", sky badge) for tickets filed by an AI agent. Timestamp migration `20260910130000_adjustments_agent_origin.sql` widens `adjustments_origin_check` (applied to production via Supabase MCP). `AdjustmentOrigin` type, `ADJUSTMENT_ORIGINS`, and `ORIGIN_BADGE` updated in `lib`; the create/edit dialog picks it up from the shared list. Comment origins are unchanged (still derived from the author role). No queue/escalation logic keys on `agent`. Backfilled 14 existing agent-filed rows (RF-AUTO-002 / Seasons apply-now pricing_flexibility tickets, identified by `created_by IS NULL` + `signals ? 'candidate_id'`) from `internal` to `agent` in production; the two creator-less Federico setup tickets were left as `internal`. Follow-up: `20260910140000_adjustment_type_settings_agent.sql` (applied to production) adds `agent_enabled` to `adjustment_type_settings`; Settings > Adjustment Types gained an Agent column (sky), `adjustmentTypeOptions` now takes an `AdjustmentTypeGroup` instead of a boolean, and the create/edit dialog filters types by the Agent column when origin is Agent (clearing a type the group hides).
+
 ## 2026-09-10 — FD-PLAN-003 Slack win notes delivery
 
 Extended Wins so every unblocked shareable candidate from a completed detection run is posted once to Slack `#revfactor-wins` or skipped with a durable reason. Added server-only `lib/slack.ts` and `lib/wins-slack.server.ts`, timestamp migration `20260910120000_win_slack_deliveries.sql` (`win_slack_deliveries` + `slack_posted` on `win_events`), `GET /api/cron/wins-slack` (`CRON_SECRET`, `?dryRun=1`), and a post-detection hook on the Hub Run detection action. Tests mock `fetch`; no live Slack, Assembly, PriceLabs, or n8n. Live bot join remains ops.

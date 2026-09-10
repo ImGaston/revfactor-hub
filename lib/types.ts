@@ -752,7 +752,7 @@ export type AdjustmentType =
   | "cancellation_policy"
   | "other"
 
-export type AdjustmentOrigin = "client" | "internal" | "hostpricing"
+export type AdjustmentOrigin = "client" | "internal" | "hostpricing" | "agent"
 
 // Manually-entered metrics from HostPricing's consolidated report — free-form
 // strings ("2.1%", "1,240"), display-only, never queried. Labels/placeholders
