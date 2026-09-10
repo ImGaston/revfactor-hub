@@ -63,8 +63,8 @@ export class PaidClient extends DurableObject<Environment> {
         save,
         find: async email => {
           const d=await api(this.env,'assembly',`/clients?email=${encodeURIComponent(email)}&limit=2`);
-          if (!Array.isArray(d.data) || d.nextToken) throw new Error('assembly_identity_conflict');
-          return d.data.map(object);
+          if (d.nextToken || (d.data !== null && !Array.isArray(d.data))) throw new Error('assembly_identity_conflict');
+          return (d.data ?? []).map(object);
         },
         company: name => api(this.env,'assembly','/companies','POST',{name,fallbackColor:'#184c3c'}),
         client: (job,companyId) => api(this.env,'assembly','/clients?sendInvite=false','POST',{givenName:job.givenName,familyName:job.familyName,email:job.email,companyId}),

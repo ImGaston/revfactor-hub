@@ -17,7 +17,8 @@ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:compiled.o
  }
  if(u.hostname==='api.assembly.com'){
   if(u.pathname==='/v1/clients/qa-client')return Response.json({id:'qa-client',email:'qa@example.com',companyId:'qa-company',companyIds:['qa-company']});
-  if(req.method==='GET')return Response.json({data:[],nextToken:null});
+  // Real Assembly empty email searches return data:null, not necessarily [].
+  if(req.method==='GET')return Response.json({data:null,nextToken:null});
   if(u.pathname==='/v1/companies'){companyCreates++;return Response.json({id:'qa-company'});}
   if(u.pathname==='/v1/clients'){assert.equal(u.searchParams.get('sendInvite'),'false');clientCreates++;return Response.json({id:'qa-client',email:'qa@example.com'});}
  }

@@ -413,3 +413,10 @@ Hub failures retain the completed Assembly identity and retry the Hub step. `hub
 This creates the Hub client record only. It does not manufacture property/listing records, set autopayment flags, link Stripe billing customers, initialize questionnaire runs, or send portal invitations. Those require their own authoritative data and steps. The older Assembly-first onboarding application and manual Hub pipeline action remain separate entry points.
 
 Verification: 21 tests, full mocked Cloudflare runtime with 20 concurrent events, typecheck, deployment dry-run, and a live synthetic Hub create/replay check passed. The temporary Hub QA row was removed. Production worker version: `ffc12c66-8d4d-4444-8943-57045d8e180e`.
+
+
+### Empty Assembly client search — September 10 correction
+
+A live exact-email lookup for an absent client returned HTTP 200 with `data: null`. The payment Worker now accepts explicit null as zero matches, while missing/malformed data and pagination remain review errors. The runtime regression uses the observed null response: it failed before the fix and passes after it with one Assembly company/client and one Hub row for 20 concurrent deliveries. The activation timestamp, first-payment restrictions and sendInvite=false are unchanged.
+
+Deployed correction: Worker version `a70c016f-aea9-406e-b630-541c851fbe81`; previous version `ffc12c66-8d4d-4444-8943-57045d8e180e` is the rollback reference.

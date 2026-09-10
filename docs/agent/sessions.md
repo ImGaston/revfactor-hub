@@ -743,3 +743,8 @@ On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), adde
 ## 2026-09-10 — GHL payment → Assembly → Hub client enabled
 
 Extended the deployed external `revfactor-assembly-payment` Worker to create/link the existing Hub clients table after Assembly identity creation. Added identity-conflict checks, deterministic insert IDs, saved Hub IDs, Hub-only retries and GHL completion/review tags. Twenty-one tests plus full mocked runtime passed; live synthetic Hub creation and replay returned one row, which was removed afterward. Production version `ffc12c66-8d4d-4444-8943-57045d8e180e`. Updated integration/project-map/decision memory. No real customer backfill, messages or invitations; no Hub application source deployment.
+
+
+## 2026-09-10 — Correct Assembly empty-search handling
+
+Fixed the paid-client Worker rejecting Assembly HTTP 200 `data:null` for a client that does not yet exist. Updated the full-runtime fixture to the observed response and verified red/green, 21 unit tests, Worker typecheck/dry-run, and Hub direct TypeScript check. The pnpm wrapper again stopped at pre-existing ignored dependency builds; no dependency build permissions changed. No UI, payment-mode, invitation or historical cut-off change. Operational backfill and email-test evidence are maintained in the central GHL workspace.
