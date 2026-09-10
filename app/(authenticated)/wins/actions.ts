@@ -16,6 +16,7 @@ import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { runWinsDetection } from "@/lib/wins-detection.server"
 import { buildWinMessage } from "@/lib/wins-message"
+import { deliverWinSlackNotes } from "@/lib/wins-slack.server"
 import { getWinCandidate } from "@/lib/wins-queries"
 import {
   WIN_EVENT_TYPES,
@@ -58,6 +59,15 @@ export async function runWinsDetectionAction(
       periodMonths: months,
       triggeredBy: "manual",
     })
+    try {
+      await deliverWinSlackNotes({
+        supabase,
+        runId: result.runId,
+        actorId: user.id,
+      })
+    } catch (err) {
+      console.error("Wins Slack delivery after detection failed:", err)
+    }
     revalidatePath("/wins")
     return { success: true, runId: result.runId, candidateCount: result.candidateCount }
   } catch (err) {
@@ -188,6 +198,9 @@ export async function recordWinEventAction(
   if (!WIN_EVENT_TYPES.includes(eventType)) return { error: "Invalid event type" }
   if (eventType === "marked_shared") {
     return { error: "Use markWinSharedAction to record a manual share" }
+  }
+  if (eventType === "slack_posted") {
+    return { error: "Slack delivery is recorded by the Wins Slack path, not by hand" }
   }
   if (draftId && !UUID_RE.test(draftId)) return { error: "Invalid draft" }
 

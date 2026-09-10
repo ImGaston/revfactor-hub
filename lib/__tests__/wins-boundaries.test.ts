@@ -31,6 +31,9 @@ const WINS_FILES = [
   "lib/wins-message.ts",
   "lib/wins-detection.server.ts",
   "lib/wins-queries.ts",
+  "lib/wins-slack.server.ts",
+  "lib/slack.ts",
+  "app/api/cron/wins-slack/route.ts",
 ].filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))
 
 const SOURCES = WINS_FILES.map((f) => ({

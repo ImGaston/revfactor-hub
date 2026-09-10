@@ -13,6 +13,19 @@ AirROI is the optional public-listing enrichment source for the Revenue Brief Bu
 - Evidence boundary: AirROI TTM revenue, ADR, occupancy, and RevPAR are shown internally as third-party modeled estimates. They are not treated as owner-reported actuals, are not inserted into the client PDF as guaranteed projections, and do not replace the approved RevFactor managed-benchmark section.
 - Persistence: no AirROI payload, intake, or generated PDF is stored in v1. Missing configuration disables the import button while preserving the manual builder.
 
+## Slack
+
+Internal Wins notes post to Slack `#revfactor-wins` (`C0C0EL1UCDV`) after a successful Hub detection run.
+
+- Auth: server-only `SLACK_BOT_TOKEN` via `chat.postMessage`. A missing token is a typed skip (`slack_not_configured`) and must not throw on page render.
+- Channel: default `C0C0EL1UCDV`; optional `SLACK_WINS_CHANNEL_ID` override.
+- Client: `lib/slack.ts` (server-only). Orchestration: `lib/wins-slack.server.ts`. Templates stay in `lib/wins-message.ts` — no LLM copy.
+- Shareable categories: `double_win`, `yoy_positive_steady`, `market_compass_candidate`. Blocked candidates and categories without a template (`conflicting_signal`, `insufficient_data`, `no_win`) are skipped with a durable `win_slack_deliveries` reason.
+- Idempotency: unique sent row on `(candidate_id, channel_id)`. Re-runs no-op when that row exists. `win_events.slack_posted` is written only after a successful post and does not replace Assembly review events.
+- Cron: `GET /api/cron/wins-slack` uses the same `CRON_SECRET` fail-closed check as PriceLabs. `?dryRun=1` scores/counts without posting. Not added to `vercel.json` (detection is a Hub button; Slack runs at the end of that action).
+- Privacy: Slack text may use public listing names and template figures only. No guest names, street addresses, Airbnb URLs, raw API keys, or `@channel`/`@here`.
+- Live bot join of `#revfactor-wins` is ops, not an app deploy step.
+
 ## Assembly CRM
 
 Assembly is the client communication platform for CRM, messaging, and contracts.

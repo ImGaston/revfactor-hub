@@ -140,10 +140,14 @@ STRIPE_SECRET_KEY=
 AI_GATEWAY_API_KEY=
 ONBOARDING_ENTITLEMENT_SYNC_ENABLED=false
 CRON_SECRET=
+SLACK_BOT_TOKEN=
+SLACK_WINS_CHANNEL_ID=
 WHATSAPP_GROUP_INVITE_URL=
 ```
 
 `WHATSAPP_GROUP_INVITE_URL` is the team WhatsApp group invite (`https://chat.whatsapp.com/<code>`), read server-side in the Adjustments create flow only. Never expose it on the public `/a/` shell or in Open Graph tags — anyone with the invite link can join the group.
+
+`SLACK_BOT_TOKEN` is the server-only bot token for Wins notes in Slack. A missing token is a typed skip (`slack_not_configured`), never a throw on page render. `SLACK_WINS_CHANNEL_ID` optionally overrides the default `#revfactor-wins` channel (`C0C0EL1UCDV`). Slack text uses the existing win templates and public listing names only — no guest names, street addresses, Airbnb URLs, raw keys, or `@channel`/`@here`.
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
 
