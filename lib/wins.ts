@@ -297,6 +297,7 @@ export const WIN_EVENT_TYPES = [
   "marked_shared",
   "dismissed",
   "reopened",
+  "slack_posted",
 ] as const
 export type WinEventType = (typeof WIN_EVENT_TYPES)[number]
 

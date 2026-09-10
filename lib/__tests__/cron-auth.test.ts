@@ -8,6 +8,7 @@ const protectedCronRoutes = [
   "app/api/cron/report-builder/route.ts",
   "app/api/cron/sync-pricelabs/route.ts",
   "app/api/cron/sync-stripe/route.ts",
+  "app/api/cron/wins-slack/route.ts",
 ]
 
 describe("privileged cron authentication", () => {

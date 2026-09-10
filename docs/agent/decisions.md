@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-09-10 — Wins Slack Notes Are Hub Delivery, Not a Parallel Product
+
+FD-PLAN-003 posts shareable, unblocked win notes to Slack `#revfactor-wins` after a Hub detection run. This extends the existing Wins product (`win_candidates`, `buildWinMessage`, `WINS_RULES_V1`) rather than adding an occ-adr-wins module, n8n, Assembly send, or PriceLabs write. Rule numbers stay frozen; copy stays template-only.
+
+Delivery is recorded in `win_slack_deliveries` with a partial unique index on sent `(candidate_id, channel_id)`, so a stranger with channel ID + Slack `ts` + `win_candidates.id` can reconstruct the post. `slack_posted` was added to the `win_events` check without removing Assembly-review types. A missing `SLACK_BOT_TOKEN` is a typed skip. The retry endpoint is authenticated like the other privileged crons and is not scheduled in `vercel.json` because detection is already a Hub button.
+
 ## 2026-09-09 — Test Status Is Excluded at Aggregation, Not at Sync
 
 Internal test data (the "Info RM Test" client and Fede's four test listings) was `active`, so it inflated the dashboard counts, the evolution charts, financial unit economics, wins runs, and the pacing average. It is now a real status value, `test`, on both `clients` and `listings` — not a boolean flag — so every query that already filters `status = 'active'` excludes it with no change, and the badge makes it recognizable wherever it stays visible. Test rows keep syncing from PriceLabs and keep entering `report_listings`: the point is to exercise real flows on them, so exclusion happens at aggregation time (`.neq("status", TEST_STATUS)` or `isTestStatus` over pickup/report rows), never at ingest.

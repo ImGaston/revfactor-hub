@@ -12,6 +12,11 @@ const RAW = readFileSync(
   "utf8"
 )
 
+const SLACK_RAW = readFileSync(
+  path.join(process.cwd(), "supabase/migrations/20260910120000_win_slack_deliveries.sql"),
+  "utf8"
+)
+
 /**
  * The migration with `--` comments stripped and whitespace collapsed.
  *
@@ -197,5 +202,59 @@ describe("075_wins.sql — semantics", () => {
   it("hangs review state off the listing so it survives a recompute", () => {
     expect(SQL).toMatch(/UNIQUE \(hub_listing_id\)/)
     expect(SQL).toMatch(/version\s+INTEGER NOT NULL DEFAULT 1/)
+  })
+})
+
+const SLACK_SQL = SLACK_RAW.split("\n")
+  .map((line) => {
+    const idx = line.indexOf("--")
+    return idx === -1 ? line : line.slice(0, idx)
+  })
+  .join("\n")
+  .replace(/[ \t]+/g, " ")
+
+function slackPolicyStatements(): string[] {
+  return SLACK_SQL.split(/CREATE POLICY/i)
+    .slice(1)
+    .map((chunk) => `CREATE POLICY${chunk.split(";")[0]}`)
+}
+
+describe("20260910120000_win_slack_deliveries.sql", () => {
+  it("uses a timestamp version that does not fight the RF-INTEL ledger", () => {
+    expect(SLACK_RAW.startsWith("-- Timestamp migration")).toBe(true)
+  })
+
+  it("adds slack_posted without dropping Assembly review event types", () => {
+    for (const type of [
+      "viewed",
+      "message_generated",
+      "message_edited",
+      "copied",
+      "assembly_opened",
+      "marked_shared",
+      "dismissed",
+      "reopened",
+      "slack_posted",
+    ]) {
+      expect(SLACK_SQL).toContain(`'${type}'`)
+    }
+  })
+
+  it("creates win_slack_deliveries with a sent-once unique index", () => {
+    expect(SLACK_SQL).toContain("CREATE TABLE win_slack_deliveries")
+    expect(SLACK_SQL).toMatch(/UNIQUE INDEX win_slack_deliveries_sent_once/)
+    expect(SLACK_SQL).toMatch(/WHERE status = 'sent'/)
+    expect(SLACK_SQL).toContain("REFERENCES win_candidates(id)")
+  })
+
+  it("enables RLS and never ships a USING (true) policy", () => {
+    expect(SLACK_SQL).toContain("ALTER TABLE win_slack_deliveries ENABLE ROW LEVEL SECURITY")
+    expect(SLACK_SQL).not.toMatch(/USING\s*\(\s*true\s*\)/i)
+    expect(SLACK_SQL).not.toMatch(/WITH CHECK\s*\(\s*true\s*\)/i)
+    for (const policy of slackPolicyStatements()) {
+      expect(policy).toMatch(/has_permission\(\s*'wins'/)
+      expect(policy).toContain("TO authenticated")
+      expect(policy).not.toMatch(/FOR (UPDATE|DELETE)/i)
+    }
   })
 })

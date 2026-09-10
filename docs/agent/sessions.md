@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-10 — FD-PLAN-003 Slack win notes delivery
+
+Extended Wins so every unblocked shareable candidate from a completed detection run is posted once to Slack `#revfactor-wins` or skipped with a durable reason. Added server-only `lib/slack.ts` and `lib/wins-slack.server.ts`, timestamp migration `20260910120000_win_slack_deliveries.sql` (`win_slack_deliveries` + `slack_posted` on `win_events`), `GET /api/cron/wins-slack` (`CRON_SECRET`, `?dryRun=1`), and a post-detection hook on the Hub Run detection action. Tests mock `fetch`; no live Slack, Assembly, PriceLabs, or n8n. Live bot join remains ops.
+
 ## 2026-09-09 — `test` status for clients and listings
 
 Added `test` to `clients.status` and `listings.status` (timestamp migration `20260909120000_test_status.sql`, applied to production: CHECKs widened, 086 trigger ignores test transitions, Info RM Test + its four Fede listings marked and linked). New `lib/status.ts` (constants, labels, badge maps, `listingCascadeForClientStatus`) and `components/status-badge.tsx` replace six duplicated status maps. Aggregations now exclude test: dashboard total clients, `lib/monthly-summary.ts` (both loaders), `lib/monthly-pacing.ts` (new pure `excludeTestListings` over `report_listings.hub_listing_id`), `lib/wins-detection.server.ts`, financials clients list and Stripe auto-link. Visibility kept: `/clients` default chips include Test, `/listings` "Active" view includes test plus a "Test listings" option, Settings > Listings gets a Test tab (badge instead of Switch), Test option in client/listing dialogs and onboarding selects, command palette lists test listings. Both client→listing cascade sites share the new rule; the Assembly-link path preserves test. Tests: `status`, `listing-status`, `monthly-pacing`, `test-status-migration`. Docs: conventions, project-map, decisions.
