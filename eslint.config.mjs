@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "workers/assembly-payment/worker-configuration.d.ts",
   ]),
 ]);
 

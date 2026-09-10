@@ -739,3 +739,7 @@ On branch `codex/market-event-reconciliation` from merged main (`ad2e127`), adde
 
 - Extended the existing hashed, revocable `api_keys` scheme with the `market-map:read` scope. `/api/market-map` now accepts either a Hub session with `market_signals:view` or a server-side bearer key, while preserving the same explicit redacted projections and response contract.
 - The external map keeps the plaintext key only in its server-only `HUB_MARKET_MAP_TOKEN` environment variable and calls Hub through its own proxy. Hub stores only the SHA-256 digest, so rotation and revocation do not require a Hub environment change or expose the bearer token to client JavaScript.
+
+## 2026-09-10 — GHL payment → Assembly → Hub client enabled
+
+Extended the deployed external `revfactor-assembly-payment` Worker to create/link the existing Hub clients table after Assembly identity creation. Added identity-conflict checks, deterministic insert IDs, saved Hub IDs, Hub-only retries and GHL completion/review tags. Twenty-one tests plus full mocked runtime passed; live synthetic Hub creation and replay returned one row, which was removed afterward. Production version `ffc12c66-8d4d-4444-8943-57045d8e180e`. Updated integration/project-map/decision memory. No real customer backfill, messages or invitations; no Hub application source deployment.

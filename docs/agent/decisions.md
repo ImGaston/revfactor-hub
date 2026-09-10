@@ -488,3 +488,7 @@ The official university source slice now includes a side-effect-free reconciliat
 # 2026-09-04 — Market Map Reuses Revocable Scoped API Keys
 
 The external Grok map needs a server-to-server feed because its preview has no Hub session. Reuse the existing `api_keys` scheme with a dedicated `market-map:read` scope instead of introducing a shared Hub environment secret: Hub stores only the SHA-256 digest, while the consumer keeps the one-time plaintext token in its server-only `HUB_MARKET_MAP_TOKEN` environment. `/api/market-map` continues to accept authenticated Hub sessions for internal use. The machine path reads with the admin client only after scoped verification, making its existing explicit redacted projections the security boundary; it introduces no write path, market activation, ingestion, pricing, or automation behavior.
+
+## 2026-09-10 — Create Hub clients after the paid Assembly handoff
+
+User requested automatic Hub client creation immediately after the new payment-driven Assembly client creation. The existing Worker now performs both in order, preserving the first-live-payment gate. New Hub records begin in Onboarding and carry Assembly IDs; existing matched client status and billing settings are preserved. Duplicate protection uses exact identity reconciliation plus a deterministic UUID for new inserts. No schema migration or deployment of unrelated Hub checkout changes is required. Invitations, listing records and billing synchronization remain separate.

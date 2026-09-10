@@ -132,3 +132,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 - `docs/market-signals/market-registry-census.md` — aggregate PriceLabs/Hub inventory census, proposed market/locality clusters, ambiguity flags, and a governed 1000-listing backfill contract.
 - `docs/market-signals/foundation-deployment-runbook.md` — exact five-migration release order, isolated-manifest gate, aggregate verifier, invariants, rollback, and activation boundary.
 - `docs/analysis/event-intelligence/` — aggregate, secret-free August 21, 2026 case-study evidence: PriceLabs portfolio/location profile, five-market PredictHQ sample, executed notebook, validation note, canonical report payload, and verified portable HTML report. Listing names, IDs, notes, and API credentials are excluded.
+
+## External paid-onboarding provisioner (2026-09-10)
+
+Cloudflare Worker `revfactor-assembly-payment`, maintained at `workers/assembly-payment/`, verifies the native initial GHL payment, creates/reuses Assembly, and then creates/links `public.clients`. It uses existing columns and the Supabase server client; no new Hub route or migration. See the September 10 section in `integrations.md` for identity checks, retry behavior and scope.

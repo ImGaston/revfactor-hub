@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "revfactor-assembly-payment",
+  "account_id": "241210033a7cb4fccd10b768cfb833c2",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "LOCATION_ID": "ErABPRqWbMyIicvzvCFt",
+    "ENABLED": "true",
+    "ACTIVATED_AT": "2026-09-10T12:43:25.474897+00:00"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CLIENTS",
+        "class_name": "PaidClient"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "PaidClient"
+      ]
+    }
+  ]
+}

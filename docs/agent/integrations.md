@@ -33,7 +33,7 @@ Assembly is the client communication platform for CRM, messaging, and contracts.
 - API base: `https://api.assembly.com/v1`.
 - Auth: `X-API-KEY` header from server-only `ASSEMBLY_API_KEY`.
 - API client: `lib/assembly.ts`; keep all Assembly calls server-side.
-- Sync strategy: on-demand only; no webhooks, cron, background sync, or cache.
+- Hub UI Assembly reads remain on-demand. New paid GHL onboarding also uses the automatic Assembly → Hub client handoff documented below.
 - Graceful degradation: if `ASSEMBLY_API_KEY` is missing, hide Assembly UI.
 - Error handling: `assemblyFetch` reads response bodies on errors and logs details.
 
@@ -399,3 +399,17 @@ The Hub's only outbound API. Consumer: the external marketing team's tracking st
 - Every privileged cron route fails closed when `CRON_SECRET` is absent as well as when the bearer value is wrong; a missing deployment variable must never turn a sync endpoint into an unauthenticated route.
 - The daily PriceLabs cron enqueues `inventory_refresh` for every active managed market after its listing/report work. These jobs recalculate vulnerability and fill cached briefs without calling any event provider, so the 90-day PredictHQ beta can be removed or allowed to expire without disabling inventory-only rescoring.
 - GDELT/news and official-feed adapters remain unwired. There is still no external notification, automatic Adjustment mutation, PriceLabs write, PMS write, or OTA write.
+
+## 2026-09-10 — GHL paid onboarding creates the Hub client after Assembly
+
+The published GHL workflow `RF PAYMENTS | Initial invoice paid → Assembly client` (`eb99eb67-6091-490f-a932-5e13b0fdb97b`) calls the Cloudflare Worker `revfactor-assembly-payment`. After independently verifying the initial live GHL invoice and creating/reusing the Assembly client, it now creates or links the Hub `clients` row through the server-side Supabase client.
+
+Implementation: `workers/assembly-payment/src/hub.ts` (database adapter), `core.ts` (persisted sequence), and `index.ts` (runtime). The existing Hub UI reads `clients`, so no Hub application deployment or schema migration was needed.
+
+New rows contain legal business name, email, `status=onboarding`, onboarding date, Assembly client/company IDs and the Assembly messages link. Matching checks cover the deterministic Hub ID, Assembly client ID, exact case-insensitive email, and Assembly company ID when available. Multiple or conflicting matches stop for review. Existing matching rows retain their name, lifecycle and financial settings; guarded updates fill only the Assembly link fields. A deterministic UUID primary key derived from the Assembly client ID makes automated insert retries safe after a lost response.
+
+Hub failures retain the completed Assembly identity and retry the Hub step. `hubClientId` is persisted before completion. GHL success tags are `rf-assembly-created` and `rf-hub-created`; a failure after Assembly exists receives `rf-hub-review`. Old completed Assembly-only jobs can acquire the Hub link on replay. There is no bulk historical backfill or new invitation step.
+
+This creates the Hub client record only. It does not manufacture property/listing records, set autopayment flags, link Stripe billing customers, initialize questionnaire runs, or send portal invitations. Those require their own authoritative data and steps. The older Assembly-first onboarding application and manual Hub pipeline action remain separate entry points.
+
+Verification: 21 tests, full mocked Cloudflare runtime with 20 concurrent events, typecheck, deployment dry-run, and a live synthetic Hub create/replay check passed. The temporary Hub QA row was removed. Production worker version: `ffc12c66-8d4d-4444-8943-57045d8e180e`.
