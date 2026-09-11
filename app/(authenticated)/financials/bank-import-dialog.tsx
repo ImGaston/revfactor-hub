@@ -191,7 +191,7 @@ export function BankImportDialog({
         onOpenChange(o)
       }}
     >
-      <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="flex max-h-[88vh] max-w-4xl flex-col">
         <DialogHeader>
           <DialogTitle>Import bank statement</DialogTitle>
           <DialogDescription>
@@ -200,194 +200,201 @@ export function BankImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {rows.length === 0 && (
-          <div
-            className="cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors hover:border-primary/50"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload className="mx-auto mb-3 size-8 text-muted-foreground" />
-            <p className="text-sm font-medium">Click to upload a Relay CSV</p>
-            <p className="mt-1 text-xs text-muted-foreground">.csv files only</p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={handleFile}
-            />
-          </div>
-        )}
+        <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+          {rows.length === 0 && (
+            <div
+              className="cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors hover:border-primary/50"
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className="mx-auto mb-3 size-8 text-muted-foreground" />
+              <p className="text-sm font-medium">Click to upload a Relay CSV</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                .csv files only
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFile}
+              />
+            </div>
+          )}
 
-        {error && (
-          <div className="flex items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
-            <AlertCircle className="size-4" />
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="flex items-center gap-1.5 rounded-md border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive">
+              <AlertCircle className="size-4" />
+              {error}
+            </div>
+          )}
 
-        {rows.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet className="size-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{fileName}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {rows.length} rows
+          {rows.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{fileName}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {rows.length} rows
+                  </Badge>
+                </div>
+                <Button variant="ghost" size="sm" onClick={reset}>
+                  Change file
+                </Button>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bank-account">Account</Label>
+                <Select value={accountId} onValueChange={handleAccountChange}>
+                  <SelectTrigger id="bank-account" className="w-72">
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.label} · #{account.account_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline">
+                  {matchedDeposits.length} Stripe deposits matched
+                </Badge>
+                <Badge variant="outline">
+                  {expenseRows.length} expenses ·{" "}
+                  {currency(
+                    expenseRows.reduce((s, r) => s + Math.abs(r.amountCents), 0)
+                  )}
+                </Badge>
+                <Badge variant="outline">
+                  {transfers.length} transfers excluded
                 </Badge>
               </div>
-              <Button variant="ghost" size="sm" onClick={reset}>
-                Change file
-              </Button>
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bank-account">Account</Label>
-              <Select value={accountId} onValueChange={handleAccountChange}>
-                <SelectTrigger id="bank-account" className="w-72">
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.label} · #{account.account_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline">
-                {matchedDeposits.length} Stripe deposits matched
-              </Badge>
-              <Badge variant="outline">
-                {expenseRows.length} expenses ·{" "}
-                {currency(
-                  expenseRows.reduce((s, r) => s + Math.abs(r.amountCents), 0)
-                )}
-              </Badge>
-              <Badge variant="outline">
-                {transfers.length} transfers excluded
-              </Badge>
-            </div>
-
-            <ScrollArea className="h-[360px] rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Payee</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-center">Expense</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row, index) => {
-                    const isExpense = row.flowClass === "external_expense"
-                    return (
-                      <TableRow key={index}>
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {row.isoDate}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {row.payee || "—"}
-                          {row.matchedPayoutId && (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              ✓ payout
-                            </span>
-                          )}
-                          {row.matchedRecurringId && (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              ↺ recurring
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={flowBadgeVariant(row.flowClass)}
-                            className="text-xs"
-                          >
-                            {FLOW_LABELS[row.flowClass]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm">
-                          {currency(row.amountCents)}
-                        </TableCell>
-                        <TableCell>
-                          {isExpense ? (
-                            <Select
-                              value={row.suggestedCategoryId ?? "none"}
-                              onValueChange={(value) =>
-                                updateRow(index, {
-                                  suggestedCategoryId:
-                                    value === "none" ? null : value,
-                                })
-                              }
+              <ScrollArea className="h-[360px] rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Payee</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-center">Expense</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, index) => {
+                      const isExpense = row.flowClass === "external_expense"
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {row.isoDate}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.payee || "—"}
+                            {row.matchedPayoutId && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                ✓ payout
+                              </span>
+                            )}
+                            {row.matchedRecurringId && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                ↺ recurring
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={flowBadgeVariant(row.flowClass)}
+                              className="text-xs"
                             >
-                              <SelectTrigger size="sm" className="w-44">
-                                <SelectValue placeholder="Uncategorized" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">
-                                  Uncategorized
-                                </SelectItem>
-                                {categories.map((category) => (
-                                  <SelectItem
-                                    key={category.id}
-                                    value={category.id}
-                                  >
-                                    {category.name}
+                              {FLOW_LABELS[row.flowClass]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {currency(row.amountCents)}
+                          </TableCell>
+                          <TableCell>
+                            {isExpense ? (
+                              <Select
+                                value={row.suggestedCategoryId ?? "none"}
+                                onValueChange={(value) =>
+                                  updateRow(index, {
+                                    suggestedCategoryId:
+                                      value === "none" ? null : value,
+                                  })
+                                }
+                              >
+                                <SelectTrigger size="sm" className="w-44">
+                                  <SelectValue placeholder="Uncategorized" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">
+                                    Uncategorized
                                   </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {isExpense ? (
-                            <Checkbox
-                              checked={row.createExpense}
-                              onCheckedChange={(checked) =>
-                                updateRow(index, {
-                                  createExpense: checked === true,
-                                })
-                              }
-                            />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+                                  {categories.map((category) => (
+                                    <SelectItem
+                                      key={category.id}
+                                      value={category.id}
+                                    >
+                                      {category.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {isExpense ? (
+                              <Checkbox
+                                checked={row.createExpense}
+                                onCheckedChange={(checked) =>
+                                  updateRow(index, {
+                                    createExpense: checked === true,
+                                  })
+                                }
+                              />
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
 
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  reset()
-                  onOpenChange(false)
-                }}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleImport} disabled={importing || !accountId}>
-                {importing ? "Importing..." : `Import ${rows.length} rows`}
-              </Button>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    reset()
+                    onOpenChange(false)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleImport}
+                  disabled={importing || !accountId}
+                >
+                  {importing ? "Importing..." : `Import ${rows.length} rows`}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

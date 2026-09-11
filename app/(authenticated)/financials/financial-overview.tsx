@@ -14,6 +14,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Field, FieldLabel } from "@/components/ui/field"
 import {
@@ -57,7 +58,7 @@ import {
 import type { ScorecardData } from "@/lib/financial-scorecard/types"
 import {
   confirmMonth,
-  reviewExpense,
+  reviewExpenses,
   reviewIncome,
   saveAccountBalance,
 } from "./scorecard-actions"
@@ -103,17 +104,21 @@ function Choice({
   options,
   label,
   disabled,
+  placeholder,
+  className = "w-52",
 }: {
   value: string
   onChange: (v: string) => void
   options: [string, string][]
   label: string
   disabled: boolean
+  placeholder?: string
+  className?: string
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger aria-label={label} className="w-52">
-        <SelectValue />
+      <SelectTrigger aria-label={label} className={className}>
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
@@ -140,6 +145,7 @@ export function FinancialOverview({
   const current = now.slice(0, 7)
   const [month, setMonth] = useState(monthsEnding(current, 2)[0])
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [balanceAccount, setBalanceAccount] = useState<string | null>(null)
   const [balanceDate, setBalanceDate] = useState(now.slice(0, 10))
@@ -214,6 +220,24 @@ export function FinancialOverview({
   const expenseRows = data.expenses.filter((e) =>
     (e.is_paid ? (e.paid_at ?? e.date) : e.date).startsWith(month)
   )
+  const selectedIds = expenseRows
+    .filter((e) => selected.has(e.id))
+    .map((e) => e.id)
+  const allSelected =
+    expenseRows.length > 0 && selectedIds.length === expenseRows.length
+  const categoryOptions: [string, string][] = [
+    ["none", "Sin categoría"],
+    ...[...data.categories]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((c): [string, string] => [c.id, c.name]),
+  ]
+  const treatmentOptions: [string, string][] = [
+    ["operating", "Gasto operativo"],
+    ["partner_distribution", "Distribución a socios"],
+  ]
+  const categoryPatch = (v: string) => ({
+    categoryId: v === "none" ? null : v,
+  })
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -655,8 +679,14 @@ export function FinancialOverview({
           )}
         </CardContent>
       </Card>
-      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <Dialog
+        open={reviewOpen}
+        onOpenChange={(open) => {
+          setReviewOpen(open)
+          if (!open) setSelected(new Set())
+        }}
+      >
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Revisión de {month}</DialogTitle>
             <DialogDescription>
@@ -664,82 +694,189 @@ export function FinancialOverview({
               cobertura en Expenses y Bank.
             </DialogDescription>
           </DialogHeader>
-          {unresolved > 0 && (
-            <Alert>
-              <AlertDescription>
-                {r.unlinkedExpenses.length} salidas operativas sin gasto
-                enlazado; {r.missingPaymentDates.length} gastos pagados sin
-                fecha; {r.unknown.length} movimientos con clasificación o moneda
-                pendiente. Resolvelos desde Expenses / Bank antes de confirmar.
-              </AlertDescription>
-            </Alert>
-          )}
-          <h3 className="font-medium">Otros ingresos</h3>
-          {incomeRows.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              Sin otros ingresos registrados.
-            </p>
-          )}
-          {incomeRows.map((t) => (
-            <div
-              key={t.id}
-              className="flex flex-wrap items-center justify-between gap-2"
-            >
-              <span className="text-sm">
-                {t.txn_date} · {t.payee ?? "Ingreso"} ·{" "}
-                {money(Number(t.amount_cents))}
-              </span>
-              <Choice
-                disabled={busy}
-                label={`Clasificar ${t.payee ?? "ingreso"}`}
-                value={t.income_treatment}
-                options={[
-                  ["pending", "Pendiente"],
-                  ["operating", "Operativo"],
-                  ["capital", "Aporte / financiación"],
-                  ["transfer", "Transferencia"],
-                ]}
-                onChange={(v) => run(() => reviewIncome(t.id, v))}
-              />
-            </div>
-          ))}
-          <h3 className="font-medium">Gastos y distribuciones</h3>
-          {expenseRows.map((e) => (
-            <div
-              key={e.id}
-              className="flex flex-wrap items-center justify-between gap-2"
-            >
-              <span className="text-sm">
-                {e.description} · {money(Math.round(Number(e.amount) * 100))}
-                {r.expensePending.some((p) => p.id === e.id) &&
-                  " · revisar cuenta de socio"}
-              </span>
-              <div className="flex gap-2">
+          <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+            {unresolved > 0 && (
+              <Alert>
+                <AlertDescription>
+                  {r.unlinkedExpenses.length} salidas operativas sin gasto
+                  enlazado; {r.missingPaymentDates.length} gastos pagados sin
+                  fecha; {r.unknown.length} movimientos con clasificación o
+                  moneda pendiente. Resolvelos desde Expenses / Bank antes de
+                  confirmar.
+                </AlertDescription>
+              </Alert>
+            )}
+            <h3 className="font-medium">Otros ingresos</h3>
+            {incomeRows.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Sin otros ingresos registrados.
+              </p>
+            )}
+            {incomeRows.map((t) => (
+              <div
+                key={t.id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <span className="text-sm">
+                  {t.txn_date} · {t.payee ?? "Ingreso"} ·{" "}
+                  {money(Number(t.amount_cents))}
+                </span>
                 <Choice
                   disabled={busy}
-                  label={`Tratamiento de ${e.description}`}
-                  value={e.financial_treatment}
+                  label={`Clasificar ${t.payee ?? "ingreso"}`}
+                  value={t.income_treatment}
                   options={[
-                    ["operating", "Gasto operativo"],
-                    ["partner_distribution", "Distribución a socios"],
+                    ["pending", "Pendiente"],
+                    ["operating", "Operativo"],
+                    ["capital", "Aporte / financiación"],
+                    ["transfer", "Transferencia"],
                   ]}
-                  onChange={(v) => run(() => reviewExpense(e.id, v))}
+                  onChange={(v) => run(() => reviewIncome(t.id, v))}
                 />
-                {!e.financial_reviewed_at && (
-                  <Button
-                    disabled={busy}
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      run(() => reviewExpense(e.id, e.financial_treatment))
-                    }
-                  >
-                    Confirmar
-                  </Button>
-                )}
               </div>
+            ))}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-medium">Gastos y distribuciones</h3>
+              {expenseRows.length > 0 && (
+                <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Checkbox
+                    aria-label="Seleccionar todos los gastos del mes"
+                    checked={
+                      allSelected
+                        ? true
+                        : selectedIds.length > 0
+                          ? "indeterminate"
+                          : false
+                    }
+                    onCheckedChange={(c) =>
+                      setSelected(
+                        c === true
+                          ? new Set(expenseRows.map((e) => e.id))
+                          : new Set()
+                      )
+                    }
+                  />
+                  {selectedIds.length > 0
+                    ? `${selectedIds.length} seleccionados`
+                    : "Seleccionar todos"}
+                </label>
+              )}
             </div>
-          ))}
+            {expenseRows.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Sin gastos registrados en el mes.
+              </p>
+            )}
+            {selectedIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 rounded-2xl border bg-muted/40 p-3">
+                <span className="text-sm font-medium">
+                  Editar {selectedIds.length}{" "}
+                  {selectedIds.length === 1 ? "gasto" : "gastos"}
+                </span>
+                <Choice
+                  className="w-44"
+                  disabled={busy}
+                  label="Categoría para los gastos seleccionados"
+                  placeholder="Categoría…"
+                  value=""
+                  options={categoryOptions}
+                  onChange={(v) =>
+                    run(() => reviewExpenses(selectedIds, categoryPatch(v)))
+                  }
+                />
+                <Choice
+                  className="w-44"
+                  disabled={busy}
+                  label="Tratamiento para los gastos seleccionados"
+                  placeholder="Tratamiento…"
+                  value=""
+                  options={treatmentOptions}
+                  onChange={(v) =>
+                    run(() => reviewExpenses(selectedIds, { treatment: v }))
+                  }
+                />
+                <Button
+                  disabled={busy}
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    run(() => reviewExpenses(selectedIds, { confirm: true }))
+                  }
+                >
+                  Confirmar seleccionados
+                </Button>
+                <Button
+                  disabled={busy}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelected(new Set())}
+                >
+                  Limpiar
+                </Button>
+              </div>
+            )}
+            {expenseRows.map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <label className="flex min-w-0 items-center gap-2 text-sm">
+                  <Checkbox
+                    aria-label={`Seleccionar ${e.description}`}
+                    checked={selected.has(e.id)}
+                    onCheckedChange={(c) =>
+                      setSelected((prev) => {
+                        const next = new Set(prev)
+                        if (c === true) next.add(e.id)
+                        else next.delete(e.id)
+                        return next
+                      })
+                    }
+                  />
+                  <span>
+                    {e.description} ·{" "}
+                    {money(Math.round(Number(e.amount) * 100))}
+                    {r.expensePending.some((p) => p.id === e.id) &&
+                      " · revisar cuenta de socio"}
+                  </span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <Choice
+                    className="w-44"
+                    disabled={busy}
+                    label={`Categoría de ${e.description}`}
+                    value={e.category_id ?? "none"}
+                    options={categoryOptions}
+                    onChange={(v) =>
+                      run(() => reviewExpenses([e.id], categoryPatch(v)))
+                    }
+                  />
+                  <Choice
+                    className="w-44"
+                    disabled={busy}
+                    label={`Tratamiento de ${e.description}`}
+                    value={e.financial_treatment}
+                    options={treatmentOptions}
+                    onChange={(v) =>
+                      run(() => reviewExpenses([e.id], { treatment: v }))
+                    }
+                  />
+                  {!e.financial_reviewed_at && (
+                    <Button
+                      disabled={busy}
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        run(() => reviewExpenses([e.id], { confirm: true }))
+                      }
+                    >
+                      Confirmar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -834,7 +971,7 @@ export function FinancialOverview({
         </DialogContent>
       </Dialog>
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Historial y origen</DialogTitle>
             <DialogDescription>
@@ -843,61 +980,63 @@ export function FinancialOverview({
               excluidas.
             </DialogDescription>
           </DialogHeader>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mes</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Cobros</TableHead>
-                <TableHead>Gastos</TableHead>
-                <TableHead>Resultado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {monthsEnding(month).map((m) => {
-                const x = monthlyResult(data, m)
-                return (
-                  <TableRow key={m}>
-                    <TableCell>{m}</TableCell>
-                    <TableCell>
-                      {x.reviewed ? "Revisado" : "Provisional"}
-                    </TableCell>
-                    <TableCell>{money(x.revenue)}</TableCell>
-                    <TableCell>{money(x.expenses)}</TableCell>
-                    <TableCell>{money(x.result)}</TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-          <h3 className="font-medium">Payouts del mes seleccionado</h3>
-          <Table>
-            <TableBody>
-              {data.payouts
-                .filter(
-                  (p) =>
-                    p.status === "paid" &&
-                    p.currency === "usd" &&
-                    p.arrival_date.startsWith(month)
-                )
-                .map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>{p.arrival_date.slice(0, 10)}</TableCell>
-                    <TableCell>
-                      <a
-                        className="underline"
-                        href={`https://dashboard.stripe.com/payouts/${p.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {p.id}
-                      </a>
-                    </TableCell>
-                    <TableCell>{money(Number(p.amount_cents))}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+          <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mes</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Cobros</TableHead>
+                  <TableHead>Gastos</TableHead>
+                  <TableHead>Resultado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monthsEnding(month).map((m) => {
+                  const x = monthlyResult(data, m)
+                  return (
+                    <TableRow key={m}>
+                      <TableCell>{m}</TableCell>
+                      <TableCell>
+                        {x.reviewed ? "Revisado" : "Provisional"}
+                      </TableCell>
+                      <TableCell>{money(x.revenue)}</TableCell>
+                      <TableCell>{money(x.expenses)}</TableCell>
+                      <TableCell>{money(x.result)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+            <h3 className="font-medium">Payouts del mes seleccionado</h3>
+            <Table>
+              <TableBody>
+                {data.payouts
+                  .filter(
+                    (p) =>
+                      p.status === "paid" &&
+                      p.currency === "usd" &&
+                      p.arrival_date.startsWith(month)
+                  )
+                  .map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>{p.arrival_date.slice(0, 10)}</TableCell>
+                      <TableCell>
+                        <a
+                          className="underline"
+                          href={`https://dashboard.stripe.com/payouts/${p.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {p.id}
+                        </a>
+                      </TableCell>
+                      <TableCell>{money(Number(p.amount_cents))}</TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

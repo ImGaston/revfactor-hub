@@ -73,7 +73,10 @@ export function ClientDialog({
   const [form, setForm] = useState<ClientFormData>(client ?? EMPTY)
   const [saving, setSaving] = useState(false)
 
-  function set<K extends keyof ClientFormData>(key: K, value: ClientFormData[K]) {
+  function set<K extends keyof ClientFormData>(
+    key: K,
+    value: ClientFormData[K]
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
@@ -123,12 +126,12 @@ export function ClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Client" : "New Client"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+          <div className="grid min-h-0 gap-4 overflow-y-auto sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">Name *</Label>
               <Input
@@ -173,7 +176,9 @@ export function ClientDialog({
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="onboarding">Onboarding</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="test">Test — internal, excluded from analyses</SelectItem>
+                  <SelectItem value="test">
+                    Test — internal, excluded from analyses
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,7 +247,10 @@ export function ClientDialog({
                                 ? (form.ending_reason_tags ?? []).filter(
                                     (t) => t !== reason.value
                                   )
-                                : [...(form.ending_reason_tags ?? []), reason.value]
+                                : [
+                                    ...(form.ending_reason_tags ?? []),
+                                    reason.value,
+                                  ]
                             )
                           }
                         >
@@ -276,7 +284,10 @@ export function ClientDialog({
                     step="0.01"
                     value={form.billing_amount ?? ""}
                     onChange={(e) =>
-                      set("billing_amount", e.target.value ? Number(e.target.value) : null)
+                      set(
+                        "billing_amount",
+                        e.target.value ? Number(e.target.value) : null
+                      )
                     }
                     placeholder="0.00"
                   />
@@ -309,7 +320,9 @@ export function ClientDialog({
                 <Input
                   id="stripe_dashboard"
                   value={form.stripe_dashboard ?? ""}
-                  onChange={(e) => set("stripe_dashboard", e.target.value || null)}
+                  onChange={(e) =>
+                    set("stripe_dashboard", e.target.value || null)
+                  }
                   placeholder="https://dashboard.stripe.com/..."
                 />
               </div>
@@ -317,7 +330,11 @@ export function ClientDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>

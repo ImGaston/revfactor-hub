@@ -46,21 +46,54 @@ export async function reviewIncome(id: string, treatment: string) {
     return { error: e instanceof Error ? e.message : "No se pudo guardar" }
   }
 }
-export async function reviewExpense(id: string, treatment: string) {
+export type ExpenseReviewPatch = {
+  treatment?: string
+  categoryId?: string | null
+  confirm?: boolean
+}
+/** Reclassifies one or many expenses from the month review. `treatment` and
+ * `confirm` stamp financial_reviewed_at; `categoryId` also realigns `type`
+ * with the category (same rule the bank importer applies). */
+export async function reviewExpenses(ids: string[], patch: ExpenseReviewPatch) {
   try {
     const { db } = await context()
-    if (!["operating", "partner_distribution"].includes(treatment))
-      throw new Error("Clasificación inválida")
-    const { error } = await db
+    const unique = [...new Set(ids)]
+    if (unique.length === 0 || unique.length > 500)
+      throw new Error("Seleccioná entre 1 y 500 gastos")
+    const update: Record<string, string | null> = {}
+    if (patch.treatment !== undefined) {
+      if (!["operating", "partner_distribution"].includes(patch.treatment))
+        throw new Error("Clasificación inválida")
+      update.financial_treatment = patch.treatment
+    }
+    if (patch.categoryId !== undefined) {
+      if (patch.categoryId === null) {
+        update.category_id = null
+      } else {
+        const { data: category, error } = await db
+          .from("expense_categories")
+          .select("id,type")
+          .eq("id", patch.categoryId)
+          .maybeSingle()
+        if (error) throw new Error(error.message)
+        if (!category) throw new Error("Categoría inexistente")
+        update.category_id = category.id
+        update.type = category.type
+      }
+    }
+    if (patch.treatment !== undefined || patch.confirm)
+      update.financial_reviewed_at = new Date().toISOString()
+    if (Object.keys(update).length === 0) throw new Error("Nada para guardar")
+    const { data, error } = await db
       .from("expenses")
-      .update({
-        financial_treatment: treatment,
-        financial_reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", id)
+      .update(update)
+      .in("id", unique)
       .select("id")
-      .single()
     if (error) throw new Error(error.message)
+    if ((data?.length ?? 0) !== unique.length)
+      throw new Error(
+        `Se actualizaron ${data?.length ?? 0} de ${unique.length} gastos. Actualizá y revisá.`
+      )
     revalidatePath("/financials")
     return { error: null }
   } catch (e) {
@@ -112,14 +145,12 @@ export async function saveAccountBalance(
       !Number.isSafeInteger(cents)
     )
       throw new Error("Saldo o fecha inválidos")
-    const { error } = await db
-      .from("financial_account_balances")
-      .insert({
-        account_id: accountId,
-        effective_date: date,
-        amount_cents: cents,
-        created_by: userId,
-      })
+    const { error } = await db.from("financial_account_balances").insert({
+      account_id: accountId,
+      effective_date: date,
+      amount_cents: cents,
+      created_by: userId,
+    })
     if (error) throw new Error(error.message)
     revalidatePath("/financials")
     return { error: null }

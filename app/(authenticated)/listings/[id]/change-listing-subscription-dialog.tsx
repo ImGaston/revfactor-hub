@@ -32,15 +32,23 @@ export type ListingSubscriptionOption = {
 }
 
 const statusColors: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  paused: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  active:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  paused:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   canceled: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  past_due: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  past_due:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   trialing: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  incomplete: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+  incomplete:
+    "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 }
 
-function formatAmount(amount: number, currency: string, interval: string | null) {
+function formatAmount(
+  amount: number,
+  currency: string,
+  interval: string | null
+) {
   const formatted = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
@@ -64,7 +72,9 @@ export function ChangeListingSubscriptionDialog({
   subscriptions: ListingSubscriptionOption[]
   clientCustomerIds: string[]
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(currentSubscriptionId)
+  const [selectedId, setSelectedId] = useState<string | null>(
+    currentSubscriptionId
+  )
   const [search, setSearch] = useState("")
   const [showAll, setShowAll] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -144,7 +154,7 @@ export function ChangeListingSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Change subscription</DialogTitle>
           <DialogDescription>
@@ -152,16 +162,16 @@ export function ChangeListingSubscriptionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="min-h-0 space-y-3 overflow-y-auto py-2">
           <div className="flex items-center gap-2">
             <Input
               placeholder="Search by customer, plan, or ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 text-sm flex-1"
+              className="h-8 flex-1 text-sm"
             />
             {hasClientSubs && (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
                 <Checkbox
                   checked={showAll}
                   onCheckedChange={(v) => setShowAll(v === true)}
@@ -183,9 +193,11 @@ export function ChangeListingSubscriptionDialog({
                 )}
               >
                 <span className="flex size-4 items-center justify-center">
-                  {selectedId === null && <Check className="size-4 text-primary" />}
+                  {selectedId === null && (
+                    <Check className="size-4 text-primary" />
+                  )}
                 </span>
-                <Ban className="size-4 text-muted-foreground shrink-0" />
+                <Ban className="size-4 shrink-0 text-muted-foreground" />
                 <span className="text-sm">No subscription</span>
               </button>
 
@@ -207,10 +219,12 @@ export function ChangeListingSubscriptionDialog({
                         isSelected && "bg-primary/5"
                       )}
                     >
-                      <span className="flex size-4 items-center justify-center shrink-0">
-                        {isSelected && <Check className="size-4 text-primary" />}
+                      <span className="flex size-4 shrink-0 items-center justify-center">
+                        {isSelected && (
+                          <Check className="size-4 text-primary" />
+                        )}
                       </span>
-                      <CreditCard className="size-4 text-muted-foreground shrink-0" />
+                      <CreditCard className="size-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium">
@@ -218,7 +232,10 @@ export function ChangeListingSubscriptionDialog({
                           </span>
                           <Badge
                             variant="secondary"
-                            className={cn("text-[10px]", statusColors[sub.status] ?? "")}
+                            className={cn(
+                              "text-[10px]",
+                              statusColors[sub.status] ?? ""
+                            )}
                           >
                             {sub.status}
                           </Badge>
@@ -228,9 +245,9 @@ export function ChangeListingSubscriptionDialog({
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-xs text-muted-foreground font-mono">
-                          {formatAmount(sub.amount, sub.currency, sub.interval)} ·{" "}
-                          {sub.id}
+                        <p className="truncate font-mono text-xs text-muted-foreground">
+                          {formatAmount(sub.amount, sub.currency, sub.interval)}{" "}
+                          · {sub.id}
                         </p>
                       </div>
                     </button>

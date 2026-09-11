@@ -35,7 +35,11 @@ import {
   type AdjustmentTypeSetting,
 } from "@/lib/adjustments"
 import type { Adjustment, AdjustmentType } from "@/lib/types"
-import { createAdjustment, getAdjustmentFormOptions, updateAdjustment } from "./actions"
+import {
+  createAdjustment,
+  getAdjustmentFormOptions,
+  updateAdjustment,
+} from "./actions"
 
 type ClientOption = {
   id: string
@@ -61,7 +65,9 @@ export function AdjustmentDialog({
   lockOriginToHostpricing?: boolean
 }) {
   const [clients, setClients] = useState<ClientOption[] | null>(null)
-  const [typeSettings, setTypeSettings] = useState<AdjustmentTypeSetting[] | null>(null)
+  const [typeSettings, setTypeSettings] = useState<
+    AdjustmentTypeSetting[] | null
+  >(null)
   const [saving, setSaving] = useState(false)
 
   const defaultOrigin = lockOriginToHostpricing ? "hostpricing" : "internal"
@@ -81,7 +87,8 @@ export function AdjustmentDialog({
   const [suggestedActions, setSuggestedActions] = useState<string[]>([])
   const [otherAction, setOtherAction] = useState("")
 
-  const config = ADJUSTMENT_TYPE_CONFIG[adjustmentType as AdjustmentType] ?? null
+  const config =
+    ADJUSTMENT_TYPE_CONFIG[adjustmentType as AdjustmentType] ?? null
   const isSetup = adjustmentType === "setup"
 
   // Type visibility follows the creator group: hostpricing users are locked to
@@ -92,7 +99,11 @@ export function AdjustmentDialog({
     : origin === "agent"
       ? "agent"
       : "internal"
-  const typeOptions = adjustmentTypeOptions(typeGroup, adjustment?.type, typeSettings)
+  const typeOptions = adjustmentTypeOptions(
+    typeGroup,
+    adjustment?.type,
+    typeSettings
+  )
 
   // Switching origin can hide the chosen type — clear it instead of leaving
   // the Select showing a value that is no longer in the list.
@@ -129,7 +140,9 @@ export function AdjustmentDialog({
     setOriginMessage(adjustment.origin_message ?? "")
     setSignals({ ...(adjustment.signals ?? {}) })
     // Known slugs drive the checkboxes; free-text entries land in "Other"
-    const known = new Set<string>(ADJUSTMENT_SUGGESTED_ACTIONS.map((a) => a.value))
+    const known = new Set<string>(
+      ADJUSTMENT_SUGGESTED_ACTIONS.map((a) => a.value)
+    )
     const stored = adjustment.suggested_actions ?? []
     setSuggestedActions(stored.filter((a) => known.has(a)))
     setOtherAction(stored.filter((a) => !known.has(a)).join(", "))
@@ -227,7 +240,9 @@ export function AdjustmentDialog({
     // Copy the share link, then open the WhatsApp group so it can be pasted.
     // A single deep-link can't open a specific group AND pre-fill text.
     try {
-      await navigator.clipboard.writeText(adjustmentShareUrl(result.publicToken))
+      await navigator.clipboard.writeText(
+        adjustmentShareUrl(result.publicToken)
+      )
       toast.success("Adjustment created — link copied, paste it in the group")
     } catch {
       toast.success("Adjustment created")
@@ -239,7 +254,8 @@ export function AdjustmentDialog({
   }
 
   // Mirrors validateAdjustmentInput — the server re-checks and normalizes
-  const hasListingIfNeeded = isSetup || scope === "single_listing" ? !!listingId : true
+  const hasListingIfNeeded =
+    isSetup || scope === "single_listing" ? !!listingId : true
   const hasTargetIfNeeded = !config?.requiresTarget || !!targetValue.trim()
   const hasDateFromIfNeeded = !config?.requiresDateFrom || !!dateFrom
   const canSave =
@@ -251,17 +267,25 @@ export function AdjustmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{adjustment ? "Edit Adjustment" : "New Adjustment"}</DialogTitle>
+          <DialogTitle>
+            {adjustment ? "Edit Adjustment" : "New Adjustment"}
+          </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid min-h-0 gap-4 overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Client</Label>
-              <Select value={clientId} onValueChange={setClientId} disabled={!clients}>
+              <Select
+                value={clientId}
+                onValueChange={setClientId}
+                disabled={!clients}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={clients ? "Select client" : "Loading clients…"} />
+                  <SelectValue
+                    placeholder={clients ? "Select client" : "Loading clients…"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {(clients ?? []).map((c) => (
@@ -284,7 +308,9 @@ export function AdjustmentDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="single_listing">Single listing</SelectItem>
+                    <SelectItem value="single_listing">
+                      Single listing
+                    </SelectItem>
                     <SelectItem value="portfolio">Portfolio (group)</SelectItem>
                   </SelectContent>
                 </Select>
@@ -302,7 +328,9 @@ export function AdjustmentDialog({
               >
                 <SelectTrigger>
                   <SelectValue
-                    placeholder={selectedClient ? "Select listing" : "Pick a client first"}
+                    placeholder={
+                      selectedClient ? "Select listing" : "Pick a client first"
+                    }
                   />
                 </SelectTrigger>
                 <SelectContent>
@@ -367,7 +395,10 @@ export function AdjustmentDialog({
               <Label>
                 Target value
                 {config && !config.requiresTarget && (
-                  <span className="font-normal text-muted-foreground"> (optional)</span>
+                  <span className="font-normal text-muted-foreground">
+                    {" "}
+                    (optional)
+                  </span>
                 )}
               </Label>
               <Input
@@ -384,7 +415,10 @@ export function AdjustmentDialog({
                 <Label>
                   From
                   {config && !config.requiresDateFrom && (
-                    <span className="font-normal text-muted-foreground"> (optional)</span>
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      (optional)
+                    </span>
                   )}
                 </Label>
                 <Input
@@ -408,7 +442,9 @@ export function AdjustmentDialog({
             <div className="grid gap-2 rounded-md border bg-muted/30 p-3">
               <p className="text-sm font-medium">
                 Report signals{" "}
-                <span className="font-normal text-muted-foreground">(optional)</span>
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {ADJUSTMENT_SIGNAL_FIELDS.map((field) => (
@@ -420,7 +456,10 @@ export function AdjustmentDialog({
                       className="h-8"
                       value={signals[field.key] ?? ""}
                       onChange={(e) =>
-                        setSignals((prev) => ({ ...prev, [field.key]: e.target.value }))
+                        setSignals((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
                       }
                       placeholder={field.placeholder}
                     />
@@ -434,7 +473,9 @@ export function AdjustmentDialog({
             <div className="grid gap-2">
               <Label>
                 Suggested actions{" "}
-                <span className="font-normal text-muted-foreground">(optional)</span>
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
               </Label>
               <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {ADJUSTMENT_SUGGESTED_ACTIONS.map((action) => (
@@ -518,7 +559,8 @@ export function AdjustmentDialog({
             />
             {origin === "client" && !originMessage.trim() && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Paste the owner&apos;s message here so the request context isn&apos;t lost.
+                Paste the owner&apos;s message here so the request context
+                isn&apos;t lost.
               </p>
             )}
           </div>

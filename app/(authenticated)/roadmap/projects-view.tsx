@@ -239,7 +239,7 @@ export function ProjectsView({
 
       {detailProject && (
         <Dialog open onOpenChange={(open) => !open && setDetailProject(null)}>
-          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
             <DialogHeader>
               <DialogTitle>{detailProject.name}</DialogTitle>
               <DialogDescription>
@@ -247,67 +247,69 @@ export function ProjectsView({
                   "All tasks attached to this project."}
               </DialogDescription>
             </DialogHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground">
-                {detailProject.deadline
-                  ? `Project deadline ${formatDate(detailProject.deadline)}`
-                  : "No project deadline"}
+            <div className="flex min-h-0 flex-col gap-6 overflow-y-auto">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                  {detailProject.deadline
+                    ? `Project deadline ${formatDate(detailProject.deadline)}`
+                    : "No project deadline"}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditProject(detailProject)}
+                  >
+                    <Pencil data-icon="inline-start" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => openProjectBoard(detailProject.id)}
+                  >
+                    Open board
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openEditProject(detailProject)}
-                >
-                  <Pencil data-icon="inline-start" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => openProjectBoard(detailProject.id)}
-                >
-                  Open board
-                </Button>
+              <Separator />
+              <div className="flex flex-col gap-2">
+                {(tasksByProject.get(detailProject.id) ?? []).map((task) => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className="flex items-start justify-between gap-4 rounded-2xl border p-3 text-left transition-colors hover:bg-muted/50"
+                    onClick={() => openTask(task)}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium">{task.title}</p>
+                      {task.description && (
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <Badge
+                        variant={
+                          task.status === "completed" ? "default" : "secondary"
+                        }
+                      >
+                        {STATUS_LABELS[task.status] ?? task.status}
+                      </Badge>
+                      {task.deadline && (
+                        <span className="text-xs text-muted-foreground">
+                          Due {formatDate(task.deadline)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+                {(tasksByProject.get(detailProject.id) ?? []).length === 0 && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    This project does not have any tasks yet.
+                  </p>
+                )}
               </div>
-            </div>
-            <Separator />
-            <div className="flex flex-col gap-2">
-              {(tasksByProject.get(detailProject.id) ?? []).map((task) => (
-                <button
-                  key={task.id}
-                  type="button"
-                  className="flex items-start justify-between gap-4 rounded-2xl border p-3 text-left transition-colors hover:bg-muted/50"
-                  onClick={() => openTask(task)}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium">{task.title}</p>
-                    {task.description && (
-                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {task.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <Badge
-                      variant={
-                        task.status === "completed" ? "default" : "secondary"
-                      }
-                    >
-                      {STATUS_LABELS[task.status] ?? task.status}
-                    </Badge>
-                    {task.deadline && (
-                      <span className="text-xs text-muted-foreground">
-                        Due {formatDate(task.deadline)}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-              {(tasksByProject.get(detailProject.id) ?? []).length === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  This project does not have any tasks yet.
-                </p>
-              )}
             </div>
           </DialogContent>
         </Dialog>

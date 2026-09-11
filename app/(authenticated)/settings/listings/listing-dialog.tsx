@@ -161,160 +161,164 @@ export function ListingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Listing" : "New Listing"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="listing-client">
-                Account / client *
-              </FieldLabel>
-              <Select
-                value={clientId ?? BLACKBIRD_ACCOUNT}
-                onValueChange={(value) =>
-                  setClientId(value === BLACKBIRD_ACCOUNT ? null : value)
-                }
-                disabled={clients === null}
-              >
-                <SelectTrigger id="listing-client" className="w-full">
-                  <SelectValue
-                    placeholder={
-                      clients === null ? "Loading clients..." : "Select client"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={BLACKBIRD_ACCOUNT}>
-                      Blackbird — no RevFactor client
-                    </SelectItem>
-                    {(clients ?? []).map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor="listing-default-cancellation-policy">
-                Default cancellation policy
-              </FieldLabel>
-              <Select
-                value={defaultCancellationPolicy ?? UNSET_POLICY}
-                onValueChange={(value) =>
-                  setDefaultCancellationPolicy(
-                    value === UNSET_POLICY
-                      ? null
-                      : (value as AirbnbCancellationPolicy)
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="listing-default-cancellation-policy"
-                  className="w-full"
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor="listing-client">
+                  Account / client *
+                </FieldLabel>
+                <Select
+                  value={clientId ?? BLACKBIRD_ACCOUNT}
+                  onValueChange={(value) =>
+                    setClientId(value === BLACKBIRD_ACCOUNT ? null : value)
+                  }
+                  disabled={clients === null}
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={UNSET_POLICY}>
-                      Not inventoried — blocked
-                    </SelectItem>
-                    {AIRBNB_CANCELLATION_POLICIES.map((policy) => (
-                      <SelectItem key={policy} value={policy}>
-                        {AIRBNB_CANCELLATION_POLICY_LABELS[policy]}
+                  <SelectTrigger id="listing-client" className="w-full">
+                    <SelectValue
+                      placeholder={
+                        clients === null
+                          ? "Loading clients..."
+                          : "Select client"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value={BLACKBIRD_ACCOUNT}>
+                        Blackbird — no RevFactor client
                       </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
+                      {(clients ?? []).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <Field>
-              <FieldLabel htmlFor="listing-timezone">
-                Property timezone
-              </FieldLabel>
-              <Input
-                id="listing-timezone"
-                value={timezone}
-                onChange={(event) => setTimezone(event.target.value)}
-                placeholder="America/New_York"
-                autoComplete="off"
-              />
-              <FieldDescription>
-                Exact IANA identifier. Missing values remain blocked.
-              </FieldDescription>
-            </Field>
+              <Field>
+                <FieldLabel htmlFor="listing-default-cancellation-policy">
+                  Default cancellation policy
+                </FieldLabel>
+                <Select
+                  value={defaultCancellationPolicy ?? UNSET_POLICY}
+                  onValueChange={(value) =>
+                    setDefaultCancellationPolicy(
+                      value === UNSET_POLICY
+                        ? null
+                        : (value as AirbnbCancellationPolicy)
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    id="listing-default-cancellation-policy"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value={UNSET_POLICY}>
+                        Not inventoried — blocked
+                      </SelectItem>
+                      {AIRBNB_CANCELLATION_POLICIES.map((policy) => (
+                        <SelectItem key={policy} value={policy}>
+                          {AIRBNB_CANCELLATION_POLICY_LABELS[policy]}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
 
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="listing-status">Status</FieldLabel>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="listing-status" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="active">
-                      Active — visible in Clients & Listings
-                    </SelectItem>
-                    <SelectItem value="inactive">
-                      Inactive — hidden, only shown here
-                    </SelectItem>
-                    <SelectItem value="test">
-                      Test — synced and visible, excluded from analyses
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
+              <Field>
+                <FieldLabel htmlFor="listing-timezone">
+                  Property timezone
+                </FieldLabel>
+                <Input
+                  id="listing-timezone"
+                  value={timezone}
+                  onChange={(event) => setTimezone(event.target.value)}
+                  placeholder="America/New_York"
+                  autoComplete="off"
+                />
+                <FieldDescription>
+                  Exact IANA identifier. Missing values remain blocked.
+                </FieldDescription>
+              </Field>
 
-            <div className="space-y-2">
-              <Label htmlFor="listing-initial-setup">Initial setup</Label>
-              <Input
-                id="listing-initial-setup"
-                type="date"
-                value={initialSetupDate}
-                onChange={(e) => setInitialSetupDate(e.target.value)}
-              />
+              <Field className="sm:col-span-2">
+                <FieldLabel htmlFor="listing-status">Status</FieldLabel>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger id="listing-status" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="active">
+                        Active — visible in Clients & Listings
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        Inactive — hidden, only shown here
+                      </SelectItem>
+                      <SelectItem value="test">
+                        Test — synced and visible, excluded from analyses
+                      </SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <div className="space-y-2">
+                <Label htmlFor="listing-initial-setup">Initial setup</Label>
+                <Input
+                  id="listing-initial-setup"
+                  type="date"
+                  value={initialSetupDate}
+                  onChange={(e) => setInitialSetupDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="listing-adjustment-confirmed">
+                  Adjustment confirmed
+                </Label>
+                <Input
+                  id="listing-adjustment-confirmed"
+                  type="date"
+                  value={adjustmentConfirmedDate}
+                  onChange={(e) => setAdjustmentConfirmedDate(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="listing-deactivated">Deactivated</Label>
+                <Input
+                  id="listing-deactivated"
+                  type="date"
+                  value={deactivatedDate}
+                  onChange={(e) => setDeactivatedDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Auto-set when the listing goes inactive; cleared on
+                  reactivation.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="listing-adjustment-confirmed">
-                Adjustment confirmed
-              </Label>
-              <Input
-                id="listing-adjustment-confirmed"
-                type="date"
-                value={adjustmentConfirmedDate}
-                onChange={(e) => setAdjustmentConfirmedDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="listing-deactivated">Deactivated</Label>
-              <Input
-                id="listing-deactivated"
-                type="date"
-                value={deactivatedDate}
-                onChange={(e) => setDeactivatedDate(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Auto-set when the listing goes inactive; cleared on
-                reactivation.
-              </p>
-            </div>
+            <ListingFormFields
+              values={values}
+              onChange={setValues}
+              idPrefix="listing"
+            />
           </div>
-
-          <ListingFormFields
-            values={values}
-            onChange={setValues}
-            idPrefix="listing"
-          />
 
           <DialogFooter>
             <Button

@@ -25,8 +25,19 @@ import {
 import type { StripeSubscriptionSummary } from "@/lib/stripe"
 import { createListingForClient, linkSubscriptionToListings } from "./actions"
 
-type ClientRef = { id: string; name: string; email: string | null; stripe_customer_id: string | null }
-type ListingRef = { id: string; name: string; client_id: string; stripe_subscription_id: string | null; clients: { id: string; name: string } | null }
+type ClientRef = {
+  id: string
+  name: string
+  email: string | null
+  stripe_customer_id: string | null
+}
+type ListingRef = {
+  id: string
+  name: string
+  client_id: string
+  stripe_subscription_id: string | null
+  clients: { id: string; name: string } | null
+}
 
 export function LinkSubscriptionDialog({
   open,
@@ -54,7 +65,9 @@ export function LinkSubscriptionDialog({
   // Resolve a listing's *other* subscription to a human label so the user knows
   // exactly which subscription a listing is currently attached to.
   const subById = new Map(subscriptions.map((s) => [s.id, s]))
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentListingIds))
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(currentListingIds)
+  )
   const [search, setSearch] = useState("")
   const [showAll, setShowAll] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -71,10 +84,10 @@ export function LinkSubscriptionDialog({
 
   // Resolve the Hub client for this Stripe customer via the junction table.
   const linkedClientId = clientStripeCustomers.find(
-    (r) => r.stripe_customer_id === customerId,
+    (r) => r.stripe_customer_id === customerId
   )?.client_id
   const linkedClient = linkedClientId
-    ? clients.find((c) => c.id === linkedClientId) ?? null
+    ? (clients.find((c) => c.id === linkedClientId) ?? null)
     : null
 
   // When a client is linked, restrict the picker to that client's listings (UX
@@ -146,12 +159,16 @@ export function LinkSubscriptionDialog({
 
   async function handleSave() {
     setSaving(true)
-    const result = await linkSubscriptionToListings(subscriptionId, [...selectedIds])
+    const result = await linkSubscriptionToListings(subscriptionId, [
+      ...selectedIds,
+    ])
     setSaving(false)
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success(`Linked ${selectedIds.size} listing${selectedIds.size !== 1 ? "s" : ""} to subscription`)
+      toast.success(
+        `Linked ${selectedIds.size} listing${selectedIds.size !== 1 ? "s" : ""} to subscription`
+      )
       onOpenChange(false)
       // The Overview and Subscriptions tabs share the listings snapshot loaded
       // by the parent Server Component. Refresh it after saving so switching
@@ -162,7 +179,7 @@ export function LinkSubscriptionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Link Listings to Subscription</DialogTitle>
           <DialogDescription>
@@ -170,13 +187,17 @@ export function LinkSubscriptionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
+        <div className="min-h-0 space-y-3 overflow-y-auto py-2">
           {/* Subscription info */}
-          <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+          <div className="space-y-1 rounded-md border bg-muted/30 p-3">
             <p className="text-sm font-medium">{planName ?? "Subscription"}</p>
-            <p className="text-xs text-muted-foreground font-mono">{subscriptionId}</p>
+            <p className="font-mono text-xs text-muted-foreground">
+              {subscriptionId}
+            </p>
             {linkedClient && (
-              <p className="text-xs text-muted-foreground">Client: {linkedClient.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Client: {linkedClient.name}
+              </p>
             )}
           </div>
 
@@ -227,10 +248,10 @@ export function LinkSubscriptionDialog({
               placeholder="Search listings..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-8 text-sm flex-1"
+              className="h-8 flex-1 text-sm"
             />
             {linkedClient && (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground">
                 <Checkbox
                   checked={showAll}
                   onCheckedChange={(v) => setShowAll(v === true)}
@@ -241,21 +262,24 @@ export function LinkSubscriptionDialog({
           </div>
           {linkedClient && !showAll && (
             <p className="text-xs text-muted-foreground">
-              Showing only listings of <span className="font-medium">{linkedClient.name}</span>.
+              Showing only listings of{" "}
+              <span className="font-medium">{linkedClient.name}</span>.
             </p>
           )}
 
           {/* Listing checkboxes */}
           <ScrollArea className="h-[280px] rounded-md border p-2">
             {filteredListings.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 No listings found
               </p>
             ) : (
               <div className="space-y-1">
                 {filteredListings.map((listing) => {
                   const isSelected = selectedIds.has(listing.id)
-                  const isOtherSub = listing.stripe_subscription_id && listing.stripe_subscription_id !== subscriptionId
+                  const isOtherSub =
+                    listing.stripe_subscription_id &&
+                    listing.stripe_subscription_id !== subscriptionId
                   const otherSub = isOtherSub
                     ? subById.get(listing.stripe_subscription_id!)
                     : undefined
@@ -265,7 +289,7 @@ export function LinkSubscriptionDialog({
                   return (
                     <label
                       key={listing.id}
-                      className={`flex items-center gap-3 rounded-md px-2 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${
+                      className={`flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/50 ${
                         isSelected ? "bg-primary/5" : ""
                       }`}
                     >
@@ -273,15 +297,17 @@ export function LinkSubscriptionDialog({
                         checked={isSelected}
                         onCheckedChange={() => toggleListing(listing.id)}
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <Building2 className="size-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-sm truncate">{listing.name}</span>
+                          <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm">
+                            {listing.name}
+                          </span>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate ml-5">
+                        <p className="ml-5 truncate text-xs text-muted-foreground">
                           {listing.clients?.name ?? "No client"}
                           {isOtherSub && (
-                            <span className="text-amber-600 ml-1">
+                            <span className="ml-1 text-amber-600">
                               (linked to {otherSubLabel})
                             </span>
                           )}
@@ -294,8 +320,9 @@ export function LinkSubscriptionDialog({
             )}
           </ScrollArea>
 
-          <p className="text-xs text-muted-foreground text-center">
-            {selectedIds.size} listing{selectedIds.size !== 1 ? "s" : ""} selected
+          <p className="text-center text-xs text-muted-foreground">
+            {selectedIds.size} listing{selectedIds.size !== 1 ? "s" : ""}{" "}
+            selected
           </p>
         </div>
 

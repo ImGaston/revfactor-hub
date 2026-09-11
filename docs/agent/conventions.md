@@ -80,6 +80,7 @@
 - Forms use shadcn Form, react-hook-form, and zod validation when the local pattern exists.
 - Loading states use shadcn `Skeleton`.
 - Destructive actions require `AlertDialog` confirmation.
+- Never make `DialogContent` the scroll container. `glass-chrome` paints the dialog background in an absolute `::before` sized to the visible box, so `overflow-y-auto` on `DialogContent` leaves scrolled content over the bare overlay. Use `flex max-h-[85vh] flex-col` on `DialogContent` and scroll an inner `<div className="flex min-h-0 flex-col gap-6 overflow-y-auto">` after `DialogHeader` (bit the Financials review modal, 2026-09-11).
 - Inline editing follows the `+Add` -> input with save/cancel pattern.
 - Collapsible sections default hidden with `useState(false)` and ChevronRight/ChevronDown toggles.
 - Password fields use show/hide and clipboard-copy controls.
@@ -221,7 +222,7 @@ Added 2026-08-20. All tokens and utilities live in `app/globals.css`.
 - `glass-chrome` — translucent surface. Sets `position: relative` + a `::before` at `z-index: -1` carrying the `backdrop-filter`. Three reasons the blur is on the pseudo and not the element: `backdrop-filter` on an element makes it a containing block for `position: fixed` descendants; WebKit bleeds the blur past `border-radius` when an ancestor animates (every Radix content does); and putting the tint on the pseudo's own background paints it *above* the filtered backdrop, which is what lets `brightness()` crush only the backdrop.
 - **Never add `isolation: isolate` to a glass host.** `isolate` creates a *backdrop root*, which limits the blur's sampling to the element itself and silently kills the effect. Verified in the browser.
 - `glass-panel` (86%) — anchored chrome that is always on screen and blurs scrolling content (sidebar, top bar). Lower blur on purpose: those surfaces re-rasterize per frame.
-- `glass-dense` (92%) — surfaces that float over arbitrary content and hold long text (dialogs, sheets, toasts).
+- `glass-dense` (92% light / 94% dark, via `--dense-opacity`) — surfaces that float over arbitrary content and hold long text (dialogs, sheets). The class was referenced by `dialog.tsx`/`sheet.tsx` since 2026-08-20 but the `@utility` was never defined, so dialogs silently rendered at the 72% default and read gray over the black/25 overlay; defined 2026-09-11. `prefers-reduced-transparency` neutralizes `--dense-opacity` and `--chrome-opacity` alongside `--glass-opacity`.
 - `motion-snappy` / `motion-smooth` / `motion-bouncy` — pair a spring easing with its matched duration. Always use these instead of `ease-* duration-*` separately: the settle time is baked into each `linear()` curve, so a mismatched duration makes the spring read wrong. They also set `--tw-ease`/`--tw-duration`, which is what `tw-animate-css` reads, so Radix `data-open:animate-in` transitions spring for free.
 
 **Every `var()` inside `glass-chrome` carries a fallback**, and must keep doing so. The failure mode when a token does not resolve is a *transparent* surface — and since the `inverted-translucent` menus paint near-white text, that renders as invisible text, not as a visible glitch. Degrading to an opaque `--popover` is ugly but readable. (Hit in dev on 2026-08-20 via a stale Turbopack CSS cache; `rm -rf .next` clears it.)

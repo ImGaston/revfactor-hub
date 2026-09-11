@@ -68,16 +68,18 @@ export function AddListingDialog({
         onOpenChange(v)
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Listing</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <ListingFormFields
-            values={values}
-            onChange={setValues}
-            idPrefix="new-listing"
-          />
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+          <div className="min-h-0 overflow-y-auto">
+            <ListingFormFields
+              values={values}
+              onChange={setValues}
+              idPrefix="new-listing"
+            />
+          </div>
 
           <DialogFooter>
             <Button
