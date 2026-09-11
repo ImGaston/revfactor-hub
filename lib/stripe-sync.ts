@@ -1,3 +1,7 @@
+import {
+  captureMrr,
+  recordMrrFailure,
+} from "@/lib/financial-scorecard/snapshot.server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import {
@@ -78,7 +82,7 @@ function subscriptionIdFromInvoice(invoice: unknown): string | null {
   return objectId((subscriptionDetails as Record<string, unknown>).subscription)
 }
 
-export async function syncStripeData(
+async function syncStripeDataInternal(
   supabase: SupabaseClient
 ): Promise<SyncResult> {
   const stripe = getStripeClient()
@@ -183,7 +187,11 @@ export async function syncStripeData(
     // Only count subscriptions that the default (non-"all") list would have
     // returned, so the single-subscription payout fallback below keeps the same
     // behavior it had before we started mirroring canceled subs.
-    if (customerId && sub.status !== "canceled" && sub.status !== "incomplete_expired") {
+    if (
+      customerId &&
+      sub.status !== "canceled" &&
+      sub.status !== "incomplete_expired"
+    ) {
       subCountByCustomer.set(
         customerId,
         (subCountByCustomer.get(customerId) ?? 0) + 1
@@ -298,6 +306,15 @@ export async function syncStripeData(
     if (pruneErr) subErrors.push(`prune: ${pruneErr.message}`)
   }
 
+  try {
+    await captureMrr(supabase, stripe, mirroredSubs, subErrors)
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "MRR snapshot failed"
+    subErrors.push(message)
+    await recordMrrFailure(supabase, message).catch(() => undefined)
+  }
+
   let onboarding: OnboardingEntitlementSyncResult = {
     enabled: false,
     created: 0,
@@ -362,7 +379,7 @@ export async function syncStripeData(
       mirroredPayoutNet.set(
         transaction.payout_id,
         (mirroredPayoutNet.get(transaction.payout_id) ?? 0) +
-          Number(transaction.net_cents),
+          Number(transaction.net_cents)
       )
     }
 
@@ -490,7 +507,7 @@ export async function syncStripeData(
     const results = await Promise.all(
       payoutCandidates
         .slice(i, i + payoutReconciliationConcurrency)
-        .map(reconcilePayout),
+        .map(reconcilePayout)
     )
     reconciledPayouts += results.filter(Boolean).length
   }
@@ -504,5 +521,19 @@ export async function syncStripeData(
       errors: payoutErrors,
     },
     onboarding,
+  }
+}
+
+export async function syncStripeData(
+  supabase: SupabaseClient
+): Promise<SyncResult> {
+  try {
+    return await syncStripeDataInternal(supabase)
+  } catch (error) {
+    await recordMrrFailure(
+      supabase,
+      error instanceof Error ? error.message : "Stripe sync failed"
+    ).catch(() => undefined)
+    throw error
   }
 }

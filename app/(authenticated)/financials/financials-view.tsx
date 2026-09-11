@@ -1,5 +1,6 @@
 "use client"
 
+import type { ScorecardData } from "@/lib/financial-scorecard/types"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,13 +10,15 @@ import type {
   BankTransaction,
   Expense,
   ExpenseCategory,
-  FinancialCashSnapshot,
   RecurringExpense,
   StripeInvoice,
   StripePayout,
 } from "@/lib/types"
 import { BankSection } from "./bank-section"
-import { ChurnedClientsSection, type ChurnedClient } from "./churned-clients-section"
+import {
+  ChurnedClientsSection,
+  type ChurnedClient,
+} from "./churned-clients-section"
 import { ExpensesTable } from "./expenses-table"
 import { FinancialOverview } from "./financial-overview"
 import { NewSubscriptionsSection } from "./new-subscriptions-section"
@@ -33,6 +36,7 @@ type ListingRef = {
 }
 
 export function FinancialsView({
+  scorecard,
   stripeConfigured,
   subscriptions,
   expenses,
@@ -43,14 +47,13 @@ export function FinancialsView({
   recurring,
   assemblyConfigured,
   payouts,
-  payoutTransactions,
-  cashSnapshot,
   bankAccounts,
   bankTransactions,
   unpaidInvoices,
   dismissedInvoiceIds,
   churnedClients,
 }: {
+  scorecard: { data: ScorecardData | null; error: string | null }
   stripeConfigured: boolean
   subscriptions: StripeSubscriptionSummary[]
   expenses: Expense[]
@@ -61,12 +64,6 @@ export function FinancialsView({
   recurring: RecurringExpense[]
   assemblyConfigured: boolean
   payouts: StripePayout[]
-  payoutTransactions: {
-    payout_id: string
-    net_cents: number
-    subscription_id: string | null
-  }[]
-  cashSnapshot: FinancialCashSnapshot | null
   bankAccounts: BankAccount[]
   bankTransactions: BankTransaction[]
   unpaidInvoices: StripeInvoice[]
@@ -149,14 +146,7 @@ export function FinancialsView({
             listings={listings}
             assemblyConfigured={assemblyConfigured}
           />
-          <FinancialOverview
-            payouts={payouts}
-            payoutTransactions={payoutTransactions}
-            expenses={expenses}
-            listings={listings}
-            cashSnapshot={cashSnapshot}
-            bankTransactions={bankTransactions}
-          />
+          <FinancialOverview data={scorecard.data} error={scorecard.error} />
         </TabsContent>
 
         <TabsContent value="planning">

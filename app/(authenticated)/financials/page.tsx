@@ -1,3 +1,6 @@
+import { allRows } from "@/lib/financial-scorecard/pagination"
+import type { BankTransaction, Expense, StripePayout } from "@/lib/types"
+import { loadScorecard } from "@/lib/financial-scorecard/repository.server"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { getProfile } from "@/lib/supabase/profile"
@@ -70,21 +73,19 @@ export default async function FinancialsPage() {
     mirrorSubsResult,
     clientStripeCustomersResult,
     payoutsResult,
-    payoutTransactionsResult,
-    cashSnapshotResult,
     bankAccountsResult,
     bankTransactionsResult,
     unpaidInvoicesResult,
     dismissedIssuesResult,
     churnedClientsResult,
     lifetimeValueByClient,
+    scorecard,
   ] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select(
-        "*, expense_categories(id, name, type), expense_listing_allocations(*, listings(id, name))"
-      )
-      .order("date", { ascending: false }),
+    allRows<Expense>(
+      supabase,
+      "expenses",
+      "*, expense_categories(id, name, type), expense_listing_allocations(*, listings(id, name))"
+    ).then((data) => ({ data })),
     supabase.from("expense_categories").select("*").order("name"),
     supabase
       .from("clients")
@@ -111,34 +112,15 @@ export default async function FinancialsPage() {
     supabase
       .from("client_stripe_customers")
       .select("client_id, stripe_customer_id"),
-    supabase
-      .from("stripe_payouts")
-      .select(
-        "id, amount_cents, currency, status, arrival_date, created, automatic, reconciliation_status, failure_code, failure_message, synced_at"
-      )
-      .order("arrival_date", { ascending: false })
-      .limit(500),
-    supabase
-      .from("stripe_payout_transactions")
-      .select("payout_id, net_cents, subscription_id")
-      .limit(5000),
-    supabase
-      .from("financial_cash_snapshots")
-      .select(
-        "id, operating_cash_cents, tax_cash_cents, effective_date, notes, created_at"
-      )
-      .order("effective_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    allRows<StripePayout>(supabase, "stripe_payouts").then((data) => ({
+      data,
+    })),
     supabase.from("bank_accounts").select("*").order("account_number"),
-    supabase
-      .from("bank_transactions")
-      .select(
-        "*, bank_accounts(id, account_number, label)"
-      )
-      .order("txn_date", { ascending: false })
-      .limit(1000),
+    allRows<BankTransaction>(
+      supabase,
+      "bank_transactions",
+      "*, bank_accounts(id, account_number, label)"
+    ).then((data) => ({ data })),
     // Unpaid invoices only — drive the "payment issues" section. Filtering by
     // status keeps the payload small.
     supabase
@@ -157,6 +139,12 @@ export default async function FinancialsPage() {
       .eq("status", "inactive")
       .order("ending_date", { ascending: false, nullsFirst: false }),
     getClientLifetimeValue(supabase),
+    loadScorecard(supabase)
+      .then((data) => ({ data, error: null as string | null }))
+      .catch((error) => ({
+        data: null,
+        error: error instanceof Error ? error.message : "Scorecard unavailable",
+      })),
   ])
 
   const subscriptions = (mirrorSubsResult.data ?? []).map((r) =>
@@ -173,6 +161,7 @@ export default async function FinancialsPage() {
   }))
   return (
     <FinancialsView
+      scorecard={scorecard}
       stripeConfigured={stripeConfigured}
       subscriptions={subscriptions as StripeSubscriptionSummary[]}
       expenses={expensesResult.data ?? []}
@@ -196,14 +185,12 @@ export default async function FinancialsPage() {
       recurring={recurringResult.data ?? []}
       assemblyConfigured={isAssemblyConfigured()}
       payouts={payoutsResult.data ?? []}
-      payoutTransactions={payoutTransactionsResult.data ?? []}
-      cashSnapshot={cashSnapshotResult.data ?? null}
       bankAccounts={bankAccountsResult.data ?? []}
       bankTransactions={bankTransactionsResult.data ?? []}
       unpaidInvoices={unpaidInvoicesResult.data ?? []}
-      dismissedInvoiceIds={
-        (dismissedIssuesResult.data ?? []).map((r) => r.invoice_id as string)
-      }
+      dismissedInvoiceIds={(dismissedIssuesResult.data ?? []).map(
+        (r) => r.invoice_id as string
+      )}
       churnedClients={churnedClients}
     />
   )

@@ -1,50 +1,29 @@
 "use client"
 
-import { useState } from "react"
-import {
-  AlertTriangle,
-  Landmark,
-  PiggyBank,
-  Receipt,
-  Wallet,
-} from "lucide-react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import {
-  Area,
-  AreaChart,
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Line,
-  XAxis,
-  YAxis,
-} from "recharts"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Field, FieldLabel } from "@/components/ui/field"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -54,892 +33,873 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
-  addMonths,
-  allocateProfitFirst,
-  buildForecast,
-  calculateRunwayMonths,
-  monthKey,
-} from "@/lib/financial-planning"
-import type {
-  BankTransaction,
-  Expense,
-  FinancialCashSnapshot,
-  StripePayout,
-} from "@/lib/types"
-import { saveCashSnapshot } from "./actions"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  ChartLegend,
+  ChartLegendContent,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
+import { allocateProfitFirst } from "@/lib/financial-planning"
+import {
+  confirmedBalances,
+  isStripeDeposit,
+  monthlyResult,
+  monthsEnding,
+} from "@/lib/financial-scorecard/calculations"
+import type { ScorecardData } from "@/lib/financial-scorecard/types"
+import {
+  confirmMonth,
+  reviewExpense,
+  reviewIncome,
+  saveAccountBalance,
+} from "./scorecard-actions"
 
-type ListingRef = {
-  id: string
-  name: string
-  stripe_subscription_id: string | null
+const money = (cents: number | null) =>
+  cents === null
+    ? "—"
+    : new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(cents / 100)
+const config = {
+  revenue: { label: "Cobros", color: "var(--chart-1)" },
+  expenses: { label: "Gastos", color: "var(--chart-4)" },
+  result: { label: "Resultado", color: "var(--chart-2)" },
 }
-
-type PayoutTransaction = {
-  payout_id: string
-  net_cents: number
-  subscription_id: string | null
-}
-
-const chartConfig: ChartConfig = {
-  cash: { label: "Cash received", color: "var(--chart-2)" },
-  opex: { label: "OPEX allocation", color: "var(--chart-4)" },
-  contribution: { label: "Contribución", color: "var(--chart-2)" },
-  margin: { label: "Margen %", color: "var(--chart-1)" },
-  opexRemaining: { label: "OPEX restante %", color: "var(--chart-4)" },
-}
-
-function currency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(cents / 100)
-}
-
-export function FinancialOverview({
-  payouts,
-  payoutTransactions,
-  expenses,
-  listings,
-  cashSnapshot,
-  bankTransactions,
+function Metric({
+  label,
+  value,
+  detail,
 }: {
-  payouts: StripePayout[]
-  payoutTransactions: PayoutTransaction[]
-  expenses: Expense[]
-  listings: ListingRef[]
-  cashSnapshot: FinancialCashSnapshot | null
-  bankTransactions: BankTransaction[]
+  label: string
+  value: string
+  detail?: string
 }) {
-  const [snapshotOpen, setSnapshotOpen] = useState(false)
-  const [operatingCash, setOperatingCash] = useState(
-    String((Number(cashSnapshot?.operating_cash_cents ?? 0) / 100).toFixed(2))
-  )
-  const [taxCash, setTaxCash] = useState(
-    String((Number(cashSnapshot?.tax_cash_cents ?? 0) / 100).toFixed(2))
-  )
-  const [savingSnapshot, setSavingSnapshot] = useState(false)
-
-  const now = new Date()
-  const currentMonth = monthKey(now)
-  const paidPayouts = payouts.filter(
-    (payout) =>
-      payout.status === "paid" &&
-      payout.currency === "usd" &&
-      payout.arrival_date.slice(0, 7) === currentMonth
-  )
-  const currentCashCents = paidPayouts.reduce(
-    (sum, payout) => sum + Number(payout.amount_cents),
-    0
-  )
-  const profitFirst = paidPayouts.reduce(
-    (total, payout) => {
-      const allocation = allocateProfitFirst(Number(payout.amount_cents))
-      return {
-        partnerACents: total.partnerACents + allocation.partnerACents,
-        partnerBCents: total.partnerBCents + allocation.partnerBCents,
-        taxCents: total.taxCents + allocation.taxCents,
-        opexCents: total.opexCents + allocation.opexCents,
-      }
-    },
-    { partnerACents: 0, partnerBCents: 0, taxCents: 0, opexCents: 0 }
-  )
-
-  const monthExpenses = expenses.filter((expense) =>
-    expense.date.startsWith(currentMonth)
-  )
-  const paidExpensesCents = monthExpenses
-    .filter((expense) => expense.is_paid)
-    .reduce((sum, expense) => sum + Math.round(Number(expense.amount) * 100), 0)
-  const committedExpensesCents = monthExpenses.reduce(
-    (sum, expense) => sum + Math.round(Number(expense.amount) * 100),
-    0
-  )
-  const opexVarianceCents = profitFirst.opexCents - committedExpensesCents
-
-  const monthlyHistory = (() => {
-    const rows = new Map<string, number>()
-    for (let offset = 11; offset >= 0; offset--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - offset, 1)
-      rows.set(monthKey(date), 0)
-    }
-    for (const payout of payouts) {
-      if (payout.status !== "paid" || payout.currency !== "usd") continue
-      const key = payout.arrival_date.slice(0, 7)
-      if (rows.has(key))
-        rows.set(key, (rows.get(key) ?? 0) + Number(payout.amount_cents))
-    }
-    return [...rows].map(([month, cash]) => ({
-      month: new Date(`${month}-01T00:00:00`).toLocaleDateString("en-US", {
-        month: "short",
-      }),
-      cash: cash / 100,
-      opex: allocateProfitFirst(cash).opexCents / 100,
-    }))
-  })()
-
-  const averageCashCents = Math.round(
-    monthlyHistory.slice(-3).reduce((sum, row) => sum + row.cash * 100, 0) / 3
-  )
-  // Average real expenses over the trailing 3 months (actual expenses, not a
-  // recurring-expense template).
-  const averageMonthlyExpensesCents = Math.round(
-    (() => {
-      let total = 0
-      for (let offset = 2; offset >= 0; offset--) {
-        const key = monthKey(
-          new Date(now.getFullYear(), now.getMonth() - offset, 1)
-        )
-        total += expenses
-          .filter((expense) => expense.date.startsWith(key))
-          .reduce(
-            (sum, expense) => sum + Math.round(Number(expense.amount) * 100),
-            0
-          )
-      }
-      return total / 3
-    })()
-  )
-  const forecastEvents =
-    averageMonthlyExpensesCents > 0
-      ? [
-          {
-            id: "expenses",
-            kind: "variable_expense" as const,
-            description: "Average monthly expenses",
-            amountCents: averageMonthlyExpensesCents,
-            recurrence: "monthly" as const,
-            startMonth: currentMonth,
-            endMonth: null,
-          },
-        ]
-      : []
-  const forecast = buildForecast({
-    startMonth: currentMonth,
-    horizonMonths: 12,
-    openingCashCents: Number(cashSnapshot?.operating_cash_cents ?? 0),
-    listings: [
-      {
-        id: "baseline",
-        name: "Current payout run rate",
-        monthlyRevenueCents: averageCashCents,
-        startMonth: currentMonth,
-        endMonth: null,
-      },
-    ],
-    events: forecastEvents,
-  })
-  const runway = calculateRunwayMonths(forecast)
-
-  const currentPayoutIds = new Set(paidPayouts.map((payout) => payout.id))
-  const listingsBySubscription = new Map<string, ListingRef[]>()
-  for (const listing of listings) {
-    if (!listing.stripe_subscription_id) continue
-    const existing =
-      listingsBySubscription.get(listing.stripe_subscription_id) ?? []
-    existing.push(listing)
-    listingsBySubscription.set(listing.stripe_subscription_id, existing)
-  }
-
-  // Attribute reconciled payout cash to listings for a given set of payouts,
-  // splitting each transaction's net evenly across its subscription's listings.
-  const buildListingCash = (payoutIds: Set<string>) => {
-    const result = new Map<string, number>()
-    for (const transaction of payoutTransactions) {
-      if (!payoutIds.has(transaction.payout_id)) continue
-      const linked = transaction.subscription_id
-        ? (listingsBySubscription.get(transaction.subscription_id) ?? [])
-        : []
-      if (linked.length === 0) continue
-      const baseShare = Math.trunc(Number(transaction.net_cents) / linked.length)
-      let remainder = Number(transaction.net_cents) - baseShare * linked.length
-      for (const listing of linked) {
-        const share = baseShare + (remainder > 0 ? 1 : remainder < 0 ? -1 : 0)
-        remainder += remainder > 0 ? -1 : remainder < 0 ? 1 : 0
-        result.set(listing.id, (result.get(listing.id) ?? 0) + share)
-      }
-    }
-    return result
-  }
-
-  const listingCash = buildListingCash(currentPayoutIds)
-  // Aggregate unit economics. Variable expenses lower the total margin whether
-  // or not they are allocated to a specific listing; unallocated ones are simply
-  // absorbed at the portfolio level.
-  const totalCashCents = [...listingCash.values()].reduce(
-    (sum, value) => sum + value,
-    0
-  )
-  const listingsWithCash = [...listingCash.values()].filter(
-    (value) => value !== 0
-  ).length
-  // Per-listing figures divide by the total active listing count. We have no
-  // history of when each listing was added, so the current active set is
-  // treated as constant across all months.
-  const activeListingsCount = listings.length
-  const totalVariableExpensesCents = monthExpenses
-    .filter((expense) => expense.type === "variable")
-    .reduce((sum, expense) => sum + Math.round(Number(expense.amount) * 100), 0)
-  const totalContributionCents = totalCashCents - totalVariableExpensesCents
-  const marginPct =
-    totalCashCents > 0
-      ? Math.round((totalContributionCents / totalCashCents) * 100)
-      : null
-  const perListing = (cents: number) =>
-    activeListingsCount > 0 ? Math.round(cents / activeListingsCount) : 0
-
-  // Month-by-month evolution, from January of the current year to this month.
-  const months: string[] = []
-  for (
-    let month = `${now.getFullYear()}-01`;
-    month <= currentMonth;
-    month = addMonths(month, 1)
-  ) {
-    months.push(month)
-  }
-  const monthlySeries = months.map((month) => {
-    const monthPayouts = payouts.filter(
-      (payout) =>
-        payout.status === "paid" &&
-        payout.currency === "usd" &&
-        payout.arrival_date.slice(0, 7) === month
-    )
-    const incomeCents = monthPayouts.reduce(
-      (sum, payout) => sum + Number(payout.amount_cents),
-      0
-    )
-    const opexBudgetCents = allocateProfitFirst(incomeCents).opexCents
-    const monthExp = expenses.filter((expense) => expense.date.startsWith(month))
-    const allExpensesCents = monthExp.reduce(
-      (sum, expense) => sum + Math.round(Number(expense.amount) * 100),
-      0
-    )
-    const variableCents = monthExp
-      .filter((expense) => expense.type === "variable")
-      .reduce((sum, expense) => sum + Math.round(Number(expense.amount) * 100), 0)
-    const cashMap = buildListingCash(new Set(monthPayouts.map((p) => p.id)))
-    const attributedCashCents = [...cashMap.values()].reduce(
-      (sum, value) => sum + value,
-      0
-    )
-    const contributionCents = attributedCashCents - variableCents
-    return {
-      month,
-      label: new Date(`${month}-01T00:00:00`).toLocaleDateString("en-US", {
-        month: "short",
-      }),
-      incomeCents,
-      opexBudgetCents,
-      allExpensesCents,
-      variableCents,
-      attributedCashCents,
-      listingsCount: activeListingsCount,
-      contributionCents,
-      marginPct:
-        attributedCashCents > 0
-          ? Math.round((contributionCents / attributedCashCents) * 100)
-          : null,
-      opexRemainingPct:
-        opexBudgetCents > 0
-          ? Math.round(
-              ((opexBudgetCents - allExpensesCents) / opexBudgetCents) * 100
-            )
-          : null,
-      perListingContributionCents:
-        activeListingsCount > 0
-          ? Math.round(contributionCents / activeListingsCount)
-          : 0,
-    }
-  })
-  const evolutionChart = monthlySeries.map((row) => ({
-    month: row.label,
-    contribution: row.contributionCents / 100,
-    margin: row.marginPct,
-    opexRemaining: row.opexRemainingPct,
-  }))
-
-  const unreconciled = paidPayouts.filter(
-    (payout) => payout.automatic && payout.reconciliation_status !== "completed"
-  ).length
-
-  const monthBankTxns = bankTransactions.filter((transaction) =>
-    transaction.txn_date.startsWith(currentMonth)
-  )
-  const bankStripeDeposits = monthBankTxns.filter(
-    (transaction) =>
-      transaction.flow_class === "external_income" &&
-      (transaction.payee ?? "").toLowerCase().includes("stripe")
-  )
-  const bankDepositsMatched = bankStripeDeposits.filter(
-    (transaction) => transaction.matched_payout_id
-  ).length
-  const bankOpexSpentCents = monthBankTxns
-    .filter((transaction) => transaction.flow_class === "external_expense")
-    .reduce(
-      (sum, transaction) => sum + Math.abs(Number(transaction.amount_cents)),
-      0
-    )
-  const hasBankData = monthBankTxns.length > 0
-
-  async function handleSaveSnapshot(event: React.FormEvent) {
-    event.preventDefault()
-    setSavingSnapshot(true)
-    const result = await saveCashSnapshot({
-      operatingCashCents: Math.round(Number(operatingCash || 0) * 100),
-      taxCashCents: Math.round(Number(taxCash || 0) * 100),
-      effectiveDate: new Date().toISOString().slice(0, 10),
-    })
-    setSavingSnapshot(false)
-    if (result.error) {
-      toast.error(result.error)
-      return
-    }
-    toast.success("Cash balance updated")
-    setSnapshotOpen(false)
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      {(opexVarianceCents < 0 || unreconciled > 0) && (
+    <Card size="sm">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="font-mono text-2xl font-semibold">{value}</p>
+        {detail && (
+          <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+function Choice({
+  value,
+  onChange,
+  options,
+  label,
+  disabled,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: [string, string][]
+  label: string
+  disabled: boolean
+}) {
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger aria-label={label} className="w-52">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {options.map(([v, l]) => (
+            <SelectItem key={v} value={v}>
+              {l}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
+export function FinancialOverview({
+  data,
+  error,
+}: {
+  data: ScorecardData | null
+  error: string | null
+}) {
+  const router = useRouter()
+  const [busy, startTransition] = useTransition()
+  const now = data?.loadedAt ?? new Date().toISOString()
+  const current = now.slice(0, 7)
+  const [month, setMonth] = useState(monthsEnding(current, 2)[0])
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [balanceAccount, setBalanceAccount] = useState<string | null>(null)
+  const [balanceDate, setBalanceDate] = useState(now.slice(0, 10))
+  const [balanceAmount, setBalanceAmount] = useState("")
+  const [detailOpen, setDetailOpen] = useState(false)
+  const run = (
+    action: () => Promise<{ error: string | null }>,
+    done?: () => void
+  ) =>
+    startTransition(async () => {
+      try {
+        const r = await action()
+        if (r.error) {
+          toast.error(r.error)
+          return
+        }
+        toast.success("Guardado")
+        done?.()
+        router.refresh()
+      } catch {
+        toast.error("No se pudo completar. Volvé a intentar.")
+      }
+    })
+  if (!data)
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Scorecard no disponible</AlertTitle>
+        <AlertDescription>
+          {error ??
+            "No se pudieron cargar los registros. No se muestran importes incompletos."}
+        </AlertDescription>
+      </Alert>
+    )
+  const r = monthlyResult(data, month)
+  const series = monthsEnding(month).map((m) => {
+    const x = monthlyResult(data, m)
+    return {
+      month: m,
+      revenue: x.revenue / 100,
+      expenses: x.expenses / 100,
+      result: x.result === null ? null : x.result / 100,
+    }
+  })
+  const cash = confirmedBalances(data.accounts, data.balances, now.slice(0, 10))
+  const pf = allocateProfitFirst(r.stripe)
+  const snapshots = [...data.snapshots].sort((a, b) =>
+    b.observed_at.localeCompare(a.observed_at)
+  )
+  const latest = snapshots.find((s) => s.valid)
+  const latestAttempt = snapshots[0]
+  const history = [
+    ...new Map(
+      snapshots
+        .filter((s) => s.valid)
+        .reverse()
+        .map((s) => [s.observed_at.slice(0, 7), s])
+    ).values(),
+  ].sort((a, b) => a.observed_at.localeCompare(b.observed_at))
+  const unresolved =
+    r.incomePending.length +
+    r.expensePending.length +
+    r.unlinkedExpenses.length +
+    r.missingPaymentDates.length +
+    r.unknown.length
+  const incomeRows = data.bank.filter(
+    (t) =>
+      t.txn_date.startsWith(month) &&
+      t.direction === "in" &&
+      t.flow_class === "external_income" &&
+      !isStripeDeposit(t)
+  )
+  const expenseRows = data.expenses.filter((e) =>
+    (e.is_paid ? (e.paid_at ?? e.date) : e.date).startsWith(month)
+  )
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">
+            Resultado operativo por cobros y pagos
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Antes de distribuciones a socios · USD · gastos e ingresos
+            revisables
+          </p>
+        </div>
+        <Field className="w-44">
+          <FieldLabel htmlFor="finance-month">Mes</FieldLabel>
+          <Input
+            id="finance-month"
+            type="month"
+            max={current}
+            value={month}
+            onChange={(e) => {
+              if (
+                /^\d{4}-(0[1-9]|1[0-2])$/.test(e.target.value) &&
+                e.target.value <= current
+              )
+                setMonth(e.target.value)
+            }}
+          />
+        </Field>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={r.reviewed ? "default" : "secondary"}>
+          {r.reviewed ? "Revisado" : "Provisional"}
+        </Badge>
+        {month === current && (
+          <Badge variant="outline">Mes en curso · parcial</Badge>
+        )}
+        <span className="text-sm text-muted-foreground">
+          {unresolved
+            ? `${unresolved} registros requieren atención`
+            : "Confirmá que están cargados todos los cobros y gastos del mes."}
+        </span>
+        <Button variant="outline" size="sm" onClick={() => setReviewOpen(true)}>
+          Revisar registros
+        </Button>
+        <Button
+          size="sm"
+          disabled={busy || r.reviewed || month === current || unresolved > 0}
+          onClick={() => setConfirmOpen(true)}
+        >
+          Confirmar mes
+        </Button>
+      </div>
+      {r.result === null && (
         <Alert>
-          <AlertTriangle />
-          <AlertTitle>Items need attention</AlertTitle>
           <AlertDescription>
-            {[
-              opexVarianceCents < 0
-                ? `OPEX is ${currency(Math.abs(opexVarianceCents))} over allocation`
-                : null,
-              unreconciled > 0
-                ? `${unreconciled} payout(s) awaiting reconciliation`
-                : null,
-            ]
-              .filter(Boolean)
-              .join(". ")}
+            Faltan gastos registrados o una confirmación de que este mes no tuvo
+            gastos. El resultado y el margen quedan sin calcular.
           </AlertDescription>
         </Alert>
       )}
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          icon={Landmark}
-          label="Cash received"
-          value={currency(currentCashCents)}
-          detail={`${paidPayouts.length} paid payout${paidPayouts.length === 1 ? "" : "s"} this month`}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          label="Cobros netos"
+          value={money(r.revenue)}
+          detail={`Stripe ${money(r.stripe)} · otros ${money(r.other)}`}
         />
-        <MetricCard
-          icon={PiggyBank}
-          label="OPEX allocation"
-          value={currency(profitFirst.opexCents)}
-          detail="25% of paid payouts"
+        <Metric
+          label="Gastos operativos pagados"
+          value={money(r.expenses)}
+          detail={`Pendientes de pago: ${money(r.pending)}`}
         />
-        <MetricCard
-          icon={Receipt}
-          label="OPEX committed"
-          value={currency(committedExpensesCents)}
-          detail={`${currency(paidExpensesCents)} paid`}
-        />
-        <MetricCard
-          icon={Wallet}
-          label="Operating runway"
-          value={
-            cashSnapshot
-              ? runway === null
-                ? "12+ months"
-                : `${runway} months`
-              : "Set cash"
-          }
+        <Metric
+          label="Resultado operativo"
+          value={money(r.result)}
           detail={
-            cashSnapshot
-              ? `${currency(Number(cashSnapshot.operating_cash_cents))} opening cash`
-              : "Add bank balance to calculate"
-          }
-          action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSnapshotOpen(true)}
-            >
-              Update
-            </Button>
+            r.reviewed
+              ? "Mes revisado"
+              : "Provisional: sujeto a revisión de cobertura"
           }
         />
+        <Metric
+          label="Margen operativo"
+          value={r.margin === null ? "—" : `${r.margin.toFixed(1)}%`}
+          detail="Resultado / cobros netos"
+        />
       </div>
-
       <Card>
         <CardHeader>
-          <CardTitle>Profit First allocation</CardTitle>
+          <CardTitle>Cobros, gastos y resultado</CardTitle>
           <CardDescription>
-            Recommended allocation of each paid payout. This does not confirm
-            bank transfers.
+            Últimos 12 meses hasta {month}. Los importes son los registros
+            disponibles; los meses sin revisión son provisionales.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Allocation
-            label="Partner A"
-            percentage="30%"
-            value={profitFirst.partnerACents}
-          />
-          <Allocation
-            label="Partner B"
-            percentage="30%"
-            value={profitFirst.partnerBCents}
-          />
-          <Allocation
-            label="Tax reserve"
-            percentage="15%"
-            value={profitFirst.taxCents}
-          />
-          <Allocation
-            label="OPEX"
-            percentage="25%"
-            value={profitFirst.opexCents}
-            detail={
-              opexVarianceCents >= 0
-                ? `${currency(opexVarianceCents)} available`
-                : `${currency(Math.abs(opexVarianceCents))} over`
-            }
-          />
-        </CardContent>
-      </Card>
-
-      {hasBankData && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank reconciliation</CardTitle>
-            <CardDescription>
-              Relay statement confirmation for {currentMonth}. Stripe stays the
-              source for payouts; bank confirms settled cash.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-md border p-4">
-              <span className="text-sm font-medium">Stripe deposits matched</span>
-              <p className="mt-3 font-mono text-2xl font-semibold">
-                {bankDepositsMatched}/{bankStripeDeposits.length}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {paidPayouts.length} paid payout(s) this month
-              </p>
-            </div>
-            <div className="rounded-md border p-4">
-              <span className="text-sm font-medium">OPEX allocation (25%)</span>
-              <p className="mt-3 font-mono text-2xl font-semibold">
-                {currency(profitFirst.opexCents)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Profit First target from payouts
-              </p>
-            </div>
-            <div className="rounded-md border p-4">
-              <span className="text-sm font-medium">OPEX spent (bank)</span>
-              <p className="mt-3 font-mono text-2xl font-semibold">
-                {currency(bankOpexSpentCents)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {currency(profitFirst.opexCents - bankOpexSpentCents)} vs
-                allocation
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Cash trend</CardTitle>
-            <CardDescription>
-              Paid Stripe payouts by arrival month
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px] w-full">
-              <AreaChart data={monthlyHistory}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value, name) => (
-                        <div className="flex min-w-36 items-center justify-between gap-3">
-                          <span>{chartConfig[String(name)]?.label}</span>
-                          <span className="font-mono font-medium">
-                            {currency(Number(value) * 100)}
-                          </span>
-                        </div>
-                      )}
-                    />
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="cash"
-                  stroke="var(--color-cash)"
-                  fill="var(--color-cash)"
-                  fillOpacity={0.18}
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="opex"
-                  stroke="var(--color-opex)"
-                  fill="var(--color-opex)"
-                  fillOpacity={0.08}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Operating outlook</CardTitle>
-            <CardDescription>
-              12 months at the latest 3-month payout run rate
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Average monthly cash
-              </p>
-              <p className="font-mono text-2xl font-semibold">
-                {currency(averageCashCents)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Monthly expenses (avg. 3m)
-              </p>
-              <p className="font-mono text-2xl font-semibold">
-                {currency(averageMonthlyExpensesCents)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Projected cash after 12 months
-              </p>
-              <p className="font-mono text-2xl font-semibold">
-                {currency(forecast.at(-1)?.endingCashCents ?? 0)}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Use Planning to change listings, investments, expenses, and
-              capital.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Listing unit economics</CardTitle>
-          <CardDescription>
-            Aggregated payout cash and variable expenses for {currentMonth}.
-            Variable expenses reduce the total margin even when they are not
-            allocated to a specific listing.
-          </CardDescription>
-          <CardAction>
-            <Badge variant="secondary">{activeListingsCount} listings</Badge>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          {listingsWithCash === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No attributable payout cash this month yet. Once subscription
-              payouts are reconciled, unit economics appear here.
-            </p>
-          ) : (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Stat label="Listings" value={String(activeListingsCount)} />
-                <Stat label="Total cash" value={currency(totalCashCents)} />
-                <Stat
-                  label="Variable expenses"
-                  value={currency(totalVariableExpensesCents)}
-                />
-                <Stat
-                  label="Total contribution"
-                  value={currency(totalContributionCents)}
-                  detail={marginPct !== null ? `${marginPct}% margin` : undefined}
-                />
-              </div>
-              <div>
-                <p className="mb-2 text-sm font-medium text-muted-foreground">
-                  Per listing average
-                </p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Stat
-                    label="Cash / listing"
-                    value={currency(perListing(totalCashCents))}
-                  />
-                  <Stat
-                    label="Variable / listing"
-                    value={currency(perListing(totalVariableExpensesCents))}
-                  />
-                  <Stat
-                    label="Contribution / listing"
-                    value={currency(perListing(totalContributionCents))}
-                  />
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Evolución mensual</CardTitle>
-          <CardDescription>
-            Contribución, margen y OPEX restante (25% Profit First) por mes,
-            desde enero. La caja atribuida depende de payouts reconciliados; los
-            meses sin reconciliar pueden verse bajos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <ComposedChart data={evolutionChart}>
+        <CardContent>
+          <ChartContainer config={config} className="h-64 w-full">
+            <LineChart data={series}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <YAxis
-                yAxisId="left"
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={(value) => `${value}%`}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    formatter={(value, name) => (
-                      <div className="flex min-w-40 items-center justify-between gap-3">
-                        <span>{chartConfig[String(name)]?.label}</span>
-                        <span className="font-mono font-medium">
-                          {name === "contribution"
-                            ? currency(Number(value) * 100)
-                            : `${value}%`}
-                        </span>
-                      </div>
-                    )}
-                  />
-                }
-              />
-              <Bar
-                yAxisId="left"
-                dataKey="contribution"
-                fill="var(--color-contribution)"
-                radius={4}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="margin"
-                stroke="var(--color-margin)"
-                strokeWidth={2}
-                dot={false}
-                connectNulls
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="opexRemaining"
-                stroke="var(--color-opexRemaining)"
-                strokeWidth={2}
-                dot={false}
-                connectNulls
-              />
-            </ComposedChart>
+              <XAxis dataKey="month" tickLine={false} />
+              <YAxis tickFormatter={(v) => `$${v / 1000}k`} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              {(["revenue", "expenses", "result"] as const).map((key) => (
+                <Line
+                  key={key}
+                  type="monotone"
+                  dataKey={key}
+                  stroke={`var(--color-${key})`}
+                  dot={false}
+                  strokeWidth={2}
+                />
+              ))}
+            </LineChart>
           </ChartContainer>
-          <div className="overflow-x-auto">
-            <Table>
+          <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Mes</TableHead>
-                <TableHead className="text-right">Ingresos</TableHead>
-                <TableHead className="text-right">OPEX (25%)</TableHead>
-                <TableHead className="text-right">Caja atribuida</TableHead>
-                <TableHead className="text-right">Gastos totales</TableHead>
-                <TableHead className="text-right">Gastos variables</TableHead>
-                <TableHead className="text-right">Contribución</TableHead>
-                <TableHead className="text-right">Margen %</TableHead>
-                <TableHead className="text-right">OPEX restante %</TableHead>
-                <TableHead className="text-right">Contrib./listing</TableHead>
-                <TableHead className="text-right">Listings</TableHead>
+                <TableHead>Desglose del mes</TableHead>
+                <TableHead className="text-right">Importe</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {monthlySeries.map((row) => (
-                <TableRow key={row.month}>
-                  <TableCell className="font-medium">{row.label}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.incomeCents)}
+              <TableRow>
+                <TableCell>Payouts Stripe</TableCell>
+                <TableCell className="text-right">{money(r.stripe)}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Otros ingresos operativos revisados</TableCell>
+                <TableCell className="text-right">{money(r.other)}</TableCell>
+              </TableRow>
+              {r.categories.map((c) => (
+                <TableRow key={c.name}>
+                  <TableCell>{c.name}</TableCell>
+                  <TableCell className="text-right">{money(c.cents)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow>
+                <TableCell>
+                  Resultado operativo {r.reviewed ? "" : "(provisional)"}
+                </TableCell>
+                <TableCell className="text-right font-semibold">
+                  {money(r.result)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <Button
+            className="mt-3"
+            variant="outline"
+            size="sm"
+            onClick={() => setDetailOpen(true)}
+          >
+            Ver historial y origen
+          </Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Caja y Profit First</CardTitle>
+          <CardDescription>
+            Saldos confirmados a su fecha. Las reservas fiscales y los fondos de
+            socios se muestran separados de la caja operativa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric
+              label="Caja operativa · Income + OPEX"
+              value={money(cash.operating)}
+              detail={
+                cash.operating === null
+                  ? "Falta confirmar saldos a la misma fecha"
+                  : `Al ${cash.rows.find((r) => r.account.role === "opex")?.balance?.effective_date}`
+              }
+            />
+            <Metric
+              label="Total de las cuentas"
+              value={money(cash.total)}
+              detail={
+                cash.total === null
+                  ? "Fechas diferentes o saldos sin confirmar"
+                  : `Al ${cash.rows[0]?.balance?.effective_date}`
+              }
+            />
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cuenta</TableHead>
+                <TableHead>Fecha confirmada</TableHead>
+                <TableHead className="text-right">Saldo USD</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {cash.rows.map(({ account, balance }) => (
+                <TableRow key={account.id}>
+                  <TableCell>
+                    {account.label}
+                    <p className="text-xs text-muted-foreground">
+                      {account.role === "tax"
+                        ? "Reserva fiscal"
+                        : account.role === "partner"
+                          ? "Fondos asignados a socios"
+                          : "Operativa"}
+                    </p>
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.opexBudgetCents)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.attributedCashCents)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.allExpensesCents)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.variableCents)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.contributionCents)}
+                  <TableCell>
+                    {balance?.effective_date ?? "Sin confirmar"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {row.marginPct === null ? "—" : `${row.marginPct}%`}
+                    {money(balance ? Number(balance.amount_cents) : null)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {row.opexRemainingPct === null
-                      ? "—"
-                      : `${row.opexRemainingPct}%`}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {currency(row.perListingContributionCents)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.listingsCount}
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setBalanceAccount(account.id)
+                        setBalanceAmount("")
+                      }}
+                    >
+                      Confirmar saldo
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Profit First · {month}</TableHead>
+                <TableHead className="text-right">Recomendado</TableHead>
+                <TableHead className="text-right">
+                  Transferencias recibidas*
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.accounts
+                .filter((a) => ["opex", "tax", "partner"].includes(a.role))
+                .map((a) => {
+                  const allocation =
+                    a.role === "opex"
+                      ? pf.opexCents
+                      : a.role === "tax"
+                        ? pf.taxCents
+                        : pf.partnerACents
+                  const incoming = data.bank
+                    .filter(
+                      (t) =>
+                        t.account_id === a.id &&
+                        t.txn_date.startsWith(month) &&
+                        t.direction === "in" &&
+                        ["internal_transfer", "profit_first"].includes(
+                          t.flow_class
+                        )
+                    )
+                    .reduce((s, t) => s + Number(t.amount_cents), 0)
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        {a.label} ·{" "}
+                        {a.role === "opex"
+                          ? "25"
+                          : a.role === "tax"
+                            ? "15"
+                            : "30"}
+                        %
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {money(allocation)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {data.bank.some(
+                          (t) =>
+                            t.account_id === a.id &&
+                            t.txn_date.startsWith(month)
+                        )
+                          ? money(incoming)
+                          : "Sin extracto"}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+            </TableBody>
+          </Table>
+          <p className="text-xs text-muted-foreground">
+            *Movimientos internos registrados en la cuenta de destino; no se
+            duplican las salidas de Income. Los extractos pueden estar
+            incompletos.
+          </p>
+          <p className="text-sm">
+            OPEX frente a gastos pagados:{" "}
+            <strong>{money(pf.opexCents - r.expenses)}</strong> · Retiros
+            externos de socios: <strong>{money(r.withdrawals)}</strong>
+          </p>
         </CardContent>
       </Card>
-
-      <Dialog open={snapshotOpen} onOpenChange={setSnapshotOpen}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Negocio actual e histórico de MRR</CardTitle>
+          <CardDescription>
+            Independiente del mes seleccionado. MRR observado{" "}
+            {latest
+              ? `al ${new Date(latest.observed_at).toLocaleString("es-ES")}`
+              : "pendiente de la primera captura válida"}
+            . Operación actualizada al{" "}
+            {new Date(data.loadedAt).toLocaleString("es-ES")}.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {(!latestAttempt?.valid ||
+            !latest ||
+            Date.parse(now) - Date.parse(latest.observed_at) >
+              36 * 3600000) && (
+            <Alert>
+              <AlertDescription>
+                {latestAttempt?.error ??
+                  "Aún no hay una captura válida reciente."}{" "}
+                Se conserva la última captura válida, si existe.
+              </AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Metric
+              label="MRR"
+              value={money(latest?.mrr_cents ?? null)}
+              detail={`En mora: ${money(latest?.past_due_cents ?? null)}`}
+            />
+            <Metric
+              label="Clientes con MRR positivo"
+              value={latest?.paying_clients?.toString() ?? "—"}
+            />
+            <Metric
+              label="ARPU"
+              value={money(
+                latest?.paying_clients
+                  ? Math.round(latest.mrr_cents! / latest.paying_clients)
+                  : null
+              )}
+            />
+            <Metric
+              label="Clientes activos"
+              value={String(data.activeClients)}
+            />
+            <Metric
+              label="Listings activos"
+              value={String(data.activeListings)}
+            />
+          </div>
+          {history.length ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mes observado</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">MRR</TableHead>
+                  <TableHead className="text-right">
+                    Variación entre cierres
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((s, i) => {
+                  const m = s.observed_at.slice(0, 7)
+                  const end = new Date(
+                    Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
+                  )
+                    .toISOString()
+                    .slice(0, 10)
+                  const closed =
+                    s.observed_at.slice(0, 10) === end && m < current
+                  const prev = history[i - 1]
+                  const previousMonth = monthsEnding(m, 2)[0]
+                  const previousEnd = new Date(
+                    Date.UTC(
+                      Number(m.slice(0, 4)),
+                      Number(m.slice(5, 7)) - 1,
+                      0
+                    )
+                  )
+                    .toISOString()
+                    .slice(0, 10)
+                  const comparable =
+                    closed &&
+                    prev?.observed_at.slice(0, 7) === previousMonth &&
+                    prev.observed_at.slice(0, 10) === previousEnd
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell>{m}</TableCell>
+                      <TableCell>{s.observed_at.slice(0, 10)}</TableCell>
+                      <TableCell>
+                        {closed
+                          ? "Observado en último día"
+                          : m === current
+                            ? "Mes parcial"
+                            : "Observación, sin cierre"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {money(s.mrr_cents)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {comparable
+                          ? money(s.mrr_cents! - prev.mrr_cents!)
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              El histórico empieza con la primera captura válida. No se
+              reconstruye el pasado con suscripciones actuales.
+            </p>
+          )}
+          {!!latestAttempt?.details.some((d) => d.reason) && (
+            <details>
+              <summary className="cursor-pointer text-sm">
+                Suscripciones pendientes de revisión
+              </summary>
+              <Table>
+                <TableBody>
+                  {latestAttempt.details
+                    .filter((d) => d.reason)
+                    .map((d) => (
+                      <TableRow key={d.subscription_id}>
+                        <TableCell>{d.subscription_id}</TableCell>
+                        <TableCell>{d.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </details>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Revisión de {month}</DialogTitle>
+            <DialogDescription>
+              Los cambios invalidan la confirmación del mes. Revisá también la
+              cobertura en Expenses y Bank.
+            </DialogDescription>
+          </DialogHeader>
+          {unresolved > 0 && (
+            <Alert>
+              <AlertDescription>
+                {r.unlinkedExpenses.length} salidas operativas sin gasto
+                enlazado; {r.missingPaymentDates.length} gastos pagados sin
+                fecha; {r.unknown.length} movimientos con clasificación o moneda
+                pendiente. Resolvelos desde Expenses / Bank antes de confirmar.
+              </AlertDescription>
+            </Alert>
+          )}
+          <h3 className="font-medium">Otros ingresos</h3>
+          {incomeRows.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Sin otros ingresos registrados.
+            </p>
+          )}
+          {incomeRows.map((t) => (
+            <div
+              key={t.id}
+              className="flex flex-wrap items-center justify-between gap-2"
+            >
+              <span className="text-sm">
+                {t.txn_date} · {t.payee ?? "Ingreso"} ·{" "}
+                {money(Number(t.amount_cents))}
+              </span>
+              <Choice
+                disabled={busy}
+                label={`Clasificar ${t.payee ?? "ingreso"}`}
+                value={t.income_treatment}
+                options={[
+                  ["pending", "Pendiente"],
+                  ["operating", "Operativo"],
+                  ["capital", "Aporte / financiación"],
+                  ["transfer", "Transferencia"],
+                ]}
+                onChange={(v) => run(() => reviewIncome(t.id, v))}
+              />
+            </div>
+          ))}
+          <h3 className="font-medium">Gastos y distribuciones</h3>
+          {expenseRows.map((e) => (
+            <div
+              key={e.id}
+              className="flex flex-wrap items-center justify-between gap-2"
+            >
+              <span className="text-sm">
+                {e.description} · {money(Math.round(Number(e.amount) * 100))}
+                {r.expensePending.some((p) => p.id === e.id) &&
+                  " · revisar cuenta de socio"}
+              </span>
+              <div className="flex gap-2">
+                <Choice
+                  disabled={busy}
+                  label={`Tratamiento de ${e.description}`}
+                  value={e.financial_treatment}
+                  options={[
+                    ["operating", "Gasto operativo"],
+                    ["partner_distribution", "Distribución a socios"],
+                  ]}
+                  onChange={(v) => run(() => reviewExpense(e.id, v))}
+                />
+                {!e.financial_reviewed_at && (
+                  <Button
+                    disabled={busy}
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      run(() => reviewExpense(e.id, e.financial_treatment))
+                    }
+                  >
+                    Confirmar
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Update cash balance</DialogTitle>
+            <DialogTitle>Confirmar revisión de {month}</DialogTitle>
+            <DialogDescription>
+              Confirmo que cargué todos los cobros adicionales y gastos del mes,
+              revisé las distribuciones a socios y los importes mostrados son
+              completos. Cualquier cambio posterior en los registros invalida
+              esta revisión.
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSaveSnapshot} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="operating-cash">Operating cash ($)</Label>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                run(
+                  () => confirmMonth(month, data.revision),
+                  () => setConfirmOpen(false)
+                )
+              }
+            >
+              Confirmar revisión
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={balanceAccount !== null}
+        onOpenChange={(v) => {
+          if (!v) setBalanceAccount(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Confirmar saldo ·{" "}
+              {data.accounts.find((a) => a.id === balanceAccount)?.label}
+            </DialogTitle>
+            <DialogDescription>
+              Ingresá el saldo verificado en Relay a esa fecha. Se conserva el
+              historial de confirmaciones.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              run(
+                () =>
+                  saveAccountBalance(
+                    balanceAccount!,
+                    balanceDate,
+                    Math.round(Number(balanceAmount) * 100)
+                  ),
+                () => setBalanceAccount(null)
+              )
+            }}
+          >
+            <Field>
+              <FieldLabel htmlFor="balance-date">Fecha del saldo</FieldLabel>
               <Input
-                id="operating-cash"
-                type="number"
-                min="0"
-                step="0.01"
-                value={operatingCash}
-                onChange={(event) => setOperatingCash(event.target.value)}
                 required
+                id="balance-date"
+                type="date"
+                max={now.slice(0, 10)}
+                value={balanceDate}
+                onChange={(e) => setBalanceDate(e.target.value)}
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="tax-cash">Tax reserve balance ($)</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="balance-amount">Saldo USD</FieldLabel>
               <Input
-                id="tax-cash"
-                type="number"
-                min="0"
-                step="0.01"
-                value={taxCash}
-                onChange={(event) => setTaxCash(event.target.value)}
                 required
+                id="balance-amount"
+                type="number"
+                step="0.01"
+                value={balanceAmount}
+                onChange={(e) => setBalanceAmount(e.target.value)}
               />
-            </div>
+            </Field>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setSnapshotOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={savingSnapshot}>
-                {savingSnapshot ? "Saving..." : "Save balance"}
+              <Button disabled={busy} type="submit">
+                Guardar saldo confirmado
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  action,
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  detail: string
-  action?: React.ReactNode
-}) {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Icon className="size-4" />
-          <CardTitle>{label}</CardTitle>
-        </div>
-        {action && <CardAction>{action}</CardAction>}
-      </CardHeader>
-      <CardContent>
-        <p className="font-mono text-2xl font-semibold">{value}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  detail,
-}: {
-  label: string
-  value: string
-  detail?: string
-}) {
-  return (
-    <div className="rounded-md border p-4">
-      <span className="text-sm font-medium">{label}</span>
-      <p className="mt-3 font-mono text-2xl font-semibold">{value}</p>
-      {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
-    </div>
-  )
-}
-
-function Allocation({
-  label,
-  percentage,
-  value,
-  detail,
-}: {
-  label: string
-  percentage: string
-  value: number
-  detail?: string
-}) {
-  return (
-    <div className="rounded-md border p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">{label}</span>
-        <Badge variant="outline">{percentage}</Badge>
-      </div>
-      <p className="mt-3 font-mono text-2xl font-semibold">{currency(value)}</p>
-      {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Historial y origen</DialogTitle>
+            <DialogDescription>
+              Stripe: payouts pagados por llegada. Otros ingresos: Bank
+              revisado. Gastos: Expenses por fecha de pago. Transferencias
+              excluidas.
+            </DialogDescription>
+          </DialogHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mes</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Cobros</TableHead>
+                <TableHead>Gastos</TableHead>
+                <TableHead>Resultado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {monthsEnding(month).map((m) => {
+                const x = monthlyResult(data, m)
+                return (
+                  <TableRow key={m}>
+                    <TableCell>{m}</TableCell>
+                    <TableCell>
+                      {x.reviewed ? "Revisado" : "Provisional"}
+                    </TableCell>
+                    <TableCell>{money(x.revenue)}</TableCell>
+                    <TableCell>{money(x.expenses)}</TableCell>
+                    <TableCell>{money(x.result)}</TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+          <h3 className="font-medium">Payouts del mes seleccionado</h3>
+          <Table>
+            <TableBody>
+              {data.payouts
+                .filter(
+                  (p) =>
+                    p.status === "paid" &&
+                    p.currency === "usd" &&
+                    p.arrival_date.startsWith(month)
+                )
+                .map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>{p.arrival_date.slice(0, 10)}</TableCell>
+                    <TableCell>
+                      <a
+                        className="underline"
+                        href={`https://dashboard.stripe.com/payouts/${p.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {p.id}
+                      </a>
+                    </TableCell>
+                    <TableCell>{money(Number(p.amount_cents))}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

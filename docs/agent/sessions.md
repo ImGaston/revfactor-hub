@@ -752,3 +752,7 @@ Extended the deployed external `revfactor-assembly-payment` Worker to create/lin
 ## 2026-09-10 — Correct Assembly empty-search handling
 
 Fixed the paid-client Worker rejecting Assembly HTTP 200 `data:null` for a client that does not yet exist. Updated the full-runtime fixture to the observed response and verified red/green, 21 unit tests, Worker typecheck/dry-run, and Hub direct TypeScript check. The pnpm wrapper again stopped at pre-existing ignored dependency builds; no dependency build permissions changed. No UI, payment-mode, invitation or historical cut-off change. Operational backfill and email-test evidence are maintained in the central GHL workspace.
+
+## 2026-09-11 — Owner Finance Scorecard
+
+Replaced FinancialOverview with monthly cash operating result, explicit review/classification controls, confirmed account balances/Profit First, and forward MRR observations. Preserved the payment-issue and new-subscription components and their inputs. Removed unused payout-transaction/cash-snapshot Overview queries; paginated expenses, payouts, bank and scorecard data below the API cap. Applied additive migration and verified review invalidation and snapshot immutability in rolled-back SQL transactions. Added focused cash/MRR/pagination/failure tests. Visual review uses a temporary synthetic-data harness because localhost has no authenticated session; the harness is removed after review. Existing unrelated pending Markdown/CSV files remain untouched.

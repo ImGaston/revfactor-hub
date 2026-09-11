@@ -136,3 +136,7 @@ RevFactor Hub is an internal operations hub for a short-term rental revenue mana
 ## External paid-onboarding provisioner (2026-09-10)
 
 Cloudflare Worker `revfactor-assembly-payment`, maintained at `workers/assembly-payment/`, verifies the native initial GHL payment, creates/reuses Assembly, and then creates/links `public.clients`. It uses existing columns and the Supabase server client; no new Hub route or migration. See the September 10 section in `integrations.md` for identity checks, retry behavior and scope.
+
+## Owner Finance Scorecard (2026-09-11)
+
+Financials Overview now uses `lib/financial-scorecard/` (pure cash/MRR calculations, paginated loader, immutable Stripe sync observations) and `scorecard-actions.ts`. The existing payment-issue and new-subscription blocks stay first and unchanged. `financial_month_reviews` confirms a completed month's coverage; triggers on the source ledgers invalidate confirmations. `financial_ledger_revision` prevents confirming stale data during concurrent imports. `financial_account_balances` stores explicit dated confirmations, never an arbitrary same-day bank row. `financial_mrr_snapshots` stores one immutable execution with captured per-subscription client links, cents, status and calculation version. Failed executions preserve the previous valid observation. Migration `20260911133204_owner_finance_scorecard.sql` is applied to Supabase.
