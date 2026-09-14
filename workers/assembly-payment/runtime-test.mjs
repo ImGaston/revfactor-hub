@@ -22,7 +22,7 @@ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:compiled.o
   if(u.pathname.startsWith('/payments/orders/')){assert.equal(u.searchParams.get('altType'),'location');return Response.json(fixture.order);}
   if(u.pathname.startsWith('/payments/subscriptions/'))return Response.json(fixture.subscription);
   if(u.pathname.startsWith('/invoices/'))return Response.json({_id:u.pathname.split('/').pop(),altId:location,altType:'location',liveMode:!u.pathname.includes('testInvoice'),status:'paid',currency:'USD',lastPaidAt:'2026-09-10T12:00:00Z',total:500,amountPaid:500,amountDue:0,contactDetails:{id:contactId,email:'qa@example.com'},invoiceItems:[{productId:'6a82cc5ee5be4fc0e73657ae',amount:350,qty:1},{productId:'6a88b142ccdd6adc6f5035c0',amount:150,qty:1}]});
-  if(u.pathname.endsWith('/tags')){tags++;return Response.json({tags:['rf-assembly-created']});}
+  if(u.pathname.endsWith('/tags')){const body=await req.json();assert.deepEqual(body.tags,['rf-assembly-created','rf-hub-created',...(subscriptionMode?['rf-subscription-initial-paid']:[])]);tags++;return Response.json({tags:body.tags});}
   return Response.json({contact:{id:contactId,locationId:location,firstName:'QA',lastName:'Example',email:'qa@example.com',tags:['rf-subscription-agreement-q2-signed'],customFields:[{id:'SQ0wwhLhD8qZVymkHslW',value:'QA Example LLC'}]}});
  }
  if(u.hostname==='test.supabase.co') {

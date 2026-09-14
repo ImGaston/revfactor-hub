@@ -106,7 +106,7 @@ export class PaidClient extends DurableObject<Environment> {
           if(companyId && !companies.includes(companyId) && str(client.companyId)!==companyId) throw new Error('assembly_company_conflict');
           return ensureHubClient(hubDatabase(this.env.HUB_SUPABASE_URL,this.env.HUB_SUPABASE_SERVICE_ROLE_KEY),state.job,{clientId:state.clientId!,companyId});
         },
-        mark: contactId => api(this.env,'ghl',`/contacts/${contactId}/tags`,'POST',{tags:['rf-assembly-created','rf-hub-created']}).then(()=>undefined)
+        mark: contactId => api(this.env,'ghl',`/contacts/${contactId}/tags`,'POST',{tags:['rf-assembly-created','rf-hub-created',...(s.job.subscriptionPayment?['rf-subscription-initial-paid']:[])]}).then(()=>undefined)
       });
       console.log(JSON.stringify({event:'assembly_hub_handoff_complete',invoiceId:s.job.invoiceId,clientId:s.clientId,hubClientId:s.hubClientId}));
     } catch (error) {
