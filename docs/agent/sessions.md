@@ -769,3 +769,11 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 - Added a source-allowlisted Stripe subscription payment verifier and backward-compatible Assembly/Hub endpoint in `workers/assembly-payment`; no changes to existing clients' billing.
 - Verified native GHL checkout creates an automatically charged Stripe Test subscription; canceled the synthetic Test subscription after evidence capture.
 - Validation: 27 tests, both mocked runtime modes with 20 simultaneous deliveries, root/worker typechecks, dry-run, deployed health and Test rejection. Native agreement/workflow/form cutover still in progress; public signup has not switched yet.
+
+## 2026-09-14 — Future RF signups: native Stripe subscription cutover complete
+- Scope: future signups first; no Danielle/Natasha billing migration or customer messages.
+- Published five Live recurring payment links and redirected the existing five Live public agreements; fixed $350/listing monthly + $150 once; same-tab booking redirect.
+- Fixed GHL's invoice-type auto-inference by changing only the agreement product table to a one-time first-month summary product. Invoice sending/collection/autopayment OFF; internal unsent draft remains. Confirmed persistence after full reload and correct 1–5 listing first totals.
+- Published five exact agreement-completed signature markers, payment-success verification workflow, and verified-payment booking follow-up. GHL API read back all seven published.
+- Worker c64cbf1 + 29b41fa on main; deployed version 4efd1c29-b2d0-4725-87bb-191ff2290a81. 27 unit tests, both runtime modes (20 concurrent events each), root/worker typechecks passed. Final deployed health and synthetic Test rejection passed. Native Test subscription proof canceled; QA template unpublished and unpaid draft removed. No real-card Live charge.
+- Details and identifiers in integrations.md and GoHighLevel workspace projects/revfactor/future-stripe-signups-2026-09-14.md. Existing-client Stripe migration remains the next separate step.
