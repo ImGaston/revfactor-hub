@@ -1,0 +1,174 @@
+{
+  "transaction": {
+    "_id": "6aa82c15797b7ad9ff03ac57",
+    "altId": "ErABPRqWbMyIicvzvCFt",
+    "altType": "location",
+    "contactId": "GB28UJiYYCxOMRMlZqD9",
+    "contactEmail": "rf-qa-subscription-20260914@example.com",
+    "currency": "usd",
+    "amount": 850,
+    "status": "succeeded",
+    "liveMode": false,
+    "entityType": "order",
+    "entityId": "6aa82c108b94b18959e756e1",
+    "entitySourceType": "payment_link",
+    "entitySourceId": "6a9a8142a7f78e147447edc2",
+    "subscriptionId": "sub_1UFdV9AN8lUrk5rx6xE7jWcB",
+    "paymentProviderType": "stripe",
+    "paymentProviderConnectedAccount": "acct_1RVotKAN8lUrk5rx",
+    "amountRefunded": 0,
+    "createdAt": "2026-09-14T17:17:09.374Z",
+    "chargeSnapshot": {
+      "id": "pi_3UFdVAAN8lUrk5rx26oUxGHR",
+      "object": "payment_intent",
+      "status": "succeeded",
+      "livemode": false,
+      "currency": "usd",
+      "amount_received": 85000,
+      "setup_future_usage": "off_session",
+      "invoice": "in_1UFdVAAN8lUrk5rxPDPfUfAy",
+      "customer": "cus_VG9ojQZrhGh4o5",
+      "payment_method": {
+        "id": "pm_1UFdVDAN8lUrk5rxz4yaQT3X",
+        "type": "card",
+        "livemode": false,
+        "customer": "cus_VG9ojQZrhGh4o5"
+      }
+    }
+  },
+  "order": {
+    "_id": "6aa82c108b94b18959e756e1",
+    "altId": "ErABPRqWbMyIicvzvCFt",
+    "altType": "location",
+    "contactId": "GB28UJiYYCxOMRMlZqD9",
+    "currency": "USD",
+    "amount": 850,
+    "status": "completed",
+    "paymentStatus": "paid",
+    "liveMode": false,
+    "source": {
+      "type": "payment_link",
+      "subType": "payments_dashboard",
+      "id": "6a9a8142a7f78e147447edc2",
+      "name": "RF NATIVE | Standard Q2 Fee150 | TEST v1"
+    },
+    "items": [
+      {
+        "product": {
+          "_id": "6a88b142ccdd6adc6f5035c0"
+        },
+        "price": {
+          "_id": "6a88b143ccdd6adc6f5035c8",
+          "type": "one_time",
+          "currency": "USD",
+          "amount": 150
+        },
+        "qty": 1
+      },
+      {
+        "product": {
+          "_id": "6a82cc5ee5be4fc0e73657ae"
+        },
+        "price": {
+          "_id": "6a82cc5ee5be4fc0e73657b8",
+          "type": "recurring",
+          "currency": "USD",
+          "amount": 350,
+          "recurring": {
+            "interval": "month",
+            "intervalCount": 1
+          }
+        },
+        "qty": 2
+      }
+    ],
+    "contactSnapshot": {
+      "email": "rf-qa-subscription-20260914@example.com"
+    }
+  },
+  "subscription": {
+    "_id": "6aa82c15797b7ad9ff03ac53",
+    "altId": "ErABPRqWbMyIicvzvCFt",
+    "altType": "location",
+    "contactId": "GB28UJiYYCxOMRMlZqD9",
+    "currency": "usd",
+    "amount": 700,
+    "status": "active",
+    "liveMode": false,
+    "entityType": "order",
+    "entityId": "6aa82c108b94b18959e756e1",
+    "entitySource": {
+      "type": "payment_link",
+      "subType": "payments_dashboard",
+      "id": "6a9a8142a7f78e147447edc2",
+      "name": "RF NATIVE | Standard Q2 Fee150 | TEST v1"
+    },
+    "subscriptionId": "sub_1UFdV9AN8lUrk5rx6xE7jWcB",
+    "paymentProvider": {
+      "type": "stripe",
+      "connectedAccount": {
+        "accountId": "acct_1RVotKAN8lUrk5rx",
+        "_id": "6a70f5e554a115e18a298a35",
+        "liveMode": false
+      }
+    },
+    "contactSnapshot": {
+      "email": "rf-qa-subscription-20260914@example.com"
+    },
+    "recurringProduct": {
+      "product": {
+        "_id": "6a82cc5ee5be4fc0e73657ae"
+      },
+      "price": {
+        "_id": "6a82cc5ee5be4fc0e73657b8",
+        "type": "recurring",
+        "currency": "USD",
+        "amount": 350,
+        "recurring": {
+          "interval": "month",
+          "intervalCount": 1
+        }
+      },
+      "qty": 2
+    },
+    "subscriptionSnapshot": {
+      "id": "sub_1UFdV9AN8lUrk5rx6xE7jWcB",
+      "status": "active",
+      "livemode": false,
+      "collection_method": "charge_automatically",
+      "customer": "cus_VG9ojQZrhGh4o5",
+      "default_payment_method": "pm_1UFdVDAN8lUrk5rxz4yaQT3X",
+      "cancel_at_period_end": false,
+      "cancel_at": null,
+      "pause_collection": null,
+      "trial_end": null,
+      "items": {
+        "has_more": false,
+        "data": [
+          {
+            "quantity": 2,
+            "price": {
+              "unit_amount": 35000,
+              "currency": "usd",
+              "recurring": {
+                "aggregate_usage": null,
+                "interval": "month",
+                "interval_count": 1,
+                "meter": null,
+                "trial_period_days": null,
+                "usage_type": "licensed"
+              }
+            }
+          }
+        ]
+      },
+      "latest_invoice": {
+        "id": "in_1UFdVAAN8lUrk5rxPDPfUfAy",
+        "billing_reason": "subscription_create",
+        "status": "paid",
+        "amount_paid": 85000,
+        "amount_remaining": 0
+      }
+    }
+  }
+}

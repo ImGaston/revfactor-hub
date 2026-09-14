@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { timingSafeEqual } from 'node:crypto';
 import { advance, object, str, verifiedJob, invoiceIdFromPayload, type Json, type Job, type State } from './core.ts';
 import { ensureHubClient, hubDatabase } from './hub.ts';
+import { verifiedSubscriptionJob } from './subscription.ts';
 
 type Secrets = { HIGHLEVEL_API_KEY: string; ASSEMBLY_API_KEY: string; WEBHOOK_SECRET: string; HUB_SUPABASE_URL: string; HUB_SUPABASE_SERVICE_ROLE_KEY: string };
 type Environment = Env & Secrets;
@@ -26,6 +27,35 @@ async function readJob(env: Environment, invoiceId: string, contactId: string): 
     api(env,'ghl',`/contacts/${contactId}`)
   ]);
   return verifiedJob(rawInvoice.invoice ? object(rawInvoice.invoice) : rawInvoice,object(rawContact.contact),invoiceId,env.LOCATION_ID,env.ACTIVATED_AT);
+}
+async function readSubscriptionJob(env: Environment, contactId: string, prior?: Job['subscriptionPayment']): Promise<Job|null> {
+  const links = object(JSON.parse(env.SUBSCRIPTION_LINKS));
+  const policyLinks: Record<string, number> = {};
+  for (const [id, quantity] of Object.entries(links)) {
+    if (!/^[a-zA-Z0-9]{10,40}$/.test(id) || typeof quantity !== 'number' || !Number.isInteger(quantity) || quantity < 1 || quantity > 5) throw new Error('invalid_subscription_configuration');
+    policyLinks[id] = quantity;
+  }
+  if (!Object.keys(policyLinks).length) return null;
+  const query = new URLSearchParams({altId:env.LOCATION_ID,altType:'location',contactId,limit:'100',offset:'0'});
+  const [rawTransactions, rawSubscriptions, rawContact] = await Promise.all([
+    api(env,'ghl',`/payments/transactions?${query}`), api(env,'ghl',`/payments/subscriptions?${query}`), api(env,'ghl',`/contacts/${contactId}`)
+  ]);
+  if (!Array.isArray(rawTransactions.data) || !Array.isArray(rawSubscriptions.data)) throw new Error('invalid_payment_response');
+  if (Number(rawTransactions.totalCount)>100 || Number(rawSubscriptions.totalCount)>100) throw new Error('payment_history_requires_review');
+  const transactions = rawTransactions.data.map(object).filter(t => t.liveMode===true && t.status==='succeeded' && policyLinks[str(t.entitySourceId)] && (!prior || t._id===prior.transactionId));
+  const subscriptions = rawSubscriptions.data.map(object);
+  for (const transaction of transactions) {
+    const matches = subscriptions.filter(s => s.subscriptionId===transaction.subscriptionId && s.entityId===transaction.entityId && s.liveMode===true);
+    if (matches.length!==1) continue;
+    const subscriptionId=str(matches[0]._id), orderId=str(transaction.entityId);
+    if (![subscriptionId,orderId].every(id=>/^[a-zA-Z0-9]{10,40}$/.test(id))) throw new Error('invalid_payment_ids');
+    if (prior && (prior.orderId!==orderId || prior.subscriptionId!==subscriptionId)) throw new Error('payment_identity_changed');
+    const scope=`altId=${env.LOCATION_ID}&altType=location`;
+    const [order,subscription]=await Promise.all([api(env,'ghl',`/payments/orders/${orderId}?${scope}`),api(env,'ghl',`/payments/subscriptions/${subscriptionId}?${scope}`)]);
+    const job=verifiedSubscriptionJob(transaction,order,subscription,object(rawContact.contact),{locationId:env.LOCATION_ID,activatedAt:env.SUBSCRIPTIONS_ACTIVATED_AT,links:policyLinks});
+    if (job) return job;
+  }
+  return null;
 }
 async function identity(email: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(email.toLowerCase()));
@@ -57,7 +87,7 @@ export class PaidClient extends DurableObject<Environment> {
     try {
       s.attempts += 1; await save(s);
       // Recheck payment immediately before provisioning, rather than trusting webhook fields.
-      const verified = await readJob(this.env,s.job.invoiceId,s.job.contactId);
+      const verified = s.job.subscriptionPayment ? await readSubscriptionJob(this.env,s.job.contactId,s.job.subscriptionPayment) : await readJob(this.env,s.job.invoiceId,s.job.contactId);
       if (!verified || JSON.stringify(verified) !== JSON.stringify(s.job)) throw new Error('payment_or_identity_changed');
       await advance(s,{
         save,
@@ -101,11 +131,18 @@ export default {
       if (d.locationId!==env.LOCATION_ID) return Response.json({error:'wrong_location'},{status:403});
       return Response.json(await env.CLIENTS.getByName(await identity(str(d.email))).status());
     }
-    if (request.method!=='POST'||url.pathname!=='/ghl/initial-paid') return Response.json({error:'not_found'},{status:404});
+    if (request.method!=='POST'||!['/ghl/initial-paid','/ghl/subscription-paid'].includes(url.pathname)) return Response.json({error:'not_found'},{status:404});
     if (env.ENABLED!=='true') return Response.json({error:'disabled'},{status:503});
     try {
       const body=await jsonResponse(new Response(request.body));
       const custom=body.customData?object(body.customData):body;
+      if (url.pathname==='/ghl/subscription-paid') {
+        const contactId=str(custom.contact_id)||str(body.contact_id);
+        if (!/^[a-zA-Z0-9]{10,40}$/.test(contactId)) return Response.json({error:'invalid_contact'},{status:422});
+        const job=await readSubscriptionJob(env,contactId);
+        if (!job) return Response.json({status:'ignored_not_initial_live_subscription'});
+        return Response.json(await env.CLIENTS.getByName(await identity(job.email)).enqueue(job),{status:202});
+      }
       const invoiceId=invoiceIdFromPayload(custom),contactId=str(custom.contact_id)||str(body.contact_id);
       if (!/^[a-zA-Z0-9]{10,40}$/.test(invoiceId)||!/^[a-zA-Z0-9]{10,40}$/.test(contactId)) return Response.json({error:'invalid_ids'},{status:422});
       const job=await readJob(env,invoiceId,contactId);

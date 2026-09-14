@@ -764,3 +764,8 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 ## 2026-09-11 — Month review: category select and bulk edit
 
 "Revisar registros" only edited `financial_treatment`; the month breakdown groups by `expenses.category_id`, which was only editable from the Expenses tab. Replaced `reviewExpense(id, treatment)` with `reviewExpenses(ids, { treatment?, categoryId?, confirm? })` in `scorecard-actions.ts`: validates the category against `expense_categories`, realigns `expenses.type` with the category (importer rule), stamps `financial_reviewed_at` on treatment/confirm only, and fails if the row count updated differs from the ids sent. The modal now shows a category select per expense, row checkboxes with select-all, and a bulk bar (category, treatment, confirm, clear) acting on the selected rows. Typecheck green; visual check pending because the Chrome extension had two browsers connected and needs a selection.
+
+### 2026-09-14 — Future subscription signup foundation
+- Added a source-allowlisted Stripe subscription payment verifier and backward-compatible Assembly/Hub endpoint in `workers/assembly-payment`; no changes to existing clients' billing.
+- Verified native GHL checkout creates an automatically charged Stripe Test subscription; canceled the synthetic Test subscription after evidence capture.
+- Validation: 27 tests, both mocked runtime modes with 20 simultaneous deliveries, root/worker typechecks, dry-run, deployed health and Test rejection. Native agreement/workflow/form cutover still in progress; public signup has not switched yet.

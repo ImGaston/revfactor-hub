@@ -12,7 +12,7 @@ export function invoiceIdFromPayload(custom: Json): string {
 }
 export const PRIMARY = '6a82cc5ee5be4fc0e73657ae';
 export const SETUP = '6a88b142ccdd6adc6f5035c0';
-export type Job = { invoiceId: string; contactId: string; email: string; givenName: string; familyName: string; legalName: string; listings: number };
+export type Job = { invoiceId: string; contactId: string; email: string; givenName: string; familyName: string; legalName: string; listings: number; subscriptionPayment?: { transactionId: string; orderId: string; subscriptionId: string } };
 export function eligibleInvoice(invoice: Json, contactId: string, locationId: string, activatedAt: string): number | null {
   if (invoice.altId !== locationId || invoice.altType !== 'location' || invoice.liveMode !== true || invoice.status !== 'paid' || invoice.currency !== 'USD') return null;
   if (object(invoice.contactDetails).id !== contactId) throw new Error('invoice_contact_mismatch');
