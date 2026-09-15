@@ -7,6 +7,7 @@ import { BreadcrumbProvider } from "@/components/layout/breadcrumb-context"
 import { getProfile } from "@/lib/supabase/profile"
 import { getRolePermissions } from "@/lib/permissions.server"
 import { buildPermissionMap } from "@/lib/permissions"
+import { getNavConfig } from "@/lib/navigation.server"
 
 export default async function AuthenticatedLayout({
   children,
@@ -15,7 +16,11 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode
   modal: React.ReactNode
 }) {
-  const [profile, cookieStore] = await Promise.all([getProfile(), cookies()])
+  const [profile, cookieStore, navConfig] = await Promise.all([
+    getProfile(),
+    cookies(),
+    getNavConfig(),
+  ])
 
   const permissions = profile ? await getRolePermissions(profile.role) : []
   const permissionMap =
@@ -28,7 +33,11 @@ export default async function AuthenticatedLayout({
     <TooltipProvider>
       <BreadcrumbProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
-          <AppSidebar profile={profile} permissionMap={permissionMap} />
+          <AppSidebar
+            profile={profile}
+            permissionMap={permissionMap}
+            navConfig={navConfig}
+          />
           <SidebarInset className="min-w-0">
             <TopBar profile={profile} permissionMap={permissionMap} />
             <main className="flex-1 p-6">{children}</main>

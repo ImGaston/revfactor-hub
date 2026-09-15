@@ -777,3 +777,11 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 - Published five exact agreement-completed signature markers, payment-success verification workflow, and verified-payment booking follow-up. GHL API read back all seven published.
 - Worker c64cbf1 + 29b41fa on main; deployed version 4efd1c29-b2d0-4725-87bb-191ff2290a81. 27 unit tests, both runtime modes (20 concurrent events each), root/worker typechecks passed. Final deployed health and synthetic Test rejection passed. Native Test subscription proof canceled; QA template unpublished and unpaid draft removed. No real-card Live charge.
 - Details and identifiers in integrations.md and GoHighLevel workspace projects/revfactor/future-stripe-signups-2026-09-14.md. Existing-client Stripe migration remains the next separate step.
+
+## 2026-09-15 — Sidebar navigation folders (Settings → Navigation)
+
+- Added migration `20260915120000_sidebar_navigation_groups.sql` (applied to `revfactorHub`): `nav_groups` + `nav_item_settings` with permission-based RLS.
+- Extracted the sidebar section catalog to `lib/navigation.ts` (`NAV_ITEMS` with stable keys, curated folder icons, pure `buildNavTree`) and `lib/navigation.server.ts` (`getNavConfig`, loaded in the authenticated layout).
+- Rewrote `components/layout/app-sidebar.tsx` to render collapsible folders (`Collapsible` + `SidebarMenuSub`), auto-open the folder holding the current route, flatten folders on the icon rail, and measure the active pill from the DOM.
+- New `/settings/navigation` (`settings:edit`): create/edit/reorder/delete folders, assign sections via per-row select, reorder inside folders; tab in `settings-nav.tsx` and a command-palette entry.
+- Docs updated: project-map, conventions, decisions.

@@ -65,6 +65,7 @@ export const commands: CommandDef[] = [
   { id: "settings-roles", label: "Manage Roles & Permissions", icon: Settings, category: "settings", href: "/settings/roles", superAdminOnly: true, keywords: ["permissions", "access"] },
   { id: "settings-clients", label: "Client Settings", icon: Settings, category: "settings", href: "/settings/clients", permission: { resource: "clients", action: "edit" }, keywords: ["manage clients"] },
   { id: "settings-listings", label: "Listing Settings", icon: Settings, category: "settings", href: "/settings/listings", permission: { resource: "listings", action: "edit" }, keywords: ["manage listings", "pricelabs", "sync"] },
+  { id: "settings-navigation", label: "Navigation Settings", icon: Settings, category: "settings", href: "/settings/navigation", permission: { resource: "settings", action: "edit" }, keywords: ["sidebar", "folders", "groups", "menu", "beta"] },
   { id: "settings-boards", label: "Boards & Tags Settings", icon: Settings, category: "settings", href: "/settings/boards-tags", permission: { resource: "settings", action: "edit" }, keywords: ["boards", "tags"] },
   { id: "settings-onboarding", label: "Onboarding Settings", icon: Settings, category: "settings", href: "/settings/onboarding", permission: { resource: "onboarding", action: "edit" }, keywords: ["onboarding", "steps", "template"] },
 ]

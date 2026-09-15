@@ -1,27 +1,11 @@
 "use client"
 
 import {
-  LayoutDashboard,
-  Users,
-  CalendarCheck,
-  CheckSquare,
-  ClipboardList,
-  Lightbulb,
-  Cable,
-  Building2,
-  DollarSign,
-  BookOpen,
-  Bot,
-  TrendingUp,
-  Radar,
-  SlidersHorizontal,
   Settings,
   LogOut,
   ChevronsUpDown,
+  ChevronRight,
   User as UserIcon,
-  FileChartColumnIncreasing,
-  Trophy,
-  CalendarRange,
 } from "lucide-react"
 import * as React from "react"
 import Image from "next/image"
@@ -39,8 +23,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -50,108 +42,37 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createClient } from "@/lib/supabase/client"
 import type { Profile } from "@/lib/supabase/profile"
-
-type NavItem = {
-  title: string
-  href: string
-  icon: React.ComponentType
-  resource?: string
-  superAdminOnly?: boolean
-}
-
-const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/", icon: LayoutDashboard },
-  { title: "Clients", href: "/clients", icon: Users, resource: "clients" },
-  {
-    title: "Listings",
-    href: "/listings",
-    icon: Building2,
-    resource: "listings",
-  },
-  {
-    title: "Monthly Summary",
-    href: "/monthly-summary",
-    icon: CalendarRange,
-    resource: "monthly_summary",
-  },
-  {
-    title: "Reservations",
-    href: "/reservations",
-    icon: CalendarCheck,
-    resource: "reservations",
-  },
-  { title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
-  {
-    title: "Adjustments",
-    href: "/adjustments",
-    icon: SlidersHorizontal,
-    resource: "adjustments",
-  },
-  { title: "Wins", href: "/wins", icon: Trophy, resource: "wins" },
-  {
-    title: "Onboarding",
-    href: "/onboarding",
-    icon: ClipboardList,
-    resource: "onboarding",
-  },
-  {
-    title: "Projects & Roadmap",
-    href: "/roadmap",
-    icon: Lightbulb,
-    resource: "roadmap",
-  },
-  { title: "GHL", href: "/ghl", icon: Cable, resource: "ghl" },
-  {
-    title: "Revenue Briefs",
-    href: "/revenue-briefs",
-    icon: FileChartColumnIncreasing,
-    resource: "ghl",
-  },
-  {
-    title: "Knowledge",
-    href: "/knowledge",
-    icon: BookOpen,
-    resource: "knowledge",
-  },
-  {
-    title: "Agent Studio",
-    href: "/agent-studio",
-    icon: Bot,
-    resource: "agent_studio",
-  },
-  {
-    title: "Revenue Manager",
-    href: "/revenue-manager",
-    icon: TrendingUp,
-    resource: "revenue",
-  },
-  {
-    title: "Market Signals",
-    href: "/market-signals",
-    icon: Radar,
-    resource: "market_signals",
-  },
-  {
-    title: "Financials",
-    href: "/financials",
-    icon: DollarSign,
-    superAdminOnly: true,
-  },
-]
+import {
+  NAV_ITEMS,
+  buildNavTree,
+  NavGroupIcon,
+  isNavItemActive,
+  type NavConfig,
+  type NavItem,
+  type NavTreeGroup,
+} from "@/lib/navigation"
+import { cn } from "@/lib/utils"
 
 const NAV_BUTTON =
   "relative z-1 rounded-xl transition-colors duration-150 ease-(--ease-snappy) data-active:bg-transparent group-data-[collapsible=icon]:rounded-full"
 
+const NAV_SUB_BUTTON =
+  "relative z-1 rounded-xl transition-colors duration-150 ease-(--ease-snappy) data-active:bg-transparent"
+
+type PillRect = { top: number; left: number; width: number; height: number }
+
 export function AppSidebar({
   profile,
   permissionMap,
+  navConfig,
 }: {
   profile: Profile | null
   permissionMap: Record<string, boolean>
+  navConfig: NavConfig
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpenMobile } = useSidebar()
+  const { isMobile, setOpenMobile, state } = useSidebar()
 
   function closeMobileSidebar() {
     if (isMobile) setOpenMobile(false)
@@ -170,29 +91,158 @@ export function AppSidebar({
     .join(" ")
 
   const isSuperAdmin = profile?.role === "super_admin"
-  const visibleNavItems = navItems.filter((item) => {
-    if (item.superAdminOnly) return isSuperAdmin
-    if (!item.resource) return true
-    return isSuperAdmin || permissionMap[`${item.resource}:view`] === true
-  })
+  const visibleNavItems = React.useMemo(
+    () =>
+      NAV_ITEMS.filter((item) => {
+        if (item.superAdminOnly) return isSuperAdmin
+        if (!item.resource) return true
+        return isSuperAdmin || permissionMap[`${item.resource}:view`] === true
+      }),
+    [isSuperAdmin, permissionMap]
+  )
 
-  // El indice basta para posicionar la pill: cada fila es h-9 con gap-0.5, o sea
-  // un paso constante. Nada de getBoundingClientRect ni ResizeObserver.
-  // OJO: si alguna vez se agrega un SidebarMenuBadge, un submenu o una fila de
-  // otra altura, el paso deja de ser uniforme y esto hay que medirlo de verdad.
-  const activeIndex = React.useMemo(() => {
-    const i = visibleNavItems.findIndex((item) =>
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+  const tree = React.useMemo(
+    () => buildNavTree(visibleNavItems, navConfig),
+    [visibleNavItems, navConfig]
+  )
+
+  // Icon-only rail: folders can't show their children, so flatten everything
+  // (each item keeps its tooltip). Folder order is preserved.
+  const flatRail = state === "collapsed" && !isMobile
+
+  // Folder open state. Unset = folder default, except the folder holding the
+  // current route, which opens itself on navigation.
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({})
+  const activeGroupId = React.useMemo(
+    () =>
+      tree.groups.find((g) => g.items.some((i) => isNavItemActive(i, pathname)))
+        ?.group.id ?? null,
+    [tree, pathname]
+  )
+  React.useEffect(() => {
+    if (!activeGroupId) return
+    setOpenGroups((prev) =>
+      prev[activeGroupId] === true ? prev : { ...prev, [activeGroupId]: true }
     )
-    if (i !== -1) return i
-    return pathname.startsWith("/settings") ? visibleNavItems.length : -1
-  }, [visibleNavItems, pathname])
+  }, [activeGroupId])
+
+  function isGroupOpen(g: NavTreeGroup) {
+    return openGroups[g.group.id] ?? !g.group.default_collapsed
+  }
+
+  // The active pill is measured from the DOM: rows are no longer a uniform
+  // height (folder children are shorter and indented), so the old
+  // index × step trick no longer works.
+  const menuRef = React.useRef<HTMLUListElement>(null)
+  const [pill, setPill] = React.useState<PillRect | null>(null)
+  const openKey = tree.groups.map((g) => (isGroupOpen(g) ? "1" : "0")).join("")
+
+  React.useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!menu) return
+    const active = menu.querySelector<HTMLElement>('[data-nav-active="true"]')
+    if (!active) {
+      setPill(null)
+      return
+    }
+    const menuRect = menu.getBoundingClientRect()
+    const rect = active.getBoundingClientRect()
+    setPill({
+      top: rect.top - menuRect.top,
+      left: rect.left - menuRect.left,
+      width: rect.width,
+      height: rect.height,
+    })
+  }, [pathname, openKey, flatRail, visibleNavItems, navConfig])
 
   async function handleLogout() {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")
   }
+
+  function renderTopLevelItem(item: NavItem) {
+    const active = isNavItemActive(item, pathname)
+    return (
+      <SidebarMenuItem key={item.key}>
+        <SidebarMenuButton
+          asChild
+          isActive={active}
+          tooltip={item.title}
+          className={NAV_BUTTON}
+        >
+          <Link
+            href={item.href}
+            onClick={closeMobileSidebar}
+            data-nav-active={active ? "true" : undefined}
+          >
+            <item.icon />
+            <span>{item.title}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
+  function renderGroup(g: NavTreeGroup) {
+    const open = isGroupOpen(g)
+    const containsActive = g.group.id === activeGroupId
+    // Closed folder holding the current route: the pill sits on the header.
+    const headerActive = containsActive && !open
+    return (
+      <Collapsible
+        key={g.group.id}
+        open={open}
+        onOpenChange={(next) =>
+          setOpenGroups((prev) => ({ ...prev, [g.group.id]: next }))
+        }
+        className="group/collapsible"
+        asChild
+      >
+        <SidebarMenuItem>
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton
+              tooltip={g.group.label}
+              isActive={headerActive}
+              className={NAV_BUTTON}
+              data-nav-active={headerActive ? "true" : undefined}
+            >
+              <NavGroupIcon name={g.group.icon} />
+              <span>{g.group.label}</span>
+              <ChevronRight className="ml-auto size-4 transition-transform duration-200 ease-(--ease-snappy) group-data-[state=open]/collapsible:rotate-90" />
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <SidebarMenuSub>
+              {g.items.map((item) => {
+                const active = isNavItemActive(item, pathname)
+                return (
+                  <SidebarMenuSubItem key={item.key}>
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={active}
+                      className={NAV_SUB_BUTTON}
+                    >
+                      <Link
+                        href={item.href}
+                        onClick={closeMobileSidebar}
+                        data-nav-active={active ? "true" : undefined}
+                      >
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                )
+              })}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        </SidebarMenuItem>
+      </Collapsible>
+    )
+  }
+
+  const settingsActive = pathname.startsWith("/settings")
 
   return (
     <Sidebar collapsible="icon">
@@ -232,41 +282,33 @@ export function AppSidebar({
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="relative [--nav-step:2.375rem] group-data-[collapsible=icon]:[--nav-step:2.125rem]">
-              {activeIndex >= 0 && (
+            <SidebarMenu ref={menuRef} className="relative">
+              {pill && (
                 <span
                   aria-hidden
-                  style={{ "--nav-i": activeIndex } as React.CSSProperties}
-                  className="pointer-events-none absolute inset-x-0 top-0 z-0 h-9 translate-y-[calc(var(--nav-i)*var(--nav-step))] rounded-xl bg-sidebar-accent shadow-e1 transition-transform duration-[560ms] ease-(--ease-bouncy) group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-full motion-reduce:transition-none"
+                  style={pill}
+                  className={cn(
+                    "pointer-events-none absolute z-0 rounded-xl bg-sidebar-accent shadow-e1 transition-[top,left,width,height] duration-[560ms] ease-(--ease-bouncy) motion-reduce:transition-none",
+                    flatRail && "rounded-full"
+                  )}
                 />
               )}
-              {visibleNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={
-                      item.href === "/"
-                        ? pathname === "/"
-                        : pathname.startsWith(item.href)
-                    }
-                    tooltip={item.title}
-                    className={NAV_BUTTON}
-                  >
-                    <Link href={item.href} onClick={closeMobileSidebar}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {tree.topLevel.map(renderTopLevelItem)}
+              {tree.groups.map((g) =>
+                flatRail ? g.items.map(renderTopLevelItem) : renderGroup(g)
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname.startsWith("/settings")}
+                  isActive={settingsActive}
                   tooltip="Settings"
                   className={NAV_BUTTON}
                 >
-                  <Link href="/settings/account" onClick={closeMobileSidebar}>
+                  <Link
+                    href="/settings/account"
+                    onClick={closeMobileSidebar}
+                    data-nav-active={settingsActive ? "true" : undefined}
+                  >
                     <Settings />
                     <span>Settings</span>
                   </Link>
