@@ -13,7 +13,8 @@ const ADJUSTMENT_SELECT = `
   clients:clients_basic(id, name),
   listings(id, name, listing_id, pricelabs_link, airbnb_link),
   resolver:profiles!adjustments_resolver_id_fkey(full_name, email),
-  reviewer:profiles!adjustments_reviewer_id_fkey(full_name, email)
+  reviewer:profiles!adjustments_reviewer_id_fkey(full_name, email),
+  creator:profiles!adjustments_created_by_fkey(full_name, email)
 `
 
 export default async function AdjustmentsPage() {

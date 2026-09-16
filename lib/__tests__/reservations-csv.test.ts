@@ -14,7 +14,6 @@ function makeRow(overrides: Partial<Reservation> = {}): Reservation {
     client_id: null,
     client_name: "Client A",
     listing_name: "Listing A",
-    guest_name: "Guest",
     booked_at: "2026-07-05T14:30:00+00:00",
     check_in: "2026-07-10",
     check_out: "2026-07-15",
@@ -43,7 +42,7 @@ describe("reservationsToCsv", () => {
   it("serializes a row with a date-only booked date and a computed ADR", () => {
     const csv = reservationsToCsv([makeRow()])
     expect(lines(csv)[1]).toBe(
-      "2026-07-05,2026-07-10,2026-07-15,5,5,Guest,Listing A,Client A,1000,1200,200,airbnb,USD"
+      "2026-07-05,2026-07-10,2026-07-15,5,5,Listing A,Client A,1000,1200,200,airbnb,USD"
     )
   })
 
@@ -54,16 +53,16 @@ describe("reservationsToCsv", () => {
         makeRow({ number_of_days: 0 }),
       ])
     )
-    expect(uneven.split(",")[10]).toBe("333.33")
-    expect(noNights.split(",")[10]).toBe("")
+    expect(uneven.split(",")[9]).toBe("333.33")
+    expect(noNights.split(",")[9]).toBe("")
   })
 
   it("quotes and escapes fields containing commas and quotes", () => {
     const csv = reservationsToCsv([
-      makeRow({ listing_name: 'Cabin, "The Nest"', guest_name: null }),
+      makeRow({ listing_name: 'Cabin, "The Nest"', client_name: null }),
     ])
     expect(lines(csv)[1]).toContain(',"Cabin, ""The Nest""",')
-    // null guest serializes as an empty field
-    expect(lines(csv)[1].split(",")[5]).toBe("")
+    // null client serializes as an empty field (index 6 after the quoted listing)
+    expect(lines(csv)[1]).toContain(',"Cabin, ""The Nest""",,')
   })
 })

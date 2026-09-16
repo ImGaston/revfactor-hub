@@ -454,7 +454,7 @@ export function ReservationsView({
         <div className="relative w-full sm:flex-1 sm:w-auto sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search guest, listing, confirmation..."
+            placeholder="Search listing, confirmation..."
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="pl-9"
@@ -664,7 +664,6 @@ export function ReservationsView({
               <SortHeader field="booking_window_days" className="w-[110px]">
                 Bkg Window
               </SortHeader>
-              <TableHead>Guest</TableHead>
               <TableHead>Listing</TableHead>
               <TableHead>Client</TableHead>
               <SortHeader field="rental_revenue">Rental Revenue</SortHeader>
@@ -677,7 +676,7 @@ export function ReservationsView({
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={12}
+                  colSpan={11}
                   className="text-center text-muted-foreground py-12"
                 >
                   No reservations match the current filters.
@@ -702,9 +701,6 @@ export function ReservationsView({
                     {r.booking_window_days != null
                       ? `${r.booking_window_days}d`
                       : "—"}
-                  </TableCell>
-                  <TableCell className="max-w-[160px] truncate">
-                    {r.guest_name ?? "—"}
                   </TableCell>
                   <TableCell className="max-w-[220px] truncate">
                     {r.hub_listing_id ? (

@@ -785,3 +785,14 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 - Rewrote `components/layout/app-sidebar.tsx` to render collapsible folders (`Collapsible` + `SidebarMenuSub`), auto-open the folder holding the current route, flatten folders on the icon rail, and measure the active pill from the DOM.
 - New `/settings/navigation` (`settings:edit`): create/edit/reorder/delete folders, assign sections via per-row select, reorder inside folders; tab in `settings-nav.tsx` and a command-palette entry.
 - Docs updated: project-map, conventions, decisions.
+
+## 2026-09-16 — Adjustments multi-filter row
+
+- Replaced the single client `Select` in `adjustments-view.tsx` with a filter row under the header: text search, searchable client combobox (Popover + Command, listings pattern), Origin / Type / Urgency selects (only values present, with counts), "Created by" (hub user via `created_by`), and a Clear-filters link showing `visible of total`.
+- `page.tsx` now joins `creator:profiles!adjustments_created_by_fkey(full_name, email)` so the creator filter has names; all filtering stays client-side over the 500-row fetch.
+- Verified in Chrome on `/adjustments`: Origin=Agent, Created-by list, text search, clear. Typecheck + eslint clean. Docs: project-map.
+
+## 2026-09-16 — Reservations: drop the always-"Hidden" Guest column
+
+- Removed the Guest column from the `/reservations` table (colSpan 12→11), from the CSV export headers/rows, from the search `or()` and placeholder, and `guest_name` from the `Reservation` type + `RESERVATION_SELECT`. The client/listing "Recent Reservations" card had already dropped it earlier.
+- Updated `lib/__tests__/reservations-csv.test.ts` for the shifted columns (4 tests pass); typecheck clean. Not visually verified: the dev server was stopped mid-session.

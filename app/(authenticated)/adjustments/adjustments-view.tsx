@@ -5,17 +5,21 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
   AlertTriangle,
+  Building2,
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronsUpDown,
   ClipboardCopy,
   Copy,
   ExternalLink,
+  Filter,
   MessageCircleWarning,
   MessageSquare,
   MoreHorizontal,
   Pencil,
   Plus,
+  Search,
   Trash2,
 } from "lucide-react"
 
@@ -31,6 +35,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import {
   Dialog,
   DialogContent,
@@ -48,6 +60,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -64,9 +82,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
 import type { Adjustment, AdjustmentStatus } from "@/lib/types"
 import {
+  ADJUSTMENT_ORIGINS,
   ADJUSTMENT_STATUSES,
+  ADJUSTMENT_TYPES,
+  ADJUSTMENT_URGENCIES,
   NOTE_REQUIRED_STATUSES,
   OPEN_STATUSES,
   ORIGIN_BADGE,
@@ -94,6 +116,20 @@ import {
 import { AdjustmentDialog } from "./adjustment-dialog"
 
 const URGENCY_WEIGHT: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
+// Count rows per value so every filter option can show how many rows it holds
+function countBy<T>(rows: T[], key: (row: T) => string | null | undefined) {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    const k = key(row)
+    if (k) counts.set(k, (counts.get(k) ?? 0) + 1)
+  }
+  return counts
+}
+
+function creatorName(a: Adjustment): string | null {
+  return a.creator?.full_name || a.creator?.email || null
+}
 
 function ageInDays(createdAt: string): number {
   return Math.floor((Date.now() - new Date(createdAt).getTime()) / 86_400_000)
@@ -124,27 +160,112 @@ export function AdjustmentsView({
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Adjustment | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Adjustment | null>(null)
+  const [search, setSearch] = useState("")
   const [clientFilter, setClientFilter] = useState("all")
+  const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
+  const [originFilter, setOriginFilter] = useState("all")
+  const [typeFilter, setTypeFilter] = useState("all")
+  const [urgencyFilter, setUrgencyFilter] = useState("all")
+  const [creatorFilter, setCreatorFilter] = useState("all")
   const [noteTarget, setNoteTarget] = useState<{
     adjustment: Adjustment
     status: AdjustmentStatus
   } | null>(null)
 
   const clientOptions = useMemo(() => {
-    const byId = new Map<string, string>()
+    const byId = new Map<string, { name: string; count: number }>()
     for (const a of adjustments) {
-      if (a.client_id && a.clients?.name) byId.set(a.client_id, a.clients.name)
+      if (!a.client_id || !a.clients?.name) continue
+      const entry = byId.get(a.client_id)
+      if (entry) entry.count += 1
+      else byId.set(a.client_id, { name: a.clients.name, count: 1 })
     }
     return [...byId.entries()]
-      .map(([id, name]) => ({ id, name }))
+      .map(([id, { name, count }]) => ({ id, name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [adjustments])
 
-  const { waitingOnUs, triage, awaitingControl, closed } = useMemo(() => {
-    const visible =
-      clientFilter === "all"
-        ? adjustments
-        : adjustments.filter((a) => a.client_id === clientFilter)
+  // Origin / type / urgency follow the canonical order from lib/adjustments;
+  // options with zero rows are hidden so the dropdowns stay short.
+  const originOptions = useMemo(() => {
+    const counts = countBy(adjustments, (a) => a.origin)
+    return ADJUSTMENT_ORIGINS.filter((o) => counts.has(o.value)).map((o) => ({
+      ...o,
+      count: counts.get(o.value)!,
+    }))
+  }, [adjustments])
+
+  const typeOptions = useMemo(() => {
+    const counts = countBy(adjustments, (a) => a.type)
+    return ADJUSTMENT_TYPES.filter((t) => counts.has(t.value)).map((t) => ({
+      ...t,
+      count: counts.get(t.value)!,
+    }))
+  }, [adjustments])
+
+  const urgencyOptions = useMemo(() => {
+    const counts = countBy(adjustments, (a) => a.urgency)
+    return [...ADJUSTMENT_URGENCIES]
+      .reverse()
+      .filter((u) => counts.has(u.value))
+      .map((u) => ({ ...u, count: counts.get(u.value)! }))
+  }, [adjustments])
+
+  // "Created by" is the hub user who filed the ticket (created_by → profiles),
+  // distinct from origin (who asked for the change) and requested_by (free text).
+  const creatorOptions = useMemo(() => {
+    const byId = new Map<string, { name: string; count: number }>()
+    for (const a of adjustments) {
+      const name = creatorName(a)
+      if (!a.created_by || !name) continue
+      const entry = byId.get(a.created_by)
+      if (entry) entry.count += 1
+      else byId.set(a.created_by, { name, count: 1 })
+    }
+    return [...byId.entries()]
+      .map(([id, { name, count }]) => ({ id, name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [adjustments])
+
+  const activeFilters =
+    (clientFilter !== "all" ? 1 : 0) +
+    (originFilter !== "all" ? 1 : 0) +
+    (typeFilter !== "all" ? 1 : 0) +
+    (urgencyFilter !== "all" ? 1 : 0) +
+    (creatorFilter !== "all" ? 1 : 0) +
+    (search.trim() ? 1 : 0)
+
+  function clearFilters() {
+    setSearch("")
+    setClientFilter("all")
+    setOriginFilter("all")
+    setTypeFilter("all")
+    setUrgencyFilter("all")
+    setCreatorFilter("all")
+  }
+
+  const { visible, waitingOnUs, triage, awaitingControl, closed } = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const visible = adjustments.filter((a) => {
+      if (clientFilter !== "all" && a.client_id !== clientFilter) return false
+      if (originFilter !== "all" && a.origin !== originFilter) return false
+      if (typeFilter !== "all" && a.type !== typeFilter) return false
+      if (urgencyFilter !== "all" && a.urgency !== urgencyFilter) return false
+      if (creatorFilter !== "all" && a.created_by !== creatorFilter) return false
+      if (!q) return true
+      const haystack = [
+        adjustmentTypeLabel(a.type),
+        a.target_value,
+        a.clients?.name,
+        a.listings?.name,
+        a.requested_by,
+        creatorName(a),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(q)
+    })
     const byUrgencyThenAge = (a: Adjustment, b: Adjustment) =>
       URGENCY_WEIGHT[a.urgency] - URGENCY_WEIGHT[b.urgency] ||
       Number(isEscalated(b)) - Number(isEscalated(a)) ||
@@ -179,8 +300,16 @@ export function AdjustmentsView({
     const closed = visible
       .filter((a) => a.status === "controlled" || a.status === "rejected")
       .slice(0, 20)
-    return { waitingOnUs, triage, awaitingControl, closed }
-  }, [adjustments, clientFilter])
+    return { visible, waitingOnUs, triage, awaitingControl, closed }
+  }, [
+    adjustments,
+    search,
+    clientFilter,
+    originFilter,
+    typeFilter,
+    urgencyFilter,
+    creatorFilter,
+  ])
 
   async function copyLink(adjustment: Adjustment) {
     await navigator.clipboard.writeText(adjustmentShareUrl(adjustment.public_token))
@@ -227,27 +356,165 @@ export function AdjustmentsView({
             Change requests, triaged so nothing falls through the cracks.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="All clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All clients</SelectItem>
-              {clientOptions.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {canCreate && (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus />
-              New Adjustment
-            </Button>
-          )}
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus />
+            New Adjustment
+          </Button>
+        )}
+      </div>
+
+      {/* Search + filters row. Filters apply to every queue below. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[200px] max-w-xs flex-1">
+          <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search request, client, listing…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
         </div>
+
+        {/* Client combobox (searchable — the client list is long) */}
+        <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={clientPopoverOpen}
+              className="w-[200px] justify-between font-normal"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">
+                  {clientFilter !== "all"
+                    ? clientOptions.find((c) => c.id === clientFilter)?.name ??
+                      "All clients"
+                    : "All clients"}
+                </span>
+              </div>
+              <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[260px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search clients…" />
+              <CommandList>
+                <CommandEmpty>No clients found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="all"
+                    onSelect={() => {
+                      setClientFilter("all")
+                      setClientPopoverOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 size-3.5",
+                        clientFilter === "all" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    All clients
+                  </CommandItem>
+                  {clientOptions.map((c) => (
+                    <CommandItem
+                      key={c.id}
+                      value={c.name}
+                      onSelect={() => {
+                        setClientFilter(c.id)
+                        setClientPopoverOpen(false)
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 size-3.5",
+                          clientFilter === c.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span className="truncate">{c.name}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {c.count}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Select value={originFilter} onValueChange={setOriginFilter}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="All origins" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All origins</SelectItem>
+            {originOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+                <span className="ml-1 text-xs text-muted-foreground">({o.count})</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="All types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {typeOptions.map((t) => (
+              <SelectItem key={t.value} value={t.value}>
+                {t.label}
+                <span className="ml-1 text-xs text-muted-foreground">({t.count})</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="All urgencies" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All urgencies</SelectItem>
+            {urgencyOptions.map((u) => (
+              <SelectItem key={u.value} value={u.value}>
+                {u.label}
+                <span className="ml-1 text-xs text-muted-foreground">({u.count})</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Created by anyone" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Created by anyone</SelectItem>
+            {creatorOptions.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+                <span className="ml-1 text-xs text-muted-foreground">({c.count})</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Filter className="size-3" />
+            Clear filters ({activeFilters}) · {visible.length} of {adjustments.length}
+          </button>
+        )}
       </div>
 
       {waitingOnUs.length > 0 && (

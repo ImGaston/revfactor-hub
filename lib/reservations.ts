@@ -15,7 +15,6 @@ export type Reservation = {
   client_id: string | null
   client_name: string | null
   listing_name: string | null
-  guest_name: string | null
   booked_at: string | null
   check_in: string | null
   check_out: string | null
@@ -28,10 +27,10 @@ export type Reservation = {
 }
 
 const RESERVATION_SELECT =
-  "row_key, hub_listing_id, client_id, client_name, listing_name, guest_name, booked_at, check_in, check_out, number_of_days, booking_window_days, booking_channel, rental_revenue, total_cost, currency"
+  "row_key, hub_listing_id, client_id, client_name, listing_name, booked_at, check_in, check_out, number_of_days, booking_window_days, booking_channel, rental_revenue, total_cost, currency"
 
-// Wider projection for the per-client Excel export. guest_name is omitted on
-// purpose — the source always redacts it to "Hidden".
+// Wider projection for the per-client Excel export. guest_name is never
+// selected anywhere — the source always redacts it to "Hidden".
 export type ReservationExportRow = {
   row_key: string
   listing_name: string | null
@@ -166,7 +165,7 @@ function applyReservationFilters(
   const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
   if (q) {
     query.or(
-      `guest_name.ilike.%${q}%,listing_name.ilike.%${q}%,channel_confirmation_code.ilike.%${q}%`
+      `listing_name.ilike.%${q}%,channel_confirmation_code.ilike.%${q}%`
     )
   }
 }
