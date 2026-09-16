@@ -33,7 +33,7 @@ function fixture(initial:Row[]=[]) {
   return {db,rows,writes,loseNextInsert:()=>{failAfterInsert=true;},failReads:()=>{failReads=true;}};
 }
 test('creates linked Onboarding Hub client with deterministic key and no billing guesses',async()=>{
- const f=fixture();const id=await ensureHubClient(f.db,job,assembly);assert.equal(id,await hubIdForAssembly(assembly.clientId));assert.equal(f.rows[0].status,'onboarding');assert.equal(f.rows[0].name,'QA Business');assert.equal(f.rows[0].assembly_company_id,assembly.companyId);assert.equal(f.rows[0].billing_amount,undefined);assert.equal(f.rows[0].autopayment_set_up,undefined);assert.match(String(f.rows[0].assembly_link),/\/companies\/assembly-company-1\/messages$/);
+ const f=fixture();const id=await ensureHubClient(f.db,job,assembly);assert.equal(id,await hubIdForAssembly(assembly.clientId));assert.equal(f.rows[0].status,'onboarding');assert.equal(f.rows[0].name,'QA Example');assert.equal(f.rows[0].business_name,'QA Business');assert.equal(f.rows[0].assembly_company_id,assembly.companyId);assert.equal(f.rows[0].billing_amount,undefined);assert.equal(f.rows[0].autopayment_set_up,undefined);assert.match(String(f.rows[0].assembly_link),/\/companies\/assembly-company-1\/messages$/);
  await ensureHubClient(f.db,job,assembly);assert.equal(f.writes.length,1);
 });
 test('links one existing email match while preserving status, name and financial fields',async()=>{

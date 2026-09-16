@@ -37,7 +37,7 @@ export async function ensureHubClient(db: SupabaseClient, job: Job, assembly: Hu
   let existing=await find();
   const link=assembly.companyId?`https://dashboard.assembly.com/companies/${assembly.companyId}/messages`:`https://dashboard.assembly.com/clients/users/details/${assembly.clientId}/messages`;
   if(!existing) {
-    const result=await db.from('clients').insert({id,name:job.legalName,email:job.email,status:'onboarding',onboarding_date:new Date().toISOString().slice(0,10),assembly_client_id:assembly.clientId,assembly_company_id:assembly.companyId??null,assembly_link:link}).select(columns).returns<HubRow[]>();
+    const result=await db.from('clients').insert({id,name:`${job.givenName} ${job.familyName}`,business_name:job.legalName,email:job.email,status:'onboarding',onboarding_date:new Date().toISOString().slice(0,10),assembly_client_id:assembly.clientId,assembly_company_id:assembly.companyId??null,assembly_link:link}).select(columns).returns<HubRow[]>();
     if(!result.error && result.data?.length===1) {validExisting(result.data[0],job,assembly);return result.data[0].id;}
     // A lost response is safe to retry: the deterministic primary key prevents
     // another insert even if the previous write committed before the timeout.

@@ -64,6 +64,25 @@ export type ClientTask = {
 export type Client = {
   id: string
   name: string
+  business_name?: string | null
+  phone?: string | null
+  ghl_contact_id?: string | null
+  ghl_onboarding?: {
+    source: string
+    purchased_listings: number
+    agreement_evidence: string[]
+    uses_pms: string | null
+    vrbo: string | null
+    uses_pricelabs: string | null
+    airbnb_ready: string | null
+    audit_requested: string | null
+    readiness: string[]
+    airbnb_listing_url: string | null
+    access_verified: boolean
+    appointment: { id: string; start: string; end: string; status: string; host_id: string; host_name: string | null } | null
+  } | null
+  ghl_synced_at?: string | null
+  ghl_sync_error?: string | null
   status: string
   billing_amount: number | null
   onboarding_date: string | null

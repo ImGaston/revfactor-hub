@@ -8,7 +8,9 @@ fixture.order.contactSnapshot.email='qa@example.com';
 fixture.subscription.contactSnapshot.email='qa@example.com';
 fixture.transaction.chargeSnapshot.livemode=true;fixture.transaction.chargeSnapshot.payment_method.livemode=true;
 fixture.subscription.paymentProvider.connectedAccount.liveMode=true;fixture.subscription.subscriptionSnapshot.livemode=true;
+Object.assign(fixture.subscription.subscriptionSnapshot,{created:1789405200,current_period_start:1789405200,current_period_end:1791997200});
 let includeTestPayment=false;
+let bookingStatus="confirmed", hostName="Future Host", enrichmentWrites=0, lastProfile;
 import { build } from 'esbuild';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 const compiled=await build({entryPoints:['src/index.ts'],bundle:true,format:'esm',platform:'neutral',mainFields:['module','main'],external:['cloudflare:workers','node:*'],write:false});
@@ -17,6 +19,9 @@ let clientCreates=0,companyCreates=0,tags=0,reads=0,hubCreates=0; const hubRows=
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:compiled.outputFiles[0].text,compatibilityDate:'2026-09-10',compatibilityFlags:['nodejs_compat'],bindings:{LOCATION_ID:location,ENABLED:'true',ACTIVATED_AT:'2026-09-10T00:00:00Z',SUBSCRIPTIONS_ACTIVATED_AT:'2026-09-14T00:00:00Z',SUBSCRIPTION_LINKS:JSON.stringify({'6a9a8142a7f78e147447edc2':2}),HIGHLEVEL_API_KEY:'fake-ghl',ASSEMBLY_API_KEY:'fake-assembly',WEBHOOK_SECRET:'fake-webhook',HUB_SUPABASE_URL:'https://test.supabase.co',HUB_SUPABASE_SERVICE_ROLE_KEY:'fake-hub'},durableObjects:{CLIENTS:{className:'PaidClient',useSQLite:true}},outboundService:async req=>{
  const u=new URL(req.url);reads++;
  if(u.hostname==='services.leadconnectorhq.com'){
+  if(u.pathname.endsWith('/appointments') && u.pathname.startsWith('/contacts/'))return Response.json({events:[{id:'qaAppointment000001',calendarId:'s2jDCEAg86oW89dfOPup',startTime:'2026-09-22 16:00:00',appointmentStatus:bookingStatus}]});
+  if(u.pathname==='/calendars/events/appointments/qaAppointment000001')return Response.json({appointment:{id:'qaAppointment000001',contactId,locationId:location,calendarId:'s2jDCEAg86oW89dfOPup',startTime:'2026-09-22T16:00:00-04:00',endTime:'2026-09-22T16:30:00-04:00',appointmentStatus:bookingStatus,assignedUserId:'qaHost000000001'}});
+  if(u.pathname==='/users/qaHost000000001')return Response.json({id:'qaHost000000001',name:hostName});
   if(u.pathname==='/payments/transactions') {assert.equal(u.searchParams.get('contactId'),contactId);const t=structuredClone(fixture.transaction);if(includeTestPayment)t.liveMode=false;return Response.json({data:[t],totalCount:1});}
   if(u.pathname==='/payments/subscriptions')return Response.json({data:[{_id:fixture.subscription._id,subscriptionId:fixture.subscription.subscriptionId,entityId:fixture.order._id,liveMode:true}],totalCount:1});
   if(u.pathname.startsWith('/payments/orders/')){assert.equal(u.searchParams.get('altType'),'location');return Response.json(fixture.order);}
@@ -26,6 +31,7 @@ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:compiled.o
   return Response.json({contact:{id:contactId,locationId:location,firstName:'QA',lastName:'Example',email:'qa@example.com',tags:['rf-subscription-agreement-q2-signed'],customFields:[{id:'SQ0wwhLhD8qZVymkHslW',value:'QA Example LLC'}]}});
  }
  if(u.hostname==='test.supabase.co') {
+  if(u.pathname.endsWith('/rpc/apply_ghl_client_enrichment')) {const body=await req.json();const row=hubRows.find(r=>r.id===body.p_client_id);assert.ok(row);assert.equal(body.p_contact_id,contactId);assert.equal(body.p_profile.name,'QA Example');assert.equal(!!body.p_billing,subscriptionMode);enrichmentWrites++;lastProfile=body.p_profile;Object.assign(row,{ghl_contact_id:body.p_contact_id});return Response.json(row.id);}
   if(req.method==='POST'){const row=await req.json();hubRows.push(row);hubCreates++;return Response.json([row],{status:201});}
   return Response.json(hubRows.filter(row=>[...u.searchParams].every(([key,value])=>key==='select'||key==='limit'||(value.startsWith('eq.')&&row[key]===value.slice(3))||(value.startsWith('ilike.')&&row[key]===value.slice(6)))));
  }
@@ -49,6 +55,10 @@ try{
  let status;
  for(let i=0;i<40;i++) {status=await (await mf.dispatchFetch('https://test.local/status?contactId='+contactId,{headers:auth})).json();if(status.status==='complete')break;await new Promise(r=>setTimeout(r,200));}
  assert.equal(status.status,'complete',JSON.stringify(status));assert.equal(clientCreates,1);assert.equal(companyCreates,1);assert.equal(tags,1);assert.equal(hubCreates,1);assert.equal(status.hubClientId,hubRows[0].id);assert.equal(hubRows[0].status,'onboarding');
+ const refresh=()=>mf.dispatchFetch('https://test.local/ghl/enrich',{method:'POST',headers:auth,body:JSON.stringify({contact_id:contactId})});
+ assert.equal((await (await refresh()).json()).status,'enriched');assert.equal(lastProfile.onboarding.appointment.host_name,'Future Host');
+ bookingStatus='cancelled';hostName='Reassigned Host';
+ assert.equal((await (await refresh()).json()).status,'enriched');assert.equal(lastProfile.onboarding.appointment.status,'cancelled');assert.equal(lastProfile.onboarding.appointment.host_name,'Reassigned Host');assert.equal(clientCreates,1);assert.equal(hubCreates,1);assert.equal(tags,1);assert.equal(enrichmentWrites,3);
  const replay=await (await post('qaInvoiceSecond000001')).json();assert.equal(replay.duplicate,true);assert.equal(clientCreates,1);
  console.log(subscriptionMode?'Subscription mode:':'Invoice mode:');
  console.log('Runtime checks passed: unauthorized rejected; test payment ignored; 20 concurrent deliveries produced one company/client/Hub record; alarm completed; later paid invoice deduplicated; no invite sent.');

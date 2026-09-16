@@ -796,3 +796,6 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 
 - Removed the Guest column from the `/reservations` table (colSpan 12→11), from the CSV export headers/rows, from the search `or()` and placeholder, and `guest_name` from the `Reservation` type + `RESERVATION_SELECT`. The client/listing "Recent Reservations" card had already dropped it earlier.
 - Updated `lib/__tests__/reservations-csv.test.ts` for the shifted columns (4 tests pass); typecheck clean. Not visually verified: the dev server was stopped mid-session.
+
+## 2026-09-16 — GHL signup field enrichment
+Added atomic Hub profile/Stripe association RPC, personal/business separation, phone and GHL identity, bounded 15-minute refresh of booking answers/current host, and client-detail preparation display. Payment/job eligibility and no-invite policy remain unchanged. Targeted backfill uses authenticated `/ghl/enrich`; no subscription or charge creation. Worker/unit/runtime, SQL rollback/conflict/permissions and root typechecks passed. Detailed production/client evidence lives in central GHL `projects/revfactor/hub-signup-enrichment-2026-09-16.md`.
