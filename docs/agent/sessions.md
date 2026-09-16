@@ -799,3 +799,7 @@ The Financials "Revisar registros" modal lost its panel background once scrolled
 
 ## 2026-09-16 — GHL signup field enrichment
 Added atomic Hub profile/Stripe association RPC, personal/business separation, phone and GHL identity, bounded 15-minute refresh of booking answers/current host, and client-detail preparation display. Payment/job eligibility and no-invite policy remain unchanged. Targeted backfill uses authenticated `/ghl/enrich`; no subscription or charge creation. Worker/unit/runtime, SQL rollback/conflict/permissions and root typechecks passed. Detailed production/client evidence lives in central GHL `projects/revfactor/hub-signup-enrichment-2026-09-16.md`.
+
+
+## 2026-09-16 — New GHL client signed-contract archive
+Added future-only original signed PDF/certificate copy to Assembly Files / Signed Contracts after paid provisioning. Deterministic path, persisted create intents, bounded independent retries, exact document/client/channel validation, and readback hash verification. Existing clients/payments remain excluded. 42 unit tests and four isolated runtime scenarios pass; actual completed GHL PDF read-only inspection confirms certificate. No live client upload was performed; first natural future signup remains the production outcome check. Integration, project-map and decision memory updated.

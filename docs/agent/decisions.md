@@ -510,3 +510,8 @@ Beta modules were mixed with day-to-day sections in the sidebar. Chosen design: 
 
 ## 2026-09-16 — Personal client names and staged GHL enrichment
 Hub uses the person's name, preserving the legal business in a separate field. Signed/paid identity creates the client; later booking answers enrich that same record. Use exact Stripe customer association and real subscription mirror, not legacy copied billing amounts. Keep client-reported access readiness separate from verified access and purchased quantity separate from identified property records. Reuse existing handoff and Stripe sync; do not instantiate a second onboarding run or recreate billing.
+
+
+## 2026-09-16 — Archive external signed agreements in Assembly Files, new clients only
+
+Federico selected Files for a copy of the already-signed GHL agreement and explicitly excluded existing clients. Extend the paid-client Worker after provisioning with independent retries and exact client/document matching. Preserve the native PDF/certificate unchanged; do not initiate another signature request, upload old client contracts, or block payment/booking on archive failure. Activation is 2026-09-16T15:05:52Z and requires new job + new Assembly client. See integrations for transfer verification and review controls.

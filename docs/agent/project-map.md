@@ -143,3 +143,7 @@ Financials Overview now uses `lib/financial-scorecard/` (pure cash/MRR calculati
 
 ### Native GHL client enrichment (2026-09-16)
 `clients.business_name`, `phone`, `ghl_contact_id` (unique), `ghl_onboarding` (allowlisted operational answers/booking), and `ghl_synced_at` / `ghl_sync_attempted_at` / `ghl_sync_error` support the existing paid GHL handoff and its bounded booking refresh. Service-only `apply_ghl_client_enrichment` links Stripe atomically. Implementation stays in `workers/assembly-payment`; client detail shows the operational profile. See integration notes and migration `20260916180000`.
+
+
+### GHL signed-contract archive
+`workers/assembly-payment/src/contracts.ts` runs from a separate post-provisioning Durable Object alarm. It locates the completed GHL PDF, copies it to the new client's Assembly company Files / Signed Contracts folder, and verifies a byte-identical readback. ContractCopy state is private Worker storage; only sanitized progress is exposed on authenticated status. There is no new Hub table/UI or billing authority. Eligibility excludes pre-release and existing clients.

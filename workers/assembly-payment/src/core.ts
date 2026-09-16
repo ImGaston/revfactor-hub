@@ -42,7 +42,7 @@ export function verifiedJob(invoice: Json, contact: Json, invoiceId: string, loc
   if (!legalName || !givenName || !familyName) throw new Error('missing_client_details');
   return {invoiceId,contactId,email,givenName,familyName,legalName,listings};
 }
-export type State = { job: Job; stage: 'queued'|'company_pending'|'company_ready'|'client_pending'|'linked'|'hub_linked'|'complete'|'review'; companyId?: string; clientId?: string; hubClientId?: string; attempts: number; error?: string; updatedAt: string };
+export type State = { job: Job; stage: 'queued'|'company_pending'|'company_ready'|'client_pending'|'linked'|'hub_linked'|'complete'|'review'; companyId?: string; clientId?: string; hubClientId?: string; createdAssemblyClient?: boolean; contractCopy?: import('./contracts.ts').ContractCopy; attempts: number; error?: string; updatedAt: string };
 export type Ports = {
   save(s: State): Promise<void>;
   find(email: string): Promise<Json[]>;
@@ -60,8 +60,9 @@ export async function advance(s: State, p: Ports): Promise<State> {
     if (matches.length > 1 || matches.some(c => str(c.email).toLowerCase() !== s.job.email)) throw new Error('assembly_identity_conflict');
     if (matches.length === 1) {
       if (!str(matches[0].id)) throw new Error('invalid_assembly_client');
-      s.clientId = str(matches[0].id);
       const companies = Array.isArray(matches[0].companyIds) ? matches[0].companyIds.filter(c=>typeof c==='string') : [];
+      if(s.createdAssemblyClient && s.companyId && !companies.includes(s.companyId) && matches[0].companyId!==s.companyId)throw new Error('assembly_company_conflict');
+      s.clientId = str(matches[0].id);
       s.companyId = companies.length===1 ? str(companies[0]) : (companies.length===0 ? str(matches[0].companyId)||undefined : undefined);
       s.stage = 'linked';
       await p.save(s);
@@ -73,10 +74,10 @@ export async function advance(s: State, p: Ports): Promise<State> {
         if (!str(company.id)) throw new Error('invalid_assembly_company');
         s.companyId = str(company.id); s.stage = 'company_ready'; await p.save(s);
       }
-      s.stage = 'client_pending'; await p.save(s);
+      s.stage = 'client_pending'; s.createdAssemblyClient=true; await p.save(s);
       const client = await p.client(s.job, s.companyId);
       if (!str(client.id) || str(client.email).toLowerCase() !== s.job.email) throw new Error('invalid_assembly_client');
-      s.clientId = str(client.id); s.stage = 'linked'; await p.save(s);
+      s.clientId = str(client.id); s.createdAssemblyClient=true; s.stage = 'linked'; await p.save(s);
     }
   }
   if (!s.hubClientId) {

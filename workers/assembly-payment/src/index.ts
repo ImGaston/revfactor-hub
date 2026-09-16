@@ -4,6 +4,7 @@ import { advance, object, str, verifiedJob, invoiceIdFromPayload, type Json, typ
 import { ensureHubClient, hubDatabase } from './hub.ts';
 import { verifiedSubscriptionJob } from './subscription.ts';
 import { contactProfile, subscriptionBilling, ONBOARDING_CALENDAR } from './enrichment.ts';
+import { copySignedContract, eligibleContractCopy } from './contracts.ts';
 
 type Secrets = { HIGHLEVEL_API_KEY: string; ASSEMBLY_API_KEY: string; WEBHOOK_SECRET: string; HUB_SUPABASE_URL: string; HUB_SUPABASE_SERVICE_ROLE_KEY: string };
 type Environment = Env & Secrets;
@@ -29,7 +30,7 @@ async function readJob(env: Environment, invoiceId: string, contactId: string): 
   ]);
   return verifiedJob(rawInvoice.invoice ? object(rawInvoice.invoice) : rawInvoice,object(rawContact.contact),invoiceId,env.LOCATION_ID,env.ACTIVATED_AT);
 }
-async function readSubscriptionJob(env: Environment, contactId: string, prior?: Job['subscriptionPayment']): Promise<Job|null> {
+async function readSubscriptionEvidence(env: Environment, contactId: string, prior?: Job['subscriptionPayment']): Promise<{job:Job;paidAt:string}|null> {
   const links = object(JSON.parse(env.SUBSCRIPTION_LINKS));
   const policyLinks: Record<string, number> = {};
   for (const [id, quantity] of Object.entries(links)) {
@@ -54,9 +55,12 @@ async function readSubscriptionJob(env: Environment, contactId: string, prior?: 
     const scope=`altId=${env.LOCATION_ID}&altType=location`;
     const [order,subscription]=await Promise.all([api(env,'ghl',`/payments/orders/${orderId}?${scope}`),api(env,'ghl',`/payments/subscriptions/${subscriptionId}?${scope}`)]);
     const job=verifiedSubscriptionJob(transaction,order,subscription,object(rawContact.contact),{locationId:env.LOCATION_ID,activatedAt:env.SUBSCRIPTIONS_ACTIVATED_AT,links:policyLinks});
-    if (job) return job;
+    if (job) return {job,paidAt:str(transaction.createdAt)};
   }
   return null;
+}
+async function readSubscriptionJob(env: Environment, contactId: string, prior?: Job['subscriptionPayment']): Promise<Job|null> {
+  return (await readSubscriptionEvidence(env,contactId,prior))?.job??null;
 }
 async function identity(email: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(email.toLowerCase()));
@@ -102,7 +106,7 @@ export class PaidClient extends DurableObject<Environment> {
     await this.enrichHub(s,true);
     return {status:'enriched',hubClientId:s.hubClientId};
   }
-  async enqueue(job: Job) {
+  async enqueue(job: Job, paidAt?:string) {
     return this.ctx.storage.transaction(async tx => {
       const existing = await tx.get<State>('state');
       if (existing) {
@@ -112,15 +116,47 @@ export class PaidClient extends DurableObject<Environment> {
         return {status:existing.stage,duplicate:true};
       }
       const state: State = {job,stage:'queued',attempts:0,updatedAt:new Date().toISOString()};
+      // Only brand-new state for an initial subscription payment after cutover.
+      // Replays, old DOs, old payments and invoice clients never opt in.
+      if(eligibleContractCopy(job,paidAt,this.env.CONTRACT_FILES_ACTIVATED_AT,Date.now()))state.contractCopy={status:'pending',attempts:0,paidAt:paidAt!};
       await tx.put('state',state); await tx.setAlarm(Date.now()+1000);
       return {status:'queued',duplicate:false};
     });
   }
-  async status() { const s = await this.ctx.storage.get<State>('state'); return s ? {status:s.stage,clientId:s.clientId,companyId:s.companyId,hubClientId:s.hubClientId,invoiceId:s.job.invoiceId,error:s.error,attempts:s.attempts} : {status:'not_found'}; }
+  async status() { const s = await this.ctx.storage.get<State>('state'); const c=s?.contractCopy; return s ? {status:s.stage,clientId:s.clientId,companyId:s.companyId,hubClientId:s.hubClientId,invoiceId:s.job.invoiceId,error:s.error,attempts:s.attempts,contractCopy:c?{status:c.status,documentId:c.documentId,fileId:c.fileId,attempts:c.attempts,error:c.error,completedAt:c.completedAt}:undefined} : {status:'not_found'}; }
+  private async archiveContract(s:State) {
+    const c=s.contractCopy;if(!c)return;
+    const save=async()=>{s.updatedAt=new Date().toISOString();await this.ctx.storage.put('state',s);};
+    if(c.status==='review'){
+      if(!c.reviewTagged){await api(this.env,'ghl',`/contacts/${s.job.contactId}/tags`,'POST',{tags:['rf-contract-copy-review']});c.reviewTagged=true;await save();}
+      return;
+    }
+    if(c.status!=='pending')return;
+    if(!s.createdAssemblyClient){c.status='skipped_existing';await save();return;}
+    if(this.env.CONTRACT_FILES_ENABLED!=='true'){await this.ctx.storage.setAlarm(Date.now()+300000);return;}
+    try {
+      c.attempts++;await save();
+      const client=await api(this.env,'assembly',`/clients/${s.clientId}`);
+      const companies=Array.isArray(client.companyIds)?client.companyIds:[];
+      if(client.id!==s.clientId || str(client.email).toLowerCase()!==s.job.email || (s.companyId && client.companyId!==s.companyId && !companies.includes(s.companyId)))throw new Error('contract_assembly_identity_conflict');
+      await copySignedContract(s.job,s.clientId!,s.companyId,this.env.LOCATION_ID,c,{api:(...args)=>api(this.env,...args),fetch:(...args)=>fetch(...args),assemblyKey:this.env.ASSEMBLY_API_KEY,save});
+      console.log(JSON.stringify({event:'contract_archived',hubClientId:s.hubClientId,documentId:c.documentId,fileId:c.fileId}));
+    } catch(error) {
+      // Persist only our finite error codes, never signed URLs or provider bodies.
+      const raw=error instanceof Error?error.message:'';
+      c.error=/^(contract_[a-z0-9_]+|upstream_[0-9]+)$/.test(raw)?raw:'contract_transfer_failed';
+      if(c.attempts>=6||/conflict|requires?_review/.test(c.error))c.status='review';
+      await save();
+      console.error(JSON.stringify({event:'contract_copy_error',hubClientId:s.hubClientId,status:c.status,error:c.error}));
+      if(c.status==='pending')await this.ctx.storage.setAlarm(Date.now()+Math.min(60000*2**(c.attempts-1),1800000));
+      else await this.ctx.storage.setAlarm(Date.now()+1000);
+    }
+  }
   async alarm() {
-    const s = await this.ctx.storage.get<State>('state'); if (!s || (s.stage === 'complete' && s.hubClientId)) return;
+    const s = await this.ctx.storage.get<State>('state'); if (!s) return;
     const save = async (state: State) => {state.updatedAt=new Date().toISOString();await this.ctx.storage.put('state',state);};
     if (this.env.ENABLED !== 'true') {await this.ctx.storage.setAlarm(Date.now()+300000);return;}
+    if(s.stage==='complete'&&s.hubClientId){await this.archiveContract(s);return;}
     if (s.stage === 'review') {
       await api(this.env,'ghl',`/contacts/${s.job.contactId}/tags`,'POST',{tags:[s.clientId?'rf-hub-review':'rf-assembly-review']}); return;
     }
@@ -151,6 +187,7 @@ export class PaidClient extends DurableObject<Environment> {
         mark: contactId => api(this.env,'ghl',`/contacts/${contactId}/tags`,'POST',{tags:['rf-assembly-created','rf-hub-created',...(s.job.subscriptionPayment?['rf-subscription-initial-paid']:[])]}).then(()=>undefined)
       });
       console.log(JSON.stringify({event:'assembly_hub_handoff_complete',invoiceId:s.job.invoiceId,clientId:s.clientId,hubClientId:s.hubClientId}));
+      if(s.contractCopy?.status==='pending')await this.ctx.storage.setAlarm(Date.now()+1000);
     } catch (error) {
       s.error=error instanceof Error?error.message:'handoff_failed';
       if (s.attempts>=6 || /conflict|requires_review|changed|invalid_assembly/.test(s.error)) s.stage='review';
@@ -183,7 +220,7 @@ export default {
   },
   async fetch(request: Request, env: Environment): Promise<Response> {
     const url=new URL(request.url);
-    if (request.method==='GET' && url.pathname==='/health') return Response.json({service:'revfactor-assembly-payment',enabled:env.ENABLED==='true',configured:!!(env.HIGHLEVEL_API_KEY&&env.ASSEMBLY_API_KEY&&env.WEBHOOK_SECRET),hubConfigured:!!(env.HUB_SUPABASE_URL&&env.HUB_SUPABASE_SERVICE_ROLE_KEY)});
+    if (request.method==='GET' && url.pathname==='/health') return Response.json({service:'revfactor-assembly-payment',enabled:env.ENABLED==='true',configured:!!(env.HIGHLEVEL_API_KEY&&env.ASSEMBLY_API_KEY&&env.WEBHOOK_SECRET),hubConfigured:!!(env.HUB_SUPABASE_URL&&env.HUB_SUPABASE_SERVICE_ROLE_KEY),contractFilesEnabled:env.CONTRACT_FILES_ENABLED==='true',contractFilesActivatedAt:env.CONTRACT_FILES_ACTIVATED_AT});
     const supplied=request.headers.get('authorization')??''; const expected=`Bearer ${env.WEBHOOK_SECRET}`;
     if (!env.WEBHOOK_SECRET || supplied.length!==expected.length || !timingSafeEqual(Buffer.from(supplied),Buffer.from(expected))) return Response.json({error:'unauthorized'},{status:401});
     if (request.method==='GET' && url.pathname==='/status') {
@@ -211,9 +248,9 @@ export default {
       if (url.pathname==='/ghl/subscription-paid') {
         const contactId=str(custom.contact_id)||str(body.contact_id);
         if (!/^[a-zA-Z0-9]{10,40}$/.test(contactId)) return Response.json({error:'invalid_contact'},{status:422});
-        const job=await readSubscriptionJob(env,contactId);
-        if (!job) return Response.json({status:'ignored_not_initial_live_subscription'});
-        return Response.json(await env.CLIENTS.getByName(await identity(job.email)).enqueue(job),{status:202});
+        const evidence=await readSubscriptionEvidence(env,contactId);
+        if (!evidence) return Response.json({status:'ignored_not_initial_live_subscription'});
+        return Response.json(await env.CLIENTS.getByName(await identity(evidence.job.email)).enqueue(evidence.job,evidence.paidAt),{status:202});
       }
       const invoiceId=invoiceIdFromPayload(custom),contactId=str(custom.contact_id)||str(body.contact_id);
       if (!/^[a-zA-Z0-9]{10,40}$/.test(invoiceId)||!/^[a-zA-Z0-9]{10,40}$/.test(contactId)) return Response.json({error:'invalid_ids'},{status:422});
