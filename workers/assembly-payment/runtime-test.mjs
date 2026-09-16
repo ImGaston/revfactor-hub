@@ -33,7 +33,9 @@ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:compiled.o
  if(u.hostname==='test.supabase.co') {
   if(u.pathname.endsWith('/rpc/apply_ghl_client_enrichment')) {const body=await req.json();const row=hubRows.find(r=>r.id===body.p_client_id);assert.ok(row);assert.equal(body.p_contact_id,contactId);assert.equal(body.p_profile.name,'QA Example');assert.equal(!!body.p_billing,subscriptionMode);enrichmentWrites++;lastProfile=body.p_profile;Object.assign(row,{ghl_contact_id:body.p_contact_id});return Response.json(row.id);}
   if(req.method==='POST'){const row=await req.json();hubRows.push(row);hubCreates++;return Response.json([row],{status:201});}
-  return Response.json(hubRows.filter(row=>[...u.searchParams].every(([key,value])=>key==='select'||key==='limit'||(value.startsWith('eq.')&&row[key]===value.slice(3))||(value.startsWith('ilike.')&&row[key]===value.slice(6)))));
+  const matches=row=>[...u.searchParams].every(([key,value])=>['select','limit','order'].includes(key)||(value==='not.is.null'&&row[key]!=null)||(value.startsWith('eq.')&&row[key]===value.slice(3))||(value.startsWith('ilike.')&&row[key]===value.slice(6)));
+  if(req.method==='PATCH'){const patch=await req.json();hubRows.filter(matches).forEach(row=>Object.assign(row,patch));return new Response(null,{status:204});}
+  return Response.json(hubRows.filter(matches));
  }
  if(u.hostname==='api.assembly.com'){
   if(u.pathname==='/v1/clients/qa-client')return Response.json({id:'qa-client',email:'qa@example.com',companyId:'qa-company',companyIds:['qa-company']});
@@ -59,6 +61,7 @@ try{
  assert.equal((await (await refresh()).json()).status,'enriched');assert.equal(lastProfile.onboarding.appointment.host_name,'Future Host');
  bookingStatus='cancelled';hostName='Reassigned Host';
  assert.equal((await (await refresh()).json()).status,'enriched');assert.equal(lastProfile.onboarding.appointment.status,'cancelled');assert.equal(lastProfile.onboarding.appointment.host_name,'Reassigned Host');assert.equal(clientCreates,1);assert.equal(hubCreates,1);assert.equal(tags,1);assert.equal(enrichmentWrites,3);
+ hostName='Cron Updated Host';await (await mf.getWorker()).scheduled({cron:'*/15 * * * *'});assert.equal(enrichmentWrites,4);assert.equal(lastProfile.onboarding.appointment.host_name,'Cron Updated Host');assert.ok(hubRows[0].ghl_sync_attempted_at);assert.equal(hubRows[0].ghl_sync_error,undefined);
  const replay=await (await post('qaInvoiceSecond000001')).json();assert.equal(replay.duplicate,true);assert.equal(clientCreates,1);
  console.log(subscriptionMode?'Subscription mode:':'Invoice mode:');
  console.log('Runtime checks passed: unauthorized rejected; test payment ignored; 20 concurrent deliveries produced one company/client/Hub record; alarm completed; later paid invoice deduplicated; no invite sent.');
