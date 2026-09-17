@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { AlertTriangle, Play, RefreshCw, Search, Trophy } from "lucide-react"
+import { AlertTriangle, Building2, Play, RefreshCw, Search, Trophy } from "lucide-react"
 import { toast } from "sonner"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -25,7 +25,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { MultiSelectFilter } from "@/components/filters/multi-select-filter"
 import { cn } from "@/lib/utils"
+import { BEDROOM_BUCKETS, PORTFOLIO_SIZE_BUCKETS } from "@/lib/wins-filters"
 import {
   REASON_CODE_LABELS,
   daysBetween,
@@ -84,13 +86,31 @@ const KPI_ORDER: WinCategory[] = [
 
 type Filters = {
   category: WinCategory | null
-  confidence: string | null
-  clientId: string | null
-  state: string | null
+  confidences: string[]
+  clientIds: string[]
+  states: string[]
+  portfolioSizes: string[]
+  bedrooms: string[]
   hasChat: string | null
   search: string | null
   readyOnly: boolean
 }
+
+const CONFIDENCE_OPTIONS = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+]
+
+const STATE_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "in_review", label: "In review" },
+  { value: "shared_manually", label: "Shared manually" },
+  { value: "dismissed", label: "Dismissed" },
+]
+
+// Multi-value filters travel as comma-separated URL params
+const listParam = (values: string[]) => (values.length ? values.join(",") : null)
 
 export function WinsView({
   run,
@@ -170,9 +190,11 @@ export function WinsView({
   const totalPages = Math.max(1, Math.ceil(count / 50))
   const activeFilters = [
     filters.category,
-    filters.confidence,
-    filters.clientId,
-    filters.state,
+    filters.confidences.length,
+    filters.clientIds.length,
+    filters.states.length,
+    filters.portfolioSizes.length,
+    filters.bedrooms.length,
     filters.hasChat,
     filters.search,
   ].filter(Boolean).length
@@ -286,53 +308,55 @@ export function WinsView({
           />
         </div>
 
-        <Select
-          value={filters.clientId ?? "all"}
-          onValueChange={(v) => setParams({ client: v === "all" ? null : v })}
-        >
-          <SelectTrigger className="w-52" aria-label="Filter by client">
-            <SelectValue placeholder="All clients" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All clients</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="All clients"
+          title="Clients"
+          icon={Building2}
+          searchable
+          searchPlaceholder="Search clients…"
+          emptyLabel="No clients found."
+          options={clients.map((c) => ({ value: c.id, label: c.name }))}
+          selected={filters.clientIds}
+          onChange={(v) => setParams({ client: listParam(v) })}
+          className="w-52"
+          contentClassName="w-[260px]"
+        />
 
-        <Select
-          value={filters.confidence ?? "all"}
-          onValueChange={(v) => setParams({ confidence: v === "all" ? null : v })}
-        >
-          <SelectTrigger className="w-40" aria-label="Filter by confidence">
-            <SelectValue placeholder="Confidence" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any confidence</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="Any confidence"
+          title="Confidence"
+          options={CONFIDENCE_OPTIONS}
+          selected={filters.confidences}
+          onChange={(v) => setParams({ confidence: listParam(v) })}
+          className="w-40"
+        />
 
-        <Select
-          value={filters.state ?? "all"}
-          onValueChange={(v) => setParams({ state: v === "all" ? null : v })}
-        >
-          <SelectTrigger className="w-40" aria-label="Filter by status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="in_review">In review</SelectItem>
-            <SelectItem value="shared_manually">Shared manually</SelectItem>
-            <SelectItem value="dismissed">Dismissed</SelectItem>
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="Any status"
+          title="Status"
+          options={STATE_OPTIONS}
+          selected={filters.states}
+          onChange={(v) => setParams({ state: listParam(v) })}
+          className="w-40"
+        />
+
+        <MultiSelectFilter
+          placeholder="Any portfolio size"
+          title="Portfolio"
+          options={PORTFOLIO_SIZE_BUCKETS.map((b) => ({ value: b.value, label: b.label }))}
+          selected={filters.portfolioSizes}
+          onChange={(v) => setParams({ size: listParam(v) })}
+          className="w-44"
+        />
+
+        <MultiSelectFilter
+          placeholder="Any bedrooms"
+          title="Bedrooms"
+          options={BEDROOM_BUCKETS.map((b) => ({ value: b.value, label: b.label }))}
+          selected={filters.bedrooms}
+          onChange={(v) => setParams({ beds: listParam(v) })}
+          className="w-40"
+        />
 
         <Select
           value={filters.hasChat ?? "all"}
@@ -369,6 +393,8 @@ export function WinsView({
                 confidence: null,
                 client: null,
                 state: null,
+                size: null,
+                beds: null,
                 chat: null,
                 q: null,
               })

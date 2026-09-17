@@ -21,6 +21,14 @@ import {
   type WinReviewState,
   type WinsRules,
 } from "@/lib/wins"
+import {
+  BEDROOM_BUCKETS,
+  PORTFOLIO_SIZE_BUCKETS,
+  bucketFor,
+  rangeOrFilter,
+  type BedroomBucket,
+  type PortfolioSizeBucket,
+} from "@/lib/wins-filters"
 
 const RUN_SELECT =
   "id, as_of_date, period_start, period_end, rules_version, report_run_id, reservations_fetched_at, reservations_max_booked_date, status, candidate_count, currency, error_reason, completed_at"
@@ -43,11 +51,17 @@ export async function getLatestWinsRun(
   return (data as WinDetectionRun) ?? null
 }
 
+// List filters are multi-select: an empty array means "no filter", values
+// within one filter OR together, filters AND together.
 export type WinsFilters = {
   category?: WinCategory | null
-  confidence?: WinConfidence | null
-  clientId?: string | null
-  state?: WinReviewState | null
+  confidences?: WinConfidence[]
+  clientIds?: string[]
+  states?: WinReviewState[]
+  // Buckets of active listings per client (see lib/wins-filters)
+  portfolioSizes?: PortfolioSizeBucket[]
+  // Buckets of listings.pl_no_of_bedrooms
+  bedrooms?: BedroomBucket[]
   hasChat?: "yes" | "no" | null
   readyOnly?: boolean
   search?: string | null
@@ -77,10 +91,38 @@ export async function getWinsPage(
   const page = Math.max(1, filters.page ?? 1)
   const from = (page - 1) * WINS_PAGE_SIZE
 
+  // Bedrooms live on listings, so that filter joins through the hub_listing_id
+  // FK with an inner embed; the filter itself is applied on the embedded table.
+  const bedroomsFilter = rangeOrFilter(
+    "pl_no_of_bedrooms",
+    BEDROOM_BUCKETS,
+    filters.bedrooms ?? []
+  )
+  const select = bedroomsFilter
+    ? `${CANDIDATE_SELECT}, listings!inner(pl_no_of_bedrooms)`
+    : CANDIDATE_SELECT
+
   let query = supabase
     .from("win_candidates")
-    .select(CANDIDATE_SELECT, { count: "exact" })
+    .select(select, { count: "exact" })
     .eq("run_id", runId)
+
+  if (bedroomsFilter) {
+    query = query.or(bedroomsFilter, { referencedTable: "listings" })
+  }
+  if (filters.portfolioSizes?.length) {
+    // Portfolio size is derived (count of active listings per client), so the
+    // matching client ids are resolved first and pushed down as an IN list.
+    const sizes = await getClientPortfolioSizes(supabase)
+    const wanted = new Set<string>(filters.portfolioSizes)
+    const clientIds = [...sizes.entries()]
+      .filter(([, n]) => {
+        const bucket = bucketFor(PORTFOLIO_SIZE_BUCKETS, n)
+        return bucket !== null && wanted.has(bucket)
+      })
+      .map(([id]) => id)
+    query = query.in("client_id", clientIds)
+  }
 
   if (filters.readyOnly) {
     // The default queue: real wins, unblocked. Confidence and review state are
@@ -89,8 +131,8 @@ export async function getWinsPage(
   } else if (filters.category) {
     query = query.eq("category", filters.category)
   }
-  if (filters.confidence) query = query.eq("confidence", filters.confidence)
-  if (filters.clientId) query = query.eq("client_id", filters.clientId)
+  if (filters.confidences?.length) query = query.in("confidence", filters.confidences)
+  if (filters.clientIds?.length) query = query.in("client_id", filters.clientIds)
   if (filters.search) {
     const term = `%${filters.search.replace(/[%_]/g, "")}%`
     query = query.or(
@@ -102,7 +144,16 @@ export async function getWinsPage(
     .order("priority_rank", { ascending: true })
     .range(from, from + WINS_PAGE_SIZE - 1)
 
-  const candidates = (data ?? []) as WinCandidate[]
+  // Drop the embed used only for filtering so rows keep the WinCandidate
+  // shape. The cast goes through unknown because the select string is dynamic
+  // and the supabase-js type parser cannot follow it.
+  const candidates = (
+    (data ?? []) as unknown as Array<WinCandidate & { listings?: unknown }>
+  ).map((row) => {
+    const c = { ...row }
+    delete c.listings
+    return c as WinCandidate
+  })
   const reviews = await getReviewStates(
     supabase,
     candidates.map((c) => c.hub_listing_id).filter((id): id is string => Boolean(id))
@@ -113,7 +164,10 @@ export async function getWinsPage(
     review_state: (c.hub_listing_id ? reviews.get(c.hub_listing_id) : undefined) ?? "new",
   }))
 
-  if (filters.state) merged = merged.filter((c) => c.review_state === filters.state)
+  if (filters.states?.length) {
+    const states = filters.states
+    merged = merged.filter((c) => states.includes(c.review_state))
+  }
   if (filters.readyOnly) {
     merged = merged.filter(
       (c) =>
@@ -270,6 +324,29 @@ export async function getLatestDraft(
     .limit(1)
     .maybeSingle()
   return (data as WinDraftRow) ?? null
+}
+
+/**
+ * Active listings per client, for the portfolio-size filter. Active excludes
+ * `test` and inactive listings, which is the intended reading of "how many
+ * properties does this client have".
+ */
+export async function getClientPortfolioSizes(
+  supabase: SupabaseClient
+): Promise<Map<string, number>> {
+  const { data } = await supabase
+    .from("listings")
+    .select("client_id")
+    .eq("status", "active")
+    .not("client_id", "is", null)
+    .limit(10000)
+
+  const counts = new Map<string, number>()
+  for (const row of data ?? []) {
+    const id = row.client_id as string
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
 }
 
 /** Client options for the filter dropdown, from the RLS-safe minimal view. */

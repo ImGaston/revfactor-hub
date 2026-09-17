@@ -4,6 +4,11 @@ import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { buildAssemblyDeepLink, type WinCategory, type WinConfidence, type WinReviewState } from "@/lib/wins"
 import {
+  BEDROOM_BUCKETS,
+  PORTFOLIO_SIZE_BUCKETS,
+  parseAllowedList,
+} from "@/lib/wins-filters"
+import {
   getClientChatTargets,
   getLatestWinsRun,
   getWinClientOptions,
@@ -25,6 +30,8 @@ const CATEGORIES: WinCategory[] = [
 ]
 const CONFIDENCES: WinConfidence[] = ["high", "medium", "low", "none"]
 const STATES: WinReviewState[] = ["new", "in_review", "shared_manually", "dismissed", "snoozed"]
+const PORTFOLIO_SIZES = PORTFOLIO_SIZE_BUCKETS.map((b) => b.value)
+const BEDROOMS = BEDROOM_BUCKETS.map((b) => b.value)
 
 export default async function WinsPage({
   searchParams,
@@ -42,11 +49,12 @@ export default async function WinsPage({
   const category = CATEGORIES.includes(sp.category as WinCategory)
     ? (sp.category as WinCategory)
     : null
-  const confidence = CONFIDENCES.includes(sp.confidence as WinConfidence)
-    ? (sp.confidence as WinConfidence)
-    : null
-  const state = STATES.includes(sp.state as WinReviewState) ? (sp.state as WinReviewState) : null
-  const clientId = sp.client && UUID_RE.test(sp.client) ? sp.client : null
+  // Multi-value filters travel as comma-separated lists.
+  const confidences = parseAllowedList(sp.confidence, CONFIDENCES)
+  const states = parseAllowedList(sp.state, STATES)
+  const clientIds = [...new Set((sp.client ?? "").split(","))].filter((v) => UUID_RE.test(v))
+  const portfolioSizes = parseAllowedList(sp.size, PORTFOLIO_SIZES)
+  const bedrooms = parseAllowedList(sp.beds, BEDROOMS)
   const hasChat = sp.chat === "yes" || sp.chat === "no" ? sp.chat : null
   const search = sp.q?.trim() || null
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1)
@@ -69,7 +77,17 @@ export default async function WinsPage({
         count={0}
         page={1}
         clients={[]}
-        filters={{ category, confidence, clientId, state, hasChat, search, readyOnly }}
+        filters={{
+          category,
+          confidences,
+          clientIds,
+          states,
+          portfolioSizes,
+          bedrooms,
+          hasChat,
+          search,
+          readyOnly,
+        }}
         canEdit={canEdit}
         canControl={canControl}
       />
@@ -79,9 +97,11 @@ export default async function WinsPage({
   const [pageResult, summary, clients] = await Promise.all([
     getWinsPage(supabase, run.id, {
       category,
-      confidence,
-      clientId,
-      state,
+      confidences,
+      clientIds,
+      states,
+      portfolioSizes,
+      bedrooms,
       search,
       readyOnly,
       page,
@@ -120,7 +140,17 @@ export default async function WinsPage({
       count={pageResult.count}
       page={pageResult.page}
       clients={clients}
-      filters={{ category, confidence, clientId, state, hasChat, search, readyOnly }}
+      filters={{
+          category,
+          confidences,
+          clientIds,
+          states,
+          portfolioSizes,
+          bedrooms,
+          hasChat,
+          search,
+          readyOnly,
+        }}
       canEdit={canEdit}
       canControl={canControl}
     />

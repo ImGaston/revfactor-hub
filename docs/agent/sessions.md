@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-17 — Wins: multi-select filters plus portfolio-size and bedrooms filters
+
+Client, confidence and status filters on `/wins` now take several values each (comma-separated URL params, parsed against allowlists in `page.tsx` via `parseAllowedList`). Two new derived filters: **Portfolio** (active listings per client, buckets 1 / 2–3 / 4–9 / 10+, resolved in `getClientPortfolioSizes` and applied as a `client_id IN` list) and **Bedrooms** (`listings.pl_no_of_bedrooms`, buckets 0–1 / 2 / 3 / 4 / 5 / 6+, applied as an `or=` filter on a `listings!inner` embed — the select string becomes dynamic, hence the `unknown` cast). `WinsFilters` in `lib/wins-queries.ts` switched from single values to arrays (`confidences`, `clientIds`, `states`, `portfolioSizes`, `bedrooms`). Pure helpers and buckets in `lib/wins-filters.ts` with unit tests. UI reuses `MultiSelectFilter`; the Assembly-chat select stays single. Verified against production data: `beds=6+` → 36, `size=10+` → 87, `beds=2,3&confidence=high,medium&size=1,2-3` → 14, all matching direct SQL.
+
 ## 2026-09-17 — Multi-select filters on the Adjustments queue
 
 Client, origin, type, urgency and created-by filters in `adjustments-view.tsx` now accept several values each (state is `string[]`, empty = no filter; OR within a filter, AND across filters). Extracted a reusable `components/filters/multi-select-filter.tsx` (`MultiSelectFilter`): combobox trigger that shows the placeholder, the single selected label, or `Title · N` badge; Popover + Command checklist with counts, optional search, and a force-mounted Clear action so it survives a typed search term. The old single-value `Select`s and the bespoke client combobox were removed. Verified in the browser: Client + HostPricing origins → 51 of 218, plus two clients → 5 of 218, Clear resets.
