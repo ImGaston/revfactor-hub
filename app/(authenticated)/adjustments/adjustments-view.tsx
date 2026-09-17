@@ -9,7 +9,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  ChevronsUpDown,
   ClipboardCopy,
   Copy,
   ExternalLink,
@@ -36,14 +35,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -62,18 +53,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   Table,
   TableBody,
   TableCell,
@@ -82,7 +61,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { cn } from "@/lib/utils"
+import { MultiSelectFilter } from "@/components/filters/multi-select-filter"
 import type { Adjustment, AdjustmentStatus } from "@/lib/types"
 import {
   ADJUSTMENT_ORIGINS,
@@ -161,12 +140,12 @@ export function AdjustmentsView({
   const [editTarget, setEditTarget] = useState<Adjustment | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Adjustment | null>(null)
   const [search, setSearch] = useState("")
-  const [clientFilter, setClientFilter] = useState("all")
-  const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
-  const [originFilter, setOriginFilter] = useState("all")
-  const [typeFilter, setTypeFilter] = useState("all")
-  const [urgencyFilter, setUrgencyFilter] = useState("all")
-  const [creatorFilter, setCreatorFilter] = useState("all")
+  // Each filter is a multi-select; an empty array means "no filter".
+  const [clientFilter, setClientFilter] = useState<string[]>([])
+  const [originFilter, setOriginFilter] = useState<string[]>([])
+  const [typeFilter, setTypeFilter] = useState<string[]>([])
+  const [urgencyFilter, setUrgencyFilter] = useState<string[]>([])
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([])
   const [noteTarget, setNoteTarget] = useState<{
     adjustment: Adjustment
     status: AdjustmentStatus
@@ -228,30 +207,33 @@ export function AdjustmentsView({
   }, [adjustments])
 
   const activeFilters =
-    (clientFilter !== "all" ? 1 : 0) +
-    (originFilter !== "all" ? 1 : 0) +
-    (typeFilter !== "all" ? 1 : 0) +
-    (urgencyFilter !== "all" ? 1 : 0) +
-    (creatorFilter !== "all" ? 1 : 0) +
+    (clientFilter.length ? 1 : 0) +
+    (originFilter.length ? 1 : 0) +
+    (typeFilter.length ? 1 : 0) +
+    (urgencyFilter.length ? 1 : 0) +
+    (creatorFilter.length ? 1 : 0) +
     (search.trim() ? 1 : 0)
 
   function clearFilters() {
     setSearch("")
-    setClientFilter("all")
-    setOriginFilter("all")
-    setTypeFilter("all")
-    setUrgencyFilter("all")
-    setCreatorFilter("all")
+    setClientFilter([])
+    setOriginFilter([])
+    setTypeFilter([])
+    setUrgencyFilter([])
+    setCreatorFilter([])
   }
 
   const { visible, waitingOnUs, triage, awaitingControl, closed } = useMemo(() => {
     const q = search.trim().toLowerCase()
+    // Values within one filter are OR'd; filters are AND'd together.
+    const matches = (selected: string[], value: string | null | undefined) =>
+      selected.length === 0 || (value != null && selected.includes(value))
     const visible = adjustments.filter((a) => {
-      if (clientFilter !== "all" && a.client_id !== clientFilter) return false
-      if (originFilter !== "all" && a.origin !== originFilter) return false
-      if (typeFilter !== "all" && a.type !== typeFilter) return false
-      if (urgencyFilter !== "all" && a.urgency !== urgencyFilter) return false
-      if (creatorFilter !== "all" && a.created_by !== creatorFilter) return false
+      if (!matches(clientFilter, a.client_id)) return false
+      if (!matches(originFilter, a.origin)) return false
+      if (!matches(typeFilter, a.type)) return false
+      if (!matches(urgencyFilter, a.urgency)) return false
+      if (!matches(creatorFilter, a.created_by)) return false
       if (!q) return true
       const haystack = [
         adjustmentTypeLabel(a.type),
@@ -376,134 +358,76 @@ export function AdjustmentsView({
           />
         </div>
 
-        {/* Client combobox (searchable — the client list is long) */}
-        <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={clientPopoverOpen}
-              className="w-[200px] justify-between font-normal"
-            >
-              <div className="flex items-center gap-2 truncate">
-                <Building2 className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">
-                  {clientFilter !== "all"
-                    ? clientOptions.find((c) => c.id === clientFilter)?.name ??
-                      "All clients"
-                    : "All clients"}
-                </span>
-              </div>
-              <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[260px] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search clients…" />
-              <CommandList>
-                <CommandEmpty>No clients found.</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => {
-                      setClientFilter("all")
-                      setClientPopoverOpen(false)
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-3.5",
-                        clientFilter === "all" ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    All clients
-                  </CommandItem>
-                  {clientOptions.map((c) => (
-                    <CommandItem
-                      key={c.id}
-                      value={c.name}
-                      onSelect={() => {
-                        setClientFilter(c.id)
-                        setClientPopoverOpen(false)
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 size-3.5",
-                          clientFilter === c.id ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      <span className="truncate">{c.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {c.count}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+        {/* Client filter is searchable — the client list is long */}
+        <MultiSelectFilter
+          placeholder="All clients"
+          title="Clients"
+          icon={Building2}
+          searchable
+          searchPlaceholder="Search clients…"
+          emptyLabel="No clients found."
+          options={clientOptions.map((c) => ({
+            value: c.id,
+            label: c.name,
+            count: c.count,
+          }))}
+          selected={clientFilter}
+          onChange={setClientFilter}
+          className="w-[200px]"
+          contentClassName="w-[260px]"
+        />
 
-        <Select value={originFilter} onValueChange={setOriginFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="All origins" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All origins</SelectItem>
-            {originOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-                <span className="ml-1 text-xs text-muted-foreground">({o.count})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="All origins"
+          title="Origins"
+          options={originOptions.map((o) => ({
+            value: o.value,
+            label: o.label,
+            count: o.count,
+          }))}
+          selected={originFilter}
+          onChange={setOriginFilter}
+          className="w-[150px]"
+        />
 
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="All types" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            {typeOptions.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-                <span className="ml-1 text-xs text-muted-foreground">({t.count})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="All types"
+          title="Types"
+          options={typeOptions.map((t) => ({
+            value: t.value,
+            label: t.label,
+            count: t.count,
+          }))}
+          selected={typeFilter}
+          onChange={setTypeFilter}
+          className="w-[170px]"
+        />
 
-        <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All urgencies" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All urgencies</SelectItem>
-            {urgencyOptions.map((u) => (
-              <SelectItem key={u.value} value={u.value}>
-                {u.label}
-                <span className="ml-1 text-xs text-muted-foreground">({u.count})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="All urgencies"
+          title="Urgencies"
+          options={urgencyOptions.map((u) => ({
+            value: u.value,
+            label: u.label,
+            count: u.count,
+          }))}
+          selected={urgencyFilter}
+          onChange={setUrgencyFilter}
+          className="w-[140px]"
+        />
 
-        <Select value={creatorFilter} onValueChange={setCreatorFilter}>
-          <SelectTrigger className="w-[170px]">
-            <SelectValue placeholder="Created by anyone" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Created by anyone</SelectItem>
-            {creatorOptions.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-                <span className="ml-1 text-xs text-muted-foreground">({c.count})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelectFilter
+          placeholder="Created by anyone"
+          title="Creators"
+          options={creatorOptions.map((c) => ({
+            value: c.id,
+            label: c.name,
+            count: c.count,
+          }))}
+          selected={creatorFilter}
+          onChange={setCreatorFilter}
+          className="w-[170px]"
+        />
 
         {activeFilters > 0 && (
           <button

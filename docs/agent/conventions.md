@@ -81,6 +81,7 @@
 - Forms use shadcn Form, react-hook-form, and zod validation when the local pattern exists.
 - Loading states use shadcn `Skeleton`.
 - Destructive actions require `AlertDialog` confirmation.
+- List filters that pick from a set of values use `components/filters/multi-select-filter.tsx` (`MultiSelectFilter`): Popover + Command checklist, empty `selected` = no filter, values within a filter OR together and filters AND together, options carry row counts, `searchable` for long lists (clients). The Adjustments queue uses it for client/origin/type/urgency/creator (2026-09-17); prefer it over a single-value `Select` for new list filters.
 - Never make `DialogContent` the scroll container. `glass-chrome` paints the dialog background in an absolute `::before` sized to the visible box, so `overflow-y-auto` on `DialogContent` leaves scrolled content over the bare overlay. Use `flex max-h-[85vh] flex-col` on `DialogContent` and scroll an inner `<div className="flex min-h-0 flex-col gap-6 overflow-y-auto">` after `DialogHeader` (bit the Financials review modal, 2026-09-11).
 - Inline editing follows the `+Add` -> input with save/cancel pattern.
 - Collapsible sections default hidden with `useState(false)` and ChevronRight/ChevronDown toggles.

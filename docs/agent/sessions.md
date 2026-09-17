@@ -1,5 +1,13 @@
 # Sessions — RevFactor Hub
 
+## 2026-09-17 — Multi-select filters on the Adjustments queue
+
+Client, origin, type, urgency and created-by filters in `adjustments-view.tsx` now accept several values each (state is `string[]`, empty = no filter; OR within a filter, AND across filters). Extracted a reusable `components/filters/multi-select-filter.tsx` (`MultiSelectFilter`): combobox trigger that shows the placeholder, the single selected label, or `Title · N` badge; Popover + Command checklist with counts, optional search, and a force-mounted Clear action so it survives a typed search term. The old single-value `Select`s and the bespoke client combobox were removed. Verified in the browser: Client + HostPricing origins → 51 of 218, plus two clients → 5 of 218, Clear resets.
+
+## 2026-09-17 — Adjustments detail modal: glass surface ended before the modal bottom
+
+The intercepted `/adjustments/[id]` modal put `overflow-y-auto` on `DialogContent`, so the `glass-chrome` `::before` (sized to the visible box) scrolled away with the content and the bottom of the modal showed the bare overlay. `adjustment-detail-modal.tsx` now keeps `DialogContent` unscrolled (`flex max-h-[90vh] flex-col overflow-hidden p-0`) and scrolls an inner `min-h-0 flex-1 overflow-y-auto p-6` wrapper, per the existing rule in `conventions.md`. Verified in the browser (scrolled to the bottom, surface reaches the rounded edge). Tasks and Roadmap dialogs already followed the pattern.
+
 ## 2026-09-10 — `agent` origin for Adjustments
 
 Added a fourth adjustment origin `agent` (label "Agent", sky badge) for tickets filed by an AI agent. Timestamp migration `20260910130000_adjustments_agent_origin.sql` widens `adjustments_origin_check` (applied to production via Supabase MCP). `AdjustmentOrigin` type, `ADJUSTMENT_ORIGINS`, and `ORIGIN_BADGE` updated in `lib`; the create/edit dialog picks it up from the shared list. Comment origins are unchanged (still derived from the author role). No queue/escalation logic keys on `agent`. Backfilled 14 existing agent-filed rows (RF-AUTO-002 / Seasons apply-now pricing_flexibility tickets, identified by `created_by IS NULL` + `signals ? 'candidate_id'`) from `internal` to `agent` in production; the two creator-less Federico setup tickets were left as `internal`. Follow-up: `20260910140000_adjustment_type_settings_agent.sql` (applied to production) adds `agent_enabled` to `adjustment_type_settings`; Settings > Adjustment Types gained an Agent column (sky), `adjustmentTypeOptions` now takes an `AdjustmentTypeGroup` instead of a boolean, and the create/edit dialog filters types by the Agent column when origin is Agent (clearing a type the group hides).
