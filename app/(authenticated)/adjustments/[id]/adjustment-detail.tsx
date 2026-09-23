@@ -45,12 +45,12 @@ import {
   adjustmentStatusLabel,
   adjustmentStatusLabelFor,
   adjustmentTypeLabel,
-  airbnbMulticalendarUrl,
   buildWhatsappCommentUpdate,
   buildWhatsappUpdate,
   isEscalated,
-  pricelabsUrl,
 } from "@/lib/adjustments"
+import { pricelabsUrl } from "@/lib/listing-links"
+import { AirbnbCalendarButton } from "@/components/listings/airbnb-calendar-button"
 import {
   addAdjustmentComment,
   createTaskFromAdjustmentComment,
@@ -141,7 +141,6 @@ export function AdjustmentDetail({
 
   const listing = adjustment.scope === "single_listing" ? adjustment.listings : null
   const plUrl = listing ? pricelabsUrl(listing) : null
-  const abnbUrl = listing ? airbnbMulticalendarUrl(listing) : null
   const resolver = resolveProfile(adjustment.resolver)
   const reviewer = resolveProfile(adjustment.reviewer)
   const creator = resolveProfile(adjustment.creator)
@@ -334,14 +333,7 @@ export function AdjustmentDetail({
               </a>
             </Button>
           )}
-          {abnbUrl && (
-            <Button asChild variant="outline" size="sm">
-              <a href={abnbUrl} target="_blank" rel="noopener noreferrer">
-                <ExternalLink />
-                Airbnb calendar
-              </a>
-            </Button>
-          )}
+          {listing && <AirbnbCalendarButton listing={listing} />}
           <Button size="sm" variant="ghost" onClick={copyLink}>
             <ClipboardCopy />
             Copy link

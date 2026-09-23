@@ -37,11 +37,11 @@ import {
   adjustmentShareUrl,
   adjustmentStatusLabel,
   adjustmentTypeLabel,
-  airbnbMulticalendarUrl,
   buildWhatsappUpdate,
   isEscalated,
-  pricelabsUrl,
 } from "@/lib/adjustments"
+import { airbnbCalendarUrl, pricelabsUrl } from "@/lib/listing-links"
+import { AirbnbCalendarButton } from "@/components/listings/airbnb-calendar-button"
 import { resolveProfile } from "@/lib/types"
 import { AdjustmentSignals } from "@/components/adjustments/adjustment-signals"
 import {
@@ -82,7 +82,7 @@ export function AdjustmentShell({
 }) {
   const listing = adjustment.scope === "single_listing" ? adjustment.listings : null
   const plUrl = listing ? pricelabsUrl(listing) : null
-  const abnbUrl = listing ? airbnbMulticalendarUrl(listing) : null
+  const abnbUrl = listing ? airbnbCalendarUrl(listing) : null
   const dateFrom = formatDate(adjustment.date_from)
   const dateTo = formatDate(adjustment.date_to)
 
@@ -149,14 +149,7 @@ export function AdjustmentShell({
                 </a>
               </Button>
             )}
-            {abnbUrl && (
-              <Button asChild variant="outline" size="sm">
-                <a href={abnbUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink />
-                  Airbnb calendar
-                </a>
-              </Button>
-            )}
+            {listing && <AirbnbCalendarButton listing={listing} />}
           </div>
         )}
 

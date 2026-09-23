@@ -9,9 +9,9 @@ import { hasPermission } from "@/lib/permissions.server"
 import {
   adjustmentStatusLabel,
   adjustmentSummary,
-  airbnbRoomUrl,
   type AdjustmentSummaryFields,
 } from "@/lib/adjustments"
+import { airbnbRoomUrl } from "@/lib/listing-links"
 import { getAirbnbOgImage } from "@/lib/airbnb-og.server"
 import type { Adjustment, AdjustmentComment } from "@/lib/types"
 import { Button } from "@/components/ui/button"

@@ -31,7 +31,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
-import { extractAirbnbId } from "@/components/listings/listing-form-fields"
+import { AirbnbCalendarButton } from "@/components/listings/airbnb-calendar-button"
+import { airbnbEditorUrl } from "@/lib/listing-links"
 import type { ListingReport, ListingWithMetrics } from "@/lib/types"
 import {
   ReportOverview,
@@ -197,12 +198,7 @@ export function ListingDetail({
   const hasPLData = listing.pl_synced_at != null
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
-  // Numeric Airbnb ID for the host-side calendar/editor deep links. Note that
-  // listing_id is the PriceLabs ID; the Airbnb ID only lives in airbnb_link.
-  const airbnbIdCandidate = listing.airbnb_link
-    ? extractAirbnbId(listing.airbnb_link)
-    : ""
-  const airbnbId = /^\d+$/.test(airbnbIdCandidate) ? airbnbIdCandidate : null
+  const editorUrl = airbnbEditorUrl(listing)
 
   const currentSubscription = currentSubscriptionId
     ? subscriptionOptions.find((s) => s.id === currentSubscriptionId) ?? null
@@ -272,22 +268,11 @@ export function ListingDetail({
               </a>
             </Button>
           )}
-          {airbnbId && (
+          <AirbnbCalendarButton listing={listing} />
+          {editorUrl && (
             <Button variant="outline" size="sm" asChild>
               <a
-                href={`https://www.airbnb.com/multicalendar/${airbnbId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="size-3.5 mr-1.5" />
-                Calendar
-              </a>
-            </Button>
-          )}
-          {airbnbId && (
-            <Button variant="outline" size="sm" asChild>
-              <a
-                href={`https://www.airbnb.com/hosting/listings/editor/${airbnbId}/details/photo-tour`}
+                href={editorUrl}
                 target="_blank"
                 rel="noopener noreferrer"
               >

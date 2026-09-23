@@ -233,7 +233,7 @@ older         = adjusted_occupancy_pct − (the three pickups)   (30+ days ago)
 
 ## Airbnb OG Image (Adjustments share card)
 
-The public share page `/a/[token]` uses the Airbnb listing photo as its `og:image` for single-listing adjustments (WhatsApp previews). Implementation: `lib/airbnb-og.server.ts` + `airbnbRoomUrl()` in `lib/adjustments.ts`, wired in `generateMetadata` of `app/a/[token]/page.tsx`.
+The public share page `/a/[token]` uses the Airbnb listing photo as its `og:image` for single-listing adjustments (WhatsApp previews). Implementation: `lib/airbnb-og.server.ts` + `airbnbRoomUrl()` in `lib/listing-links.ts`, wired in `generateMetadata` of `app/a/[token]/page.tsx`.
 
 - Airbnb serves OG tags only to browser user agents — the fetch must send a Chrome-like `User-Agent`; a default server UA gets a bot wall.
 - The room page HTML (~700 KB) is cached via Next data cache (`next: { revalidate: 86400 }`, under Vercel's 2 MB per-entry limit); the extracted URL is not persisted in the DB.

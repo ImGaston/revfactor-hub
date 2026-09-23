@@ -538,34 +538,6 @@ export function hasUnansweredExternalComment(
 // An open high-urgency adjustment older than this gets flagged in the queue
 export const STALE_HIGH_URGENCY_DAYS = 2
 
-type ListingLinkFields = {
-  listing_id: string | null
-  pricelabs_link: string | null
-  airbnb_link: string | null
-}
-
-export function pricelabsUrl(listing: ListingLinkFields): string | null {
-  if (listing.pricelabs_link) return listing.pricelabs_link
-  if (listing.listing_id)
-    return `https://app.pricelabs.co/pricing?listings=${listing.listing_id}`
-  return null
-}
-
-export function airbnbMulticalendarUrl(listing: ListingLinkFields): string | null {
-  // The unified PriceLabs / Listing ID field holds the numeric Airbnb ID
-  if (listing.listing_id && /^\d+$/.test(listing.listing_id))
-    return `https://www.airbnb.com/multicalendar/${listing.listing_id}`
-  const match = listing.airbnb_link?.match(/\/rooms\/(\d+)/)
-  return match ? `https://www.airbnb.com/multicalendar/${match[1]}` : null
-}
-
-export function airbnbRoomUrl(listing: ListingLinkFields): string | null {
-  if (listing.airbnb_link) return listing.airbnb_link
-  if (listing.listing_id && /^\d+$/.test(listing.listing_id))
-    return `https://www.airbnb.com/rooms/${listing.listing_id}`
-  return null
-}
-
 export function adjustmentShareUrl(publicToken: string): string {
   const base =
     typeof window !== "undefined"

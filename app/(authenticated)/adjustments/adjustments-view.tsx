@@ -85,8 +85,8 @@ import {
   hasUnansweredExternalComment,
   isEscalated,
   isPendingApproval,
-  pricelabsUrl,
 } from "@/lib/adjustments"
+import { pricelabsUrl } from "@/lib/listing-links"
 import {
   deleteAdjustment,
   duplicateAdjustment,
