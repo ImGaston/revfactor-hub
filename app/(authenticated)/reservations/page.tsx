@@ -32,6 +32,9 @@ export default async function ReservationsPage({
   const sp = await searchParams
   const clientId = UUID_RE.test(sp.client ?? "") ? sp.client : undefined
   const listingId = UUID_RE.test(sp.listing ?? "") ? sp.listing : undefined
+  // xclient/xlisting=1 flip the client/listing filter to "all except".
+  const excludeClient = Boolean(clientId) && sp.xclient === "1"
+  const excludeListing = Boolean(listingId) && sp.xlisting === "1"
   // A relative range preset (?range=last30) wins over absolute from/to and
   // resolves at request time, so saved views carrying one never go stale.
   const range = isDateRangePresetKey(sp.range) ? sp.range : undefined
@@ -65,7 +68,9 @@ export default async function ReservationsPage({
     await Promise.all([
       getReservationsPage(supabase, {
         clientId,
+        excludeClient,
         listingId,
+        excludeListing,
         dateField,
         from,
         to,
@@ -77,7 +82,9 @@ export default async function ReservationsPage({
       }),
       getReservationsStats(supabase, {
         clientId,
+        excludeClient,
         listingId,
+        excludeListing,
         dateField: hasRange ? dateField : "booked",
         from: statsFrom,
         to: hasRange ? to : undefined,
@@ -102,7 +109,9 @@ export default async function ReservationsPage({
       statsScope={statsScope}
       filters={{
         clientId,
+        clientExclude: excludeClient,
         listingId,
+        listingExclude: excludeListing,
         dateField,
         range,
         // With a preset active the absolute dates are derived, not state —

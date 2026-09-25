@@ -130,7 +130,9 @@ export async function getAllReservationsByClient(
 
 export type ReservationsPageParams = {
   clientId?: string
+  excludeClient?: boolean // true → everything except clientId
   listingId?: string // hub listing UUID (listings.id)
+  excludeListing?: boolean // true → everything except listingId
   dateField?: ReservationDateField // which column from/to apply to; default checkin
   from?: string // dateField >= from (YYYY-MM-DD)
   to?: string // dateField <= to (YYYY-MM-DD)
@@ -155,8 +157,28 @@ function applyReservationFilters(
   params: Omit<ReservationsPageParams, "page" | "pageSize">
 ): void {
   query.eq("booking_status", "booked")
-  if (params.clientId) query.eq("client_id", params.clientId)
-  if (params.listingId) query.eq("hub_listing_id", params.listingId)
+  // Every OR group (exclusions, search) is collected and sent as a single
+  // or= param — nested as and(or(...),or(...)) when there are several —
+  // rather than relying on repeated or= query keys.
+  const orGroups: string[] = []
+  // Exclusions keep NULL rows (unmapped listings/clients): "all but X"
+  // matches SQL's IS DISTINCT FROM, not a plain neq that drops NULLs.
+  if (params.clientId) {
+    if (params.excludeClient) {
+      orGroups.push(`client_id.is.null,client_id.neq.${params.clientId}`)
+    } else {
+      query.eq("client_id", params.clientId)
+    }
+  }
+  if (params.listingId) {
+    if (params.excludeListing) {
+      orGroups.push(
+        `hub_listing_id.is.null,hub_listing_id.neq.${params.listingId}`
+      )
+    } else {
+      query.eq("hub_listing_id", params.listingId)
+    }
+  }
   const dateColumn = params.dateField === "booked" ? "booked_date" : "check_in"
   if (params.from) query.gte(dateColumn, params.from)
   if (params.to) query.lte(dateColumn, params.to)
@@ -164,9 +186,15 @@ function applyReservationFilters(
   // PostgREST's or= syntax breaks on , ( ) " — strip them before interpolating
   const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
   if (q) {
-    query.or(
+    orGroups.push(
       `listing_name.ilike.%${q}%,channel_confirmation_code.ilike.%${q}%`
     )
+  }
+
+  if (orGroups.length === 1) {
+    query.or(orGroups[0])
+  } else if (orGroups.length > 1) {
+    query.or(`and(${orGroups.map((g) => `or(${g})`).join(",")})`)
   }
 }
 
@@ -243,7 +271,9 @@ export function statsDefaultFrom(): string {
 
 export type ReservationStatsParams = {
   clientId?: string
+  excludeClient?: boolean
   listingId?: string
+  excludeListing?: boolean
   dateField: ReservationDateField
   from?: string // YYYY-MM-DD
   to?: string // YYYY-MM-DD
@@ -277,6 +307,14 @@ export async function getReservationsStats(
       p_from: params.from ?? null,
       p_to: params.to ?? null,
       p_search: q || null,
+      // Only sent when set, so the RPC stays callable against the
+      // pre-exclusion function signature (migration 077).
+      ...(params.clientId && params.excludeClient
+        ? { p_exclude_client: true }
+        : {}),
+      ...(params.listingId && params.excludeListing
+        ? { p_exclude_listing: true }
+        : {}),
     })
     .single()
   if (error) throw new Error(`Failed to fetch reservation stats: ${error.message}`)
