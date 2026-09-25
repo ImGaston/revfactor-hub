@@ -83,6 +83,18 @@ describe("sanitizeViewParams", () => {
     })
   })
 
+  it("keeps exclusion flags only alongside their client/listing", () => {
+    expect(sanitizeViewParams({ client: CLIENT, xclient: "1" })).toEqual({
+      client: CLIENT,
+      xclient: "1",
+    })
+    // no client to exclude, or a non-"1" flag → dropped
+    expect(sanitizeViewParams({ xclient: "1", xlisting: "1" })).toEqual({})
+    expect(sanitizeViewParams({ listing: CLIENT, xlisting: "true" })).toEqual({
+      listing: CLIENT,
+    })
+  })
+
   it("keeps a non-default sort with its direction", () => {
     expect(sanitizeViewParams({ sort: "rental_revenue", dir: "asc" })).toEqual({
       sort: "rental_revenue",
@@ -119,6 +131,19 @@ describe("view matching", () => {
       dir: "desc",
     })
     expect(viewMatchesParams(view, current)).toBe(false)
+  })
+
+  it("distinguishes including a client from excluding it", () => {
+    const excluding = currentViewParams({
+      clientId: CLIENT,
+      clientExclude: true,
+      dateField: "checkin",
+      range: "last30",
+      sort: "rental_revenue",
+      dir: "desc",
+    })
+    expect(excluding.xclient).toBe("1")
+    expect(viewMatchesParams(view, excluding)).toBe(false)
   })
 
   it("serializes params in a stable order", () => {

@@ -16,7 +16,9 @@ import {
 
 export type ReservationViewParams = {
   client?: string // client UUID
+  xclient?: "1" // exclude `client` instead of filtering to it
   listing?: string // hub listing UUID
+  xlisting?: "1" // exclude `listing` instead of filtering to it
   df?: ReservationDateField // only stored when "booked" (checkin is the default)
   range?: DateRangePresetKey // relative range; wins over from/to
   from?: string // YYYY-MM-DD
@@ -52,9 +54,15 @@ export function sanitizeViewParams(input: unknown): ReservationViewParams | null
 
   const params: ReservationViewParams = {}
   const client = str("client")
-  if (client && UUID_RE.test(client)) params.client = client
+  if (client && UUID_RE.test(client)) {
+    params.client = client
+    if (str("xclient") === "1") params.xclient = "1"
+  }
   const listing = str("listing")
-  if (listing && UUID_RE.test(listing)) params.listing = listing
+  if (listing && UUID_RE.test(listing)) {
+    params.listing = listing
+    if (str("xlisting") === "1") params.xlisting = "1"
+  }
   if (str("df") === "booked") params.df = "booked"
 
   const range = str("range")
@@ -92,7 +100,9 @@ export function viewSearchString(params: ReservationViewParams): string {
   const sp = new URLSearchParams()
   for (const key of [
     "client",
+    "xclient",
     "listing",
+    "xlisting",
     "df",
     "range",
     "from",
@@ -111,7 +121,9 @@ export function viewSearchString(params: ReservationViewParams): string {
 // saving and matching go through sanitizeViewParams like everything else.
 export function currentViewParams(filters: {
   clientId?: string
+  clientExclude?: boolean
   listingId?: string
+  listingExclude?: boolean
   dateField: ReservationDateField
   range?: string
   from?: string
@@ -123,7 +135,9 @@ export function currentViewParams(filters: {
   return (
     sanitizeViewParams({
       client: filters.clientId,
+      xclient: filters.clientExclude ? "1" : undefined,
       listing: filters.listingId,
+      xlisting: filters.listingExclude ? "1" : undefined,
       df: filters.dateField,
       range: filters.range,
       from: filters.from,

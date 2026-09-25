@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowUpDown,
+  Ban,
   BookmarkPlus,
   Building2,
   Check,
@@ -85,7 +86,9 @@ import type {
 
 type Filters = {
   clientId?: string
+  clientExclude?: boolean // true → all clients except clientId
   listingId?: string
+  listingExclude?: boolean // true → all listings except listingId
   dateField: ReservationDateField
   range?: DateRangePresetKey // relative preset; when set, from/to are derived
   from?: string
@@ -120,6 +123,37 @@ function formatCurrency(amount: number | null, currency: string | null): string 
     currency: currency ?? "USD",
     maximumFractionDigits: 0,
   })
+}
+
+// "Is / Is not" switch at the top of a filter combobox; "Is not" turns the
+// selection into an exclusion (e.g. every client except one).
+function ExcludeToggle({
+  exclude,
+  onChange,
+}: {
+  exclude: boolean
+  onChange: (exclude: boolean) => void
+}) {
+  return (
+    <div className="flex gap-1 border-b p-1.5">
+      {[
+        { value: false, label: "Is" },
+        { value: true, label: "Is not" },
+      ].map((option) => (
+        <Button
+          key={option.label}
+          type="button"
+          variant={exclude === option.value ? "secondary" : "ghost"}
+          size="sm"
+          className="h-7 flex-1 text-xs"
+          aria-pressed={exclude === option.value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  )
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
@@ -166,6 +200,10 @@ export function ReservationsView({
   const [searchInput, setSearchInput] = useState(filters.q ?? "")
   const [clientPopoverOpen, setClientPopoverOpen] = useState(false)
   const [listingPopoverOpen, setListingPopoverOpen] = useState(false)
+  // Mode picked before a client/listing is selected; once one is selected
+  // the URL (xclient/xlisting) is the source of truth.
+  const [clientExcludeDraft, setClientExcludeDraft] = useState(false)
+  const [listingExcludeDraft, setListingExcludeDraft] = useState(false)
 
   // Saved views
   const [savePopoverOpen, setSavePopoverOpen] = useState(false)
@@ -211,13 +249,32 @@ export function ReservationsView({
     return qs ? `/reservations/export?${qs}` : "/reservations/export"
   }, [searchParams])
 
-  const listingOptions = useMemo(
-    () =>
-      filters.clientId
-        ? listings.filter((l) => l.client_id === filters.clientId)
-        : listings,
-    [listings, filters.clientId]
-  )
+  const clientExclude = filters.clientId
+    ? Boolean(filters.clientExclude)
+    : clientExcludeDraft
+  const listingExclude = filters.listingId
+    ? Boolean(filters.listingExclude)
+    : listingExcludeDraft
+
+  function setClientExclude(exclude: boolean) {
+    setClientExcludeDraft(exclude)
+    // Flipping the client mode invalidates a listing picked under the old one
+    if (filters.clientId) {
+      setParams({ xclient: exclude ? "1" : null, listing: null, xlisting: null })
+    }
+  }
+
+  function setListingExclude(exclude: boolean) {
+    setListingExcludeDraft(exclude)
+    if (filters.listingId) setParams({ xlisting: exclude ? "1" : null })
+  }
+
+  const listingOptions = useMemo(() => {
+    if (!filters.clientId) return listings
+    return filters.clientExclude
+      ? listings.filter((l) => l.client_id !== filters.clientId)
+      : listings.filter((l) => l.client_id === filters.clientId)
+  }, [listings, filters.clientId, filters.clientExclude])
 
   const selectedClient = clients.find((c) => c.id === filters.clientId)
   const selectedListing = listings.find((l) => l.id === filters.listingId)
@@ -236,7 +293,9 @@ export function ReservationsView({
     setSearchInput(p.q ?? "")
     setParams({
       client: p.client ?? null,
+      xclient: p.xclient ?? null,
       listing: p.listing ?? null,
+      xlisting: p.xlisting ?? null,
       df: p.df ?? null,
       range: p.range ?? null,
       from: p.from ?? null,
@@ -471,15 +530,27 @@ export function ReservationsView({
               className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
-                <Building2 className="size-3.5 text-muted-foreground shrink-0" />
+                {selectedClient && filters.clientExclude ? (
+                  <Ban className="size-3.5 text-destructive shrink-0" />
+                ) : (
+                  <Building2 className="size-3.5 text-muted-foreground shrink-0" />
+                )}
                 <span className="truncate">
-                  {selectedClient?.name ?? "All clients"}
+                  {selectedClient
+                    ? filters.clientExclude
+                      ? `All except ${selectedClient.name}`
+                      : selectedClient.name
+                    : "All clients"}
                 </span>
               </div>
               <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[260px] p-0" align="start">
+            <ExcludeToggle
+              exclude={clientExclude}
+              onChange={setClientExclude}
+            />
             <Command>
               <CommandInput placeholder="Search clients..." />
               <CommandList>
@@ -488,7 +559,12 @@ export function ReservationsView({
                   <CommandItem
                     value="all"
                     onSelect={() => {
-                      setParams({ client: null, listing: null })
+                      setParams({
+                        client: null,
+                        xclient: null,
+                        listing: null,
+                        xlisting: null,
+                      })
                       setClientPopoverOpen(false)
                     }}
                   >
@@ -506,7 +582,12 @@ export function ReservationsView({
                       value={c.name}
                       onSelect={() => {
                         // changing client invalidates a listing filter from another client
-                        setParams({ client: c.id, listing: null })
+                        setParams({
+                          client: c.id,
+                          xclient: clientExclude ? "1" : null,
+                          listing: null,
+                          xlisting: null,
+                        })
                         setClientPopoverOpen(false)
                       }}
                     >
@@ -537,15 +618,27 @@ export function ReservationsView({
               className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
-                <Home className="size-3.5 text-muted-foreground shrink-0" />
+                {selectedListing && filters.listingExclude ? (
+                  <Ban className="size-3.5 text-destructive shrink-0" />
+                ) : (
+                  <Home className="size-3.5 text-muted-foreground shrink-0" />
+                )}
                 <span className="truncate">
-                  {selectedListing?.name ?? "All listings"}
+                  {selectedListing
+                    ? filters.listingExclude
+                      ? `All except ${selectedListing.name}`
+                      : selectedListing.name
+                    : "All listings"}
                 </span>
               </div>
               <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[280px] p-0" align="start">
+            <ExcludeToggle
+              exclude={listingExclude}
+              onChange={setListingExclude}
+            />
             <Command>
               <CommandInput placeholder="Search listings..." />
               <CommandList>
@@ -554,7 +647,7 @@ export function ReservationsView({
                   <CommandItem
                     value="all"
                     onSelect={() => {
-                      setParams({ listing: null })
+                      setParams({ listing: null, xlisting: null })
                       setListingPopoverOpen(false)
                     }}
                   >
@@ -571,7 +664,10 @@ export function ReservationsView({
                       key={l.id}
                       value={l.name}
                       onSelect={() => {
-                        setParams({ listing: l.id })
+                        setParams({
+                          listing: l.id,
+                          xlisting: listingExclude ? "1" : null,
+                        })
                         setListingPopoverOpen(false)
                       }}
                     >
@@ -626,9 +722,13 @@ export function ReservationsView({
           <button
             onClick={() => {
               setSearchInput("")
+              setClientExcludeDraft(false)
+              setListingExcludeDraft(false)
               setParams({
                 client: null,
+                xclient: null,
                 listing: null,
+                xlisting: null,
                 df: null,
                 range: null,
                 from: null,

@@ -35,6 +35,8 @@ export async function GET(request: Request) {
   const get = (key: string) => sp.get(key) ?? undefined
   const clientId = UUID_RE.test(get("client") ?? "") ? get("client") : undefined
   const listingId = UUID_RE.test(get("listing") ?? "") ? get("listing") : undefined
+  const excludeClient = Boolean(clientId) && get("xclient") === "1"
+  const excludeListing = Boolean(listingId) && get("xlisting") === "1"
   // Same contract as the page: a relative preset wins over absolute dates.
   const range = isDateRangePresetKey(get("range")) ? get("range") : undefined
   let from = DATE_RE.test(get("from") ?? "") ? get("from") : undefined
@@ -60,7 +62,9 @@ export async function GET(request: Request) {
   try {
     const rows = await getAllReservationsFiltered(supabase, {
       clientId,
+      excludeClient,
       listingId,
+      excludeListing,
       dateField,
       from,
       to,
