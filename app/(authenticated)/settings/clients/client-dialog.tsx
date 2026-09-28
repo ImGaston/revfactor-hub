@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { CLIENT_CHURN_REASONS } from "@/lib/clients"
+import { BILLING_ENTITIES, BILLING_ENTITY_LABEL } from "@/lib/billing-entity"
 import { createClientAction, updateClientAction } from "./actions"
 
 type ClientFormData = {
@@ -38,6 +39,7 @@ type ClientFormData = {
   stripe_dashboard: string | null
   pms_name: string | null
   has_vrbo: boolean
+  billing_entity: string
   ending_reason_tags?: string[] | null
   ending_note?: string | null
 }
@@ -54,6 +56,7 @@ const EMPTY: ClientFormData = {
   stripe_dashboard: null,
   pms_name: null,
   has_vrbo: false,
+  billing_entity: "revfactor",
   ending_reason_tags: [],
   ending_note: null,
 }
@@ -100,6 +103,7 @@ export function ClientDialog({
       stripe_dashboard: form.stripe_dashboard?.trim() || null,
       pms_name: form.pms_name?.trim() || null,
       has_vrbo: form.has_vrbo,
+      billing_entity: form.billing_entity,
       // Only super_admin sees/edits churn fields; omit the keys otherwise so
       // a non-super_admin save never wipes existing values.
       ...(isSuperAdmin
@@ -179,6 +183,25 @@ export function ClientDialog({
                   <SelectItem value="test">
                     Test — internal, excluded from analyses
                   </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="billing_entity">Billed by</Label>
+              <Select
+                value={form.billing_entity}
+                onValueChange={(v) => set("billing_entity", v)}
+              >
+                <SelectTrigger id="billing_entity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BILLING_ENTITIES.map((entity) => (
+                    <SelectItem key={entity} value={entity}>
+                      {BILLING_ENTITY_LABEL[entity]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

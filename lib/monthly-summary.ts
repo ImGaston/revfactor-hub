@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { TEST_STATUS } from "@/lib/status"
+import { type BillingEntity, listingBillingEntity } from "@/lib/billing-entity"
 
 export type MonthlySummaryListing = {
   id: string
@@ -14,6 +15,7 @@ export type MonthlySummaryListing = {
   initial_setup_date: string | null
   deactivated_date: string | null
   client_name: string | null
+  billing_entity: BillingEntity
 }
 
 export type MonthlySummary = {
@@ -36,11 +38,11 @@ export async function getMonthlySummaryListings(
   supabase: SupabaseClient
 ): Promise<MonthlySummaryListing[]> {
   // clients_basic (not clients): hostpricing has no clients:view; the
-  // SECURITY DEFINER view exposes only id/name/status.
+  // SECURITY DEFINER view exposes only id/name/status/billing_entity.
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, name, status, initial_setup_date, deactivated_date, clients:clients_basic(id, name)"
+      "id, name, status, initial_setup_date, deactivated_date, clients:clients_basic(id, name, billing_entity)"
     )
     .neq("status", TEST_STATUS)
     .order("name")
@@ -48,7 +50,9 @@ export async function getMonthlySummaryListings(
   if (error) return []
 
   return (data ?? []).map((l: Record<string, unknown>) => {
-    const client = l.clients as { id: string; name: string } | null
+    const client = l.clients as
+      | { id: string; name: string; billing_entity: string | null }
+      | null
     return {
       id: l.id as string,
       name: l.name as string,
@@ -56,6 +60,7 @@ export async function getMonthlySummaryListings(
       initial_setup_date: (l.initial_setup_date as string | null) ?? null,
       deactivated_date: (l.deactivated_date as string | null) ?? null,
       client_name: client?.name ?? null,
+      billing_entity: listingBillingEntity(client),
     }
   })
 }
@@ -70,7 +75,7 @@ export async function getClientsEvolutionRows(
 ): Promise<MonthlySummaryListing[]> {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, name, status, onboarding_date, ending_date")
+    .select("id, name, status, onboarding_date, ending_date, billing_entity")
     .neq("status", TEST_STATUS)
 
   if (error) return []
@@ -83,6 +88,7 @@ export async function getClientsEvolutionRows(
     deactivated_date:
       c.status === "inactive" ? ((c.ending_date as string | null) ?? null) : null,
     client_name: null,
+    billing_entity: c.billing_entity === "blackbird" ? "blackbird" : "revfactor",
   }))
 }
 
@@ -99,6 +105,43 @@ function lastDayOfMonth(month: string): string {
   // Day 0 of the next month = last day of this month; UTC to match the DATEs.
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate()
   return `${month}-${String(last).padStart(2, "0")}`
+}
+
+/**
+ * Days the listing was active within `month` (billing proration). Same
+ * semantics as activeAt: active on day d when setup <= d (null setup = since
+ * before the month) and deactivated_date > d, so the setup day counts and the
+ * deactivation day does not. Inactive without a deactivation date can't be
+ * placed → 0. `asOf` (YYYY-MM-DD) caps the count for the month in progress
+ * so it reports days to date instead of projecting the rest of the month.
+ */
+export function activeDaysInMonth(
+  row: MonthlySummaryListing,
+  month: string,
+  asOf?: string
+): number {
+  if (row.status === "inactive" && !row.deactivated_date) return 0
+  const monthStart = `${month}-01`
+  const monthEnd = lastDayOfMonth(month)
+  const from =
+    row.initial_setup_date && row.initial_setup_date > monthStart
+      ? row.initial_setup_date
+      : monthStart
+  // Last active day is the day before deactivation.
+  const dayBefore = (date: string) => {
+    const [y, m, d] = date.split("-").map(Number)
+    return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10)
+  }
+  const deactLast = row.deactivated_date ? dayBefore(row.deactivated_date) : null
+  let to = deactLast && deactLast < monthEnd ? deactLast : monthEnd
+  if (asOf && asOf < to) to = asOf
+  if (to < from) return 0
+  const ms = Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)
+  return Math.round(ms / 86_400_000) + 1
+}
+
+export function daysInMonth(month: string): number {
+  return Number(lastDayOfMonth(month).slice(8))
 }
 
 export type MonthlyEvolutionPoint = {

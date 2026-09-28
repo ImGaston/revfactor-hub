@@ -4,6 +4,7 @@ import { useMemo, useTransition } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Building2,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   TrendingDown,
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Table,
   TableBody,
@@ -22,7 +24,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { MonthlySummary, MonthlySummaryListing } from "@/lib/monthly-summary"
-import { currentMonthISO } from "@/lib/monthly-summary"
+import {
+  activeDaysInMonth,
+  currentMonthISO,
+  daysInMonth,
+} from "@/lib/monthly-summary"
+import { BILLING_ENTITY_LABEL, type BillingEntity } from "@/lib/billing-entity"
+
+export type EntityFilter = BillingEntity | "all"
 
 function shiftMonth(month: string, delta: number): string {
   const [y, m] = month.split("-").map(Number)
@@ -54,11 +63,15 @@ function ListingsTable({
   rows,
   dateHeader,
   dateOf,
+  daysOf,
+  showEntity,
   emptyText,
 }: {
   rows: MonthlySummaryListing[]
   dateHeader: string
   dateOf: (row: MonthlySummaryListing) => string | null
+  daysOf: (row: MonthlySummaryListing) => number
+  showEntity: boolean
   emptyText: string
 }) {
   return (
@@ -69,13 +82,14 @@ function ListingsTable({
             <TableHead>Listing</TableHead>
             <TableHead className="w-[220px]">Client</TableHead>
             <TableHead className="w-[140px]">{dateHeader}</TableHead>
+            <TableHead className="w-[70px] text-right">Days</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={3}
+                colSpan={4}
                 className="text-center text-muted-foreground py-8"
               >
                 {emptyText}
@@ -90,12 +104,20 @@ function ListingsTable({
                     <span className="flex items-center gap-1.5 text-sm">
                       <Building2 className="size-3.5 text-muted-foreground shrink-0" />
                       {row.client_name}
+                      {showEntity && row.billing_entity === "blackbird" && (
+                        <Badge variant="outline" className="ml-1">
+                          Blackbird
+                        </Badge>
+                      )}
                     </span>
                   ) : (
                     <span className="text-sm text-muted-foreground">—</span>
                   )}
                 </TableCell>
                 <TableCell className="text-sm">{formatDate(dateOf(row))}</TableCell>
+                <TableCell className="text-sm text-right tabular-nums">
+                  {daysOf(row)}
+                </TableCell>
               </TableRow>
             ))
           )}
@@ -105,17 +127,42 @@ function ListingsTable({
   )
 }
 
-export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
+export function MonthlySummaryView({
+  summary,
+  entity,
+  entityCounts,
+}: {
+  summary: MonthlySummary
+  entity: EntityFilter
+  entityCounts: Record<BillingEntity, number>
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const [pending, startTransition] = useTransition()
 
   const isCurrentMonth = summary.month === currentMonthISO()
+  // The month in progress counts days to date, not the whole month.
+  const asOf = isCurrentMonth ? new Date().toISOString().slice(0, 10) : undefined
+  const daysOf = (row: MonthlySummaryListing) =>
+    activeDaysInMonth(row, summary.month, asOf)
+  // Churned listings were active part of the month but aren't in
+  // activeListings (deactivated before month end), so add them back.
+  const totalDays = [...summary.activeListings, ...summary.churnedListings].reduce(
+    (sum, r) => sum + daysOf(r),
+    0
+  )
+  const monthDays = asOf ? Number(asOf.slice(8)) : daysInMonth(summary.month)
+
+  function navigate(month: string, nextEntity: EntityFilter) {
+    const params = new URLSearchParams({ month })
+    if (nextEntity !== "revfactor") params.set("entity", nextEntity)
+    startTransition(() => {
+      router.replace(`${pathname}?${params}`)
+    })
+  }
 
   function goToMonth(month: string) {
-    startTransition(() => {
-      router.replace(`${pathname}?month=${month}`)
-    })
+    navigate(month, entity)
   }
 
   const unknownCount =
@@ -135,8 +182,13 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
         value: summary.churnedListings.length,
         icon: TrendingDown,
       },
+      {
+        label: asOf ? "Listing-days to date" : "Listing-days",
+        value: totalDays,
+        icon: CalendarDays,
+      },
     ],
-    [summary]
+    [summary, totalDays, asOf]
   )
 
   return (
@@ -150,7 +202,29 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
             Active listings and portfolio changes for {monthLabel(summary.month)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={entity}
+            onValueChange={(value) => {
+              if (value) navigate(summary.month, value as EntityFilter)
+            }}
+            disabled={pending}
+            aria-label="Billing entity"
+          >
+            {(["revfactor", "blackbird"] as const).map((key) => (
+              <ToggleGroupItem key={key} value={key} className="gap-1.5 px-3">
+                {BILLING_ENTITY_LABEL[key]}
+                <span className="text-muted-foreground tabular-nums">
+                  {entityCounts[key]}
+                </span>
+              </ToggleGroupItem>
+            ))}
+            <ToggleGroupItem value="all" className="px-3">
+              All
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button
             variant="outline"
             size="icon"
@@ -181,7 +255,7 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardHeader className="pb-2">
@@ -229,6 +303,8 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
             rows={summary.newListings}
             dateHeader="Setup date"
             dateOf={(r) => r.initial_setup_date}
+            daysOf={daysOf}
+            showEntity={entity === "all"}
             emptyText="No new listings this month"
           />
         </div>
@@ -243,6 +319,8 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
             rows={summary.churnedListings}
             dateHeader="Deactivated"
             dateOf={(r) => r.deactivated_date}
+            daysOf={daysOf}
+            showEntity={entity === "all"}
             emptyText="No churned listings this month"
           />
         </div>
@@ -252,11 +330,17 @@ export function MonthlySummaryView({ summary }: { summary: MonthlySummary }) {
         <h2 className="text-sm font-medium flex items-center gap-1.5">
           Active at end of month
           <Badge variant="secondary">{summary.activeListings.length}</Badge>
+          <span className="text-xs font-normal text-muted-foreground">
+            {totalDays} listing-days incl. churned · {monthDays} day
+            {monthDays === 1 ? "" : "s"} {asOf ? "so far" : "in month"}
+          </span>
         </h2>
         <ListingsTable
           rows={summary.activeListings}
           dateHeader="Setup date"
           dateOf={(r) => r.initial_setup_date}
+          daysOf={daysOf}
+          showEntity={entity === "all"}
           emptyText="No active listings"
         />
       </div>

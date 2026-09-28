@@ -98,6 +98,7 @@ export type Client = {
   dashboard_url: string | null
   pms_name: string | null
   has_vrbo: boolean
+  billing_entity: string
   listings: Listing[]
   tasks: ClientTask[]
 }

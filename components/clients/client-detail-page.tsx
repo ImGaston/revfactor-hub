@@ -762,6 +762,7 @@ export function ClientDetailPage({
           stripe_dashboard: client.stripe_dashboard,
           pms_name: client.pms_name,
           has_vrbo: client.has_vrbo,
+          billing_entity: client.billing_entity,
           ending_reason_tags: client.ending_reason_tags,
           ending_note: client.ending_note,
         }}
