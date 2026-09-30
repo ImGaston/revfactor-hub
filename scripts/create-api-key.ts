@@ -12,7 +12,12 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 const [name, ownerEmail, ...scopes] = process.argv.slice(2)
-const allowedScopes = new Set(["leads:read", "market-map:read"])
+const allowedScopes = new Set([
+  "leads:read",
+  "market-map:read",
+  "support:read",
+  "support:write",
+])
 
 if (!name || scopes.length === 0) {
   console.error(
