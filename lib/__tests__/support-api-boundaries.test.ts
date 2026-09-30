@@ -88,3 +88,31 @@ describe("bot boundaries", () => {
     }
   })
 })
+
+describe("hub queue boundaries", () => {
+  const queue = read("lib/support-queue.server.ts")
+  const pages = [
+    read("app/(authenticated)/support/page.tsx"),
+    read("app/(authenticated)/support/[id]/page.tsx"),
+  ]
+
+  it("reads with the signed-in session so RLS applies", () => {
+    expect(queue.startsWith('import "server-only"')).toBe(true)
+    for (const source of [queue, ...pages]) {
+      expect(source).not.toContain("createAdminClient")
+      expect(source).not.toContain("@/lib/supabase/admin")
+    }
+  })
+
+  it("gates both pages on support:view and reads client names from clients_basic", () => {
+    for (const source of pages) expect(source).toContain('hasPermission("support", "view")')
+    expect(queue).toContain("clients:clients_basic(")
+    expect(queue).not.toMatch(/\bbilling_amount\b/)
+  })
+
+  it("hints every ambiguous embed", () => {
+    expect(queue).toContain("profiles!support_tickets_assignee_id_fkey")
+    expect(queue).toContain("adjustments!adjustments_support_ticket_id_fkey")
+    expect(queue).toContain("profiles!support_ticket_events_actor_id_fkey")
+  })
+})

@@ -28,6 +28,7 @@ import {
   Folder,
   LayoutDashboard,
   Layers,
+  LifeBuoy,
   Lightbulb,
   Radar,
   Rocket,
@@ -72,6 +73,7 @@ export const NAV_ITEMS: NavItem[] = [
     resource: "reservations",
   },
   { key: "tasks", title: "Tasks", href: "/tasks", icon: CheckSquare, resource: "tasks" },
+  { key: "support", title: "Support", href: "/support", icon: LifeBuoy, resource: "support" },
   {
     key: "adjustments",
     title: "Adjustments",
