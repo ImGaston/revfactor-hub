@@ -84,6 +84,12 @@ export const SUPPORT_REQUEST_TYPES = [
     doneWhen: "The problem is fixed and checked, with the cause explained",
     classifyWhen: "Something is broken or behaving unexpectedly",
   },
+  {
+    value: "check_in",
+    label: "Check-in",
+    doneWhen: "We reached out as planned and the client's reply is logged",
+    classifyWhen: "Outreach we start ourselves (e.g., an at-risk client), planned with a date; never a client ask",
+  },
 ] as const
 
 export type SupportRequestType = (typeof SUPPORT_REQUEST_TYPES)[number]["value"]
@@ -562,7 +568,10 @@ export function nextDueAt(ticket: DueFields): Date | null {
     if (due !== null) candidates.push(due)
   }
   if (ticket.status !== "awaiting_client") {
-    const lastClient = ms(ticket.last_client_message_at) ?? ms(ticket.requested_at)
+    // A check-in starts with our outreach, not a client message: no reply
+    // clock until the client says something
+    const lastClient =
+      ms(ticket.last_client_message_at) ?? (ticket.request_type === "check_in" ? null : ms(ticket.requested_at))
     const lastTeam = ms(ticket.last_team_message_at)
     if (lastClient !== null && (lastTeam === null || lastClient > lastTeam)) {
       // Backfilled tickets start their clock at import, not the original ask
@@ -939,30 +948,47 @@ export function maskContactDetails(text: string): string {
 // database is the backstop, this is what the UI explains)
 // ---------------------------------------------------------------------------
 
+// The first three judge an answer to a client's ask; a check-in has no ask,
+// so it gets its own checks instead.
 export const SUPPORT_VERIFICATION_CHECKS = [
   {
     key: "right_property",
     label: "The answer is about the property and period the client asked about",
+    skipFor: "check_in" as SupportRequestType,
   },
   {
     key: "answers_ask",
     label: "It answers the actual question — not adjacent stats or a different topic",
+    skipFor: "check_in" as SupportRequestType,
   },
   {
     key: "specific",
     label: 'It is specific: numbers, dates, a yes/no — not "we\'ll review"',
+    skipFor: "check_in" as SupportRequestType,
   },
   {
     key: "change_live",
     label: "The change is live and the client was told (change requests)",
     onlyFor: "change" as SupportRequestType,
   },
+  {
+    key: "client_replied",
+    label: "We reached out as planned and the client's reply is logged (check-ins)",
+    onlyFor: "check_in" as SupportRequestType,
+  },
+  {
+    key: "outcome_recorded",
+    label: "The outcome is recorded: what the client said and any next step (check-ins)",
+    onlyFor: "check_in" as SupportRequestType,
+  },
 ] as const
 
 export type SupportVerificationKey = (typeof SUPPORT_VERIFICATION_CHECKS)[number]["key"]
 
 export function verificationChecksFor(requestType: SupportRequestType) {
-  return SUPPORT_VERIFICATION_CHECKS.filter((c) => !("onlyFor" in c) || c.onlyFor === requestType)
+  return SUPPORT_VERIFICATION_CHECKS.filter(
+    (c) => (!("onlyFor" in c) || c.onlyFor === requestType) && (!("skipFor" in c) || c.skipFor !== requestType)
+  )
 }
 
 /** The verifier must explain why a flagged answer is still correct. */
@@ -974,6 +1000,16 @@ export function overrideReasonRequired(
 
 const CLOSED_ADJUSTMENT_STATUSES = new Set(["controlled", "rejected"])
 
+/** A check-in is done only once the client answered our outreach (a message or a "thanks"). */
+export function checkInReplied(
+  ticket: Partial<Pick<SupportTicket, "first_response_at" | "last_client_message_at" | "client_acknowledged_at">>
+): boolean {
+  const outreach = ms(ticket.first_response_at)
+  if (outreach === null) return false
+  const reply = maxMs(ms(ticket.last_client_message_at), ms(ticket.client_acknowledged_at))
+  return reply !== null && reply >= outreach
+}
+
 /** Reasons the ticket cannot be resolved yet (empty = ready). */
 export function resolutionBlockers(
   ticket: Pick<
@@ -983,7 +1019,10 @@ export function resolutionBlockers(
     | "property_validated_at"
     | "answered_at"
     | "client_told_live_at"
-  > & {
+  > &
+    Partial<
+      Pick<SupportTicket, "first_response_at" | "last_client_message_at" | "client_acknowledged_at">
+    > & {
     support_ticket_commitments?: SupportTicketCommitment[]
     adjustments?: Pick<SupportLinkedAdjustment, "status">[]
   }
@@ -1005,6 +1044,8 @@ export function resolutionBlockers(
       )
     if (!ticket.client_told_live_at) blockers.push("Tell the client the change is live")
   }
+  if (ticket.request_type === "check_in" && !checkInReplied(ticket))
+    blockers.push("Reach out, then log the client's reply to the check-in")
   return blockers
 }
 
@@ -1441,8 +1482,19 @@ export const supportCaptureSchema = z
     // Effects of this message on existing tickets
     events: z.array(supportCaptureEventSchema).max(20).default([]),
   })
-  .refine((c) => c.author_role === "client" || c.tickets.length === 0, {
-    message: "Only client messages create tickets",
+  // Client messages create asks; team messages create only planned check-ins
+  .refine(
+    (c) =>
+      c.author_role === "client"
+        ? c.tickets.every((t) => t.request_type !== "check_in")
+        : c.tickets.length === 0 || (c.author_role === "team" && c.tickets.every((t) => t.request_type === "check_in")),
+    {
+      message: "Client messages create asks; only team messages create check-ins",
+      path: ["tickets"],
+    }
+  )
+  .refine((c) => c.tickets.every((t) => t.request_type !== "check_in" || t.commitments.length > 0), {
+    message: "A check-in needs the planned outreach as a promise with its date",
     path: ["tickets"],
   })
 export type SupportCapture = z.infer<typeof supportCaptureSchema>

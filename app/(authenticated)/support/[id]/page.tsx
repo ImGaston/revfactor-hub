@@ -92,6 +92,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   }
   const verification = t.verification as { override_reason?: string }
   const verifyAge = verifyAgeHours(t, now)
+  const checkIn = t.request_type === "check_in"
   const draft = closed ? null : t.suggested_reply
   const draftGaps = unfilledPlaceholders(draft?.text)
   const draftFreshness = suggestedReplyFreshness(draft?.generated_at, t)
@@ -195,7 +196,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-baseline justify-between gap-2 text-base">
-                Client&apos;s ask
+                {checkIn ? "Check-in plan" : "Client's ask"}
                 <span className="text-xs font-normal text-muted-foreground">
                   {SUPPORT_SOURCE_LABEL[t.source]} · {formatSupportDateTime(t.requested_at)}
                 </span>
@@ -206,6 +207,11 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
                 <blockquote className="border-l-2 pl-3 text-sm whitespace-pre-wrap wrap-anywhere">
                   {t.client_message}
                 </blockquote>
+              ) : checkIn ? (
+                <p className="text-sm text-muted-foreground">
+                  We start this one{t.requested_by_name ? ` (planned by ${t.requested_by_name})` : ""}. The
+                  outreach and its date are under Promises.
+                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">No message text was captured.</p>
               )}

@@ -561,7 +561,8 @@ function planTicket(
     hand_managed: client.support_hand_managed,
     assignee_id: resolveDefaultAssignee(ctx.routingRules, candidate.category, candidate.request_type),
     possible_duplicate_of: possibleDuplicateOf,
-    last_client_message_at: messageAtIso,
+    // A check-in is our plan, not a client message: the client clock starts when they reply
+    last_client_message_at: candidate.request_type === "check_in" ? null : messageAtIso,
     sla_anchor_at: backfill ? nowIso : null,
     answer_summary:
       status === "answered" ? (clean(backfill?.note) ?? DEFAULT_BACKFILL_ANSWER) : null,

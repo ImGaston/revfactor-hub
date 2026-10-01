@@ -1,6 +1,11 @@
-# RevFactor Hub: support capture bot contract (v1.4)
+# RevFactor Hub: support capture bot contract (v1.5)
 
 Build target for the capture bot. The capture endpoints are live at `https://hub.revfactor.io/api/v1/…` (deployed 2026-09-30). Field names and limits below match the Hub's validation exactly.
+
+**v1.5 (2026-10-01, check-ins and backfill):**
+- New request type `check_in`: outreach we start ourselves, planned with a date. Only team messages create check-ins. See section 10.
+- Asks raised outside Assembly (calls, email) are captured with `source: "call"` or `"email"`. See section 10.
+- The backfill import is approved and documented. See section 11.
 
 **v1.4 (2026-10-01, after live sample v1):**
 - `team_reply` takes an optional `used_suggestion` (`yes`, `partly`, `no`) when the ticket had a draft. See section 9.
@@ -90,7 +95,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 | `client` | at least one of `hub_client_id`, `assembly_client_id`, `assembly_company_id`. Send both Assembly IDs when you know them: the Hub tries the Hub ID, then the client ID, then the company. Individual channels (client ID only) work. |
 | `model` / `prompt_version` | optional, ≤100 / ≤60 |
 | `reprocess` | default `false`. Set `true` only to deliberately re-split an already-processed message. |
-| `tickets` | ≤10, and **only on client messages** |
+| `tickets` | ≤10. Client messages create asks; team messages create only `check_in` tickets (section 10) |
 | `events` | ≤20 |
 
 ### Ticket fields
@@ -112,7 +117,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 | `ai.rationale` | optional, ≤1,000 |
 | `possible_duplicate_of` / `duplicate_note` | optional UUID of an active ticket; note ≤500 |
 | `commitments[]` | ≤10; promises the team **already** made before this ticket existed (see promise fields) |
-| `backfill` | **don't use yet**; only for the day-one import |
+| `backfill` | only for an approved import (section 11) |
 
 ### Events (each needs `ticket_id` from the list endpoint)
 
@@ -152,6 +157,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 - `change`: they want something changed or set up.
 - `decision`: they want us to choose or recommend ("should we…", "yes or no").
 - `issue`: something is broken.
+- `check_in`: outreach **we** start (e.g., an at-risk client), planned with a date. Never a client's ask; only team messages create it (section 10).
 
 **Category** (drives routing):
 
@@ -321,4 +327,50 @@ Content-Type: application/json
 **The answer check stays independent of drafts**
 - `answer_check` compares the reply the team **actually sent** with the client's ask, never with the draft.
 - A sent reply that still has an unfilled bracket (`[date]`, `[X]%`, `[owner to fill]`) is a `fail` with `gap: "unfilled placeholder sent"` and no `proposes_answered`.
+
+## 10. Check-ins and asks raised outside Assembly (v1.5)
+
+**Asks raised on a call or by email** are ordinary client asks. Send them like a chat message:
+- `source: "call"` (or `"email"`), with `source_message_id` like `granola:<meeting id>:<n>`, one per ask.
+- `message_at` is the call or email time, and `author_role` is `"client"`.
+
+**A check-in is outreach we start ourselves.** For example: "check in with Marissa about December pacing by Friday".
+- **Create it from the team message or call note where it was planned.** Send `author_role: "team"`, with a ticket of `request_type: "check_in"`.
+- **The planned outreach goes in `commitments`.** At least one is required: the description says what we'll reach out about, plus its due date (`explicit` or `relative`).
+- **Fields:**
+  - `category`: the topic (usually `performance` or `reporting`).
+  - `property.scope`: usually `account`.
+  - `summary`: the purpose.
+  - `client_message`: leave it out.
+- **The Hub opens it with no client clock.** Only the outreach promise is due, and it shows as overdue if we're late.
+- **When the team reaches out**, on that message:
+  - `commitment_kept` on the outreach promise.
+  - `team_asked_client` (or `team_reply`), which moves the ticket to waiting on client.
+- **When the client replies:** send `client_message` (or `client_acknowledged`). Our normal 24h reply clock starts.
+- **Logging the outcome:** a `team_reply` with `proposes_answered: true` records it. The summary should say what the client said and any next step.
+- **Done:** a person verifies it. The Hub won't resolve a check-in until the client's reply after our outreach is logged.
+- **Not a check-in:** an unplanned "just checking in" message that already went out. Don't create a ticket for it. If the client's reply contains an ask, that's a normal ticket.
+
+## 11. Backfill import (approved 2026-09-30)
+
+A one-time import of asks that were still open when capture went live.
+
+1. **Dry run first.**
+   - Post a safe list on the shared page: client, Hub client id, request type, category, open or answered, promise due, and a one-line summary. **No message text in Notion.**
+   - Give Fede the full payload files. Claude replays them locally against the real Hub logic.
+2. **Payloads:** one per original client ask message, using its original `source_message_id` and `message_at`.
+   - Each ticket carries `backfill: { "batch": "<batch>", "initial_status": "open" }`.
+   - Use `"answered"` only when the team said it was done and the client never confirmed. Put what the team said in `backfill.note`.
+   - Promises already made go in `commitments`.
+   - Send no events for the old back-and-forth.
+3. **What the Hub does:**
+   - The ticket keeps the original ask date and is tagged as backlog.
+   - Its reply clock starts at import.
+   - An overdue promise becomes due 24h after import.
+   - Backlog stays out of the reply-time and promise metrics.
+4. **Right before importing,** recheck each item against the chat:
+   - The client confirmed it's done: skip it.
+   - The team answered: import it as `answered`.
+   - The client only followed up: keep it as one open ticket.
+5. **Import order:** the backfill comes before switching every client to live capture. That way a chase on an old ask lands on its backfilled ticket.
 
