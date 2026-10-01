@@ -76,6 +76,8 @@ export type CaptureTicketSnapshot = {
   client_chase_count: number
   client_nudge_count: number
   answer_check_verdict: "pass" | "fail" | "uncertain" | null
+  /** When the current draft reply was written (null or missing = none) */
+  suggested_reply_generated_at?: string | null
   commitments: CaptureCommitment[]
 }
 
@@ -731,6 +733,11 @@ function planEvent(
         patch.answer_check_at = messageAtIso
         payload.answer_check = event.answer_check.verdict
         ticket.answer_check_verdict = event.answer_check.verdict
+      }
+      if (event.used_suggestion) {
+        const draftAt = ticket.suggested_reply_generated_at ? Date.parse(ticket.suggested_reply_generated_at) : NaN
+        if (draftAt <= Date.parse(messageAtIso)) payload.used_suggestion = event.used_suggestion
+        else payload.used_suggestion_ignored = "no draft before this reply"
       }
       const answerText = body ?? clean(event.answer_check?.replied)
       const answerable = ["open", "in_progress", "awaiting_client", "answered"].includes(ticket.status)

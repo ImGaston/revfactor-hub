@@ -245,6 +245,16 @@ export const SUPPORT_VERDICT_BADGE: Record<SupportAnswerVerdict, string> = {
 // Types
 // ---------------------------------------------------------------------------
 
+/** Whether a team reply used the ticket's draft: as written, in part, or not at all. */
+export const SUPPORT_DRAFT_USAGE = ["yes", "partly", "no"] as const
+export type SupportDraftUsage = (typeof SUPPORT_DRAFT_USAGE)[number]
+
+export const SUPPORT_DRAFT_USAGE_LABEL: Record<SupportDraftUsage, string> = {
+  yes: "used the draft",
+  partly: "partly used the draft",
+  no: "didn't use the draft",
+}
+
 export type SupportCommitmentStatus = "open" | "kept" | "cancelled"
 
 export type SupportTicketCommitment = {
@@ -1373,6 +1383,9 @@ export const supportCaptureEventSchema = z.discriminatedUnion("type", [
     // Only honored with a pass or uncertain check; never on fail. The bot
     // never resolves — a person verifies.
     proposes_answered: z.boolean().default(false),
+    // How much of the ticket's draft reply the team sent (v1.4). Kept only
+    // when the ticket had a draft before this reply.
+    used_suggestion: z.enum(SUPPORT_DRAFT_USAGE).optional(),
   }),
   z.object({ type: z.literal("team_asked_client"), ticket_id: z.uuid(), body: eventBody.optional() }),
   z.object({

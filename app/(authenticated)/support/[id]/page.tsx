@@ -20,6 +20,8 @@ import {
 import { loadSupportTicket } from "@/lib/support-queue.server"
 import {
   SUPPORT_CLOSED_STATUSES,
+  SUPPORT_DRAFT_USAGE,
+  SUPPORT_DRAFT_USAGE_LABEL,
   SUPPORT_PRIORITY_BADGE,
   SUPPORT_SENTIMENT_BADGE,
   SUPPORT_SOURCE_LABEL,
@@ -44,6 +46,7 @@ import {
   unfilledPlaceholders,
   verifyAgeHours,
   type CommitmentTiming,
+  type SupportDraftUsage,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
 import { CopyDraftButton } from "./copy-draft-button"
@@ -54,6 +57,10 @@ const TIMING_BADGE: Record<CommitmentTiming, { label: string; className: string 
   kept_on_time: { label: "Kept on time", className: SUPPORT_VERDICT_BADGE.pass },
   kept_late: { label: "Kept late", className: SUPPORT_VERDICT_BADGE.uncertain },
   cancelled: { label: "Cancelled", className: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
+}
+
+function isDraftUsage(value: unknown): value is SupportDraftUsage {
+  return (SUPPORT_DRAFT_USAGE as readonly unknown[]).includes(value)
 }
 
 function pct(value: unknown): string | null {
@@ -345,6 +352,9 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
                             {e.from_ticket_number ? ` · from ${ticketRef(e.from_ticket_number)}` : ""}
                             {typeof e.payload?.kind === "string" && e.payload.kind !== "reply"
                               ? ` · ${e.payload.kind}`
+                              : ""}
+                            {isDraftUsage(e.payload?.used_suggestion)
+                              ? ` · ${SUPPORT_DRAFT_USAGE_LABEL[e.payload.used_suggestion]}`
                               : ""}
                           </p>
                           {e.body && <p className="text-sm whitespace-pre-wrap wrap-anywhere">{e.body}</p>}

@@ -1,6 +1,11 @@
-# RevFactor Hub: support capture bot contract (v1.3)
+# RevFactor Hub: support capture bot contract (v1.4)
 
 Build target for the capture bot. The capture endpoints are live at `https://hub.revfactor.io/api/v1/…` (deployed 2026-09-30). Field names and limits below match the Hub's validation exactly.
+
+**v1.4 (2026-10-01, after live sample v1):**
+- `team_reply` takes an optional `used_suggestion` (`yes`, `partly`, `no`) when the ticket had a draft. See section 9.
+- Hedged promises ("I'll try", "voy a intentar") count as promises.
+- `proposes_answered` on `uncertain` is only for a secondary gap, never when the gap is the thing asked for.
 
 **v1.3 (2026-09-30, suggested replies):** the bot may store one draft reply per ticket through `PUT /api/v1/support-tickets/{ticket_id}/suggested-reply`. Drafts only; a person always sends. See section 9. The list endpoint now returns `suggested_reply_generated_at`. **Don't call the new endpoint until Claude confirms on the shared page that it's deployed.**
 
@@ -116,7 +121,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 | `client_message` | client | `body?`, `reopen?` | Updates the client clock; counts a chase or nudge when due; waiting-on-client moves back to open; a closed ticket reopens only if `reopen: true` |
 | `client_acknowledged` | client | `body?` | "Thanks / got it". Evidence only, and it doesn't start the reply clock |
 | `client_rejected` | client | `body` (required quote) | "That's not what I asked / not done". Reopens the ticket and counts as a miss |
-| `team_reply` | team | `body?`, `answer_check?`, `proposes_answered?` | Updates the team clock; stores the check; with `proposes_answered` and a non-fail check, moves the ticket to "answered, verify" |
+| `team_reply` | team | `body?`, `answer_check?`, `proposes_answered?`, `used_suggestion?` | Updates the team clock; stores the check; with `proposes_answered` and a non-fail check, moves the ticket to "answered, verify" |
 | `team_asked_client` | team | `body?` | Moves the ticket to waiting on client and pauses the reply clock |
 | `client_told_live` | team | `body?` | Records that the client was told the change is live |
 | `commitment_made` | team | `commitment` | New promise |
@@ -169,6 +174,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 
 - **Promises** (English and Spanish):
   - These count: "we'll review / look into / check / follow up / get back to you / confirm / keep you posted / send / make the adjustment", "I'll check with Gastón / the team", "lo reviso / lo revisaré / te confirmo / te aviso / lo ajustamos".
+  - Hedged promises count too: "I'll try", "I'll see if I can", "voy a intentar". The client hears a commitment. Describe the team's own action (e.g., "Trigger the VRBO verification code to the client's phone"), and close it with `commitment_kept` when the next message shows it happened.
   - These don't count: "let us know", "feel free to reach out", and questions back to the client (those are `team_asked_client`).
 - **Promise dates:** resolve relative dates in America/New_York at 6 PM ET.
   - "today" is 6 PM, or +4h if it's already past 4 PM.
@@ -190,7 +196,7 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
   - `pass`: right property and period, and it gives what the request type needs (a fact, an explicit yes/no, "done and live", or cause plus fix).
   - `fail`: only clear mismatches: wrong property or month, no yes/no on a decision, stats when an action was asked, or "we'll review" given as the answer.
   - `uncertain`: everything partial or ambiguous.
-  - Set `proposes_answered` only on `pass`, or on `uncertain` when the reply directly addresses the ticket. Never on `fail`. On `money_at_stake` tickets the Hub accepts it **only on `pass`**.
+  - Set `proposes_answered` only on `pass`, or on `uncertain` when the gap is secondary (wording, a missing detail). **Never when the gap is the thing asked for** (data was asked and reasoning was given), and never on `fail`. On `money_at_stake` tickets the Hub accepts it **only on `pass`**.
   - After a `fail`, the client's next message on that ticket counts as a chase (they had to ask again).
 - **Told live:** send `client_told_live` when a team message says a change is live and names the property and setting, or quotes a Hub "now applied" message (it includes "Ref #…").
 - **Internal staff notes:** Assembly has none, so don't send `author_role: "internal"` or `internal_note_from_chat` in v1 (reserved for a future source).
@@ -303,6 +309,14 @@ Content-Type: application/json
 `DELETE` on the same URL withdraws the draft (200 `{ ticket_id, ticket_number, cleared: true }`).
 
 **Sync:** saving a draft doesn't change the ticket's `updated_at`, so drafts never show up as ticket activity in `updated_since` syncs. `GET /api/v1/support-tickets` returns `suggested_reply_generated_at` (null when there's no draft). Regenerate only when the conversation has moved on.
+
+**Draft usage (v1.4)**
+- On a `team_reply` to a ticket that had a draft (its `suggested_reply_generated_at` is before the reply), add `used_suggestion`:
+  - `yes`: sent as drafted, or with light edits.
+  - `partly`: reused some of it (structure, a paragraph, the numbers).
+  - `no`: written independently.
+- Leave it out when the ticket had no draft. The Hub ignores the tag if no draft existed before the reply.
+- It's measurement only. It never changes the answer check or the ticket's status.
 
 **The answer check stays independent of drafts**
 - `answer_check` compares the reply the team **actually sent** with the client's ask, never with the draft.
