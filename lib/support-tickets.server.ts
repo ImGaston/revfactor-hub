@@ -73,6 +73,7 @@ const SNAPSHOT_COLUMNS = `
   id, client_id, ticket_number, status, category, request_type, priority, priority_source,
   client_sentiment, money_at_stake, hand_managed, merged_into, last_client_message_at,
   last_team_message_at, client_chase_count, client_nudge_count, answer_check_verdict,
+  suggested_reply_generated_at:suggested_reply->>generated_at,
   support_ticket_commitments(
     id, ticket_id, description, due_at, due_source, rescheduled_to, status, made_by_name,
     made_at, source, closed_at, close_note, created_at, external_key

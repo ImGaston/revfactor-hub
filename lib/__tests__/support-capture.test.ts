@@ -585,3 +585,42 @@ describe("matchProfile", () => {
     expect(matchProfile(profiles, "Andrés")).toBeNull()
   })
 })
+
+describe("draft usage on team replies (v1.4)", () => {
+  const ticketsWith = (...list: CaptureTicketSnapshot[]) => new Map(list.map((t) => [t.id, t]))
+  const reply = (draftAt: string | null, used: string = "partly") =>
+    applied(
+      context(
+        {
+          author_role: "team",
+          events: [{ type: "team_reply", ticket_id: T1, body: "Yes, 10% off October.", used_suggestion: used }],
+        },
+        { tickets: ticketsWith(snapshot({ suggested_reply_generated_at: draftAt })) }
+      )
+    ).plan.events[0].payload
+
+  it("records how much of the draft the team used", () => {
+    expect(reply(hoursAgo(3), "yes").used_suggestion).toBe("yes")
+    expect(reply(hoursAgo(3), "no").used_suggestion).toBe("no")
+  })
+
+  it("drops the tag when the ticket had no draft before the reply", () => {
+    for (const draftAt of [null, hoursAgo(0)]) {
+      const payload = reply(draftAt)
+      expect(payload.used_suggestion).toBeUndefined()
+      expect(payload.used_suggestion_ignored).toBe("no draft before this reply")
+    }
+  })
+
+  it("rejects unknown values", () => {
+    expect(
+      supportCaptureSchema.safeParse({
+        source_message_id: "m",
+        message_at: hoursAgo(1),
+        author_role: "team",
+        client: { hub_client_id: CLIENT },
+        events: [{ type: "team_reply", ticket_id: T1, used_suggestion: "mostly" }],
+      }).success
+    ).toBe(false)
+  })
+})
