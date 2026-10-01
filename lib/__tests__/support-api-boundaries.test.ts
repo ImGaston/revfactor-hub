@@ -14,6 +14,7 @@ const ROUTES = [
   { path: "app/api/v1/support-tickets/route.ts", scope: "support:read" },
   { path: "app/api/v1/support-tickets/digest/route.ts", scope: "support:read" },
   { path: "app/api/v1/support-listings/route.ts", scope: "support:read" },
+  { path: "app/api/v1/support-tickets/[id]/suggested-reply/route.ts", scope: "support:write" },
 ]
 
 describe("support API routes", () => {
@@ -63,6 +64,12 @@ describe("server projection", () => {
     ]) {
       expect(list, `list projection must not include ${hidden}`).not.toMatch(new RegExp(`\\b${hidden}\\b`))
     }
+  })
+
+  it("returns only the draft timestamp, never the draft text", () => {
+    expect(list).toContain("suggested_reply_generated_at:suggested_reply->>generated_at")
+    const withoutAlias = list.replace("suggested_reply_generated_at:suggested_reply->>generated_at", "")
+    expect(withoutAlias).not.toMatch(/\bsuggested_reply\b/)
   })
 
   it("hints every ambiguous embed", () => {

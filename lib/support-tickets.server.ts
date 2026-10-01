@@ -23,8 +23,10 @@ import {
   openCommitments,
   effectiveDueAt,
   publicListingName,
+  prepareSuggestedReply,
   SUPPORT_ACTIVE_STATUSES,
   supportCaptureSchema,
+  type SupportCategory,
   type SupportStatus,
   type SupportTicket,
 } from "@/lib/support-tickets"
@@ -321,7 +323,7 @@ const LIST_COLUMNS = `
   priority, client_sentiment, money_at_stake, hand_managed, possible_duplicate_of, merged_into,
   property_scope, property_validated_at, requested_at, last_client_message_at,
   last_team_message_at, sla_anchor_at, answered_at, client_told_live_at, backfilled,
-  assignee_id, created_at, updated_at,
+  assignee_id, created_at, updated_at, suggested_reply_generated_at:suggested_reply->>generated_at,
   clients!support_tickets_client_id_fkey(id, name, assembly_client_id, assembly_company_id, churn_risk),
   assignee:profiles!support_tickets_assignee_id_fkey(full_name, email),
   support_ticket_listings(listing_id, listings(id, name)),
@@ -392,6 +394,8 @@ function toApiTicket(t: ListRow, now: Date) {
     last_team_message_at: t.last_team_message_at,
     answered_at: t.answered_at,
     client_told_live_at: t.client_told_live_at,
+    // When the bot's current draft was written (null = none); the text stays in the Hub
+    suggested_reply_generated_at: t.suggested_reply_generated_at ?? null,
     next_due_at: due?.toISOString() ?? null,
     due_state: dueState(due, now),
     flags: {
@@ -449,6 +453,71 @@ export async function listSupportTicketsForApi(
       },
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// PUT / DELETE /api/v1/support-tickets/:id/suggested-reply
+// ---------------------------------------------------------------------------
+
+const DRAFT_TICKET_COLUMNS =
+  "id, ticket_number, status, category, merged_into, clients!support_tickets_client_id_fkey(support_capture)"
+
+type DraftTicketRow = {
+  id: string
+  ticket_number: number
+  status: SupportStatus
+  category: SupportCategory
+  merged_into: string | null
+  clients: { support_capture: boolean } | { support_capture: boolean }[] | null
+}
+
+async function loadDraftTicket(admin: SupabaseClient, id: string): Promise<DraftTicketRow | null> {
+  const { data, error } = await admin.from("support_tickets").select(DRAFT_TICKET_COLUMNS).eq("id", id).maybeSingle()
+  if (error) throw new Error(`draft ticket lookup failed: ${error.message}`)
+  return (data as unknown as DraftTicketRow | null) ?? null
+}
+
+/** Store the bot's draft on the ticket, replacing any earlier one. */
+export async function saveSuggestedReplyForApi(
+  admin: SupabaseClient,
+  ticketId: string,
+  rawBody: unknown,
+  now: Date = new Date()
+): Promise<ApiResult> {
+  const ticket = await loadDraftTicket(admin, ticketId)
+  if (!ticket) return { status: 404, body: { error: "No support ticket with this id" } }
+  const client = Array.isArray(ticket.clients) ? ticket.clients[0] : ticket.clients
+  if (client && !client.support_capture)
+    return { status: 409, body: { error: "Capture is off for this client" } }
+
+  const prepared = prepareSuggestedReply(rawBody, ticket, now)
+  if (!prepared.ok) {
+    return {
+      status: prepared.status,
+      body: { error: prepared.error, ...(prepared.issues ? { issues: prepared.issues } : {}) },
+    }
+  }
+
+  // The guard leaves updated_at alone for draft-only writes (migration 20260930200000)
+  const { error } = await admin
+    .from("support_tickets")
+    .update({ suggested_reply: prepared.value })
+    .eq("id", ticket.id)
+  if (error) throw new Error(`suggested reply save failed: ${error.message}`)
+
+  return {
+    status: 200,
+    body: { ticket_id: ticket.id, ticket_number: ticket.ticket_number, suggested_reply: prepared.value },
+  }
+}
+
+/** Withdraw the bot's draft (e.g., it no longer fits the conversation). */
+export async function clearSuggestedReplyForApi(admin: SupabaseClient, ticketId: string): Promise<ApiResult> {
+  const ticket = await loadDraftTicket(admin, ticketId)
+  if (!ticket) return { status: 404, body: { error: "No support ticket with this id" } }
+  const { error } = await admin.from("support_tickets").update({ suggested_reply: null }).eq("id", ticket.id)
+  if (error) throw new Error(`suggested reply clear failed: ${error.message}`)
+  return { status: 200, body: { ticket_id: ticket.id, ticket_number: ticket.ticket_number, cleared: true } }
 }
 
 // ---------------------------------------------------------------------------
