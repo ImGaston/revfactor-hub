@@ -39,11 +39,14 @@ import {
   supportRequestTypeDoneWhen,
   supportRequestTypeLabel,
   supportStatusLabel,
+  suggestedReplyFreshness,
   ticketRef,
+  unfilledPlaceholders,
   verifyAgeHours,
   type CommitmentTiming,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
+import { CopyDraftButton } from "./copy-draft-button"
 
 const TIMING_BADGE: Record<CommitmentTiming, { label: string; className: string }> = {
   open: { label: "Open", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
@@ -82,6 +85,9 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   }
   const verification = t.verification as { override_reason?: string }
   const verifyAge = verifyAgeHours(t, now)
+  const draft = closed ? null : t.suggested_reply
+  const draftGaps = unfilledPlaceholders(draft?.text)
+  const draftFreshness = suggestedReplyFreshness(draft?.generated_at, t)
 
   return (
     <div className="space-y-6">
@@ -206,6 +212,62 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
               )}
             </CardContent>
           </Card>
+
+          {draft && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-baseline justify-between gap-2 text-base">
+                  Suggested reply
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Bot draft · {timeAgo(draft.generated_at, now)}
+                    {draft.skill ? ` · ${draft.skill}` : ""}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {draftFreshness === "team_replied_since" && (
+                  <p className="text-muted-foreground">
+                    The team has replied since this draft, so it may already be used or out of date.
+                  </p>
+                )}
+                {draftFreshness === "client_wrote_since" && (
+                  <p className="text-amber-700 dark:text-amber-300">
+                    The client wrote again after this draft. Check it still answers them.
+                  </p>
+                )}
+                {draftGaps.length > 0 && (
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 wrap-anywhere">
+                    Fill {draftGaps.length === 1 ? "this gap" : `these ${draftGaps.length} gaps`} before sending:{" "}
+                    {draftGaps.join(", ")}
+                  </p>
+                )}
+                {t.money_at_stake && (
+                  <p className="text-amber-700 dark:text-amber-300">
+                    Money at stake: get Fede&apos;s approval before sending.
+                  </p>
+                )}
+                <div className="rounded-md border bg-muted/40 p-3 whitespace-pre-wrap wrap-anywhere">{draft.text}</div>
+                {draft.basis.length > 0 && (
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <p className="font-medium">Based on</p>
+                    <ul className="list-disc space-y-0.5 pl-4">
+                      {draft.basis.map((b) => (
+                        <li key={b} className="wrap-anywhere">
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Draft only. Edit it and send it yourself in Assembly.
+                  </p>
+                  <CopyDraftButton text={draft.text} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

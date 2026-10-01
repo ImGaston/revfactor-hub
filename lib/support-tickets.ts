@@ -281,6 +281,16 @@ export type SupportLinkedAdjustment = {
   listings: { name: string } | null
 }
 
+/** The capture bot's draft reply (contract v1.3). A person edits and sends it. */
+export type SupportSuggestedReply = {
+  text: string
+  /** What the draft drew on ("PriceLabs: Dec occupancy vs market"), for the reader */
+  basis: string[]
+  skill: string | null
+  prompt_version: string | null
+  generated_at: string
+}
+
 export type SupportTicket = {
   id: string
   ticket_number: number
@@ -330,6 +340,9 @@ export type SupportTicket = {
   backfilled: boolean
   backfill_batch: string | null
   ai_classification: Record<string, unknown>
+  /** Capture-bot draft reply (detail page only; the queue reads the timestamp) */
+  suggested_reply?: SupportSuggestedReply | null
+  suggested_reply_generated_at?: string | null
   created_at: string
   updated_at: string
   // Joined
@@ -1437,6 +1450,105 @@ export function honorsProposedAnswer(
 /** Lowest confidence among the fields that block auto-open (for display). */
 export function overallCaptureConfidence(ai: SupportAskCandidate["ai"]): number {
   return ai.confidence.request_type
+}
+
+// ---------------------------------------------------------------------------
+// Suggested replies (contract v1.3): drafts only, a person always sends
+// ---------------------------------------------------------------------------
+
+export const SUPPORT_SUGGESTED_REPLY_MAX = 4000
+
+/** RevFactor's own fees and terminations: no drafts (financial data is super_admin only). */
+export const SUPPORT_NO_DRAFT_CATEGORIES: SupportCategory[] = ["billing", "offboarding"]
+
+export const supportSuggestedReplySchema = z.object({
+  text: z.string().trim().min(1).max(SUPPORT_SUGGESTED_REPLY_MAX),
+  basis: z.array(z.string().trim().min(1).max(300)).max(8).default([]),
+  skill: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9][a-z0-9-]{0,79}$/, "skill must be a lowercase slug")
+    .optional(),
+  prompt_version: z.string().trim().min(1).max(60).optional(),
+  generated_at: isoDateTime.optional(),
+})
+
+type DraftTicket = Pick<SupportTicket, "status" | "category" | "merged_into">
+
+/**
+ * Validate a draft from the bot and normalize it for storage: rejects closed
+ * and no-draft tickets and credentials; masks emails and phone numbers.
+ */
+export function prepareSuggestedReply(
+  raw: unknown,
+  ticket: DraftTicket,
+  now: Date = new Date()
+):
+  | { ok: true; value: SupportSuggestedReply }
+  | { ok: false; status: 400 | 409 | 422; error: string; issues?: { path: string; message: string }[] } {
+  const parsed = supportSuggestedReplySchema.safeParse(raw)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Invalid suggested reply",
+      issues: parsed.error.issues.slice(0, 10).map((i) => ({ path: i.path.join("."), message: i.message })),
+    }
+  }
+  if (ticket.merged_into || SUPPORT_CLOSED_STATUSES.includes(ticket.status))
+    return { ok: false, status: 409, error: "This ticket is closed; drafts only go on open tickets" }
+  if (SUPPORT_NO_DRAFT_CATEGORIES.includes(ticket.category))
+    return { ok: false, status: 422, error: `No drafts on ${ticket.category} tickets` }
+
+  const draft = parsed.data
+  const credential = [draft.text, ...draft.basis].map((t) => detectCredential(t)).find(Boolean)
+  // Never echo the match back
+  if (credential) return { ok: false, status: 422, error: `The draft looks like it contains a ${credential}` }
+
+  const generated = draft.generated_at ? new Date(draft.generated_at) : now
+  if (generated.getTime() > now.getTime() + 5 * 60_000)
+    return { ok: false, status: 400, error: "generated_at is in the future" }
+
+  return {
+    ok: true,
+    value: {
+      text: maskContactDetails(draft.text),
+      basis: draft.basis.map(maskContactDetails),
+      skill: draft.skill ?? null,
+      prompt_version: draft.prompt_version ?? null,
+      generated_at: generated.toISOString(),
+    },
+  }
+}
+
+// "[date]", "[X]%", "[owner to fill]" — not markdown links "[text](url)"
+const PLACEHOLDER_PATTERN = /\[[^\[\]\n]{1,80}\](?!\()/g
+
+/** Bracketed gaps the owner must fill before sending (redaction markers excluded). */
+export function unfilledPlaceholders(text: string | null | undefined): string[] {
+  if (!text) return []
+  const found = (text.match(PLACEHOLDER_PATTERN) ?? []).filter((m) => !/^\[redacted:/i.test(m))
+  return [...new Set(found)]
+}
+
+export type DraftFreshness = "current" | "client_wrote_since" | "team_replied_since"
+
+/**
+ * Whether a draft still fits the conversation. A team reply after the draft
+ * wins (the draft was used or superseded); a client message after it means
+ * the draft may miss what they just said.
+ */
+export function suggestedReplyFreshness(
+  generatedAt: string | null | undefined,
+  ticket: Pick<SupportTicket, "last_client_message_at" | "last_team_message_at">
+): DraftFreshness {
+  const at = generatedAt ? Date.parse(generatedAt) : NaN
+  if (Number.isNaN(at)) return "current"
+  const team = ticket.last_team_message_at ? Date.parse(ticket.last_team_message_at) : NaN
+  if (team > at) return "team_replied_since"
+  const client = ticket.last_client_message_at ? Date.parse(ticket.last_client_message_at) : NaN
+  if (client > at) return "client_wrote_since"
+  return "current"
 }
 
 // ---------------------------------------------------------------------------

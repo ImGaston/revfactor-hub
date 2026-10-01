@@ -1,6 +1,8 @@
-# RevFactor Hub: support capture bot contract (v1.2)
+# RevFactor Hub: support capture bot contract (v1.3)
 
-Build target for the capture bot. Endpoints are built in the Hub but **not deployed**, so there's no API key and nothing to call yet. Field names and limits below match the Hub's validation exactly.
+Build target for the capture bot. The capture endpoints are live at `https://hub.revfactor.io/api/v1/…` (deployed 2026-09-30). Field names and limits below match the Hub's validation exactly.
+
+**v1.3 (2026-09-30, suggested replies):** the bot may store one draft reply per ticket through `PUT /api/v1/support-tickets/{ticket_id}/suggested-reply`. Drafts only; a person always sends. See section 9. The list endpoint now returns `suggested_reply_generated_at`. **Don't call the new endpoint until Claude confirms on the shared page that it's deployed.**
 
 **v1.2 (2026-09-29, after dry run v2):** a promise that depends on something the team just asked the client for is not sent (see "Contingent promises" in section 5).
 
@@ -249,3 +251,60 @@ Dry run v2 should cover the v1.1 changes:
 - A money-at-stake ticket with an `uncertain` reply.
 
 There are no Hub tickets yet, so for events on "existing" tickets use placeholder IDs `00000000-0000-4000-8000-00000000000N` and say which ask each refers to.
+
+## 9. Suggested replies (v1.3)
+
+A draft the ticket owner can edit and send in Assembly. **The bot never sends it.** One draft per ticket: each `PUT` replaces the previous one.
+
+**When to draft**
+- Only `pricing`, `performance`, and `stay_rules` tickets for now (the pricing voice skill, `revfactor-pricing-voice`).
+- **Never `billing` or `offboarding`.** The Hub rejects them (422).
+- Only open tickets. Resolved, dismissed, or merged tickets return 409, and so does a client with capture off.
+- For `change` tickets, never draft "it's live" unless the Hub shows the linked Adjustment as controlled. Otherwise put the confirmation in brackets.
+
+**Writing the draft**
+- Gaps stay in `[brackets]`: dates, promises, and any number you can't pull from this client's real data (pacing, RevPAR, markup and channel %). The **ticket owner** fills them. On `money_at_stake` tickets, Fede approves before sending.
+- Never reuse the skill's example numbers.
+- Redact as in section 6. The Hub rejects credentials (422, without echoing them) and masks emails and phone numbers.
+
+**Request**
+
+```http
+PUT /api/v1/support-tickets/{ticket_id}/suggested-reply
+Authorization: Bearer rvf_live_…   (support:write)
+Content-Type: application/json
+```
+
+```json
+{
+  "text": "Hi Kate! Great question. December is pacing [X]% vs the same point last year…",
+  "basis": ["PriceLabs: December on-the-books vs same lead time last year"],
+  "skill": "revfactor-pricing-voice",
+  "prompt_version": "support-reply-v1",
+  "generated_at": "2026-09-30T21:00:00-04:00"
+}
+```
+
+| Field | Rules |
+|---|---|
+| `text` | Required, 1–4,000 characters, redacted |
+| `basis` | Optional, up to 8 items of 1–300 characters: the data the draft used, in plain words |
+| `skill` | Optional lowercase slug (`revfactor-pricing-voice`) |
+| `prompt_version` | Optional, ≤60 characters |
+| `generated_at` | Optional ISO 8601 with offset; defaults to now; can't be in the future |
+
+**Responses**
+- 200 `{ ticket_id, ticket_number, suggested_reply }` (the stored, masked draft)
+- 400 bad payload (see `issues`) or a non-UUID ticket id
+- 404 unknown ticket
+- 409 the ticket is closed or merged, or capture is off for the client
+- 422 billing or offboarding ticket, or a credential in the draft
+
+`DELETE` on the same URL withdraws the draft (200 `{ ticket_id, ticket_number, cleared: true }`).
+
+**Sync:** saving a draft doesn't change the ticket's `updated_at`, so drafts never show up as ticket activity in `updated_since` syncs. `GET /api/v1/support-tickets` returns `suggested_reply_generated_at` (null when there's no draft). Regenerate only when the conversation has moved on.
+
+**The answer check stays independent of drafts**
+- `answer_check` compares the reply the team **actually sent** with the client's ask, never with the draft.
+- A sent reply that still has an unfilled bracket (`[date]`, `[X]%`, `[owner to fill]`) is a `fail` with `gap: "unfilled placeholder sent"` and no `proposes_answered`.
+

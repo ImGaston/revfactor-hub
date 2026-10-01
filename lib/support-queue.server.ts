@@ -24,6 +24,7 @@ const TICKET_COLUMNS = `
   answer_check_verdict, answer_check_asked, answer_check_replied, answer_check_gap, answer_check_at,
   client_told_live_at, client_acknowledged_at, verification, resolved_at, dismiss_reason, dismiss_note,
   backfilled, backfill_batch, ai_classification, created_at, updated_at,
+  suggested_reply_generated_at:suggested_reply->>generated_at,
   clients:clients_basic(id, name),
   assignee:profiles!support_tickets_assignee_id_fkey(full_name, email),
   support_ticket_listings(listing_id, listings(id, name)),
@@ -125,7 +126,7 @@ export async function loadSupportTicket(
 ): Promise<SupportTicketDetailData | null> {
   const { data: ticketRow, error } = await supabase
     .from("support_tickets")
-    .select(TICKET_COLUMNS)
+    .select(`${TICKET_COLUMNS}, suggested_reply`)
     .eq("id", id)
     .maybeSingle()
   if (error) throw new Error(`support ticket load failed: ${error.message}`)

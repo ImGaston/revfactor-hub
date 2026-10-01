@@ -360,6 +360,7 @@ function TicketRow({ ticket: t, now, closed }: { ticket: SupportTicket; now: Dat
             {t.possible_duplicate_of && <Badge variant="outline">Possible duplicate</Badge>}
             {t.hand_managed && <Badge variant="outline">Hand-managed</Badge>}
             {t.backfilled && <Badge variant="outline">Backlog</Badge>}
+            {!closed && t.suggested_reply_generated_at && <Badge variant="outline">Draft reply</Badge>}
           </span>
         </Link>
       </TableCell>
