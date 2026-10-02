@@ -101,3 +101,18 @@ export function timeAgo(iso: string | null | undefined, now: Date): string {
   if (hours < 48) return `${Math.round(hours)}h ago`
   return `${Math.round(hours / 24)}d ago`
 }
+
+/** Why the capture bot sent a ticket to triage, in words. */
+export const SUPPORT_TRIAGE_REASON_LABEL: Record<string, string> = {
+  property_not_validated: "The property isn't confirmed",
+  low_request_type_confidence: "The bot wasn't sure what kind of ask this is",
+  possible_duplicate: "It may duplicate another ticket",
+  same_ask_open: "The same ask is already open",
+  ask_in_attachment: "The ask is in an attachment the bot couldn't read",
+  hand_managed: "Hand-managed client: a person routes it",
+  reprocess_unmatched: "A re-run split the message differently",
+}
+
+export function triageReasonLabel(reason: string): string {
+  return SUPPORT_TRIAGE_REASON_LABEL[reason] ?? reason.replace(/_/g, " ")
+}
