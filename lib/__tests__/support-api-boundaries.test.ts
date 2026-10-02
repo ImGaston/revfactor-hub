@@ -99,7 +99,7 @@ describe("bot boundaries", () => {
 describe("hub queue boundaries", () => {
   const queue = read("lib/support-queue.server.ts")
   const pages = [
-    read("app/(authenticated)/support/page.tsx"),
+    read("app/(authenticated)/support/layout.tsx"),
     read("app/(authenticated)/support/[id]/page.tsx"),
   ]
 
@@ -111,7 +111,7 @@ describe("hub queue boundaries", () => {
     }
   })
 
-  it("gates both pages on support:view and reads client names from clients_basic", () => {
+  it("gates the workspace and the ticket page on support:view and reads client names from clients_basic", () => {
     for (const source of pages) expect(source).toContain('hasPermission("support", "view")')
     expect(queue).toContain("clients:clients_basic(")
     expect(queue).not.toMatch(/\bbilling_amount\b/)
@@ -121,5 +121,38 @@ describe("hub queue boundaries", () => {
     expect(queue).toContain("profiles!support_tickets_assignee_id_fkey")
     expect(queue).toContain("adjustments!adjustments_support_ticket_id_fkey")
     expect(queue).toContain("profiles!support_ticket_events_actor_id_fkey")
+  })
+})
+
+describe("hub ticket actions", () => {
+  const actions = read("app/(authenticated)/support/actions.ts")
+  const exported = [...actions.matchAll(/export async function (\w+)\(/g)].map((m) => m[1])
+  const body = (name: string) => {
+    const start = actions.indexOf(`export async function ${name}(`)
+    const next = actions.indexOf("export async function", start + 1)
+    return actions.slice(start, next === -1 ? undefined : next)
+  }
+
+  it("are server actions on the user's session, never the admin client", () => {
+    expect(actions.startsWith('"use server"')).toBe(true)
+    expect(actions).not.toContain("createAdminClient")
+    expect(actions).not.toContain("@/lib/supabase/admin")
+    expect(exported.length).toBeGreaterThanOrEqual(10)
+  })
+
+  it("check a permission before every write", () => {
+    for (const name of exported) {
+      expect(body(name), `${name} must check support permissions`).toMatch(/openTicket\(|session\(/)
+    }
+  })
+
+  it("require verify rights to resolve or send back", () => {
+    for (const name of ["verifySupportTicket", "sendBackSupportTicket"]) {
+      expect(body(name)).toContain('"control")')
+    }
+  })
+
+  it("log every change with the signed-in user as actor", () => {
+    expect(actions).toContain("actor_id: user.id")
   })
 })

@@ -180,3 +180,64 @@ export async function loadSupportTicket(
     mergedInto: find(ticket.merged_into),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Workspace context (the shared /support layout and the ticket's right bar)
+// ---------------------------------------------------------------------------
+
+const EXTERNAL_ROLES = ["contractor", "marketing", "hostpricing"]
+
+export type SupportTeamMember = { id: string; name: string }
+
+/** People who can own a ticket: every profile except the external roles. */
+export async function loadSupportTeam(supabase: SupabaseClient): Promise<SupportTeamMember[]> {
+  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role").order("full_name")
+  if (error) throw new Error(`team load failed: ${error.message}`)
+  return (data ?? [])
+    .filter((p) => !EXTERNAL_ROLES.includes(p.role))
+    .map((p) => ({ id: p.id, name: p.full_name || p.email }))
+}
+
+/** When the capture bot last recorded a message (null = never), for the workspace status bar. */
+export async function loadLastCaptureAt(supabase: SupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("support_capture_messages")
+    .select("processed_at")
+    .order("processed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`capture health load failed: ${error.message}`)
+  return data?.processed_at ?? null
+}
+
+export type SupportTicketContext = {
+  /** The client's listings, for the property picker */
+  listings: { id: string; name: string; status: string | null }[]
+  /** The client's other active tickets: merge targets and context */
+  otherTickets: { id: string; ticket_number: number; summary: string; status: string }[]
+}
+
+export async function loadSupportTicketContext(
+  supabase: SupabaseClient,
+  ticket: Pick<SupportTicket, "id" | "client_id">
+): Promise<SupportTicketContext> {
+  const [listings, others] = await Promise.all([
+    supabase.from("listings").select("id, name, status").eq("client_id", ticket.client_id).order("name"),
+    supabase
+      .from("support_tickets")
+      .select("id, ticket_number, summary, status")
+      .eq("client_id", ticket.client_id)
+      .neq("id", ticket.id)
+      .in("status", SUPPORT_ACTIVE_STATUSES)
+      .is("merged_into", null)
+      .order("ticket_number", { ascending: false })
+      .limit(25),
+  ])
+  if (listings.error) throw new Error(`listings load failed: ${listings.error.message}`)
+  if (others.error) throw new Error(`related tickets load failed: ${others.error.message}`)
+  return {
+    listings: (listings.data ?? []) as SupportTicketContext["listings"],
+    otherTickets: (others.data ?? []) as SupportTicketContext["otherTickets"],
+  }
+}
+
