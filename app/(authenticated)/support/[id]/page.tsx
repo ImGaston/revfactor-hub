@@ -18,6 +18,8 @@ import {
   timeAgo,
 } from "@/lib/support-display"
 import { loadSupportTicket } from "@/lib/support-queue.server"
+import { hubDraftBlockReason } from "@/lib/support-answers"
+import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
 import {
   SUPPORT_CLOSED_STATUSES,
   SUPPORT_DRAFT_USAGE,
@@ -42,6 +44,7 @@ import {
   supportRequestTypeLabel,
   supportStatusLabel,
   suggestedReplyFreshness,
+  suggestedReplySource,
   ticketRef,
   unfilledPlaceholders,
   verifyAgeHours,
@@ -49,7 +52,12 @@ import {
   type SupportDraftUsage,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
-import { CopyDraftButton } from "./copy-draft-button"
+import { OurAnswer, type OurAnswerProps } from "./our-answer"
+
+// The answer actions (AI Gateway draft, Jev check) run as Server Actions on this page
+export const maxDuration = 120
+
+const PENDING_DRAFT_FRESH_MS = 10 * 60_000
 
 const TIMING_BADGE: Record<CommitmentTiming, { label: string; className: string }> = {
   open: { label: "Open", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
@@ -73,7 +81,11 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
 
   const { id } = await params
   const supabase = await createClient()
-  const data = await loadSupportTicket(supabase, id)
+  const [data, panel, canEdit] = await Promise.all([
+    loadSupportTicket(supabase, id),
+    loadSupportAnswerPanel(supabase, id),
+    hasPermission("support", "edit"),
+  ])
   if (!data) notFound()
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
@@ -94,8 +106,63 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   const verifyAge = verifyAgeHours(t, now)
   const checkIn = t.request_type === "check_in"
   const draft = closed ? null : t.suggested_reply
-  const draftGaps = unfilledPlaceholders(draft?.text)
-  const draftFreshness = suggestedReplyFreshness(draft?.generated_at, t)
+  const draftSource = suggestedReplySource(draft)
+  const runtime = supportAnswerRuntimeStatus()
+  const currentGeneration =
+    draftSource === "hub" && draft?.generation_id
+      ? (panel.generations.find((g) => g.id === draft.generation_id) ?? null)
+      : null
+  const latestGeneration = panel.generations[0] ?? null
+  const draftedAt = draft ? Date.parse(draft.generated_at) : NaN
+  const lastDraftError =
+    latestGeneration?.status === "failed" &&
+    (Number.isNaN(draftedAt) || Date.parse(latestGeneration.createdAt) > draftedAt)
+      ? latestGeneration.errorMessage
+      : null
+  const answerProps: OurAnswerProps = {
+    ticketId: t.id,
+    canEdit,
+    closed,
+    schemaReady: panel.schemaReady,
+    runtime: { drafts: runtime.drafts, check: runtime.check },
+    draftBlockReason: hubDraftBlockReason(t),
+    moneyAtStake: t.money_at_stake,
+    suggestion:
+      draft && draftSource
+        ? {
+            text: draft.text,
+            source: draftSource,
+            generatedAgo: timeAgo(draft.generated_at, now),
+            skill: draft.skill,
+            basis: draft.basis ?? [],
+            freshness: suggestedReplyFreshness(draft.generated_at, t),
+            gaps: unfilledPlaceholders(draft.text),
+            sources: currentGeneration?.sources.length ? currentGeneration.sources : null,
+            confidence: currentGeneration?.confidence ?? null,
+            createdByName: currentGeneration?.createdByName ?? null,
+          }
+        : null,
+    drafting:
+      !draft &&
+      latestGeneration?.status === "pending" &&
+      now.getTime() - Date.parse(latestGeneration.createdAt) < PENDING_DRAFT_FRESH_MS,
+    lastDraftError,
+    answer: panel.answer
+      ? {
+          body: panel.answer.body,
+          savedLabel: `Saved${panel.answer.updatedByName ? ` by ${panel.answer.updatedByName}` : ""} · ${formatSupportDateTime(panel.answer.updatedAt)}`,
+        }
+      : null,
+    latestCheck: panel.latestCheck
+      ? {
+          verdict: panel.latestCheck.verdict,
+          results: panel.latestCheck.results,
+          answerSnapshot: panel.latestCheck.answerSnapshot,
+          model: panel.latestCheck.model,
+          checkedLabel: `${panel.latestCheck.createdByName ? `${panel.latestCheck.createdByName} · ` : ""}${formatSupportDateTime(panel.latestCheck.createdAt)}`,
+        }
+      : null,
+  }
 
   return (
     <div className="space-y-6">
@@ -226,76 +293,20 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
             </CardContent>
           </Card>
 
-          {draft && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-baseline justify-between gap-2 text-base">
-                  Suggested reply
-                  <span className="text-xs font-normal text-muted-foreground">
-                    Bot draft · {timeAgo(draft.generated_at, now)}
-                    {draft.skill ? ` · ${draft.skill}` : ""}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                {draftFreshness === "team_replied_since" && (
-                  <p className="text-muted-foreground">
-                    The team has replied since this draft, so it may already be used or out of date.
-                  </p>
-                )}
-                {draftFreshness === "client_wrote_since" && (
-                  <p className="text-amber-700 dark:text-amber-300">
-                    The client wrote again after this draft. Check it still answers them.
-                  </p>
-                )}
-                {draftGaps.length > 0 && (
-                  <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200 wrap-anywhere">
-                    Fill {draftGaps.length === 1 ? "this gap" : `these ${draftGaps.length} gaps`} before sending:{" "}
-                    {draftGaps.join(", ")}
-                  </p>
-                )}
-                {t.money_at_stake && (
-                  <p className="text-amber-700 dark:text-amber-300">
-                    Money at stake: get Fede&apos;s approval before sending.
-                  </p>
-                )}
-                <div className="rounded-md border bg-muted/40 p-3 whitespace-pre-wrap wrap-anywhere">{draft.text}</div>
-                {draft.basis.length > 0 && (
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <p className="font-medium">Based on</p>
-                    <ul className="list-disc space-y-0.5 pl-4">
-                      {draft.basis.map((b) => (
-                        <li key={b} className="wrap-anywhere">
-                          {b}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    Draft only. Edit it and send it yourself in Assembly.
-                  </p>
-                  <CopyDraftButton text={draft.text} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Our answer</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {t.answer_summary ? (
-                <>
+            <CardContent className="space-y-4 text-sm">
+              <OurAnswer {...answerProps} />
+              {t.answer_summary && (
+                <div className="space-y-1 border-t pt-4">
+                  <p className="font-medium">Recorded answer</p>
                   <blockquote className="border-l-2 pl-3 whitespace-pre-wrap wrap-anywhere">
                     {t.answer_summary}
                   </blockquote>
                   <p className="text-xs text-muted-foreground">Answered {formatSupportDateTime(t.answered_at)}</p>
-                </>
-              ) : (
-                <p className="text-muted-foreground">No answer recorded yet.</p>
+                </div>
               )}
               {t.answer_check_verdict && (
                 <div className="space-y-1.5 rounded-md border p-3">
@@ -536,7 +547,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
           </Card>
 
           <p className="text-xs text-muted-foreground">
-            Read-only for now. Triage, answering, verifying, and merging arrive in the next update.
+            Triage, recording the answer as sent, verifying, and merging arrive in the next update.
           </p>
         </div>
       </div>

@@ -144,6 +144,7 @@ PREDICTHQ_ACCESS_TOKEN=
 ASSEMBLY_API_KEY=
 STRIPE_SECRET_KEY=
 AI_GATEWAY_API_KEY=
+TYPESAFE_API_KEY=
 ONBOARDING_ENTITLEMENT_SYNC_ENABLED=false
 CRON_SECRET=
 SLACK_BOT_TOKEN=
@@ -156,6 +157,8 @@ WHATSAPP_GROUP_INVITE_URL=
 `SLACK_BOT_TOKEN` is the server-only bot token for Wins notes in Slack. A missing token is a typed skip (`slack_not_configured`), never a throw on page render. `SLACK_WINS_CHANNEL_ID` optionally overrides the default `#revfactor-wins` channel (`C0C0EL1UCDV`). Slack text uses the existing win templates and public listing names only — no guest names, street addresses, Airbnb URLs, raw keys, or `@channel`/`@here`.
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
+
+`TYPESAFE_API_KEY` is the server-only key for Jev (TypeSafe), read only by `lib/jev.server.ts`. Never log, return, or store it; error text is scrubbed. Missing = a typed `not_configured` result and "AI check not configured" in the UI, never a throw. See the Jev section in `integrations.md`.
 
 `AI_GATEWAY_API_KEY` is required for local Agent Studio model runs. Vercel deployments may instead authenticate AI Gateway through Vercel OIDC. Keep both credentials server-only.
 
@@ -203,6 +206,14 @@ Do not commit local hook settings unless the team deliberately decides to versio
 - Structured-output compatibility and reasoning controls are model-specific. Keep the required JSON fields explicit in immutable instructions and smoke-test every selectable Gateway model after model-catalog or AI SDK changes.
 - Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
 - “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.
+
+## Support Answers (2026-10-04)
+
+- The Hub never sends anything to clients. Suggested answers, the owner's answer, and the AI check are advisory; a person copies the answer into Assembly.
+- Hub drafts follow the contract section 9 house rules in code (`lib/support-answers.ts`): never `billing`/`offboarding` (or check-ins); unknown numbers/dates go in `[brackets]`; never "live" unless the linked Adjustment is controlled (`linkedChangeControlled`, deterministic guard + one repair attempt, fail closed); RevPAR over ADR; short plain English; credentials rejected; emails/phones masked.
+- Anything sent to a model or to Jev goes through `redactSupportText`/`redactJevState` first (credentials and codes → `[redacted: credential]`, contacts masked, URL query strings stripped). Jev state carries no client or requester names.
+- Jev is a decision model, not a chatbot: small state + typed questions, one judgment each. Code owns the gate (`JEV_CONFIDENCE_GATES` in `lib/jev.ts`); a mid-band answer is "Needs a human look", never rounded to pass/fail. Deterministic facts beat the model: bracket gaps fail by rule, and "claims live" is Jev's wording judgment joined with the Hub's Adjustment status.
+- Writes are gated on `support:edit` in the Server Action and in RLS. Automatic drafts run with the admin client (capture `after()` hook, CRON_SECRET backfill), so `lib/support-answers.server.ts` projections are explicit.
 
 ## Market Signals Boundaries
 

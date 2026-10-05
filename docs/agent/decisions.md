@@ -1,5 +1,15 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-04 — Support Answers: Hub Drafts Share the Bot's Slot; Jev Checks, Code Gates
+
+Each support ticket now gets a suggested answer before anyone works it, an answer field the owner fills, and a Jev check of that answer. The Hub never sends anything; the owner copies the answer into Assembly.
+
+The Hub's draft reuses `support_tickets.suggested_reply` (marked `source: "hub"` + `generation_id`) instead of a second draft slot, so the page shows one draft labeled "Hub draft" or "Bot draft". Coexistence rule: automatic Hub drafts run at most once per ticket (unique partial index on `support_suggested_answers`), only when the ticket has no draft, and write conditionally (`suggested_reply IS NULL`), so they never replace a Grok draft; Grok's `PUT` still replaces anything; a person's Regenerate replaces anything (with a confirm dialog over a bot draft). The bot-visible change is additive: `suggested_reply_source` on the list endpoint, and `suggested_reply_generated_at` now covers Hub drafts (contract v1.6). Audit detail (sources, confidence, full Jev response, tokens) lives in the ledger because `suggested_reply` is capped at 16 KB.
+
+Drafts are written by AI Gateway (same governed model and config check as Signal Briefs) from the ask, ticket facts, Hub listing facts, and only published + client-safe + approved + agent-enabled Knowledge (existing hybrid retrieval). House rules are enforced twice: in the instructions and by a deterministic guard (credentials, "live" before the Adjustment is controlled) with one repair attempt, then fail closed. Billing, offboarding, and check-ins get no draft.
+
+Jev (`jev-1.13.0`, HTTP only, `TYPESAFE_API_KEY`) judges; code decides. Typed questions with one judgment each, small redacted state, and the team's bars in one constant (Choice ≥ 0.70 confidence and ≥ 0.80 top option; Noul ≤ 0.10 or ≥ 0.90). Mid-band is "Needs a human look", never a pass or fail. Facts the Hub knows beat the model: bracket gaps fail by rule, and "claims live" is Jev's wording judgment joined with the Adjustment status in code. A missing key degrades to "AI check not configured" instead of throwing. The owner's answer lives in its own table (`support_ticket_answers`) so saving it never touches the ticket row or the bot's `updated_since` sync; checks are append-only with the answer snapshot, so a later edit can't rewrite what was checked. No new permission action: reads ride on `support:view`, writes on `support:edit`.
+
 ## 2026-09-10 — Wins Slack Notes Are Hub Delivery, Not a Parallel Product
 
 FD-PLAN-003 posts shareable, unblocked win notes to Slack `#revfactor-wins` after a Hub detection run. This extends the existing Wins product (`win_candidates`, `buildWinMessage`, `WINS_RULES_V1`) rather than adding an occ-adr-wins module, n8n, Assembly send, or PriceLabs write. Rule numbers stay frozen; copy stays template-only.

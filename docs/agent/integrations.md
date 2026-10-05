@@ -91,6 +91,28 @@ The authenticated `/agent-studio` route is the internal pre-production environme
 
 Treat the pricing metadata as a display estimate, not billing truth; update `AGENT_STUDIO_MODELS` when Gateway pricing changes. Embedding price is refreshed hourly from the Gateway catalog with a pinned fallback estimate. Assembly sending remains intentionally absent and requires a separately authorized, human-approved path.
 
+## Jev (TypeSafe decisions model)
+
+Jev checks support answers (`/support/[id]`). Added 2026-10-04.
+
+- Endpoint: HTTP only, `POST https://api.typesafe.ai/v1/systemone`, body `{ "model": "jev-1.13.0", "state": {…}, "questions": {…} }`, header `Authorization: Bearer ${TYPESAFE_API_KEY}`. The response's `answers` object is keyed by question. Same contract as the team's wikibird client (`tools/jev/client.py`).
+- Pin: `jev-1.13.0` exactly (`JEV_MODEL` in `lib/jev.ts`). Never `jev-latest`, never OpenRouter, never `/chat/completions`, never `typesafe-sdk`.
+- Env: server-only `TYPESAFE_API_KEY`, read only in `lib/jev.server.ts`. Never logged, returned, or stored; HTTP and network error text is scrubbed of it. Unset = typed `not_configured`, and the UI shows "AI check not configured".
+- Questions: `{type:"choice", instructions, criteria:{option: meaning}}` or `{type:"noul", instructions, criteria:{true, false}}`. One judgment per question. Choice answers: `{choice, probabilities, confidence}`; noul: `{noul}`.
+- Gates (`JEV_CONFIDENCE_GATES`, the team's bars): Choice decides only when `confidence >= 0.70` AND top option probability `>= 0.80`; Noul decides only at `<= 0.10` (false) or `>= 0.90` (true). Everything in between is "Needs a human look", never a pass or fail.
+- State: small and redacted (`redactJevState`): ticket category/type/"done when"/period/public property label, the client's ask, the reply, the linked Adjustment statuses, and up to four approved knowledge passages. No client or requester names, emails, phones, codes, or credentials.
+- Answer check (`answer-check-v1`): `answers_ask` (choice fully/partly/no/unknown, judged against the client's ask, never the draft), `unfilled_placeholder` (noul; `[brackets]` also fail by rule), `conflicts_with_knowledge` (choice consistent/conflicts/not_covered; skipped when no passage matched), `promise_without_date` (noul), `claims_change_live` (noul on the wording; code turns it into `claims_live_without_proof` only when the Hub doesn't show the linked Adjustment controlled). Verdict: any confident miss = Fix this; else any mid-band = Needs a human look; else Pass.
+- Draft badge (`draft-confidence-v1`): `answers_ask` (draft-aware: brackets are expected), `conflicts_with_knowledge`, `claims_change_live`. Low = confident miss; Needs a human look = any mid-band; Medium = partly; High = all clear.
+- Audit: every check stores the answer snapshot, gated results, verdict, model, question set, the redacted state, and the full Jev response (`support_answer_checks`). Draft scores store the full response on `support_suggested_answers.jev_response`.
+- Tests mock `fetch`; no test calls TypeSafe.
+
+## Support answers (Hub drafts via AI Gateway)
+
+- Hub drafts use the Vercel AI SDK `ToolLoopAgent` + AI Gateway, same pattern and config check as Market Signals briefs (`AI_GATEWAY_API_KEY` locally, Vercel OIDC in deployments). Model `openai/gpt-5.6-luna`, reasoning `none`, structured output `{reply, used_source_ids, gaps}`, one repair attempt, prompt version `hub-answer-v1`, skill slug `hub-support-answer`.
+- Context: the client's ask and ticket details, Hub listing facts (public name + PriceLabs snapshot columns, no owner suffix), linked Adjustments, open promises, the last eight timeline events, and up to four approved knowledge passages from the existing hybrid retrieval (published + client-safe + approved + agent-enabled; keyword fallback). All free text is redacted before the call.
+- Triggers: `after()` in `POST /api/v1/support-captures` for tickets the capture created (never blocks the response; at most once per ticket via a unique index; a conditional write never replaces a bot draft); `GET /api/cron/support-drafts` (CRON_SECRET, unscheduled, `?limit`, `?dryRun=1`) plus `scripts/backfill-support-drafts.ts` to catch up open tickets with no draft; the Generate/Regenerate button (`support:edit`).
+- Storage: the current draft stays in `support_tickets.suggested_reply` with `source: "hub"` and `generation_id`; the ledger row in `support_suggested_answers` holds the sources, confidence, tokens, and Jev response. Capture-bot contract v1.6 documents the coexistence.
+
 ## GoHighLevel onboarding pilot
 
 The onboarding application has an isolated Preview-only pilot at `/start/ghl-pilot` for signup → GHL agreement → Stripe test Checkout → existing Assembly onboarding handoff. It does not replace the production `/start` route or `onboarding.revfactor.io`.

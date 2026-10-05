@@ -1,6 +1,11 @@
-# RevFactor Hub: support capture bot contract (v1.5)
+# RevFactor Hub: support capture bot contract (v1.6)
 
 Build target for the capture bot. The capture endpoints are live at `https://hub.revfactor.io/api/v1/…` (deployed 2026-09-30). Field names and limits below match the Hub's validation exactly.
+
+**v1.6 (2026-10-04, Hub drafts — live once deployed; Fede confirms):**
+- The Hub writes its own draft for new tickets right after capture, in the same `suggested_reply` slot. Never for billing, offboarding, or check-ins. See "Hub drafts" in section 9.
+- `GET /api/v1/support-tickets` adds `suggested_reply_source`: `hub`, `bot`, or `null`. `suggested_reply_generated_at` now covers Hub drafts too.
+- Nothing else changes. `PUT` and `DELETE` work as before, and your `PUT` still replaces any draft, a Hub draft included.
 
 **v1.5 (2026-10-01, check-ins and backfill):**
 - New request type `check_in`: outreach we start ourselves, planned with a date. Only team messages create check-ins. See section 10.
@@ -323,6 +328,12 @@ Content-Type: application/json
   - `no`: written independently.
 - Leave it out when the ticket had no draft. The Hub ignores the tag if no draft existed before the reply.
 - It's measurement only. It never changes the answer check or the ticket's status.
+
+**Hub drafts (v1.6)**
+- The Hub drafts a ticket once, right after capture, and only when it has no draft yet. It never replaces your draft on its own. A person can regenerate on the ticket page, which replaces whatever is there.
+- A Hub draft shows as `suggested_reply_source: "hub"`. If you would draft that ticket (`pricing`, `performance`, `stay_rules`), `PUT` yours as usual. It replaces the Hub draft.
+- `used_suggestion` is for your own drafts only. When the draft before the reply was a Hub draft, leave the tag out: you can't see its text.
+- Don't `DELETE` a Hub draft. Withdraw only your own.
 
 **The answer check stays independent of drafts**
 - `answer_check` compares the reply the team **actually sent** with the client's ask, never with the draft.

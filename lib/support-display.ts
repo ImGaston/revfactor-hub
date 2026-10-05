@@ -24,6 +24,7 @@ export const SUPPORT_EVENT_LABEL: Record<string, string> = {
   internal_note_from_chat: "Internal note",
   answer_recorded: "Answer recorded",
   answer_checked: "Answer checked",
+  answer_saved: "Answer saved",
   commitment_made: "Promise made",
   commitment_kept: "Promise kept",
   commitment_cancelled: "Promise cancelled",
@@ -52,7 +53,12 @@ export function supportEventActor(
 /** Which side of the conversation an event is from, for the timeline dot. */
 export function supportEventSide(type: string): "client" | "team" | "system" {
   if (type.startsWith("client_")) return "client"
-  if (type.startsWith("team_") || type.startsWith("commitment_") || type === "handoff")
+  if (
+    type.startsWith("team_") ||
+    type.startsWith("commitment_") ||
+    type === "handoff" ||
+    type === "answer_saved"
+  )
     return "team"
   return "system"
 }
