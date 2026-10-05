@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-05 — Support opens "By client" by default, busiest client first
+
+Fede wants to work one client at a time with every open ticket in view. `/support` now opens on the By client view (`?view=status` for the queue sections), and client groups sort by the number of open tickets, largest first, then most overdue, then the oldest ask.
+
 ## 2026-10-05 — Support Answers Go Blind-First; Jev Runs Through AI Gateway
 
 Fede's flow: the team writes its own answer first, only then sees the suggestion, then consolidates. The point is to keep the team's judgment independent and to measure what the suggestion adds. So the suggestion is not hidden with CSS. It never leaves the server until `support_ticket_answers.first_body` is saved: the ticket detail read no longer selects `suggested_reply`, and the answer panel reads the draft only after the unlock. Server Actions that return suggestion-derived text require the unlock too. The first answer is immutable, and the suggestion is snapshotted at unlock and at finalize, so `suggestion_unlocked` events and the `used_suggestion` metric (bigram adoption of what the suggestion added beyond the blind answer: none/partly/mostly) describe what the team actually saw. Drafting itself didn't change: it still runs in the background so the suggestion is ready at unlock, and bot-visible behavior is unchanged (contract v1.6 stands).
