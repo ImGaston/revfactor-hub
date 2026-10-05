@@ -6,6 +6,15 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import {
+  SUPPORT_CLIENT_CLOSED_CAP,
+  SUPPORT_RECENT_CLOSED_DAYS,
+  SUPPORT_RECENT_CLOSED_LIMIT,
+  buildSupportClientOptions,
+  countOpenTicketsByClient,
+  type SupportClientOption,
+  type SupportQueueFilters,
+} from "@/lib/support-queue"
 import type { SupportTicket, SupportTicketEvent } from "@/lib/support-tickets"
 import { SUPPORT_ACTIVE_STATUSES, SUPPORT_CLOSED_STATUSES } from "@/lib/support-tickets"
 
@@ -46,45 +55,100 @@ export type SupportQueueData = {
   }[]
   sentBack30d: number
   clientRejected30d: number
+  /**
+   * Which closed tickets were loaded: the last 30 days across every client
+   * (`recent`), every closed ticket of the picked client (`client`, capped),
+   * or none because the picked client's closed tickets are toggled off.
+   */
+  closedScope: "recent" | "client" | "hidden"
+  /** Total closed tickets for the picked client; set only for `client`. */
+  closedTotal: number | null
+  /** Client picker: active clients plus any with open tickets, by name. */
+  clientOptions: SupportClientOption[]
 }
 
+const NO_FILTER: SupportQueueFilters = { clientId: null, showClosed: false, view: "status" }
+
+/**
+ * The /support queue. With `filters.clientId` every query (tickets, promise
+ * and sent-back stats) is scoped to that client, so the header follows the
+ * pick; the client picker's open counts always span every client.
+ */
 export async function loadSupportQueue(
   supabase: SupabaseClient,
-  now: Date
+  now: Date,
+  filters: SupportQueueFilters = NO_FILTER
 ): Promise<SupportQueueData> {
-  const since = new Date(now.getTime() - 30 * DAY_MS).toISOString()
+  const since = new Date(now.getTime() - SUPPORT_RECENT_CLOSED_DAYS * DAY_MS).toISOString()
+  const { clientId } = filters
+  const closedScope: SupportQueueData["closedScope"] = !clientId
+    ? "recent"
+    : filters.showClosed
+      ? "client"
+      : "hidden"
 
-  const [active, recentlyClosed, commitments, sentBack, rejected] = await Promise.all([
-    supabase
-      .from("support_tickets")
-      .select(TICKET_COLUMNS)
-      .in("status", SUPPORT_ACTIVE_STATUSES)
-      .order("requested_at", { ascending: true })
-      .limit(500),
-    supabase
-      .from("support_tickets")
-      .select(TICKET_COLUMNS)
-      .in("status", SUPPORT_CLOSED_STATUSES)
-      .gte("updated_at", since)
-      .order("updated_at", { ascending: false })
-      .limit(50),
-    supabase
-      .from("support_ticket_commitments")
-      .select("status, due_at, rescheduled_to, closed_at, support_tickets!inner(backfilled)")
-      .eq("status", "kept")
-      .gte("closed_at", since),
-    supabase
+  let activeQuery = supabase
+    .from("support_tickets")
+    .select(TICKET_COLUMNS)
+    .in("status", SUPPORT_ACTIVE_STATUSES)
+  if (clientId) activeQuery = activeQuery.eq("client_id", clientId)
+
+  // Closed tickets have no due date, so "newest" is the last change: the
+  // close itself unless someone touched the ticket afterwards. Merged
+  // duplicates are dismissed, so they land here too.
+  const closedQuery = !clientId
+    ? supabase
+        .from("support_tickets")
+        .select(TICKET_COLUMNS)
+        .in("status", SUPPORT_CLOSED_STATUSES)
+        .gte("updated_at", since)
+        .order("updated_at", { ascending: false })
+        .limit(SUPPORT_RECENT_CLOSED_LIMIT)
+    : filters.showClosed
+      ? supabase
+          .from("support_tickets")
+          .select(TICKET_COLUMNS, { count: "exact" })
+          .eq("client_id", clientId)
+          .in("status", SUPPORT_CLOSED_STATUSES)
+          .order("updated_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(SUPPORT_CLIENT_CLOSED_CAP)
+      : Promise.resolve({ data: [] as unknown[], error: null, count: null })
+
+  // Stats scope: the parent ticket's client, through an inner embed
+  let commitmentsQuery = supabase
+    .from("support_ticket_commitments")
+    .select(
+      clientId
+        ? "status, due_at, rescheduled_to, closed_at, support_tickets!inner(backfilled, client_id)"
+        : "status, due_at, rescheduled_to, closed_at, support_tickets!inner(backfilled)"
+    )
+    .eq("status", "kept")
+    .gte("closed_at", since)
+  if (clientId) commitmentsQuery = commitmentsQuery.eq("support_tickets.client_id", clientId)
+
+  const eventCount = (eventType: string) => {
+    let query = supabase
       .from("support_ticket_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event_type", "verification_failed")
-      .gte("occurred_at", since),
-    supabase
-      .from("support_ticket_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event_type", "client_rejected")
-      .gte("occurred_at", since),
+      .select(clientId ? "id, support_tickets!inner(client_id)" : "id", { count: "exact", head: true })
+      .eq("event_type", eventType)
+      .gte("occurred_at", since)
+    if (clientId) query = query.eq("support_tickets.client_id", clientId)
+    return query
+  }
+
+  const [active, closed, commitments, sentBack, rejected, openRows, clients] = await Promise.all([
+    activeQuery.order("requested_at", { ascending: true }).limit(500),
+    closedQuery,
+    commitmentsQuery,
+    eventCount("verification_failed"),
+    eventCount("client_rejected"),
+    // Picker counts: one narrow column across every client. Fine well below
+    // PostgREST's max-rows (1000 open tickets); past that, count in an RPC.
+    supabase.from("support_tickets").select("client_id").in("status", SUPPORT_ACTIVE_STATUSES),
+    supabase.from("clients_basic").select("id, name, status").order("name"),
   ])
-  for (const result of [active, recentlyClosed, commitments, sentBack, rejected]) {
+  for (const result of [active, closed, commitments, sentBack, rejected, openRows, clients]) {
     if (result.error) throw new Error(`support queue load failed: ${result.error.message}`)
   }
 
@@ -95,8 +159,10 @@ export async function loadSupportQueue(
     support_tickets: { backfilled: boolean } | { backfilled: boolean }[] | null
   }
 
+  const openCounts = countOpenTicketsByClient((openRows.data ?? []) as { client_id: string }[])
+
   return {
-    tickets: [...(active.data ?? []), ...(recentlyClosed.data ?? [])] as unknown as SupportTicket[],
+    tickets: [...(active.data ?? []), ...(closed.data ?? [])] as unknown as SupportTicket[],
     closedCommitments: ((commitments.data ?? []) as unknown as CommitmentRow[]).map((c) => {
       const parent = Array.isArray(c.support_tickets) ? c.support_tickets[0] : c.support_tickets
       return {
@@ -109,6 +175,13 @@ export async function loadSupportQueue(
     }),
     sentBack30d: sentBack.count ?? 0,
     clientRejected30d: rejected.count ?? 0,
+    closedScope,
+    closedTotal: closedScope === "client" ? (closed.count ?? closed.data?.length ?? 0) : null,
+    clientOptions: buildSupportClientOptions(
+      (clients.data ?? []) as { id: string; name: string; status: string }[],
+      openCounts,
+      clientId
+    ),
   }
 }
 
