@@ -158,7 +158,7 @@ WHATSAPP_GROUP_INVITE_URL=
 
 Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are browser-accessible.
 
-`TYPESAFE_API_KEY` is the server-only key for Jev (TypeSafe), read only by `lib/jev.server.ts`. Never log, return, or store it; error text is scrubbed. Missing = a typed `not_configured` result and "AI check not configured" in the UI, never a throw. See the Jev section in `integrations.md`.
+`TYPESAFE_API_KEY` is optional: Jev runs through AI Gateway (`AI_GATEWAY_API_KEY` locally, Vercel OIDC in deployments, via `lib/ai-gateway.server.ts`). The key only enables the direct TypeSafe fallback in `lib/jev.server.ts`. Never log, return, or store any of these tokens; error text and stored responses are scrubbed. Nothing configured = a typed `not_configured` result and "AI check not configured" in the UI, never a throw. See the Jev section in `integrations.md`.
 
 `AI_GATEWAY_API_KEY` is required for local Agent Studio model runs. Vercel deployments may instead authenticate AI Gateway through Vercel OIDC. Keep both credentials server-only.
 
@@ -207,12 +207,14 @@ Do not commit local hook settings unless the team deliberately decides to versio
 - Agent Studio must query only Knowledge rows where `status='published'`, `audience='client_safe'`, `review_status='approved'`, and `agent_enabled=true`. Editing an approved answer revokes agent enablement until it is reviewed again.
 - “Knowledge change” feedback requires a corrected response and creates a disabled FAQ draft; it never teaches the live agent automatically.
 
-## Support Answers (2026-10-04)
+## Support Answers (2026-10-04, blind-first since 2026-10-05)
 
-- The Hub never sends anything to clients. Suggested answers, the owner's answer, and the AI check are advisory; a person copies the answer into Assembly.
+- The Hub never sends anything to clients. Suggested answers, the team's answer, the review, and the final answer are advisory; a person copies the final answer into Assembly.
+- **Blind first, enforced on the server.** The team writes and saves its own answer before it can see the suggested answer. Until `support_ticket_answers.first_body` is saved (non-empty after trim), no suggestion text, excerpt, sources, or confidence reaches the browser: `loadSupportTicket` never selects `suggested_reply`, and `loadSupportAnswerPanel` reads the draft only after `hasSavedTeamAnswer`. Server Actions that return text derived from the suggestion (merge) or compare against it check the unlock too. The queue may say "Draft ready", never the text. RLS is row-level, so this is an app-layer lock, not a column privilege.
+- The blind first answer is immutable (trigger) and the suggestion is snapshotted at unlock and at finalize, so draft usage (`used_suggestion`, bigram adoption) is measured against what the team actually saw.
 - Hub drafts follow the contract section 9 house rules in code (`lib/support-answers.ts`): never `billing`/`offboarding` (or check-ins); unknown numbers/dates go in `[brackets]`; never "live" unless the linked Adjustment is controlled (`linkedChangeControlled`, deterministic guard + one repair attempt, fail closed); RevPAR over ADR; short plain English; credentials rejected; emails/phones masked.
 - Anything sent to a model or to Jev goes through `redactSupportText`/`redactJevState` first (credentials and codes → `[redacted: credential]`, contacts masked, URL query strings stripped). Jev state carries no client or requester names.
-- Jev is a decision model, not a chatbot: small state + typed questions, one judgment each. Code owns the gate (`JEV_CONFIDENCE_GATES` in `lib/jev.ts`); a mid-band answer is "Needs a human look", never rounded to pass/fail. Deterministic facts beat the model: bracket gaps fail by rule, and "claims live" is Jev's wording judgment joined with the Hub's Adjustment status.
+- Jev is a decision model, not a chatbot: small state + typed questions, one judgment each. Code owns the gate (`JEV_CONFIDENCE_GATES` in `lib/jev.ts`); a mid-band or missing answer is "Needs a human look", never rounded to pass/fail. Deterministic facts beat the model: bracket gaps fail by rule, "claims live" is Jev's wording judgment joined with the Hub's Adjustment status, "what the suggestion adds" keeps only points that quote the suggestion verbatim, and "Merge with AI" fails closed on numbers neither answer stated, new billing wording, credentials, or an early "it's live".
 - Writes are gated on `support:edit` in the Server Action and in RLS. Automatic drafts run with the admin client (capture `after()` hook, CRON_SECRET backfill), so `lib/support-answers.server.ts` projections are explicit.
 
 ## Market Signals Boundaries

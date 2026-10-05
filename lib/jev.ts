@@ -1,22 +1,35 @@
-// Jev (TypeSafe decisions model) — pinned contract, typed questions, and the
-// confidence gate. Pure and client-safe: the HTTP client and the API key live
-// in lib/jev.server.ts.
+// Jev (TypeSafe decisions model) — transports, typed questions, response
+// normalization, and the confidence gate. Pure and client-safe: credentials
+// and HTTP live in lib/jev.server.ts.
 //
 // Jev is not a chatbot. Send a small, redacted `state` plus typed questions,
-// one judgment per question. Code owns the gate: a mid-band answer is NOT a
-// decision and must be shown as "needs a human look", never rounded to yes/no.
+// one judgment per question. Code owns the gate: a mid-band or missing answer
+// is NOT a decision and shows as "Needs a human look", never as a pass.
+//
+// Transports:
+// - primary: Vercel AI Gateway `POST /v1/evaluate`, model `typesafe-ai/jev`.
+//   The gateway lists no version-pinned id, so every check records the model
+//   id plus any version the response reports; thresholds may need retuning
+//   if the gateway's model changes.
+// - optional fallback: TypeSafe directly (`/v1/systemone`), pinned `jev-1.13.0`,
+//   only when TYPESAFE_API_KEY is set.
 
-/** Pinned exactly. Do not use jev-latest, jev-1.13, or an OpenRouter alias. */
+/** AI Gateway evaluation model (no version pin is available there). */
+export const JEV_GATEWAY_MODEL = "typesafe-ai/jev" as const
+export const JEV_GATEWAY_ENDPOINT = "https://ai-gateway.vercel.sh/v1/evaluate" as const
+
+/** Direct TypeSafe fallback, pinned exactly. Never jev-latest, never OpenRouter. */
 export const JEV_MODEL = "jev-1.13.0" as const
-
-/** Official TypeSafe decisions endpoint (HTTP only, no SDK, no /chat/completions). */
 export const JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone" as const
+
+export type JevTransport = "gateway" | "typesafe"
 
 /**
  * The team's high-confidence bars (same as the wikibird coffee/fireplace
  * gates). Tune here and nowhere else.
- * - Choice: confidence >= 0.70 AND top option probability >= 0.80
- * - Noul: <= 0.10 is a confident "false", >= 0.90 a confident "true"
+ * - Choice: confidence >= 0.70 AND top option probability >= 0.80. When the
+ *   response has no separate confidence, the top probability stands in for it.
+ * - Boolean (noul): <= 0.10 is a confident "false", >= 0.90 a confident "true".
  */
 export const JEV_CONFIDENCE_GATES = {
   choiceConfidenceMin: 0.7,
@@ -25,6 +38,7 @@ export const JEV_CONFIDENCE_GATES = {
   noulTrueMin: 0.9,
 } as const
 
+/** Our question types. `noul` maps to the gateway's `boolean`. */
 export type JevChoiceQuestion = {
   type: "choice"
   instructions: string
@@ -41,6 +55,36 @@ export type JevNoulQuestion = {
 export type JevQuestion = JevChoiceQuestion | JevNoulQuestion
 export type JevQuestions = Record<string, JevQuestion>
 
+/** Gateway question shapes: `boolean` (probability 0–1) and `choice` (one of `options`). */
+export type JevGatewayQuestion =
+  | { type: "boolean"; instructions: string }
+  | { type: "choice"; instructions: string; options: string[] }
+
+/**
+ * Our questions → the gateway's. The gateway's choice takes option labels
+ * only, so each option's meaning moves into the instructions; the boolean's
+ * true/false meanings do too.
+ */
+export function toGatewayQuestions(questions: JevQuestions): Record<string, JevGatewayQuestion> {
+  return Object.fromEntries(
+    Object.entries(questions).map(([key, q]) => {
+      if (q.type === "noul") {
+        return [
+          key,
+          {
+            type: "boolean",
+            instructions: `${q.instructions}\nTrue means: ${q.criteria.true}\nFalse means: ${q.criteria.false}`,
+          },
+        ]
+      }
+      const options = Object.keys(q.criteria)
+      const meanings = options.map((o) => `- ${o}: ${q.criteria[o]}`).join("\n")
+      return [key, { type: "choice", instructions: `${q.instructions}\nOptions:\n${meanings}`, options }]
+    })
+  )
+}
+
+/** Normalized answers the gates read. */
 export type JevChoiceAnswer = {
   type?: "choice"
   choice?: string
@@ -51,6 +95,84 @@ export type JevChoiceAnswer = {
 export type JevNoulAnswer = {
   type?: "noul"
   noul?: number
+}
+
+function finite(value: unknown): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN
+  return Number.isFinite(n) ? n : null
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+}
+
+function firstString(o: Record<string, unknown>, keys: string[]): string | null {
+  for (const k of keys) {
+    const v = o[k]
+    if (typeof v === "string" && v.trim()) return v.trim()
+  }
+  return null
+}
+
+function probabilityMap(o: Record<string, unknown>): Record<string, number> | null {
+  for (const key of ["probabilities", "distribution", "scores"]) {
+    const value = o[key]
+    const map = asObject(value)
+    if (map) {
+      const out: Record<string, number> = {}
+      for (const [option, raw] of Object.entries(map)) {
+        const p = finite(raw)
+        if (p !== null) out[option] = p
+      }
+      if (Object.keys(out).length) return out
+    }
+    if (Array.isArray(value)) {
+      const out: Record<string, number> = {}
+      for (const item of value) {
+        const row = asObject(item)
+        if (!row) continue
+        const option = firstString(row, ["option", "label", "value", "choice", "name"])
+        const p = finite(row.probability ?? row.p ?? row.score)
+        if (option && p !== null) out[option] = p
+      }
+      if (Object.keys(out).length) return out
+    }
+  }
+  return null
+}
+
+/**
+ * One raw answer (gateway or direct TypeSafe shape) → the normalized shape.
+ * Anything unrecognizable comes back empty, which the gates read as
+ * "missing" (needs a human), never as a pass.
+ */
+export function normalizeJevAnswer(raw: unknown, type: JevQuestion["type"]): JevChoiceAnswer | JevNoulAnswer {
+  if (type === "noul") {
+    if (typeof raw === "number") return finite(raw) === null ? {} : { noul: raw }
+    const o = asObject(raw)
+    if (!o) return {}
+    const p = finite(o.noul ?? o.probability ?? o.p ?? (typeof o.value === "number" ? o.value : undefined))
+    return p === null ? {} : { noul: p }
+  }
+  const o = asObject(raw)
+  if (!o) return {}
+  const choice = firstString(o, ["choice", "option", "label", "answer", "value"])
+  let probabilities = probabilityMap(o)
+  const single = finite(o.probability)
+  if (!probabilities && choice && single !== null) probabilities = { [choice]: single }
+  const confidence = finite(o.confidence)
+  return {
+    ...(choice ? { choice } : {}),
+    ...(probabilities ? { probabilities } : {}),
+    ...(confidence !== null ? { confidence } : {}),
+  }
+}
+
+/** Normalize every answer we asked for; unknown keys are dropped. */
+export function normalizeJevAnswers(answers: Record<string, unknown>, questions: JevQuestions): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(questions).map(([key, q]) => [key, normalizeJevAnswer(answers[key], q.type)])
+  )
 }
 
 export type GatedChoice =
@@ -67,18 +189,10 @@ export type GatedNoul =
   | { decided: true; value: boolean; noul: number }
   | { decided: false; reason: "missing" | "mid_band"; noul: number | null }
 
-function finite(value: unknown): number | null {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN
-  return Number.isFinite(n) ? n : null
-}
-
-function asObject(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null
-}
-
 /**
  * Apply the Choice bar. The chosen option is Jev's `choice` (falling back to
- * the most probable option); it must be one of `allowed` when given.
+ * the most probable option); it must be one of `allowed` when given. With no
+ * separate confidence, the top probability stands in for it.
  */
 export function gateChoice(answer: unknown, allowed?: readonly string[]): GatedChoice {
   const a = asObject(answer)
@@ -91,8 +205,8 @@ export function gateChoice(answer: unknown, allowed?: readonly string[]): GatedC
     if (p !== null && (!top || p > top.p)) top = { option, p }
   }
   const choice = typeof a.choice === "string" && a.choice ? a.choice : (top?.option ?? null)
-  const confidence = finite(a.confidence)
   const topProbability = top?.p ?? null
+  const confidence = finite(a.confidence) ?? topProbability
 
   if (!choice || confidence === null || topProbability === null)
     return { decided: false, reason: "missing", choice, confidence, topProbability }
@@ -107,18 +221,27 @@ export function gateChoice(answer: unknown, allowed?: readonly string[]): GatedC
   return { decided: false, reason: "mid_band", choice, confidence, topProbability }
 }
 
-/** Apply the Noul bar: only the extremes are decisions. */
+/** Apply the boolean (noul) bar: only the extremes are decisions. */
 export function gateNoul(answer: unknown): GatedNoul {
   const a = asObject(answer)
-  const noul = a ? finite(a.noul) : null
-  if (noul === null) return { decided: false, reason: "missing", noul: null }
+  const noul = a ? finite(a.noul ?? a.probability) : null
+  if (noul === null || noul < 0 || noul > 1) return { decided: false, reason: "missing", noul: null }
   if (noul >= JEV_CONFIDENCE_GATES.noulTrueMin) return { decided: true, value: true, noul }
   if (noul <= JEV_CONFIDENCE_GATES.noulFalseMax) return { decided: true, value: false, noul }
   return { decided: false, reason: "mid_band", noul }
 }
 
-/** How sure a Noul is of its leaning (0.96 -> 0.96, 0.04 -> 0.96), for display. */
+/** How sure a boolean is of its leaning (0.96 -> 0.96, 0.04 -> 0.96), for display. */
 export function noulCertainty(noul: number | null): number | null {
   if (noul === null) return null
   return noul >= 0.5 ? noul : 1 - noul
+}
+
+/** The version the response reports, if any (gateway ids are unpinned). */
+export function jevResponseModelVersion(raw: Record<string, unknown>): string | null {
+  for (const key of ["model_version", "modelVersion", "version", "model"]) {
+    const v = raw[key]
+    if (typeof v === "string" && v.trim()) return v.trim().slice(0, 100)
+  }
+  return null
 }

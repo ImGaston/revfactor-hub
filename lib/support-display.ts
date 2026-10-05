@@ -25,6 +25,8 @@ export const SUPPORT_EVENT_LABEL: Record<string, string> = {
   answer_recorded: "Answer recorded",
   answer_checked: "Answer checked",
   answer_saved: "Answer saved",
+  suggestion_unlocked: "Answered first, suggestion unlocked",
+  answer_finalized: "Final answer saved",
   commitment_made: "Promise made",
   commitment_kept: "Promise kept",
   commitment_cancelled: "Promise cancelled",
@@ -57,7 +59,9 @@ export function supportEventSide(type: string): "client" | "team" | "system" {
     type.startsWith("team_") ||
     type.startsWith("commitment_") ||
     type === "handoff" ||
-    type === "answer_saved"
+    type === "answer_saved" ||
+    type === "suggestion_unlocked" ||
+    type === "answer_finalized"
   )
     return "team"
   return "system"

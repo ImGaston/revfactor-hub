@@ -1,5 +1,15 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-05 — Support Answers Go Blind-First; Jev Runs Through AI Gateway
+
+Fede's flow: the team writes its own answer first, only then sees the suggestion, then consolidates. The point is to keep the team's judgment independent and to measure what the suggestion adds. So the suggestion is not hidden with CSS. It never leaves the server until `support_ticket_answers.first_body` is saved: the ticket detail read no longer selects `suggested_reply`, and the answer panel reads the draft only after the unlock. Server Actions that return suggestion-derived text require the unlock too. The first answer is immutable, and the suggestion is snapshotted at unlock and at finalize, so `suggestion_unlocked` events and the `used_suggestion` metric (bigram adoption of what the suggestion added beyond the blind answer: none/partly/mostly) describe what the team actually saw. Drafting itself didn't change: it still runs in the background so the suggestion is ready at unlock, and bot-visible behavior is unchanged (contract v1.6 stands).
+
+The lock is enforced in the app, not the database. RLS is row-level, so a signed-in support user calling PostgREST directly could still read `suggested_reply`. A column-level lock would need a privilege split plus a SECURITY DEFINER read path, and the existing `suggested_reply->>generated_at` projections would have to move to a view. It's deferred until it's needed.
+
+Review and merge keep the "model judges, code decides" rule. The Jev comparison is two typed questions under the same gates. "What the suggestion adds" keeps only points whose quote appears word for word in the suggestion. "Merge with AI" starts from the team's answer and fails closed on numbers neither answer stated, new billing wording, credentials, or an early "it's live".
+
+Jev now runs through AI Gateway (`/v1/evaluate`, `typesafe-ai/jev`) with the Hub's existing Gateway auth, so production needs no new secret. The gateway lists no version-pinned id, so every check records the model, any reported version, and the transport. The thresholds may need retuning if the gateway model changes. The pinned direct TypeSafe call (`jev-1.13.0`) stays only as an optional fallback when `TYPESAFE_API_KEY` is set. Gateway `boolean` maps to our `noul`, and responses are parsed defensively, so a missing field is "Needs a human look", never a pass. "Test Jev connection" confirms the live shape after deploy. `@vercel/oidc` became a direct dependency (same version the gateway provider already uses), so the plain-fetch call authenticates exactly like the SDK.
+
 ## 2026-10-04 — Support Answers: Hub Drafts Share the Bot's Slot; Jev Checks, Code Gates
 
 Each support ticket now gets a suggested answer before anyone works it, an answer field the owner fills, and a Jev check of that answer. The Hub never sends anything; the owner copies the answer into Assembly.

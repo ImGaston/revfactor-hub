@@ -19,7 +19,12 @@ const executable = (raw: string) =>
 const SQL = executable(read("20261004120000_support_answer_check.sql"))
 const ORIGINAL = executable(read("20260929160000_support_tickets.sql"))
 
-const NEW_TABLES = ["support_ticket_answers", "support_suggested_answers", "support_answer_checks"]
+const NEW_TABLES = [
+  "support_ticket_answers",
+  "support_suggested_answers",
+  "support_answer_checks",
+  "support_answer_comparisons",
+]
 
 function eventTypes(sql: string, anchor: string): string[] {
   const start = sql.indexOf(anchor)
@@ -33,14 +38,14 @@ function policiesFor(table: string) {
     .map((m) => ({ command: m[2], role: m[3], body: m[4] }))
 }
 
-describe("support answer check migration", () => {
-  it("adds answer_saved and keeps every existing timeline event type", () => {
+describe("support answer migration (blind-first flow)", () => {
+  it("keeps every existing timeline event type and adds the answer-flow ones", () => {
     const original = eventTypes(ORIGINAL, "event_type TEXT NOT NULL CHECK (event_type IN (")
     const updated = eventTypes(SQL, "ADD CONSTRAINT support_ticket_events_event_type_check")
     expect(original.length).toBeGreaterThan(20)
-    expect(updated.filter((t) => t !== "answer_saved").sort()).toEqual([...original].sort())
-    expect(updated).toContain("answer_saved")
-    expect(updated).toContain("answer_checked")
+    const added = ["answer_saved", "suggestion_unlocked", "answer_finalized"]
+    expect(updated.filter((t) => !added.includes(t)).sort()).toEqual([...original].sort())
+    for (const t of [...added, "answer_checked"]) expect(updated).toContain(t)
   })
 
   it.each(NEW_TABLES)("%s has RLS on and permission-based policies only", (table) => {
@@ -59,9 +64,12 @@ describe("support answer check migration", () => {
 
   it("never trusts the client for who wrote a row", () => {
     const answers = policiesFor("support_ticket_answers")
+    expect(answers.find((p) => p.command === "INSERT")?.body).toContain("first_saved_by = auth.uid()")
     expect(answers.find((p) => p.command === "INSERT")?.body).toContain("updated_by = auth.uid()")
     expect(answers.find((p) => p.command === "UPDATE")?.body).toContain("updated_by = auth.uid()")
-    expect(policiesFor("support_answer_checks").find((p) => p.command === "INSERT")?.body).toContain("created_by = auth.uid()")
+    for (const table of ["support_answer_checks", "support_answer_comparisons"]) {
+      expect(policiesFor(table).find((p) => p.command === "INSERT")?.body).toContain("created_by = auth.uid()")
+    }
     const drafts = policiesFor("support_suggested_answers")
     for (const command of ["INSERT", "UPDATE"]) {
       const body = drafts.find((p) => p.command === command)?.body ?? ""
@@ -70,8 +78,41 @@ describe("support answer check migration", () => {
     }
   })
 
-  it("keeps checks append-only", () => {
-    expect(policiesFor("support_answer_checks").map((p) => p.command).sort()).toEqual(["INSERT", "SELECT"])
+  it("stores the three versions: blind first answer, the suggestion as shown, and the final", () => {
+    for (const column of [
+      "first_body TEXT NOT NULL",
+      "suggestion_at_unlock JSONB",
+      "body TEXT NOT NULL",
+      "final_body TEXT",
+      "suggestion_at_final JSONB",
+      "suggestion_adoption NUMERIC(4, 3)",
+    ]) {
+      expect(SQL).toContain(column)
+    }
+    expect(SQL).toContain("used_suggestion TEXT CHECK (used_suggestion IN ('none', 'partly', 'mostly'))")
+    expect(SQL).toContain("final_source TEXT CHECK (final_source IN ('mine', 'suggested', 'merged', 'edited'))")
+  })
+
+  it("freezes the blind first answer and the unlock snapshot in a trigger", () => {
+    const start = SQL.indexOf("FUNCTION public.support_ticket_answer_guard()")
+    const body = SQL.slice(start, SQL.indexOf("$$;", start))
+    expect(body).toContain("NEW.first_body IS DISTINCT FROM OLD.first_body")
+    expect(body).toContain("OLD.suggestion_at_unlock IS NOT NULL")
+    expect(body).toContain("COALESCE(auth.uid(), NEW.final_saved_by)")
+    expect(SQL).toContain("BEFORE INSERT OR UPDATE ON support_ticket_answers")
+    expect(SQL).toContain("REVOKE EXECUTE ON FUNCTION public.support_ticket_answer_guard() FROM PUBLIC, anon, authenticated")
+  })
+
+  it("keeps checks and comparisons append-only, with the transport and model recorded", () => {
+    for (const table of ["support_answer_checks", "support_answer_comparisons"]) {
+      expect(policiesFor(table).map((p) => p.command).sort()).toEqual(["INSERT", "SELECT"])
+    }
+    expect(SQL).toContain("target TEXT NOT NULL CHECK (target IN ('team', 'final'))")
+    expect(SQL).toContain("transport TEXT NOT NULL CHECK (transport IN ('gateway', 'typesafe'))")
+    expect(SQL).toContain("model_version TEXT")
+    expect(SQL).toContain("CHECK (verdict IN ('pass', 'fix', 'needs_human'))")
+    expect(SQL).toContain("CHECK (verdict IN ('covered', 'review', 'needs_human'))")
+    expect(SQL).toContain("jsonb_array_length(adds) <= 3")
   })
 
   it("allows at most one automatic draft per ticket", () => {
@@ -80,19 +121,11 @@ describe("support answer check migration", () => {
     )
   })
 
-  it("stores what the audit needs", () => {
-    for (const column of ["answer_snapshot TEXT NOT NULL", "results JSONB NOT NULL", "verdict TEXT NOT NULL", "jev_response JSONB NOT NULL", "request_state JSONB NOT NULL", "model TEXT NOT NULL"]) {
-      expect(SQL).toContain(column)
-    }
-    expect(SQL).toContain("CHECK (verdict IN ('pass', 'fix', 'needs_human'))")
-    expect(SQL).toContain("CHECK (origin IN ('auto', 'backfill', 'manual'))")
-  })
-
   it("leaves the ticket table, its guard, and grants alone", () => {
     expect(SQL).not.toMatch(/ALTER TABLE support_tickets\b/)
-    expect(SQL).not.toContain("support_ticket_guard")
+    expect(SQL).not.toContain("support_ticket_guard()")
     expect(SQL).not.toMatch(/\bGRANT\b/)
-    expect(SQL).not.toMatch(/\banon\b/)
+    expect(SQL).not.toMatch(/\banon\b(?!, authenticated)/)
     expect(SQL).not.toMatch(/SECURITY DEFINER/)
   })
 })

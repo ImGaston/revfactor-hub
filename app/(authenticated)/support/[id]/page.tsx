@@ -18,7 +18,6 @@ import {
   timeAgo,
 } from "@/lib/support-display"
 import { loadSupportTicket } from "@/lib/support-queue.server"
-import { hubDraftBlockReason } from "@/lib/support-answers"
 import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
 import {
   SUPPORT_CLOSED_STATUSES,
@@ -43,10 +42,7 @@ import {
   supportRequestTypeDoneWhen,
   supportRequestTypeLabel,
   supportStatusLabel,
-  suggestedReplyFreshness,
-  suggestedReplySource,
   ticketRef,
-  unfilledPlaceholders,
   verifyAgeHours,
   type CommitmentTiming,
   type SupportDraftUsage,
@@ -56,8 +52,6 @@ import { OurAnswer, type OurAnswerProps } from "./our-answer"
 
 // The answer actions (AI Gateway draft, Jev check) run as Server Actions on this page
 export const maxDuration = 120
-
-const PENDING_DRAFT_FRESH_MS = 10 * 60_000
 
 const TIMING_BADGE: Record<CommitmentTiming, { label: string; className: string }> = {
   open: { label: "Open", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
@@ -105,19 +99,18 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   const verification = t.verification as { override_reason?: string }
   const verifyAge = verifyAgeHours(t, now)
   const checkIn = t.request_type === "check_in"
-  const draft = closed ? null : t.suggested_reply
-  const draftSource = suggestedReplySource(draft)
+  // The suggested answer reaches this page only through the panel, and only
+  // once the team has saved its own answer (loadSupportAnswerPanel's lock).
   const runtime = supportAnswerRuntimeStatus()
-  const currentGeneration =
-    draftSource === "hub" && draft?.generation_id
-      ? (panel.generations.find((g) => g.id === draft.generation_id) ?? null)
-      : null
-  const latestGeneration = panel.generations[0] ?? null
-  const draftedAt = draft ? Date.parse(draft.generated_at) : NaN
-  const lastDraftError =
-    latestGeneration?.status === "failed" &&
-    (Number.isNaN(draftedAt) || Date.parse(latestGeneration.createdAt) > draftedAt)
-      ? latestGeneration.errorMessage
+  const who = (name: string | null) => (name ? ` by ${name}` : "")
+  const checkProps = (c: typeof panel.teamCheck) =>
+    c
+      ? {
+          verdict: c.verdict,
+          results: c.results,
+          answerSnapshot: c.answerSnapshot,
+          checkedLabel: `${c.createdByName ? `${c.createdByName} · ` : ""}${formatSupportDateTime(c.createdAt)} · ${c.model}`,
+        }
       : null
   const answerProps: OurAnswerProps = {
     ticketId: t.id,
@@ -125,43 +118,56 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
     closed,
     schemaReady: panel.schemaReady,
     runtime: { drafts: runtime.drafts, check: runtime.check },
-    draftBlockReason: hubDraftBlockReason(t),
     moneyAtStake: t.money_at_stake,
-    suggestion:
-      draft && draftSource
-        ? {
-            text: draft.text,
-            source: draftSource,
-            generatedAgo: timeAgo(draft.generated_at, now),
-            skill: draft.skill,
-            basis: draft.basis ?? [],
-            freshness: suggestedReplyFreshness(draft.generated_at, t),
-            gaps: unfilledPlaceholders(draft.text),
-            sources: currentGeneration?.sources.length ? currentGeneration.sources : null,
-            confidence: currentGeneration?.confidence ?? null,
-            createdByName: currentGeneration?.createdByName ?? null,
-          }
-        : null,
-    drafting:
-      !draft &&
-      latestGeneration?.status === "pending" &&
-      now.getTime() - Date.parse(latestGeneration.createdAt) < PENDING_DRAFT_FRESH_MS,
-    lastDraftError,
+    unlocked: panel.unlocked,
+    lock: panel.lock,
+    draftPending: panel.draftPending,
+    lastDraftError: panel.lastDraftError,
     answer: panel.answer
       ? {
+          firstBody: panel.answer.firstBody,
           body: panel.answer.body,
-          savedLabel: `Saved${panel.answer.updatedByName ? ` by ${panel.answer.updatedByName}` : ""} · ${formatSupportDateTime(panel.answer.updatedAt)}`,
+          savedLabel: `Saved${who(panel.answer.updatedByName)} · ${formatSupportDateTime(panel.answer.updatedAt)}`,
+          firstLabel: `Answered first${who(panel.answer.firstSavedByName)} · ${formatSupportDateTime(panel.answer.firstSavedAt)}`,
         }
       : null,
-    latestCheck: panel.latestCheck
+    suggestion:
+      panel.suggestion && !closed
+        ? {
+            text: panel.suggestion.text,
+            source: panel.suggestion.source,
+            generatedAgo: timeAgo(panel.suggestion.generatedAt, now),
+            skill: panel.suggestion.skill,
+            basis: panel.suggestion.basis,
+            freshness: panel.suggestion.freshness,
+            gaps: panel.suggestion.gaps,
+            sources: panel.suggestion.sources,
+            confidence: panel.suggestion.confidence,
+            createdByName: panel.suggestion.createdByName,
+          }
+        : null,
+    teamCheck: checkProps(panel.teamCheck),
+    comparison: panel.comparison
       ? {
-          verdict: panel.latestCheck.verdict,
-          results: panel.latestCheck.results,
-          answerSnapshot: panel.latestCheck.answerSnapshot,
-          model: panel.latestCheck.model,
-          checkedLabel: `${panel.latestCheck.createdByName ? `${panel.latestCheck.createdByName} · ` : ""}${formatSupportDateTime(panel.latestCheck.createdAt)}`,
+          verdict: panel.comparison.verdict,
+          results: panel.comparison.results,
+          adds: panel.comparison.adds,
+          jevStatus: panel.comparison.jevStatus,
+          addsStatus: panel.comparison.addsStatus,
+          teamAnswerSnapshot: panel.comparison.teamAnswerSnapshot,
+          suggestionText: panel.comparison.suggestionText,
+          checkedLabel: `${panel.comparison.createdByName ? `${panel.comparison.createdByName} · ` : ""}${formatSupportDateTime(panel.comparison.createdAt)}${panel.comparison.model ? ` · ${panel.comparison.model}` : ""}`,
         }
       : null,
+    final: panel.answer?.final
+      ? {
+          body: panel.answer.final.body,
+          source: panel.answer.final.source,
+          savedLabel: `Saved${who(panel.answer.final.savedByName)} · ${formatSupportDateTime(panel.answer.final.savedAt)}`,
+          usedSuggestion: panel.answer.final.usedSuggestion,
+        }
+      : null,
+    finalCheck: checkProps(panel.finalCheck),
   }
 
   return (
