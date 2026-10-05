@@ -67,7 +67,7 @@ export type SupportQueueData = {
   clientOptions: SupportClientOption[]
 }
 
-const NO_FILTER: SupportQueueFilters = { clientId: null, showClosed: false }
+const NO_FILTER: SupportQueueFilters = { clientId: null, showClosed: false, view: "status" }
 
 /**
  * The /support queue. With `filters.clientId` every query (tickets, promise

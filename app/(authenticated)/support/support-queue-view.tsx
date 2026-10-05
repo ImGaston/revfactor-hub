@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { groupTicketsByClient, type SupportClientContext } from "@/lib/support-client-view"
 import { ownerLabel, ticketPropertyLabel, timeAgo } from "@/lib/support-display"
 import {
   supportQueueHref,
@@ -61,6 +62,8 @@ import {
   type SupportTicket,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
+import { SupportClientContextPanel } from "./support-client-context"
+import { SupportClientGroups, SupportViewToggle } from "./support-client-groups"
 
 type SectionKey = Exclude<keyof SupportQueue, "closed">
 
@@ -109,6 +112,7 @@ export function SupportQueueView({
   filters,
   clientOptions,
   closed,
+  clientContext,
 }: {
   tickets: SupportTicket[]
   stats: SupportStats
@@ -116,6 +120,8 @@ export function SupportQueueView({
   filters: SupportQueueFilters
   clientOptions: SupportClientOption[]
   closed: SupportClosedView
+  /** Set with a client picked: listings, Adjustments, latest messages */
+  clientContext: SupportClientContext | null
 }) {
   const now = useMemo(() => new Date(nowIso), [nowIso])
   const router = useRouter()
@@ -146,12 +152,17 @@ export function SupportQueueView({
       ? ownerFilter
       : ALL
 
-  const queue = useMemo(() => {
-    const visible = tickets.filter(
-      (t) => owner === ALL || (owner === UNASSIGNED ? !t.assignee_id : t.assignee_id === owner)
-    )
-    return bucketSupportTickets(visible, now)
-  }, [tickets, owner, now])
+  const visible = useMemo(
+    () =>
+      tickets.filter(
+        (t) => owner === ALL || (owner === UNASSIGNED ? !t.assignee_id : t.assignee_id === owner)
+      ),
+    [tickets, owner]
+  )
+  const queue = useMemo(() => bucketSupportTickets(visible, now), [visible, now])
+  // "By client" groups only apply across clients; a picked client has its own view
+  const byClient = filters.view === "client" && !filters.clientId
+  const groups = useMemo(() => (byClient ? groupTicketsByClient(visible, now) : []), [byClient, visible, now])
 
   const openLoaded = tickets.filter((t) => SUPPORT_ACTIVE_STATUSES.includes(t.status)).length
   const closedLoaded = tickets.filter((t) => SUPPORT_CLOSED_STATUSES.includes(t.status)).length
@@ -175,6 +186,9 @@ export function SupportQueueView({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {!shownFilters.clientId && (
+            <SupportViewToggle value={shownFilters.view} onChange={(view) => navigate({ ...shownFilters, view })} />
+          )}
           {shownFilters.clientId && (
             <div className="flex items-center gap-2">
               <Switch
@@ -192,7 +206,7 @@ export function SupportQueueView({
             selectedId={shownFilters.clientId}
             onSelect={(clientId) =>
               // Keep the closed toggle while moving between clients
-              navigate({ clientId, showClosed: clientId !== null && shownFilters.showClosed })
+              navigate({ ...shownFilters, clientId, showClosed: clientId !== null && shownFilters.showClosed })
             }
           />
           <Select value={owner} onValueChange={setOwnerFilter}>
@@ -240,11 +254,20 @@ export function SupportQueueView({
           </div>
         ) : (
           <>
+            {clientName && clientContext && (
+              <SupportClientContextPanel clientName={clientName} tickets={tickets} context={clientContext} now={now} />
+            )}
             {clientName && openLoaded === 0 ? (
               <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
                 <Inbox className="size-6" />
                 <p className="font-medium text-foreground">No open tickets for {clientName}</p>
               </div>
+            ) : byClient ? (
+              <SupportClientGroups
+                groups={groups}
+                now={now}
+                renderTicket={(t) => <TicketRow key={t.id} ticket={t} now={now} closed={false} hideClient />}
+              />
             ) : (
               SECTIONS.map((section) => {
                 const items = queue[section.key]
@@ -269,7 +292,7 @@ export function SupportQueueView({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate({ clientId: filters.clientId, showClosed: true })}
+                  onClick={() => navigate({ ...filters, showClosed: true })}
                 >
                   Show closed
                 </Button>
@@ -502,7 +525,18 @@ function QueueSection({
   )
 }
 
-function TicketRow({ ticket: t, now, closed }: { ticket: SupportTicket; now: Date; closed: boolean }) {
+function TicketRow({
+  ticket: t,
+  now,
+  closed,
+  hideClient = false,
+}: {
+  ticket: SupportTicket
+  now: Date
+  closed: boolean
+  /** Inside a client's group: the property cell drops the client name */
+  hideClient?: boolean
+}) {
   const due = nextDueAt(t)
   const state = dueState(due, now)
   const doneNotTold = isDoneNotTold(t)
@@ -552,13 +586,15 @@ function TicketRow({ ticket: t, now, closed }: { ticket: SupportTicket; now: Dat
         </Link>
       </TableCell>
       <TableCell className="whitespace-normal text-sm">
-        <Link
-          href={supportQueueHref({ clientId: t.client_id, showClosed: false })}
-          className="block font-medium hover:underline"
-          title="Show this client's tickets"
-        >
-          {t.clients?.name ?? "Unknown client"}
-        </Link>
+        {!hideClient && (
+          <Link
+            href={supportQueueHref({ clientId: t.client_id, showClosed: false, view: "status" })}
+            className="block font-medium hover:underline"
+            title="Show this client's tickets"
+          >
+            {t.clients?.name ?? "Unknown client"}
+          </Link>
+        )}
         <span className="block text-muted-foreground wrap-anywhere">{ticketPropertyLabel(t)}</span>
       </TableCell>
       <TableCell

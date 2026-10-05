@@ -13,11 +13,19 @@ export const SUPPORT_CLIENT_CLOSED_CAP = 200
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** `status`: the queue sections (default). `client`: one group per client. */
+export type SupportQueueView = "status" | "client"
+
 export type SupportQueueFilters = {
   /** `clients.id` from `?client=`; null when absent or not a uuid. */
   clientId: string | null
   /** `?closed=1`; only honoured with a client picked. */
   showClosed: boolean
+  /**
+   * `?view=client`. With a client picked the page shows that client's own
+   * view either way; the param is kept so "All clients" returns to it.
+   */
+  view: SupportQueueView
 }
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -27,22 +35,31 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 /**
- * `/support?client=<uuid>&closed=1`. Anything else is ignored: a bad client
- * value falls back to every client, and `closed` without a client is dropped
- * (the default view already shows the last 30 days of closed tickets).
+ * `/support?client=<uuid>&closed=1&view=client`. Anything else is ignored: a
+ * bad client value falls back to every client, `closed` without a client is
+ * dropped (the default view already shows the last 30 days of closed
+ * tickets), and any `view` but `client` means the status sections.
  */
 export function parseSupportQueueParams(sp: SearchParams): SupportQueueFilters {
   const raw = first(sp.client)?.trim() ?? ""
   const clientId = UUID_RE.test(raw) ? raw.toLowerCase() : null
-  return { clientId, showClosed: clientId !== null && first(sp.closed) === "1" }
+  return {
+    clientId,
+    showClosed: clientId !== null && first(sp.closed) === "1",
+    view: first(sp.view) === "client" ? "client" : "status",
+  }
 }
 
 /** The query string for a filter state, in a stable order (empty for none). */
 export function supportQueueSearch(filters: SupportQueueFilters): string {
-  if (!filters.clientId) return ""
-  const params = new URLSearchParams({ client: filters.clientId })
-  if (filters.showClosed) params.set("closed", "1")
-  return `?${params.toString()}`
+  const params = new URLSearchParams()
+  if (filters.clientId) {
+    params.set("client", filters.clientId)
+    if (filters.showClosed) params.set("closed", "1")
+  }
+  if (filters.view === "client") params.set("view", "client")
+  const qs = params.toString()
+  return qs ? `?${qs}` : ""
 }
 
 export function supportQueueHref(filters: SupportQueueFilters): string {

@@ -19,10 +19,11 @@ const OTHER = "0a0b0c0d-1e1f-4a2b-9c3d-4e5f6a7b8c9d"
 
 describe("parseSupportQueueParams", () => {
   it("reads a uuid client and the closed toggle", () => {
-    expect(parseSupportQueueParams({ client: CLIENT })).toEqual({ clientId: CLIENT, showClosed: false })
+    expect(parseSupportQueueParams({ client: CLIENT })).toEqual({ clientId: CLIENT, showClosed: false, view: "status" })
     expect(parseSupportQueueParams({ client: CLIENT, closed: "1" })).toEqual({
       clientId: CLIENT,
       showClosed: true,
+      view: "status",
     })
   })
 
@@ -34,6 +35,7 @@ describe("parseSupportQueueParams", () => {
     expect(parseSupportQueueParams({ client: [CLIENT, OTHER], closed: ["1", "0"] })).toEqual({
       clientId: CLIENT,
       showClosed: true,
+      view: "status",
     })
   })
 
@@ -46,7 +48,21 @@ describe("parseSupportQueueParams", () => {
     ["a filter injection", `${CLIENT},status.eq.resolved`],
     ["a quoted uuid", `'${CLIENT}'`],
   ])("ignores %s as the client", (_label, client) => {
-    expect(parseSupportQueueParams({ client, closed: "1" })).toEqual({ clientId: null, showClosed: false })
+    expect(parseSupportQueueParams({ client, closed: "1" })).toEqual({ clientId: null, showClosed: false, view: "status" })
+  })
+
+  it("reads view=client and treats anything else as the status view", () => {
+    expect(parseSupportQueueParams({ view: "client" }).view).toBe("client")
+    expect(parseSupportQueueParams({ view: ["client", "status"] }).view).toBe("client")
+    for (const view of [undefined, "", "status", "Client", "clients", "client "]) {
+      expect(parseSupportQueueParams({ view }).view).toBe("status")
+    }
+    // Kept with a client picked, so "All clients" returns to the groups
+    expect(parseSupportQueueParams({ client: CLIENT, view: "client" })).toEqual({
+      clientId: CLIENT,
+      showClosed: false,
+      view: "client",
+    })
   })
 
   it("only treats closed=1 as on, and only with a client", () => {
@@ -59,16 +75,24 @@ describe("parseSupportQueueParams", () => {
 
 describe("supportQueueHref", () => {
   it("round-trips through the parser", () => {
-    expect(supportQueueHref({ clientId: null, showClosed: false })).toBe("/support")
-    expect(supportQueueHref({ clientId: CLIENT, showClosed: false })).toBe(`/support?client=${CLIENT}`)
-    const href = supportQueueHref({ clientId: CLIENT, showClosed: true })
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "status" })).toBe("/support")
+    expect(supportQueueHref({ clientId: CLIENT, showClosed: false, view: "status" })).toBe(`/support?client=${CLIENT}`)
+    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "status" })
     expect(href).toBe(`/support?client=${CLIENT}&closed=1`)
     const params = Object.fromEntries(new URL(href, "https://hub.test").searchParams)
-    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true })
+    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "status" })
   })
 
   it("drops the closed toggle without a client", () => {
-    expect(supportQueueHref({ clientId: null, showClosed: true })).toBe("/support")
+    expect(supportQueueHref({ clientId: null, showClosed: true, view: "status" })).toBe("/support")
+  })
+
+  it("carries view=client, with or without a client", () => {
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "client" })).toBe("/support?view=client")
+    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "client" })
+    expect(href).toBe(`/support?client=${CLIENT}&closed=1&view=client`)
+    const params = Object.fromEntries(new URL(href, "https://hub.test").searchParams)
+    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "client" })
   })
 })
 
@@ -229,7 +253,7 @@ describe("loadSupportQueue query building", () => {
 
   it("loads only the picked client's open tickets and skips closed ones by default", async () => {
     const { supabase, queries } = fakeSupabase(defaultResolver())
-    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false })
+    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false, view: "status" })
 
     const active = queries.find(isActiveQuery)!
     expect(calls(active, "eq")).toEqual([["client_id", CLIENT]])
@@ -246,7 +270,7 @@ describe("loadSupportQueue query building", () => {
     const { supabase, queries } = fakeSupabase(
       defaultResolver({ closed: { data: closedRows, error: null, count: 312 } })
     )
-    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true })
+    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true, view: "status" })
 
     const closed = queries.find(isClosedQuery)!
     expect(statusesOf(closed)).toEqual(["resolved", "dismissed"])
@@ -266,7 +290,7 @@ describe("loadSupportQueue query building", () => {
 
   it("scopes the promise and sent-back stats to the picked client", async () => {
     const { supabase, queries } = fakeSupabase(defaultResolver())
-    await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false })
+    await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false, view: "status" })
 
     const commitments = queries.find((q) => q.table === "support_ticket_commitments")!
     expect(selectOf(commitments)).toContain("support_tickets!inner(backfilled, client_id)")
@@ -284,7 +308,7 @@ describe("loadSupportQueue query building", () => {
 
   it("counts open tickets across every client for the picker, even when filtered", async () => {
     const { supabase, queries } = fakeSupabase(defaultResolver())
-    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false })
+    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false, view: "status" })
 
     const counts = queries.find(isOpenCountQuery)!
     expect(statusesOf(counts)).toEqual(SUPPORT_ACTIVE_STATUSES)
@@ -297,7 +321,7 @@ describe("loadSupportQueue query building", () => {
 
   it("reads client names from clients_basic, never clients", async () => {
     const { supabase, queries } = fakeSupabase(defaultResolver())
-    await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true })
+    await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true, view: "status" })
     const tables = queries.map((q) => q.table)
     expect(tables).toContain("clients_basic")
     expect(tables).not.toContain("clients")
@@ -308,7 +332,7 @@ describe("loadSupportQueue query building", () => {
     const { supabase } = fakeSupabase(
       defaultResolver({ closed: { data: null, error: { message: "boom" }, count: null } })
     )
-    await expect(loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true })).rejects.toThrow(
+    await expect(loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: true, view: "status" })).rejects.toThrow(
       "support queue load failed: boom"
     )
   })
@@ -322,7 +346,7 @@ describe("loadSupportQueue query building", () => {
         },
       })
     )
-    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false })
+    const data = await loadSupportQueue(supabase, NOW, { clientId: CLIENT, showClosed: false, view: "status" })
     const stats = supportStats(
       data.tickets,
       data.closedCommitments,
