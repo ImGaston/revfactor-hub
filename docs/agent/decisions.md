@@ -1,5 +1,21 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-04 — Report Builder Polls to Completion in One Invocation (supersedes the 2026-06-23 inline budget)
+
+Every `report_runs` row since 2026-10-01 ended `session_expired`, but the cron path had not completed a run since 2026-08-27. The state machine only advances when something invokes it, and the daily `sync-pricelabs` cron is the only scheduled caller. The cron triggered the report *after* the `pl_*` sync, which had grown to ~30–35s (336 listings, row-by-row updates). That left ~17–23s of polling under `maxDuration 60`, while PriceLabs generation grew from 30–50s (August) to 50–180s (late September). Each run was left `polling`, nothing touched it inside its 30-minute session, and the next day's cron reaped it. Freshness had silently depended on manual "Sync Report Builder" clicks, whose 45s window also stopped being enough. The 2026-10-01 and 2026-10-02 clicks each polled ~45s and were never followed up. One cron run (2026-08-18) was even killed mid-ingest by the 8s headroom and sat in `ingesting` forever.
+
+The fix keeps the daily-cron, no-new-cron shape and gives one invocation enough wall-clock to finish:
+
+- `sync-pricelabs` runs `advanceReportBuilder` concurrently with the `pl_*` sync under `maxDuration 300`.
+- The runner polls for up to 230s from invocation start, never past `session_expires_at`.
+- It reserves 30s fetch timeout + 25s ingestion inside the 300s limit, and a test pins that budget to every hosting route.
+- Ingestion claims the run atomically, so overlapping cron/manual pollers ingest once.
+- Stale `ingesting` runs are reaped as `ingest_interrupted`.
+
+This overrides the 2026-06-23 rule "do not block a function waiting". 300s functions are already proven on this deployment (`sync-stripe` since 2026-04-23, Market Signals since 2026-08-25). Polling is mostly idle sleep, and the alternatives are worse here. A Pro per-minute cron isn't available on the current plan, and a third Vercel cron at Hobby precision can't land inside a 30-minute window. Self-chaining HTTP calls depend on Vercel not cancelling a callee whose caller disconnected.
+
+If generation outgrows the 230s window, the next step is an authenticated external resume scheduler, such as Supabase `pg_cron` + `pg_net` calling `/api/cron/report-builder` with `CRON_SECRET` from Vault, rather than a longer function. The PriceLabs API key was not regenerated; it is not implicated.
+
 ## 2026-09-10 — Wins Slack Notes Are Hub Delivery, Not a Parallel Product
 
 FD-PLAN-003 posts shareable, unblocked win notes to Slack `#revfactor-wins` after a Hub detection run. This extends the existing Wins product (`win_candidates`, `buildWinMessage`, `WINS_RULES_V1`) rather than adding an occ-adr-wins module, n8n, Assembly send, or PriceLabs write. Rule numbers stay frozen; copy stays template-only.

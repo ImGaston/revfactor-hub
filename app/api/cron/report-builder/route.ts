@@ -4,7 +4,9 @@ import { isReportBuilderConfigured } from "@/lib/report-builder/client"
 import { advanceReportBuilder } from "@/lib/report-builder/runner"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+// advanceReportBuilder polls inline for up to INLINE_DEADLINE_MS (230s) plus a
+// final poll and ingestion; see lib/report-builder/runner.ts.
+export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access.

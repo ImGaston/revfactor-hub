@@ -1,5 +1,16 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-04 — Report Builder session_expired outage
+
+Diagnosed from `report_runs`. Cron runs always got 4 polls (~23s) after the `pl_*` sync, while PriceLabs now takes 50–180s to generate the report. Each run sat `polling` until the next day's cron reaped it as `session_expired`; the cron path last completed on 2026-08-27, and manual clicks stopped bridging the gap on 2026-10-01. Changes:
+
+- `sync-pricelabs` runs the Report Builder concurrently with the `pl_*` sync (`Promise.allSettled`, so a pl failure no longer skips it).
+- `maxDuration` 300 on `sync-pricelabs`, `report-builder`, and the Settings → Listings page (for the server action).
+- The runner polls up to `INLINE_DEADLINE_MS` 230s, stops at session expiry, accumulates `poll_attempts` across resumes, logs poll errors, claims ingestion atomically, and reaps stranded `ingesting` rows. It takes an injectable clock for tests.
+- New tests: `lib/__tests__/report-builder-runner.test.ts` (fake `report_runs` + virtual clock, including a reproduction of the 23s outage window and a maxDuration-budget guard) and `lib/__tests__/sync-pricelabs-cron.test.ts` (concurrency/failure isolation; fails on the old sequential route).
+
+`pnpm typecheck` and `pnpm test` (67 files, 640 tests) pass. Vercel runtime logs were not reachable: the connected Vercel team holds the marketing `revfactor` project, not the hub. No production data was written and no manual production run was triggered.
+
 ## 2026-09-17 — Wins: multi-select filters plus portfolio-size and bedrooms filters
 
 Client, confidence and status filters on `/wins` now take several values each (comma-separated URL params, parsed against allowlists in `page.tsx` via `parseAllowedList`). Two new derived filters: **Portfolio** (active listings per client, buckets 1 / 2–3 / 4–9 / 10+, resolved in `getClientPortfolioSizes` and applied as a `client_id IN` list) and **Bedrooms** (`listings.pl_no_of_bedrooms`, buckets 0–1 / 2 / 3 / 4 / 5 / 6+, applied as an `or=` filter on a `listings!inner` embed — the select string becomes dynamic, hence the `unknown` cast). `WinsFilters` in `lib/wins-queries.ts` switched from single values to arrays (`confidences`, `clientIds`, `states`, `portfolioSizes`, `bedrooms`). Pure helpers and buckets in `lib/wins-filters.ts` with unit tests. UI reuses `MultiSelectFilter`; the Assembly-chat select stays single. Verified against production data: `beds=6+` → 36, `size=10+` → 87, `beds=2,3&confidence=high,medium&size=1,2-3` → 14, all matching direct SQL.
