@@ -8,7 +8,7 @@
 // session expires 30 min after the request_id is issued.
 
 const REPORT_BUILDER_BASE_URL = "https://api.pricelabs.co/v1/report_builder"
-const FETCH_TIMEOUT = 30_000
+export const REPORT_BUILDER_FETCH_TIMEOUT_MS = 30_000
 
 export function isReportBuilderConfigured(): boolean {
   return !!process.env.PRICELABS_API_KEY
@@ -33,7 +33,7 @@ async function reportBuilderFetch<T>(
     method: init?.method ?? "GET",
     headers,
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-    signal: AbortSignal.timeout(FETCH_TIMEOUT),
+    signal: AbortSignal.timeout(REPORT_BUILDER_FETCH_TIMEOUT_MS),
   })
 
   if (!res.ok) {

@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server"
 import { ListingsSettings } from "./listings-settings"
 import type { AirbnbCancellationPolicy } from "@/lib/airbnb-cancellation-foundation"
 
+// Server actions inherit this page's limit. syncReportBuilderAction polls
+// PriceLabs inline for up to INLINE_DEADLINE_MS (230s) before ingesting.
+export const maxDuration = 300
+
 export default async function SettingsListingsPage() {
   const [profile, canEdit] = await Promise.all([
     getProfile(),

@@ -274,7 +274,7 @@ export function ListingsSettings({
         router.refresh()
       } else if (result.status === "polling") {
         toast.info(
-          "Report is still generating. Click Sync again in a minute to resume."
+          "PriceLabs is still generating the report. Click Sync again within 30 minutes to resume it."
         )
       } else {
         toast.warning(result.message ?? "Report Builder sync finished")

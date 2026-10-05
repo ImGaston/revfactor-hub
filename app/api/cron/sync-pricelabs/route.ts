@@ -6,11 +6,13 @@ import { advanceReportBuilder } from "@/lib/report-builder/runner"
 import { enqueueMarketSignalJobs } from "@/lib/market-signals/jobs.server"
 
 export const dynamic = "force-dynamic"
-export const maxDuration = 60
+// The Report Builder polls inline for up to INLINE_DEADLINE_MS (230s) plus a
+// final poll and ingestion; see lib/report-builder/runner.ts.
+export const maxDuration = 300
 
-// Total time budget for the function; the Report Builder gets whatever is left
-// after the pl_* sync, with headroom so we never exceed maxDuration.
-const FUNCTION_BUDGET_MS = 52_000
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Unknown error"
+}
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
@@ -27,58 +29,51 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const startedAt = Date.now()
   const supabase = createAdminClient()
 
-  try {
-    const result = await syncPriceLabsData(supabase)
+  // Chain the Report Builder ingestion onto the same daily cron (same API key)
+  // so we don't add a separate cron job. It runs alongside the pl_* sync, not
+  // after it: PriceLabs needs minutes to generate the report, so triggering it
+  // first overlaps generation with the listing sync and gives the poll loop
+  // its full inline budget instead of whatever the pl_* sync left over.
+  const [plSync, reportOutcome] = await Promise.allSettled([
+    syncPriceLabsData(supabase),
+    advanceReportBuilder(supabase, { triggeredBy: "cron" }),
+  ])
 
-    // Chain the Report Builder ingestion onto the same daily cron (same API key)
-    // so we don't add a separate cron job. It advances its own state machine and
-    // only inline-polls with the time left in this function's budget; a slow
-    // report finishes via the manual "Sync Report Builder" button or next day.
-    let reportBuilder:
-      | Awaited<ReturnType<typeof advanceReportBuilder>>
-      | { status: string; error: string }
-      | null = null
-    try {
-      const inlineDeadlineMs = Math.max(
-        8_000,
-        FUNCTION_BUDGET_MS - (Date.now() - startedAt)
-      )
-      reportBuilder = await advanceReportBuilder(supabase, {
-        triggeredBy: "cron",
-        inlineDeadlineMs,
-      })
-    } catch (err) {
-      console.error("Report Builder (chained) error:", err)
-      reportBuilder = {
-        status: "failed",
-        error: err instanceof Error ? err.message : "Unknown error",
-      }
-    }
+  let reportBuilder:
+    | Awaited<ReturnType<typeof advanceReportBuilder>>
+    | { status: string; error: string }
+  if (reportOutcome.status === "fulfilled") {
+    reportBuilder = reportOutcome.value
+  } else {
+    console.error("Report Builder (chained) error:", reportOutcome.reason)
+    reportBuilder = { status: "failed", error: errorMessage(reportOutcome.reason) }
+  }
 
-    let marketSignalJobs = 0
-    try {
-      marketSignalJobs = await enqueueMarketSignalJobs(supabase, {
-        reason: "inventory_refresh",
-        priority: 40,
-      })
-    } catch (err) {
-      console.error("Market Signals queue error:", err)
-    }
-
-    return NextResponse.json({
-      message: `Synced ${result.synced} listings from PriceLabs`,
-      ...result,
-      reportBuilder,
-      marketSignalJobs,
-    })
-  } catch (err) {
-    console.error("PriceLabs sync error:", err)
+  if (plSync.status === "rejected") {
+    console.error("PriceLabs sync error:", plSync.reason)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
+      { error: errorMessage(plSync.reason), reportBuilder },
       { status: 500 }
     )
   }
+  const result = plSync.value
+
+  let marketSignalJobs = 0
+  try {
+    marketSignalJobs = await enqueueMarketSignalJobs(supabase, {
+      reason: "inventory_refresh",
+      priority: 40,
+    })
+  } catch (err) {
+    console.error("Market Signals queue error:", err)
+  }
+
+  return NextResponse.json({
+    message: `Synced ${result.synced} listings from PriceLabs`,
+    ...result,
+    reportBuilder,
+    marketSignalJobs,
+  })
 }
