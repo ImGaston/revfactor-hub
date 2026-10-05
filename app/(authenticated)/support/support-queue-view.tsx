@@ -1,10 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
-import { ChevronDown, ChevronRight, Inbox } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useMemo, useOptimistic, useState, useTransition } from "react"
+import { Check, ChevronDown, ChevronRight, ChevronsUpDown, Inbox } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Switch } from "@/components/ui/switch"
 import {
   Select,
   SelectContent,
@@ -22,6 +35,13 @@ import {
 } from "@/components/ui/table"
 import { ownerLabel, ticketPropertyLabel, timeAgo } from "@/lib/support-display"
 import {
+  supportQueueHref,
+  type SupportClientOption,
+  type SupportQueueFilters,
+} from "@/lib/support-queue"
+import {
+  SUPPORT_ACTIVE_STATUSES,
+  SUPPORT_CLOSED_STATUSES,
   SUPPORT_PRIORITY_BADGE,
   SUPPORT_SENTIMENT_BADGE,
   SUPPORT_STATUS_BADGE,
@@ -42,8 +62,10 @@ import {
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
 
-type SectionKey = keyof SupportQueue
+type SectionKey = Exclude<keyof SupportQueue, "closed">
 
+// Open-ticket sections. The closed section depends on the client filter and
+// renders separately below them.
 const SECTIONS: {
   key: SectionKey
   title: string
@@ -68,51 +90,71 @@ const SECTIONS: {
   { key: "verify", title: "Ready to verify", description: "Answered. Check it before it counts as done." },
   { key: "onUs", title: "Waiting on us", description: "Open and in progress, next due first." },
   { key: "onClient", title: "Waiting on client", description: "We asked the client for something." },
-  {
-    key: "closed",
-    title: "Recently closed",
-    description: "Resolved or dismissed in the last 30 days.",
-    collapsedLimit: 5,
-  },
 ]
 
 const ALL = "all"
 const UNASSIGNED = "unassigned"
 
+export type SupportClosedView = {
+  /** From the loader: what closed tickets `tickets` holds. */
+  scope: "recent" | "client" | "hidden"
+  /** The picked client's closed total (scope `client`), to flag the cap. */
+  total: number | null
+}
+
 export function SupportQueueView({
   tickets,
   stats,
   nowIso,
+  filters,
+  clientOptions,
+  closed,
 }: {
   tickets: SupportTicket[]
   stats: SupportStats
   nowIso: string
+  filters: SupportQueueFilters
+  clientOptions: SupportClientOption[]
+  closed: SupportClosedView
 }) {
   const now = useMemo(() => new Date(nowIso), [nowIso])
-  const [clientFilter, setClientFilter] = useState(ALL)
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  // The controls flip at once; the data swaps when the server render lands
+  const [shownFilters, setShownFilters] = useOptimistic(filters)
   const [ownerFilter, setOwnerFilter] = useState(ALL)
 
-  const clientOptions = useMemo(() => {
-    const byId = new Map<string, string>()
-    for (const t of tickets) if (t.clients?.name) byId.set(t.client_id, t.clients.name)
-    return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
-  }, [tickets])
+  function navigate(next: SupportQueueFilters) {
+    startTransition(() => {
+      setShownFilters(next)
+      router.replace(supportQueueHref(next), { scroll: false })
+    })
+  }
+
+  const clientName = filters.clientId
+    ? (clientOptions.find((c) => c.id === filters.clientId)?.name ?? "this client")
+    : null
 
   const ownerOptions = useMemo(() => {
     const byId = new Map<string, string>()
     for (const t of tickets) if (t.assignee_id) byId.set(t.assignee_id, ownerLabel(t.assignee))
     return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [tickets])
+  // An owner picked for another client may own nothing here: fall back to everyone
+  const owner =
+    ownerFilter === ALL || ownerFilter === UNASSIGNED || ownerOptions.some((o) => o.id === ownerFilter)
+      ? ownerFilter
+      : ALL
 
   const queue = useMemo(() => {
     const visible = tickets.filter(
-      (t) =>
-        (clientFilter === ALL || t.client_id === clientFilter) &&
-        (ownerFilter === ALL ||
-          (ownerFilter === UNASSIGNED ? !t.assignee_id : t.assignee_id === ownerFilter))
+      (t) => owner === ALL || (owner === UNASSIGNED ? !t.assignee_id : t.assignee_id === owner)
     )
     return bucketSupportTickets(visible, now)
-  }, [tickets, clientFilter, ownerFilter, now])
+  }, [tickets, owner, now])
+
+  const openLoaded = tickets.filter((t) => SUPPORT_ACTIVE_STATUSES.includes(t.status)).length
+  const closedLoaded = tickets.filter((t) => SUPPORT_CLOSED_STATUSES.includes(t.status)).length
 
   const promiseRate =
     stats.promiseOnTimeRate === null ? "—" : `${Math.round(stats.promiseOnTimeRate * 100)}%`
@@ -125,22 +167,35 @@ export function SupportQueueView({
           <p className="text-sm text-muted-foreground">
             Every client ask, tracked until it&apos;s answered, verified, and confirmed back to the client.
           </p>
+          {clientName && (
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-medium text-foreground">{clientName}</span>. The numbers
+              below count this client only.
+            </p>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={clientFilter} onValueChange={setClientFilter}>
-            <SelectTrigger className="w-48" aria-label="Filter by client">
-              <SelectValue placeholder="All clients" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All clients</SelectItem>
-              {clientOptions.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {shownFilters.clientId && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="support-show-closed"
+                checked={shownFilters.showClosed}
+                onCheckedChange={(checked) => navigate({ ...shownFilters, showClosed: checked })}
+              />
+              <Label htmlFor="support-show-closed" className="font-normal">
+                Show closed
+              </Label>
+            </div>
+          )}
+          <ClientPicker
+            options={clientOptions}
+            selectedId={shownFilters.clientId}
+            onSelect={(clientId) =>
+              // Keep the closed toggle while moving between clients
+              navigate({ clientId, showClosed: clientId !== null && shownFilters.showClosed })
+            }
+          />
+          <Select value={owner} onValueChange={setOwnerFilter}>
             <SelectTrigger className="w-40" aria-label="Filter by owner">
               <SelectValue placeholder="Everyone" />
             </SelectTrigger>
@@ -157,47 +212,175 @@ export function SupportQueueView({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="On us" value={stats.onUs} hint="we owe the next move" />
-        <Stat label="Overdue" value={stats.overdue} hint="promise missed or no reply in 24h" alert={stats.overdue > 0} />
-        <Stat label="To verify" value={stats.toVerify} hint="answered, awaiting a check" />
-        <Stat label="Done, not told" value={stats.doneNotTold} hint="change live, client not told" alert={stats.doneNotTold > 0} />
-        <Stat
-          label="Promises on time"
-          value={promiseRate}
-          hint={`${stats.promisesOnTime30d} of ${stats.promisesClosed30d} kept on time, 30 days`}
-        />
-        <Stat label="Sent back" value={stats.sentBack30d} hint="answers failed verification, 30 days" />
-      </div>
-
-      {tickets.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
-          <Inbox className="size-6" />
-          <p className="font-medium text-foreground">No tickets yet</p>
-          <p className="max-w-md">
-            The capture bot opens a ticket for each client ask in Assembly. They&apos;ll show up here as
-            messages come in.
-          </p>
+      <div
+        className={cn("space-y-6 transition-opacity", isPending && "opacity-60")}
+        aria-busy={isPending}
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <Stat label="On us" value={stats.onUs} hint="we owe the next move" />
+          <Stat label="Overdue" value={stats.overdue} hint="promise missed or no reply in 24h" alert={stats.overdue > 0} />
+          <Stat label="To verify" value={stats.toVerify} hint="answered, awaiting a check" />
+          <Stat label="Done, not told" value={stats.doneNotTold} hint="change live, client not told" alert={stats.doneNotTold > 0} />
+          <Stat
+            label="Promises on time"
+            value={promiseRate}
+            hint={`${stats.promisesOnTime30d} of ${stats.promisesClosed30d} kept on time, 30 days`}
+          />
+          <Stat label="Sent back" value={stats.sentBack30d} hint="answers failed verification, 30 days" />
         </div>
-      ) : (
-        SECTIONS.map((section) => {
-          const items = queue[section.key]
-          if (section.hideWhenEmpty && items.length === 0) return null
-          return (
-            <QueueSection
-              key={section.key}
-              title={section.title}
-              description={section.description}
-              tone={section.tone}
-              tickets={items}
-              now={now}
-              collapsedLimit={section.collapsedLimit}
-              closed={section.key === "closed"}
-            />
-          )
-        })
-      )}
+
+        {!clientName && tickets.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
+            <Inbox className="size-6" />
+            <p className="font-medium text-foreground">No tickets yet</p>
+            <p className="max-w-md">
+              The capture bot opens a ticket for each client ask in Assembly. They&apos;ll show up here as
+              messages come in.
+            </p>
+          </div>
+        ) : (
+          <>
+            {clientName && openLoaded === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <Inbox className="size-6" />
+                <p className="font-medium text-foreground">No open tickets for {clientName}</p>
+              </div>
+            ) : (
+              SECTIONS.map((section) => {
+                const items = queue[section.key]
+                if (section.hideWhenEmpty && items.length === 0) return null
+                return (
+                  <QueueSection
+                    key={section.key}
+                    title={section.title}
+                    description={section.description}
+                    tone={section.tone}
+                    tickets={items}
+                    now={now}
+                    collapsedLimit={section.collapsedLimit}
+                    closed={false}
+                  />
+                )
+              })
+            )}
+            {closed.scope === "hidden" ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                <span>Closed tickets for {clientName} are hidden.</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate({ clientId: filters.clientId, showClosed: true })}
+                >
+                  Show closed
+                </Button>
+              </div>
+            ) : (
+              <QueueSection
+                title={closed.scope === "client" ? "Closed" : "Recently closed"}
+                description={
+                  closed.scope === "client"
+                    ? `Every resolved or dismissed ticket for ${clientName}, newest first. Merged duplicates count as dismissed.`
+                    : "Resolved or dismissed in the last 30 days."
+                }
+                note={
+                  closed.scope === "client" && closed.total !== null && closed.total > closedLoaded
+                    ? `Showing the newest ${closedLoaded} of ${closed.total}.`
+                    : undefined
+                }
+                tickets={queue.closed}
+                now={now}
+                collapsedLimit={closed.scope === "client" ? undefined : 5}
+                closed
+              />
+            )}
+          </>
+        )}
+      </div>
     </div>
+  )
+}
+
+function ClientPicker({
+  options,
+  selectedId,
+  onSelect,
+}: {
+  options: SupportClientOption[]
+  selectedId: string | null
+  onSelect: (clientId: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((c) => c.id === selectedId)
+  const totalOpen = options.reduce((sum, c) => sum + c.openCount, 0)
+
+  function pick(clientId: string | null) {
+    setOpen(false)
+    if (clientId !== selectedId) onSelect(clientId)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-label="Filter by client"
+          className="w-56 justify-between font-normal"
+        >
+          <span className="truncate">
+            {!selectedId ? "All clients" : (selected?.name ?? "Unknown client")}
+          </span>
+          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search clients…" />
+          <CommandList>
+            <CommandEmpty>No clients found.</CommandEmpty>
+            <CommandGroup>
+              {/* cmdk filters on `value`, so items carry the client name */}
+              <CommandItem value="All clients" onSelect={() => pick(null)} className="[&>svg:last-child]:hidden">
+                <Check className={cn("size-3.5", selectedId ? "opacity-0" : "opacity-100")} />
+                <span>All clients</span>
+                <OpenCount count={totalOpen} />
+              </CommandItem>
+              {options.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={c.name}
+                  onSelect={() => pick(c.id)}
+                  className="[&>svg:last-child]:hidden"
+                >
+                  <Check className={cn("size-3.5", c.id === selectedId ? "opacity-100" : "opacity-0")} />
+                  <span className="truncate">{c.name}</span>
+                  {c.status !== "active" && (
+                    <span className="shrink-0 text-xs font-normal text-muted-foreground">{c.status}</span>
+                  )}
+                  <OpenCount count={c.openCount} />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function OpenCount({ count }: { count: number }) {
+  return (
+    <span
+      className={cn(
+        "ml-auto shrink-0 font-mono text-xs font-normal tabular-nums",
+        count > 0 ? "text-foreground" : "text-muted-foreground"
+      )}
+      aria-label={`${count} open`}
+      title={`${count} open`}
+    >
+      {count}
+    </span>
   )
 }
 
@@ -238,6 +421,7 @@ function Stat({
 function QueueSection({
   title,
   description,
+  note,
   tone,
   tickets,
   now,
@@ -246,6 +430,8 @@ function QueueSection({
 }: {
   title: string
   description: string
+  /** Extra line under the heading, e.g. that a list is capped */
+  note?: string
   tone?: "alert"
   tickets: SupportTicket[]
   now: Date
@@ -266,6 +452,7 @@ function QueueSection({
         <Badge variant="secondary">{tickets.length}</Badge>
         <span className="text-sm text-muted-foreground">{description}</span>
       </div>
+      {note && <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{note}</p>}
       {tickets.length === 0 ? (
         <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
           Nothing here
@@ -365,7 +552,13 @@ function TicketRow({ ticket: t, now, closed }: { ticket: SupportTicket; now: Dat
         </Link>
       </TableCell>
       <TableCell className="whitespace-normal text-sm">
-        <span className="block font-medium">{t.clients?.name ?? "Unknown client"}</span>
+        <Link
+          href={supportQueueHref({ clientId: t.client_id, showClosed: false })}
+          className="block font-medium hover:underline"
+          title="Show this client's tickets"
+        >
+          {t.clients?.name ?? "Unknown client"}
+        </Link>
         <span className="block text-muted-foreground wrap-anywhere">{ticketPropertyLabel(t)}</span>
       </TableCell>
       <TableCell
