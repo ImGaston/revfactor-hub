@@ -148,8 +148,27 @@ describe("groupTicketsByClient", () => {
     expect(groups.flatMap((g) => g.tickets).every((t) => t.status !== "resolved")).toBe(true)
   })
 
-  it("sorts most overdue first, then most open, then the oldest ask", () => {
-    expect(groups.map((g) => g.clientId)).toEqual(["c-acme", "c-cedar", "c-elm", "c-birch"])
+  it("sorts most open tickets first, then most overdue, then the oldest ask", () => {
+    // Elm and Birch tie on 3 open and 0 overdue; Elm's oldest ask is older.
+    // Acme (2 open) comes before Cedar (1 open) even though both have 1 overdue.
+    expect(groups.map((g) => g.clientId)).toEqual(["c-elm", "c-birch", "c-acme", "c-cedar"])
+  })
+
+  it("puts more open tickets ahead of more overdue ones", () => {
+    const busy: SupportClientGroup = {
+      clientId: "busy",
+      clientName: "Busy",
+      tickets: [],
+      open: 5,
+      overdue: 0,
+      triage: 0,
+      awaitingClient: 0,
+      overduePromises: 0,
+      oldestAskAt: hoursAgo(5),
+      owners: [],
+    }
+    const late = { ...busy, clientId: "late", clientName: "Late", open: 2, overdue: 2 }
+    expect([late, busy].sort(compareClientGroups).map((g) => g.clientId)).toEqual(["busy", "late"])
   })
 
   it("breaks full ties by name", () => {

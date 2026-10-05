@@ -16,7 +16,7 @@ export default async function SupportPage({
   const canView = await hasPermission("support", "view")
   if (!canView) redirect("/")
 
-  // ?client=<clients.id>&closed=1&view=client — read on the server; bad values are ignored
+  // ?client=<clients.id>&closed=1&view=status — read on the server; bad values are ignored (By client is the default view)
   const filters = parseSupportQueueParams(await searchParams)
 
   const supabase = await createClient()

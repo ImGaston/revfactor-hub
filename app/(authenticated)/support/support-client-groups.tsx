@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 const ALERT_CHIP = "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
 const WARN_CHIP = "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
 
-/** "By status" (the queue sections) | "By client" (one group per client). */
+/** "By client" (one group per client, the default) | "By status" (the queue sections). */
 export function SupportViewToggle({
   value,
   onChange,
@@ -35,11 +35,11 @@ export function SupportViewToggle({
       }}
       aria-label="Group tickets"
     >
-      <ToggleGroupItem value="status" className="px-3">
-        By status
-      </ToggleGroupItem>
       <ToggleGroupItem value="client" className="px-3">
         By client
+      </ToggleGroupItem>
+      <ToggleGroupItem value="status" className="px-3">
+        By status
       </ToggleGroupItem>
     </ToggleGroup>
   )

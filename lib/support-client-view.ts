@@ -72,11 +72,11 @@ function groupFor(clientId: string, tickets: SupportTicket[], now: Date): Suppor
   }
 }
 
-/** Most overdue first, then most open, then the oldest ask, then by name. */
+/** Most open tickets first, then most overdue, then the oldest ask, then by name. */
 export function compareClientGroups(a: SupportClientGroup, b: SupportClientGroup): number {
   return (
-    b.overdue - a.overdue ||
     b.open - a.open ||
+    b.overdue - a.overdue ||
     (a.oldestAskAt ?? "").localeCompare(b.oldestAskAt ?? "") ||
     a.clientName.localeCompare(b.clientName, undefined, { sensitivity: "base" }) ||
     a.clientId.localeCompare(b.clientId)

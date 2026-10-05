@@ -588,7 +588,7 @@ function TicketRow({
       <TableCell className="whitespace-normal text-sm">
         {!hideClient && (
           <Link
-            href={supportQueueHref({ clientId: t.client_id, showClosed: false, view: "status" })}
+            href={supportQueueHref({ clientId: t.client_id, showClosed: false, view: "client" })}
             className="block font-medium hover:underline"
             title="Show this client's tickets"
           >

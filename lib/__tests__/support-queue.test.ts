@@ -19,11 +19,11 @@ const OTHER = "0a0b0c0d-1e1f-4a2b-9c3d-4e5f6a7b8c9d"
 
 describe("parseSupportQueueParams", () => {
   it("reads a uuid client and the closed toggle", () => {
-    expect(parseSupportQueueParams({ client: CLIENT })).toEqual({ clientId: CLIENT, showClosed: false, view: "status" })
+    expect(parseSupportQueueParams({ client: CLIENT })).toEqual({ clientId: CLIENT, showClosed: false, view: "client" })
     expect(parseSupportQueueParams({ client: CLIENT, closed: "1" })).toEqual({
       clientId: CLIENT,
       showClosed: true,
-      view: "status",
+      view: "client",
     })
   })
 
@@ -35,7 +35,7 @@ describe("parseSupportQueueParams", () => {
     expect(parseSupportQueueParams({ client: [CLIENT, OTHER], closed: ["1", "0"] })).toEqual({
       clientId: CLIENT,
       showClosed: true,
-      view: "status",
+      view: "client",
     })
   })
 
@@ -48,20 +48,20 @@ describe("parseSupportQueueParams", () => {
     ["a filter injection", `${CLIENT},status.eq.resolved`],
     ["a quoted uuid", `'${CLIENT}'`],
   ])("ignores %s as the client", (_label, client) => {
-    expect(parseSupportQueueParams({ client, closed: "1" })).toEqual({ clientId: null, showClosed: false, view: "status" })
+    expect(parseSupportQueueParams({ client, closed: "1" })).toEqual({ clientId: null, showClosed: false, view: "client" })
   })
 
-  it("reads view=client and treats anything else as the status view", () => {
-    expect(parseSupportQueueParams({ view: "client" }).view).toBe("client")
-    expect(parseSupportQueueParams({ view: ["client", "status"] }).view).toBe("client")
-    for (const view of [undefined, "", "status", "Client", "clients", "client "]) {
-      expect(parseSupportQueueParams({ view }).view).toBe("status")
+  it("defaults to the By client view and reads view=status", () => {
+    expect(parseSupportQueueParams({ view: "status" }).view).toBe("status")
+    expect(parseSupportQueueParams({ view: ["status", "client"] }).view).toBe("status")
+    for (const view of [undefined, "", "client", "Status", "statuses", "status "]) {
+      expect(parseSupportQueueParams({ view }).view).toBe("client")
     }
-    // Kept with a client picked, so "All clients" returns to the groups
-    expect(parseSupportQueueParams({ client: CLIENT, view: "client" })).toEqual({
+    // Kept with a client picked, so "All clients" returns to the status sections
+    expect(parseSupportQueueParams({ client: CLIENT, view: "status" })).toEqual({
       clientId: CLIENT,
       showClosed: false,
-      view: "client",
+      view: "status",
     })
   })
 
@@ -75,24 +75,24 @@ describe("parseSupportQueueParams", () => {
 
 describe("supportQueueHref", () => {
   it("round-trips through the parser", () => {
-    expect(supportQueueHref({ clientId: null, showClosed: false, view: "status" })).toBe("/support")
-    expect(supportQueueHref({ clientId: CLIENT, showClosed: false, view: "status" })).toBe(`/support?client=${CLIENT}`)
-    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "status" })
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "client" })).toBe("/support")
+    expect(supportQueueHref({ clientId: CLIENT, showClosed: false, view: "client" })).toBe(`/support?client=${CLIENT}`)
+    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "client" })
     expect(href).toBe(`/support?client=${CLIENT}&closed=1`)
     const params = Object.fromEntries(new URL(href, "https://hub.test").searchParams)
-    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "status" })
+    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "client" })
   })
 
   it("drops the closed toggle without a client", () => {
-    expect(supportQueueHref({ clientId: null, showClosed: true, view: "status" })).toBe("/support")
+    expect(supportQueueHref({ clientId: null, showClosed: true, view: "client" })).toBe("/support")
   })
 
-  it("carries view=client, with or without a client", () => {
-    expect(supportQueueHref({ clientId: null, showClosed: false, view: "client" })).toBe("/support?view=client")
-    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "client" })
-    expect(href).toBe(`/support?client=${CLIENT}&closed=1&view=client`)
+  it("carries view=status, with or without a client", () => {
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "status" })).toBe("/support?view=status")
+    const href = supportQueueHref({ clientId: CLIENT, showClosed: true, view: "status" })
+    expect(href).toBe(`/support?client=${CLIENT}&closed=1&view=status`)
     const params = Object.fromEntries(new URL(href, "https://hub.test").searchParams)
-    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "client" })
+    expect(parseSupportQueueParams(params)).toEqual({ clientId: CLIENT, showClosed: true, view: "status" })
   })
 })
 

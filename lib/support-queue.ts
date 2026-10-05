@@ -13,7 +13,7 @@ export const SUPPORT_CLIENT_CLOSED_CAP = 200
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-/** `status`: the queue sections (default). `client`: one group per client. */
+/** `client`: one group per client (default). `status`: the queue sections. */
 export type SupportQueueView = "status" | "client"
 
 export type SupportQueueFilters = {
@@ -22,7 +22,8 @@ export type SupportQueueFilters = {
   /** `?closed=1`; only honoured with a client picked. */
   showClosed: boolean
   /**
-   * `?view=client`. With a client picked the page shows that client's own
+   * `?view=status` for the queue sections; anything else is the default
+   * "By client" view. With a client picked the page shows that client's own
    * view either way; the param is kept so "All clients" returns to it.
    */
   view: SupportQueueView
@@ -35,10 +36,10 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 /**
- * `/support?client=<uuid>&closed=1&view=client`. Anything else is ignored: a
+ * `/support?client=<uuid>&closed=1&view=status`. Anything else is ignored: a
  * bad client value falls back to every client, `closed` without a client is
- * dropped (the default view already shows the last 30 days of closed
- * tickets), and any `view` but `client` means the status sections.
+ * dropped (the status view already shows the last 30 days of closed
+ * tickets), and any `view` but `status` means the default "By client" view.
  */
 export function parseSupportQueueParams(sp: SearchParams): SupportQueueFilters {
   const raw = first(sp.client)?.trim() ?? ""
@@ -46,7 +47,7 @@ export function parseSupportQueueParams(sp: SearchParams): SupportQueueFilters {
   return {
     clientId,
     showClosed: clientId !== null && first(sp.closed) === "1",
-    view: first(sp.view) === "client" ? "client" : "status",
+    view: first(sp.view) === "status" ? "status" : "client",
   }
 }
 
@@ -57,7 +58,7 @@ export function supportQueueSearch(filters: SupportQueueFilters): string {
     params.set("client", filters.clientId)
     if (filters.showClosed) params.set("closed", "1")
   }
-  if (filters.view === "client") params.set("view", "client")
+  if (filters.view === "status") params.set("view", "status")
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
