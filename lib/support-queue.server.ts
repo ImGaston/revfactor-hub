@@ -124,9 +124,11 @@ export async function loadSupportTicket(
   supabase: SupabaseClient,
   id: string
 ): Promise<SupportTicketDetailData | null> {
+  // Never the draft text: the suggested answer stays on the server until the
+  // team saves its own answer (lib/support-answers.server.ts owns that lock)
   const { data: ticketRow, error } = await supabase
     .from("support_tickets")
-    .select(`${TICKET_COLUMNS}, suggested_reply`)
+    .select(TICKET_COLUMNS)
     .eq("id", id)
     .maybeSingle()
   if (error) throw new Error(`support ticket load failed: ${error.message}`)

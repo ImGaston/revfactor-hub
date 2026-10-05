@@ -297,7 +297,12 @@ export type SupportLinkedAdjustment = {
   listings: { name: string } | null
 }
 
-/** The capture bot's draft reply (contract v1.3). A person edits and sends it. */
+/**
+ * The ticket's draft reply: written by the capture bot (contract v1.3) or by
+ * the Hub itself (`source: "hub"`). A person edits and sends it. One draft per
+ * ticket; the bot's PUT replaces a Hub draft, and the Hub never overwrites a
+ * bot draft automatically (lib/support-answers.server.ts).
+ */
 export type SupportSuggestedReply = {
   text: string
   /** What the draft drew on ("PriceLabs: Dec occupancy vs market"), for the reader */
@@ -305,6 +310,20 @@ export type SupportSuggestedReply = {
   skill: string | null
   prompt_version: string | null
   generated_at: string
+  /** Absent on bot drafts (they predate the field); "hub" for Hub drafts */
+  source?: "hub" | "bot"
+  /** Hub drafts: the support_suggested_answers row with sources and confidence */
+  generation_id?: string | null
+}
+
+export type SupportDraftSource = "hub" | "bot"
+
+/** Who wrote a stored draft. Bot drafts carry no `source` key. */
+export function suggestedReplySource(
+  draft: Pick<SupportSuggestedReply, "source"> | null | undefined
+): SupportDraftSource | null {
+  if (!draft) return null
+  return draft.source === "hub" ? "hub" : "bot"
 }
 
 export type SupportTicket = {
@@ -359,6 +378,8 @@ export type SupportTicket = {
   /** Capture-bot draft reply (detail page only; the queue reads the timestamp) */
   suggested_reply?: SupportSuggestedReply | null
   suggested_reply_generated_at?: string | null
+  /** `suggested_reply->>source`: "hub" for Hub drafts, null for bot drafts */
+  suggested_reply_source?: string | null
   created_at: string
   updated_at: string
   // Joined
@@ -941,6 +962,29 @@ export function maskContactDetails(text: string): string {
   return text
     .replace(EMAIL_PATTERN, (_m, first: string, domain: string) => `${first}***@${domain}`)
     .replace(PHONE_PATTERN, (_m, last4: string) => `***-***-${last4}`)
+}
+
+export const SUPPORT_REDACTED_CREDENTIAL = "[redacted: credential]"
+
+/**
+ * Redact text before it leaves the Hub for a model (contract section 6):
+ * credentials, one-time codes, door/lock codes, tokens, and card numbers
+ * become `[redacted: credential]`; emails and phones are masked; URLs keep
+ * their host and path but lose query strings and fragments (tokens and guest
+ * details ride there). Existing redaction markers are kept as they are.
+ */
+export function redactSupportText(text: string | null | undefined): string {
+  if (!text) return ""
+  let out = text.replace(URL_PATTERN, (url) => url.replace(/[?#].*$/, ""))
+  for (const { pattern } of CREDENTIAL_PATTERNS) {
+    const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`)
+    out = out.replace(global, (match) => (/^\[redacted/i.test(match) ? match : SUPPORT_REDACTED_CREDENTIAL))
+  }
+  out = out.replace(CARD_PATTERN, (match) => {
+    const digits = match.replace(/\D/g, "")
+    return digits.length >= 15 && luhnValid(digits) ? SUPPORT_REDACTED_CREDENTIAL : match
+  })
+  return maskContactDetails(out)
 }
 
 // ---------------------------------------------------------------------------

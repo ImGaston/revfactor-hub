@@ -66,9 +66,12 @@ describe("server projection", () => {
     }
   })
 
-  it("returns only the draft timestamp, never the draft text", () => {
+  it("returns only the draft timestamp and source, never the draft text", () => {
     expect(list).toContain("suggested_reply_generated_at:suggested_reply->>generated_at")
-    const withoutAlias = list.replace("suggested_reply_generated_at:suggested_reply->>generated_at", "")
+    expect(list).toContain("suggested_reply_source:suggested_reply->>source")
+    const withoutAlias = list
+      .replace("suggested_reply_generated_at:suggested_reply->>generated_at", "")
+      .replace("suggested_reply_source:suggested_reply->>source", "")
     expect(withoutAlias).not.toMatch(/\bsuggested_reply\b/)
   })
 

@@ -38,6 +38,7 @@
     "@tiptap/pm": "^3.22.3",
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
+    "@vercel/oidc": "3.2.0",
     "@xyflow/react": "12.11.2",
     "ai": "^7.0.37",
     "class-variance-authority": "^0.7.1",

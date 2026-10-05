@@ -325,6 +325,7 @@ const LIST_COLUMNS = `
   property_scope, property_validated_at, requested_at, last_client_message_at,
   last_team_message_at, sla_anchor_at, answered_at, client_told_live_at, backfilled,
   assignee_id, created_at, updated_at, suggested_reply_generated_at:suggested_reply->>generated_at,
+  suggested_reply_source:suggested_reply->>source,
   clients!support_tickets_client_id_fkey(id, name, assembly_client_id, assembly_company_id, churn_risk),
   assignee:profiles!support_tickets_assignee_id_fkey(full_name, email),
   support_ticket_listings(listing_id, listings(id, name)),
@@ -395,8 +396,10 @@ function toApiTicket(t: ListRow, now: Date) {
     last_team_message_at: t.last_team_message_at,
     answered_at: t.answered_at,
     client_told_live_at: t.client_told_live_at,
-    // When the bot's current draft was written (null = none); the text stays in the Hub
+    // When the current draft was written (null = none); the text stays in the Hub
     suggested_reply_generated_at: t.suggested_reply_generated_at ?? null,
+    // Who wrote it (contract v1.6): "hub" = the Hub's own draft, "bot" = yours
+    suggested_reply_source: t.suggested_reply_generated_at ? (t.suggested_reply_source === "hub" ? "hub" : "bot") : null,
     next_due_at: due?.toISOString() ?? null,
     due_state: dueState(due, now),
     flags: {
