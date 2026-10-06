@@ -6,6 +6,7 @@ export const RESOURCES = [
   { key: "tasks", label: "Tasks", description: "Task board and assignments" },
   { key: "ghl", label: "GHL", description: "GoHighLevel connection and sales tools" },
   { key: "roadmap", label: "Roadmap", description: "Projects and roadmap tasks" },
+  { key: "churn", label: "Churn tracker", description: "Client churn, scheduled cancellations, and partial listing exits" },
   { key: "onboarding", label: "Onboarding", description: "Client onboarding steps" },
   { key: "users", label: "Users", description: "User management and invitations" },
   { key: "settings", label: "Settings", description: "System settings and configuration" },

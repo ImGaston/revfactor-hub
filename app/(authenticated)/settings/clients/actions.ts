@@ -20,9 +20,9 @@ type ClientInput = {
   assembly_link: string | null
   onboarding_date: string | null
   ending_date: string | null
-  billing_amount: number | null
-  autopayment_set_up: boolean
-  stripe_dashboard: string | null
+  billing_amount?: number | null
+  autopayment_set_up?: boolean
+  stripe_dashboard?: string | null
   pms_name: string | null
   has_vrbo: boolean
   billing_entity: string
@@ -186,6 +186,7 @@ export async function importAssemblyClientForOnboardingAction(
 
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   revalidatePath("/onboarding")
 
   return {
@@ -198,21 +199,42 @@ export async function importAssemblyClientForOnboardingAction(
   }
 }
 
+// Hidden financial fields must be omitted, rather than sent back as null/false
+// by an operational editor. This also rejects tampered browser submissions.
+async function protectClientFinancialFields(
+  input: ClientInput
+): Promise<ClientInput> {
+  const safe = { ...input }
+  if ((await getProfile())?.role !== "super_admin") {
+    delete safe.billing_amount
+    delete safe.autopayment_set_up
+    delete safe.stripe_dashboard
+  }
+  return safe
+}
+
 export async function createClientAction(input: ClientInput) {
   const supabase = await createClient()
+  input = await protectClientFinancialFields(input)
+  if (!(await hasPermission("churn", "edit")) || !(await hasPermission("churn", "view"))) {
+    delete input.ending_reason_tags
+    delete input.ending_note
+  }
   const { error } = await supabase.from("clients").insert(input)
   if (error) return { error: error.message }
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
 export async function updateClientAction(id: string, input: ClientInput) {
   const supabase = await createClient()
+  input = await protectClientFinancialFields(input)
 
-  // Churn fields are super_admin-only: never trust them from other roles.
-  const profile = await getProfile()
-  if (profile?.role !== "super_admin") {
+  // Churn mutations use the existing status patch; operational permission
+  // is independent of financial access.
+  if (!(await hasPermission("churn", "edit")) || !(await hasPermission("churn", "view"))) {
     delete input.ending_reason_tags
     delete input.ending_note
   }
@@ -249,6 +271,7 @@ export async function updateClientAction(id: string, input: ClientInput) {
 
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   revalidatePath("/listings")
   revalidatePath("/settings/listings")
   return { error: null }
@@ -260,6 +283,7 @@ export async function updateClientEmailAction(id: string, email: string) {
   if (error) return { error: error.message }
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -269,6 +293,7 @@ export async function deleteClientAction(id: string) {
   if (error) return { error: error.message }
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -313,6 +338,7 @@ export async function linkAssemblyClientAction(clientId: string) {
 
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null, assemblyClientId: assemblyClient.id }
 }
 
@@ -331,5 +357,6 @@ export async function unlinkAssemblyClientAction(clientId: string) {
 
   revalidatePath("/settings/clients")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }

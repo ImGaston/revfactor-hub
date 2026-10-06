@@ -70,6 +70,7 @@ export async function createListingAction(input: ListingInput) {
   revalidatePath("/settings/listings")
   revalidatePath("/listings")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -82,6 +83,7 @@ export async function updateListingAction(id: string, input: ListingInput) {
   revalidatePath("/settings/listings")
   revalidatePath("/listings")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -92,6 +94,7 @@ export async function deleteListingAction(id: string) {
   revalidatePath("/settings/listings")
   revalidatePath("/listings")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -111,6 +114,7 @@ export async function updateListingStatusAction(
   revalidatePath("/settings/listings")
   revalidatePath("/listings")
   revalidatePath("/clients")
+  revalidatePath("/churn")
   return { error: null }
 }
 
@@ -133,6 +137,7 @@ export async function syncPriceLabsAction() {
     revalidatePath("/settings/listings")
     revalidatePath("/listings")
     revalidatePath("/clients")
+  revalidatePath("/churn")
     revalidatePath("/dashboard")
     return { error: null, ...result }
   } catch (err) {
@@ -173,6 +178,7 @@ export async function syncReportBuilderAction() {
     revalidatePath("/settings/listings")
     revalidatePath("/listings")
     revalidatePath("/clients")
+  revalidatePath("/churn")
     revalidatePath("/dashboard")
 
     return {
