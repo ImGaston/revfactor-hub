@@ -66,11 +66,13 @@ export function ClientDialog({
   onOpenChange,
   client,
   isSuperAdmin = false,
+  canEditChurn = isSuperAdmin,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   client?: ClientFormData
   isSuperAdmin?: boolean
+  canEditChurn?: boolean
 }) {
   const isEdit = !!client?.id
   const [form, setForm] = useState<ClientFormData>(client ?? EMPTY)
@@ -104,9 +106,8 @@ export function ClientDialog({
       pms_name: form.pms_name?.trim() || null,
       has_vrbo: form.has_vrbo,
       billing_entity: form.billing_entity,
-      // Only super_admin sees/edits churn fields; omit the keys otherwise so
-      // a non-super_admin save never wipes existing values.
-      ...(isSuperAdmin
+      // Omit unauthorized churn keys so unrelated saves preserve them.
+      ...(canEditChurn
         ? {
             ending_reason_tags: form.ending_reason_tags ?? [],
             ending_note: form.ending_note?.trim() || null,
@@ -250,7 +251,7 @@ export function ClientDialog({
               </div>
             </div>
 
-            {isSuperAdmin && form.status === "inactive" && (
+            {canEditChurn && form.status === "inactive" && (
               <>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Churn Reason</Label>

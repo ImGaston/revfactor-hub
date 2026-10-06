@@ -24,6 +24,7 @@ const routeLabels: Record<string, string> = {
   clients: "Clients",
   tasks: "Tasks",
   onboarding: "Onboarding",
+  churn: "Churn tracker",
   settings: "Settings",
   account: "Account",
   users: "Users",

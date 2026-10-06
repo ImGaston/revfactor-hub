@@ -6,9 +6,11 @@ import { isAssemblyConfigured } from "@/lib/assembly"
 import { ClientsSettings } from "./clients-settings"
 
 export default async function SettingsClientsPage() {
-  const [profile, canEdit] = await Promise.all([
+  const [profile, canEdit, canViewChurn, canEditChurn] = await Promise.all([
     getProfile(),
     hasPermission("clients", "edit"),
+    hasPermission("churn", "view"),
+    hasPermission("churn", "edit"),
   ])
   if (!profile || !canEdit) redirect("/settings/account")
 
@@ -25,14 +27,18 @@ export default async function SettingsClientsPage() {
       clients={
         clients?.map((c) => ({
           ...c,
-          // Churn reason data is super_admin-only, like billing_amount.
-          ending_reason_tags: isSuperAdmin ? (c.ending_reason_tags ?? []) : [],
-          ending_note: isSuperAdmin ? c.ending_note : null,
+          // Churn access is operational; financial fields stay super-admin-only.
+          ending_reason_tags: canViewChurn ? (c.ending_reason_tags ?? []) : [],
+          ending_note: canViewChurn ? c.ending_note : null,
+          billing_amount: isSuperAdmin ? c.billing_amount : null,
+          autopayment_set_up: isSuperAdmin ? c.autopayment_set_up : false,
+          stripe_dashboard: isSuperAdmin ? c.stripe_dashboard : null,
           listingCount: c.listings?.length ?? 0,
         })) ?? []
       }
       assemblyConfigured={isAssemblyConfigured()}
       isSuperAdmin={isSuperAdmin}
+      canEditChurn={canViewChurn && canEditChurn}
     />
   )
 }

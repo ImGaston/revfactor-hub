@@ -87,10 +87,12 @@ export function ClientsSettings({
   clients,
   assemblyConfigured,
   isSuperAdmin = false,
+  canEditChurn = false,
 }: {
   clients: SettingsClient[]
   assemblyConfigured: boolean
   isSuperAdmin?: boolean
+  canEditChurn?: boolean
 }) {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -338,6 +340,7 @@ export function ClientsSettings({
         onOpenChange={setDialogOpen}
         client={editing}
         isSuperAdmin={isSuperAdmin}
+        canEditChurn={canEditChurn}
       />
 
       <Dialog open={assemblyImportOpen} onOpenChange={setAssemblyImportOpen}>

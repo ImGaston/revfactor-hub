@@ -37,6 +37,7 @@ import {
   Sparkles,
   Star,
   TrendingUp,
+  UserMinus,
   Trophy,
   Users,
   Wrench,
@@ -89,6 +90,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ClipboardList,
     resource: "onboarding",
   },
+  { key: "churn", title: "Churn tracker", href: "/churn", icon: UserMinus, resource: "churn" },
   {
     key: "roadmap",
     title: "Projects & Roadmap",

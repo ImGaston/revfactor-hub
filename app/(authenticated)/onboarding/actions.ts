@@ -55,6 +55,7 @@ export async function updateClientStatus(
   revalidatePath("/onboarding")
   revalidatePath("/clients")
   revalidatePath("/settings/clients")
+  revalidatePath("/churn")
   revalidatePath("/listings")
   revalidatePath("/settings/listings")
   return { error: null }

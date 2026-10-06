@@ -80,3 +80,7 @@ When touching authenticated list/detail routes:
 2. Navigate to the route logged in and confirm counts, filters, sort, row actions, and detail navigation.
 3. For `ListingDialog`, open create/edit and confirm the Client Select populates after the expected loading state.
 4. Check browser/dev output for failed requests after navigation.
+
+## Churn tracker reporting (2026-10-06)
+
+The tracker uses paginated 500-row projections for every cohort and the cancellation RPC, with stable ID ordering, so PostgREST row caps cannot truncate totals. Filters and summaries operate on the same complete cohorts. Markets derive from listing city/state; a client can match any of its markets and still counts once. Monthly counts cover twelve calendar months through the business date; missing exit dates are excluded from monthly/date-filter counts and disclosed, and unknown tenure never falls back to today. No authenticated page ISR or live Stripe API reads. Client/listing Settings mutations and onboarding client-status changes invalidate `/churn`.
