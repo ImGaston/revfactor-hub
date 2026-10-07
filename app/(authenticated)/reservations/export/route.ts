@@ -9,6 +9,8 @@ import { hasPermission } from "@/lib/permissions.server"
 import {
   ExportTooLargeError,
   getAllReservationsFiltered,
+  parseBookingWindowDays,
+  parseUuidList,
   RESERVATION_DATE_FIELDS,
   RESERVATION_SORT_FIELDS,
   type ReservationDateField,
@@ -23,7 +25,6 @@ import {
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(request: Request) {
@@ -33,10 +34,12 @@ export async function GET(request: Request) {
 
   const sp = new URL(request.url).searchParams
   const get = (key: string) => sp.get(key) ?? undefined
-  const clientId = UUID_RE.test(get("client") ?? "") ? get("client") : undefined
-  const listingId = UUID_RE.test(get("listing") ?? "") ? get("listing") : undefined
-  const excludeClient = Boolean(clientId) && get("xclient") === "1"
-  const excludeListing = Boolean(listingId) && get("xlisting") === "1"
+  const clientIds = parseUuidList(get("client"))
+  const listingIds = parseUuidList(get("listing"))
+  const excludeClient = clientIds.length > 0 && get("xclient") === "1"
+  const excludeListing = listingIds.length > 0 && get("xlisting") === "1"
+  const bookingWindowMin = parseBookingWindowDays(get("bwmin"))
+  const bookingWindowMax = parseBookingWindowDays(get("bwmax"))
   // Same contract as the page: a relative preset wins over absolute dates.
   const range = isDateRangePresetKey(get("range")) ? get("range") : undefined
   let from = DATE_RE.test(get("from") ?? "") ? get("from") : undefined
@@ -61,10 +64,12 @@ export async function GET(request: Request) {
   let csv: string
   try {
     const rows = await getAllReservationsFiltered(supabase, {
-      clientId,
+      clientIds,
       excludeClient,
-      listingId,
+      listingIds,
       excludeListing,
+      bookingWindowMin,
+      bookingWindowMax,
       dateField,
       from,
       to,

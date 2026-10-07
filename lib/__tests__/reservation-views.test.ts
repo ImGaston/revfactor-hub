@@ -12,6 +12,7 @@ import {
 } from "@/lib/reservation-views"
 
 const CLIENT = "11111111-2222-3333-4444-555555555555"
+const CLIENT_B = "aaaaaaaa-2222-3333-4444-555555555555"
 
 describe("resolveDateRangePreset", () => {
   const today = new Date(2026, 7, 21) // Aug 21, 2026
@@ -95,6 +96,23 @@ describe("sanitizeViewParams", () => {
     })
   })
 
+  it("keeps multi-id selections deduped and sorted, dropping bad ids", () => {
+    expect(
+      sanitizeViewParams({
+        client: `${CLIENT_B},not-a-uuid,${CLIENT},${CLIENT_B.toUpperCase()}`,
+        xclient: "1",
+      })
+    ).toEqual({ client: `${CLIENT},${CLIENT_B}`, xclient: "1" })
+  })
+
+  it("keeps whole-day booking window bounds only", () => {
+    expect(sanitizeViewParams({ bwmin: "15", bwmax: "45" })).toEqual({
+      bwmin: "15",
+      bwmax: "45",
+    })
+    expect(sanitizeViewParams({ bwmin: "-3", bwmax: "4.5" })).toEqual({})
+  })
+
   it("keeps a non-default sort with its direction", () => {
     expect(sanitizeViewParams({ sort: "rental_revenue", dir: "asc" })).toEqual({
       sort: "rental_revenue",
@@ -113,7 +131,7 @@ describe("view matching", () => {
 
   it("matches when the current filters canonicalize to the same params", () => {
     const current = currentViewParams({
-      clientId: CLIENT,
+      clientIds: [CLIENT],
       dateField: "checkin",
       range: "last30",
       sort: "rental_revenue",
@@ -124,7 +142,7 @@ describe("view matching", () => {
 
   it("does not match when a filter differs", () => {
     const current = currentViewParams({
-      clientId: CLIENT,
+      clientIds: [CLIENT],
       dateField: "checkin",
       range: "last7",
       sort: "rental_revenue",
@@ -135,7 +153,7 @@ describe("view matching", () => {
 
   it("distinguishes including a client from excluding it", () => {
     const excluding = currentViewParams({
-      clientId: CLIENT,
+      clientIds: [CLIENT],
       clientExclude: true,
       dateField: "checkin",
       range: "last30",
@@ -144,6 +162,24 @@ describe("view matching", () => {
     })
     expect(excluding.xclient).toBe("1")
     expect(viewMatchesParams(view, excluding)).toBe(false)
+  })
+
+  it("matches a multi-client selection regardless of pick order", () => {
+    const multi: ReservationView = {
+      id: "v2",
+      name: "Not these two",
+      params: { client: `${CLIENT_B},${CLIENT}`, xclient: "1", bwmin: "61" },
+      created_by: null,
+    }
+    const current = currentViewParams({
+      clientIds: [CLIENT, CLIENT_B],
+      clientExclude: true,
+      bwMin: 61,
+      dateField: "checkin",
+      sort: "booked_at",
+      dir: "desc",
+    })
+    expect(viewMatchesParams(multi, current)).toBe(true)
   })
 
   it("serializes params in a stable order", () => {

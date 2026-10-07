@@ -1,7 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import {
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   ArrowUpDown,
@@ -13,6 +20,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
   Download,
+  Hourglass,
   Filter,
   Home,
   Search,
@@ -85,10 +93,12 @@ import type {
 } from "@/lib/reservations"
 
 type Filters = {
-  clientId?: string
-  clientExclude?: boolean // true → all clients except clientId
-  listingId?: string
-  listingExclude?: boolean // true → all listings except listingId
+  clientIds: string[]
+  clientExclude?: boolean // true → all clients except clientIds
+  listingIds: string[]
+  listingExclude?: boolean // true → all listings except listingIds
+  bwMin?: number // booking window lower bound, days
+  bwMax?: number // booking window upper bound, days
   dateField: ReservationDateField
   range?: DateRangePresetKey // relative preset; when set, from/to are derived
   from?: string
@@ -156,6 +166,36 @@ function ExcludeToggle({
   )
 }
 
+// Quick picks mirror the client report's booking-window segments
+// (lib/reservations-export.ts); "≤ 14" has no lower bound so negative
+// windows (post-check-in alterations) land there too, as in the report.
+const BOOKING_WINDOW_PRESETS: { label: string; min?: number; max?: number }[] = [
+  { label: "0–14 days", max: 14 },
+  { label: "15–45 days", min: 15, max: 45 },
+  { label: "46–60 days", min: 46, max: 60 },
+  { label: "61–120 days", min: 61, max: 120 },
+  { label: "120+ days", min: 121 },
+]
+
+function bookingWindowLabel(min?: number, max?: number): string | null {
+  if (min == null && max == null) return null
+  if (min == null) return `≤ ${max} days`
+  if (max == null) return `≥ ${min} days`
+  return min === max ? `${min} days` : `${min}–${max} days`
+}
+
+// Trigger text for a multi-select client/listing filter.
+function selectionLabel(
+  names: string[],
+  exclude: boolean,
+  allLabel: string,
+  noun: string
+): string {
+  if (names.length === 0) return allLabel
+  const what = names.length === 1 ? names[0] : `${names.length} ${noun}`
+  return exclude ? `All except ${what}` : what
+}
+
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="py-0">
@@ -212,7 +252,22 @@ export function ReservationsView({
   const [viewToDelete, setViewToDelete] = useState<ReservationView | null>(null)
   const [deletingView, setDeletingView] = useState(false)
 
-  function setParams(patch: Record<string, string | null>, resetPage = true) {
+  // Selected ids update optimistically so several picks in a row (popover
+  // stays open) build on each other before the server round trip lands.
+  const [clientIds, setOptimisticClientIds] = useOptimistic(
+    filters.clientIds,
+    (_: string[], next: string[]) => next
+  )
+  const [listingIds, setOptimisticListingIds] = useOptimistic(
+    filters.listingIds,
+    (_: string[], next: string[]) => next
+  )
+
+  function setParams(
+    patch: Record<string, string | null>,
+    resetPage = true,
+    optimistic?: () => void
+  ) {
     const params = new URLSearchParams(searchParams.toString())
     if (resetPage) params.delete("page")
     for (const [key, value] of Object.entries(patch)) {
@@ -221,6 +276,7 @@ export function ReservationsView({
     }
     const qs = params.toString()
     startTransition(() => {
+      optimistic?.()
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
     })
   }
@@ -249,39 +305,127 @@ export function ReservationsView({
     return qs ? `/reservations/export?${qs}` : "/reservations/export"
   }, [searchParams])
 
-  const clientExclude = filters.clientId
-    ? Boolean(filters.clientExclude)
-    : clientExcludeDraft
-  const listingExclude = filters.listingId
-    ? Boolean(filters.listingExclude)
-    : listingExcludeDraft
+  const clientExclude =
+    clientIds.length > 0 ? Boolean(filters.clientExclude) : clientExcludeDraft
+  const listingExclude =
+    listingIds.length > 0 ? Boolean(filters.listingExclude) : listingExcludeDraft
+
+  // Listings that fit a client selection: the picked clients' listings
+  // ("is"), or everyone else's ("is not").
+  function listingsForClients(ids: string[], exclude: boolean) {
+    if (ids.length === 0) return listings
+    const set = new Set(ids)
+    return listings.filter((l) => set.has(l.client_id) !== exclude)
+  }
+
+  // Apply a new client and/or listing selection. Listings that no longer
+  // fit the client selection are dropped so they can't linger unseen.
+  function applySelection(next: {
+    clientIds?: string[]
+    clientExclude?: boolean
+    listingIds?: string[]
+    listingExclude?: boolean
+  }) {
+    const nextClientIds = next.clientIds ?? clientIds
+    const nextClientExclude = next.clientExclude ?? clientExclude
+    const fitting = new Set(
+      listingsForClients(nextClientIds, nextClientExclude).map((l) => l.id)
+    )
+    const nextListingIds = (next.listingIds ?? listingIds).filter((id) =>
+      fitting.has(id)
+    )
+    const nextListingExclude = next.listingExclude ?? listingExclude
+    setParams(
+      {
+        client: nextClientIds.join(",") || null,
+        xclient: nextClientIds.length > 0 && nextClientExclude ? "1" : null,
+        listing: nextListingIds.join(",") || null,
+        xlisting: nextListingIds.length > 0 && nextListingExclude ? "1" : null,
+      },
+      true,
+      () => {
+        setOptimisticClientIds(nextClientIds)
+        setOptimisticListingIds(nextListingIds)
+      }
+    )
+  }
+
+  function toggleId(ids: string[], id: string): string[] {
+    return ids.includes(id)
+      ? ids.filter((x) => x !== id)
+      : [...ids, id].sort()
+  }
 
   function setClientExclude(exclude: boolean) {
     setClientExcludeDraft(exclude)
-    // Flipping the client mode invalidates a listing picked under the old one
-    if (filters.clientId) {
-      setParams({ xclient: exclude ? "1" : null, listing: null, xlisting: null })
-    }
+    if (clientIds.length > 0) applySelection({ clientExclude: exclude })
   }
 
   function setListingExclude(exclude: boolean) {
     setListingExcludeDraft(exclude)
-    if (filters.listingId) setParams({ xlisting: exclude ? "1" : null })
+    if (listingIds.length > 0) applySelection({ listingExclude: exclude })
   }
 
-  const listingOptions = useMemo(() => {
-    if (!filters.clientId) return listings
-    return filters.clientExclude
-      ? listings.filter((l) => l.client_id !== filters.clientId)
-      : listings.filter((l) => l.client_id === filters.clientId)
-  }, [listings, filters.clientId, filters.clientExclude])
+  const listingOptions = useMemo(
+    () => listingsForClients(filters.clientIds, Boolean(filters.clientExclude)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listings, filters.clientIds.join(","), filters.clientExclude]
+  )
 
-  const selectedClient = clients.find((c) => c.id === filters.clientId)
-  const selectedListing = listings.find((l) => l.id === filters.listingId)
+  const clientNameById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c.name])),
+    [clients]
+  )
+  const listingNameById = useMemo(
+    () => new Map(listings.map((l) => [l.id, l.name])),
+    [listings]
+  )
+  const selectedClientNames = clientIds.map(
+    (id) => clientNameById.get(id) ?? "Unknown client"
+  )
+  const selectedListingNames = listingIds.map(
+    (id) => listingNameById.get(id) ?? "Unknown listing"
+  )
+
+  // Booking window popover: draft inputs, applied on submit
+  const [bwPopoverOpen, setBwPopoverOpen] = useState(false)
+  const [bwMinDraft, setBwMinDraft] = useState("")
+  const [bwMaxDraft, setBwMaxDraft] = useState("")
+  const bwLabel = bookingWindowLabel(filters.bwMin, filters.bwMax)
+
+  function setBookingWindow(min?: number, max?: number) {
+    setParams({
+      bwmin: min != null ? String(min) : null,
+      bwmax: max != null ? String(max) : null,
+    })
+    setBwPopoverOpen(false)
+  }
+
+  function handleBookingWindowSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    const parse = (v: string) => {
+      const t = v.trim()
+      if (!t) return undefined
+      const n = Number(t)
+      return Number.isInteger(n) && n >= 0 ? n : Number.NaN
+    }
+    const min = parse(bwMinDraft)
+    const max = parse(bwMaxDraft)
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      toast.error("Booking window must be whole days (0 or more)")
+      return
+    }
+    if (min != null && max != null && min > max) {
+      toast.error("Booking window minimum is above the maximum")
+      return
+    }
+    setBookingWindow(min, max)
+  }
 
   const activeFilters =
-    (filters.clientId ? 1 : 0) +
-    (filters.listingId ? 1 : 0) +
+    (clientIds.length > 0 ? 1 : 0) +
+    (listingIds.length > 0 ? 1 : 0) +
+    (filters.bwMin != null || filters.bwMax != null ? 1 : 0) +
     (filters.range || filters.from || filters.to ? 1 : 0) +
     (filters.q ? 1 : 0)
 
@@ -296,6 +440,8 @@ export function ReservationsView({
       xclient: p.xclient ?? null,
       listing: p.listing ?? null,
       xlisting: p.xlisting ?? null,
+      bwmin: p.bwmin ?? null,
+      bwmax: p.bwmax ?? null,
       df: p.df ?? null,
       range: p.range ?? null,
       from: p.from ?? null,
@@ -520,7 +666,7 @@ export function ReservationsView({
           />
         </div>
 
-        {/* Client combobox */}
+        {/* Client combobox (multi-select) */}
         <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -530,17 +676,18 @@ export function ReservationsView({
               className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
-                {selectedClient && filters.clientExclude ? (
+                {clientIds.length > 0 && clientExclude ? (
                   <Ban className="size-3.5 text-destructive shrink-0" />
                 ) : (
                   <Building2 className="size-3.5 text-muted-foreground shrink-0" />
                 )}
                 <span className="truncate">
-                  {selectedClient
-                    ? filters.clientExclude
-                      ? `All except ${selectedClient.name}`
-                      : selectedClient.name
-                    : "All clients"}
+                  {selectionLabel(
+                    selectedClientNames,
+                    clientExclude,
+                    "All clients",
+                    "clients"
+                  )}
                 </span>
               </div>
               <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
@@ -559,19 +706,14 @@ export function ReservationsView({
                   <CommandItem
                     value="all"
                     onSelect={() => {
-                      setParams({
-                        client: null,
-                        xclient: null,
-                        listing: null,
-                        xlisting: null,
-                      })
+                      applySelection({ clientIds: [], listingIds: [] })
                       setClientPopoverOpen(false)
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 size-3.5",
-                        !filters.clientId ? "opacity-100" : "opacity-0"
+                        clientIds.length === 0 ? "opacity-100" : "opacity-0"
                       )}
                     />
                     All clients
@@ -580,23 +722,14 @@ export function ReservationsView({
                     <CommandItem
                       key={c.id}
                       value={c.name}
-                      onSelect={() => {
-                        // changing client invalidates a listing filter from another client
-                        setParams({
-                          client: c.id,
-                          xclient: clientExclude ? "1" : null,
-                          listing: null,
-                          xlisting: null,
-                        })
-                        setClientPopoverOpen(false)
-                      }}
+                      onSelect={() =>
+                        applySelection({ clientIds: toggleId(clientIds, c.id) })
+                      }
                     >
                       <Check
                         className={cn(
                           "mr-2 size-3.5",
-                          filters.clientId === c.id
-                            ? "opacity-100"
-                            : "opacity-0"
+                          clientIds.includes(c.id) ? "opacity-100" : "opacity-0"
                         )}
                       />
                       <span className="truncate">{c.name}</span>
@@ -608,7 +741,7 @@ export function ReservationsView({
           </PopoverContent>
         </Popover>
 
-        {/* Listing combobox */}
+        {/* Listing combobox (multi-select) */}
         <Popover open={listingPopoverOpen} onOpenChange={setListingPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -618,17 +751,18 @@ export function ReservationsView({
               className="w-full sm:w-[220px] justify-between font-normal"
             >
               <div className="flex items-center gap-2 truncate">
-                {selectedListing && filters.listingExclude ? (
+                {listingIds.length > 0 && listingExclude ? (
                   <Ban className="size-3.5 text-destructive shrink-0" />
                 ) : (
                   <Home className="size-3.5 text-muted-foreground shrink-0" />
                 )}
                 <span className="truncate">
-                  {selectedListing
-                    ? filters.listingExclude
-                      ? `All except ${selectedListing.name}`
-                      : selectedListing.name
-                    : "All listings"}
+                  {selectionLabel(
+                    selectedListingNames,
+                    listingExclude,
+                    "All listings",
+                    "listings"
+                  )}
                 </span>
               </div>
               <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
@@ -647,14 +781,14 @@ export function ReservationsView({
                   <CommandItem
                     value="all"
                     onSelect={() => {
-                      setParams({ listing: null, xlisting: null })
+                      applySelection({ listingIds: [] })
                       setListingPopoverOpen(false)
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 size-3.5",
-                        !filters.listingId ? "opacity-100" : "opacity-0"
+                        listingIds.length === 0 ? "opacity-100" : "opacity-0"
                       )}
                     />
                     All listings
@@ -662,21 +796,15 @@ export function ReservationsView({
                   {listingOptions.map((l) => (
                     <CommandItem
                       key={l.id}
-                      value={l.name}
-                      onSelect={() => {
-                        setParams({
-                          listing: l.id,
-                          xlisting: listingExclude ? "1" : null,
-                        })
-                        setListingPopoverOpen(false)
-                      }}
+                      value={`${l.name} ${l.id}`}
+                      onSelect={() =>
+                        applySelection({ listingIds: toggleId(listingIds, l.id) })
+                      }
                     >
                       <Check
                         className={cn(
                           "mr-2 size-3.5",
-                          filters.listingId === l.id
-                            ? "opacity-100"
-                            : "opacity-0"
+                          listingIds.includes(l.id) ? "opacity-100" : "opacity-0"
                         )}
                       />
                       <span className="truncate">{l.name}</span>
@@ -685,6 +813,97 @@ export function ReservationsView({
                 </CommandGroup>
               </CommandList>
             </Command>
+          </PopoverContent>
+        </Popover>
+
+        {/* Booking window (days between booking and check-in) */}
+        <Popover
+          open={bwPopoverOpen}
+          onOpenChange={(open) => {
+            if (open) {
+              setBwMinDraft(filters.bwMin != null ? String(filters.bwMin) : "")
+              setBwMaxDraft(filters.bwMax != null ? String(filters.bwMax) : "")
+            }
+            setBwPopoverOpen(open)
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto justify-between font-normal"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Hourglass className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate">
+                  {bwLabel ? `Booking window: ${bwLabel}` : "Booking window"}
+                </span>
+              </div>
+              <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[260px] p-3" align="start">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-1.5">
+                {BOOKING_WINDOW_PRESETS.map((preset) => {
+                  const active =
+                    filters.bwMin === preset.min && filters.bwMax === preset.max
+                  return (
+                    <Button
+                      key={preset.label}
+                      type="button"
+                      variant={active ? "secondary" : "outline"}
+                      size="sm"
+                      className="h-7 px-2.5 text-xs font-normal"
+                      onClick={() => setBookingWindow(preset.min, preset.max)}
+                    >
+                      {preset.label}
+                    </Button>
+                  )
+                })}
+              </div>
+              <form onSubmit={handleBookingWindowSubmit} className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Custom range (days before check-in)
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={bwMinDraft}
+                    onChange={(e) => setBwMinDraft(e.target.value)}
+                    placeholder="Min"
+                    aria-label="Minimum booking window in days"
+                    className="h-8"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={bwMaxDraft}
+                    onChange={(e) => setBwMaxDraft(e.target.value)}
+                    placeholder="Max"
+                    aria-label="Maximum booking window in days"
+                    className="h-8"
+                  />
+                </div>
+                <div className="flex justify-between gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!bwLabel}
+                    onClick={() => setBookingWindow()}
+                  >
+                    Clear
+                  </Button>
+                  <Button type="submit" size="sm">
+                    Apply
+                  </Button>
+                </div>
+              </form>
+            </div>
           </PopoverContent>
         </Popover>
 
@@ -724,17 +943,26 @@ export function ReservationsView({
               setSearchInput("")
               setClientExcludeDraft(false)
               setListingExcludeDraft(false)
-              setParams({
-                client: null,
-                xclient: null,
-                listing: null,
-                xlisting: null,
-                df: null,
-                range: null,
-                from: null,
-                to: null,
-                q: null,
-              })
+              setParams(
+                {
+                  client: null,
+                  xclient: null,
+                  listing: null,
+                  xlisting: null,
+                  bwmin: null,
+                  bwmax: null,
+                  df: null,
+                  range: null,
+                  from: null,
+                  to: null,
+                  q: null,
+                },
+                true,
+                () => {
+                  setOptimisticClientIds([])
+                  setOptimisticListingIds([])
+                }
+              )
             }}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
           >

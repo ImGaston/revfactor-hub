@@ -73,6 +73,35 @@ export const RESERVATION_DATE_FIELDS = ["booked", "checkin"] as const
 
 export type ReservationDateField = (typeof RESERVATION_DATE_FIELDS)[number]
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Cap on ids in a client/listing filter so a crafted URL can't build an
+// unbounded in.(...) list.
+export const RESERVATION_FILTER_ID_MAX = 100
+const BOOKING_WINDOW_MAX = 9999
+
+// Comma-separated UUID list from a searchParam (`client=a,b`), lowercased,
+// deduped and sorted so equivalent selections serialize identically.
+// Invalid entries are dropped.
+export function parseUuidList(value: string | null | undefined): string[] {
+  if (!value) return []
+  const ids = new Set<string>()
+  for (const part of value.split(",")) {
+    const id = part.trim().toLowerCase()
+    if (UUID_RE.test(id)) ids.add(id)
+  }
+  return [...ids].sort().slice(0, RESERVATION_FILTER_ID_MAX)
+}
+
+// Booking-window bound in days from a searchParam (`bwmin`/`bwmax`):
+// a non-negative integer, otherwise undefined.
+export function parseBookingWindowDays(
+  value: string | null | undefined
+): number | undefined {
+  if (value == null || !/^\d{1,4}$/.test(value.trim())) return undefined
+  const n = Number.parseInt(value.trim(), 10)
+  return n <= BOOKING_WINDOW_MAX ? n : undefined
+}
+
 export async function getRecentReservationsByClient(
   supabase: SupabaseClient,
   clientId: string,
@@ -129,10 +158,12 @@ export async function getAllReservationsByClient(
 }
 
 export type ReservationsPageParams = {
-  clientId?: string
-  excludeClient?: boolean // true → everything except clientId
-  listingId?: string // hub listing UUID (listings.id)
-  excludeListing?: boolean // true → everything except listingId
+  clientIds?: string[]
+  excludeClient?: boolean // true → everything except clientIds
+  listingIds?: string[] // hub listing UUIDs (listings.id)
+  excludeListing?: boolean // true → everything except listingIds
+  bookingWindowMin?: number // booking_window_days >= min
+  bookingWindowMax?: number // booking_window_days <= max
   dateField?: ReservationDateField // which column from/to apply to; default checkin
   from?: string // dateField >= from (YYYY-MM-DD)
   to?: string // dateField <= to (YYYY-MM-DD)
@@ -150,6 +181,7 @@ export type ReservationsPageParams = {
 function applyReservationFilters(
   query: {
     eq: (column: string, value: string) => unknown
+    in: (column: string, values: string[]) => unknown
     gte: (column: string, value: string) => unknown
     lte: (column: string, value: string) => unknown
     or: (filters: string) => unknown
@@ -161,23 +193,33 @@ function applyReservationFilters(
   // or= param — nested as and(or(...),or(...)) when there are several —
   // rather than relying on repeated or= query keys.
   const orGroups: string[] = []
-  // Exclusions keep NULL rows (unmapped listings/clients): "all but X"
-  // matches SQL's IS DISTINCT FROM, not a plain neq that drops NULLs.
-  if (params.clientId) {
+  // Exclusions keep NULL rows (unmapped listings/clients): "all but X, Y"
+  // matches SQL's NOT (col = ANY(...)) OR col IS NULL, not a plain not.in
+  // that drops NULLs.
+  const clientIds = params.clientIds ?? []
+  if (clientIds.length > 0) {
     if (params.excludeClient) {
-      orGroups.push(`client_id.is.null,client_id.neq.${params.clientId}`)
+      orGroups.push(`client_id.is.null,client_id.not.in.(${clientIds.join(",")})`)
     } else {
-      query.eq("client_id", params.clientId)
+      query.in("client_id", clientIds)
     }
   }
-  if (params.listingId) {
+  const listingIds = params.listingIds ?? []
+  if (listingIds.length > 0) {
     if (params.excludeListing) {
       orGroups.push(
-        `hub_listing_id.is.null,hub_listing_id.neq.${params.listingId}`
+        `hub_listing_id.is.null,hub_listing_id.not.in.(${listingIds.join(",")})`
       )
     } else {
-      query.eq("hub_listing_id", params.listingId)
+      query.in("hub_listing_id", listingIds)
     }
+  }
+  // A booking-window bound drops rows with no booked_date (NULL window).
+  if (params.bookingWindowMin != null) {
+    query.gte("booking_window_days", String(params.bookingWindowMin))
+  }
+  if (params.bookingWindowMax != null) {
+    query.lte("booking_window_days", String(params.bookingWindowMax))
   }
   const dateColumn = params.dateField === "booked" ? "booked_date" : "check_in"
   if (params.from) query.gte(dateColumn, params.from)
@@ -270,10 +312,12 @@ export function statsDefaultFrom(): string {
 }
 
 export type ReservationStatsParams = {
-  clientId?: string
+  clientIds?: string[]
   excludeClient?: boolean
-  listingId?: string
+  listingIds?: string[]
   excludeListing?: boolean
+  bookingWindowMin?: number
+  bookingWindowMax?: number
   dateField: ReservationDateField
   from?: string // YYYY-MM-DD
   to?: string // YYYY-MM-DD
@@ -290,7 +334,8 @@ export type ReservationStats = {
 }
 
 // Header aggregates for /reservations, computed DB-side by the
-// reservation_page_stats function (migration 077) — same filters as
+// reservation_page_stats function (migration 077, multi-id +
+// booking-window args since 20261007120000) — same filters as
 // getReservationsPage, one round trip instead of paging 28k rows.
 export async function getReservationsStats(
   supabase: SupabaseClient,
@@ -301,20 +346,18 @@ export async function getReservationsStats(
   const q = (params.search ?? "").replace(/[,()"%]/g, "").trim()
   const { data, error } = await supabase
     .rpc("reservation_page_stats", {
-      p_client_id: params.clientId ?? null,
-      p_listing_id: params.listingId ?? null,
+      p_client_ids: params.clientIds?.length ? params.clientIds : null,
+      p_listing_ids: params.listingIds?.length ? params.listingIds : null,
       p_date_field: params.dateField,
       p_from: params.from ?? null,
       p_to: params.to ?? null,
       p_search: q || null,
-      // Only sent when set, so the RPC stays callable against the
-      // pre-exclusion function signature (migration 077).
-      ...(params.clientId && params.excludeClient
-        ? { p_exclude_client: true }
-        : {}),
-      ...(params.listingId && params.excludeListing
-        ? { p_exclude_listing: true }
-        : {}),
+      p_exclude_client: Boolean(params.clientIds?.length && params.excludeClient),
+      p_exclude_listing: Boolean(
+        params.listingIds?.length && params.excludeListing
+      ),
+      p_bw_min: params.bookingWindowMin ?? null,
+      p_bw_max: params.bookingWindowMax ?? null,
     })
     .single()
   if (error) throw new Error(`Failed to fetch reservation stats: ${error.message}`)

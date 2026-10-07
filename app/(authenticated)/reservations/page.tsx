@@ -4,6 +4,8 @@ import { hasPermission } from "@/lib/permissions.server"
 import {
   getReservationsPage,
   getReservationsStats,
+  parseBookingWindowDays,
+  parseUuidList,
   statsDefaultFrom,
   RESERVATION_DATE_FIELDS,
   RESERVATION_SORT_FIELDS,
@@ -18,7 +20,6 @@ import type { ReservationView } from "@/lib/reservation-views"
 import { ReservationsView } from "./reservations-view"
 
 const PAGE_SIZE = 50
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export default async function ReservationsPage({
@@ -30,11 +31,14 @@ export default async function ReservationsPage({
   if (!canView) redirect("/")
 
   const sp = await searchParams
-  const clientId = UUID_RE.test(sp.client ?? "") ? sp.client : undefined
-  const listingId = UUID_RE.test(sp.listing ?? "") ? sp.listing : undefined
-  // xclient/xlisting=1 flip the client/listing filter to "all except".
-  const excludeClient = Boolean(clientId) && sp.xclient === "1"
-  const excludeListing = Boolean(listingId) && sp.xlisting === "1"
+  // client/listing take comma-separated ids; xclient/xlisting=1 flip the
+  // filter to "all except" those ids.
+  const clientIds = parseUuidList(sp.client)
+  const listingIds = parseUuidList(sp.listing)
+  const excludeClient = clientIds.length > 0 && sp.xclient === "1"
+  const excludeListing = listingIds.length > 0 && sp.xlisting === "1"
+  const bookingWindowMin = parseBookingWindowDays(sp.bwmin)
+  const bookingWindowMax = parseBookingWindowDays(sp.bwmax)
   // A relative range preset (?range=last30) wins over absolute from/to and
   // resolves at request time, so saved views carrying one never go stale.
   const range = isDateRangePresetKey(sp.range) ? sp.range : undefined
@@ -67,10 +71,12 @@ export default async function ReservationsPage({
   const [{ rows, count }, stats, clientsRes, listingsRes, viewsRes, userRes] =
     await Promise.all([
       getReservationsPage(supabase, {
-        clientId,
+        clientIds,
         excludeClient,
-        listingId,
+        listingIds,
         excludeListing,
+        bookingWindowMin,
+        bookingWindowMax,
         dateField,
         from,
         to,
@@ -81,10 +87,12 @@ export default async function ReservationsPage({
         pageSize: PAGE_SIZE,
       }),
       getReservationsStats(supabase, {
-        clientId,
+        clientIds,
         excludeClient,
-        listingId,
+        listingIds,
         excludeListing,
+        bookingWindowMin,
+        bookingWindowMax,
         dateField: hasRange ? dateField : "booked",
         from: statsFrom,
         to: hasRange ? to : undefined,
@@ -108,10 +116,12 @@ export default async function ReservationsPage({
       stats={stats}
       statsScope={statsScope}
       filters={{
-        clientId,
+        clientIds,
         clientExclude: excludeClient,
-        listingId,
+        listingIds,
         listingExclude: excludeListing,
+        bwMin: bookingWindowMin,
+        bwMax: bookingWindowMax,
         dateField,
         range,
         // With a preset active the absolute dates are derived, not state —

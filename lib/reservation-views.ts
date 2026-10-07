@@ -9,16 +9,20 @@ import {
   type DateRangePresetKey,
 } from "@/lib/date-range-presets"
 import {
+  parseBookingWindowDays,
+  parseUuidList,
   RESERVATION_SORT_FIELDS,
   type ReservationDateField,
   type ReservationSortField,
 } from "@/lib/reservations"
 
 export type ReservationViewParams = {
-  client?: string // client UUID
+  client?: string // comma-separated client UUIDs (sorted)
   xclient?: "1" // exclude `client` instead of filtering to it
-  listing?: string // hub listing UUID
+  listing?: string // comma-separated hub listing UUIDs (sorted)
   xlisting?: "1" // exclude `listing` instead of filtering to it
+  bwmin?: string // booking window lower bound, days
+  bwmax?: string // booking window upper bound, days
   df?: ReservationDateField // only stored when "booked" (checkin is the default)
   range?: DateRangePresetKey // relative range; wins over from/to
   from?: string // YYYY-MM-DD
@@ -35,7 +39,6 @@ export type ReservationView = {
   created_by: string | null
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export const VIEW_NAME_MAX = 60
 const SEARCH_MAX = 200
@@ -53,16 +56,20 @@ export function sanitizeViewParams(input: unknown): ReservationViewParams | null
     typeof raw[key] === "string" ? (raw[key] as string) : undefined
 
   const params: ReservationViewParams = {}
-  const client = str("client")
-  if (client && UUID_RE.test(client)) {
-    params.client = client
+  const clients = parseUuidList(str("client"))
+  if (clients.length > 0) {
+    params.client = clients.join(",")
     if (str("xclient") === "1") params.xclient = "1"
   }
-  const listing = str("listing")
-  if (listing && UUID_RE.test(listing)) {
-    params.listing = listing
+  const listings = parseUuidList(str("listing"))
+  if (listings.length > 0) {
+    params.listing = listings.join(",")
     if (str("xlisting") === "1") params.xlisting = "1"
   }
+  const bwmin = parseBookingWindowDays(str("bwmin"))
+  if (bwmin != null) params.bwmin = String(bwmin)
+  const bwmax = parseBookingWindowDays(str("bwmax"))
+  if (bwmax != null) params.bwmax = String(bwmax)
   if (str("df") === "booked") params.df = "booked"
 
   const range = str("range")
@@ -103,6 +110,8 @@ export function viewSearchString(params: ReservationViewParams): string {
     "xclient",
     "listing",
     "xlisting",
+    "bwmin",
+    "bwmax",
     "df",
     "range",
     "from",
@@ -120,10 +129,12 @@ export function viewSearchString(params: ReservationViewParams): string {
 // The current page state, expressed in the same shape a view stores — so
 // saving and matching go through sanitizeViewParams like everything else.
 export function currentViewParams(filters: {
-  clientId?: string
+  clientIds?: string[]
   clientExclude?: boolean
-  listingId?: string
+  listingIds?: string[]
   listingExclude?: boolean
+  bwMin?: number
+  bwMax?: number
   dateField: ReservationDateField
   range?: string
   from?: string
@@ -134,10 +145,12 @@ export function currentViewParams(filters: {
 }): ReservationViewParams {
   return (
     sanitizeViewParams({
-      client: filters.clientId,
+      client: filters.clientIds?.join(","),
       xclient: filters.clientExclude ? "1" : undefined,
-      listing: filters.listingId,
+      listing: filters.listingIds?.join(","),
       xlisting: filters.listingExclude ? "1" : undefined,
+      bwmin: filters.bwMin != null ? String(filters.bwMin) : undefined,
+      bwmax: filters.bwMax != null ? String(filters.bwMax) : undefined,
       df: filters.dateField,
       range: filters.range,
       from: filters.from,
