@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { adjustmentStatusLabel, adjustmentTypeLabel } from "@/lib/adjustments"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
+import { getProfile } from "@/lib/supabase/profile"
 import {
   formatSupportDateTime,
   ownerLabel,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
 import { OurAnswer, type OurAnswerProps } from "./our-answer"
+import { StatusAndNotes } from "./status-and-notes"
 
 // The answer actions (AI Gateway draft, Jev check) run as Server Actions on this page
 export const maxDuration = 120
@@ -75,11 +77,14 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
 
   const { id } = await params
   const supabase = await createClient()
-  const [data, panel, canEdit] = await Promise.all([
+  const [data, panel, canEdit, profile] = await Promise.all([
     loadSupportTicket(supabase, id),
     loadSupportAnswerPanel(supabase, id),
     hasPermission("support", "edit"),
+    getProfile(),
   ])
+  // Status changes and notes outside the normal flow: super admins (Fede, Gastón)
+  const isSuperAdmin = profile?.role === "super_admin"
   if (!data) notFound()
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
@@ -96,7 +101,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
     rationale?: string | null
     triage_reasons?: string[]
   }
-  const verification = t.verification as { override_reason?: string }
+  const verification = t.verification as { override_reason?: string; outside_hub?: boolean; note?: string }
   const verifyAge = verifyAgeHours(t, now)
   const checkIn = t.request_type === "check_in"
   // The suggested answer reaches this page only through the panel, and only
@@ -392,6 +397,14 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
         </div>
 
         <div className="min-w-0 space-y-4">
+          {isSuperAdmin && (
+            <StatusAndNotes
+              ticketId={t.id}
+              status={t.status}
+              merged={!!t.merged_into}
+              openPromises={promises.filter((p) => p.status === "open").length}
+            />
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-baseline justify-between gap-2 text-base">
@@ -402,7 +415,12 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {t.status === "resolved" ? (
+              {t.status === "resolved" && verification.outside_hub ? (
+                <>
+                  <p>Resolved outside the Hub {formatSupportDateTime(t.resolved_at)}.</p>
+                  {verification.note && <p className="text-muted-foreground wrap-anywhere">{verification.note}</p>}
+                </>
+              ) : t.status === "resolved" ? (
                 <>
                   <p>Verified and resolved {formatSupportDateTime(t.resolved_at)}.</p>
                   {verification.override_reason && (

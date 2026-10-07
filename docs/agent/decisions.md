@@ -1,5 +1,19 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-07 — Super Admins Can Close Support Tickets Resolved Outside the Hub
+
+Some asks get handled on a call, by email, or with a fix nobody logged. The verification checklist (property, answer, promises, Adjustments, told-live) then blocks closing them forever.
+
+- **Who:** super admins only (today Fede and Gastón), at Fede's request. This is a deliberate role check, like the financials gate.
+  - It's enforced three times: the ticket page hides the card, the server action checks `profile.role`, and `set_support_ticket_status()` and the guard check `get_my_role()`.
+- **What:**
+  - Set the status directly (open, in progress, waiting on client, resolved, dismissed) with a required note.
+  - "Resolved outside the Hub" stores `verification.outside_hub` and the note, and skips the checklist.
+  - Closing cancels open promises with the note.
+  - Super admins can also add notes to any ticket, closed ones included.
+- **Record:** every change is a timeline event with the person as actor (`status_changed`, `commitment_cancelled`, `note`).
+- **Not allowed:** setting `new` or `answered` directly, and status changes on merged tickets.
+
 ## 2026-10-05 — Support opens "By client" by default, busiest client first
 
 Fede wants to work one client at a time with every open ticket in view. `/support` now opens on the By client view (`?view=status` for the queue sections), and client groups sort by the number of open tickets, largest first, then most overdue, then the oldest ask.
