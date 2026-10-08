@@ -1,6 +1,8 @@
 # Event Intelligence — Product and Architecture Proposal
 
-Status: foundation implemented, 2026-08-21. Migration 076, the governed read model, deterministic event identity/change gates, tests, and the authenticated `/market-signals` route exist in the repository. Migration 076 remains unapplied; no production ingestion, external writes, or PriceLabs mutations are enabled.
+Status: initial foundation live; scalable foundation prepared locally, 2026-09-02. Migration 076 and the authenticated `/market-signals` read model are live. The newer timestamped package (`20260902203000`–`20260902203400`) remains unapplied and adds PredictHQ recovery tracking, CFBD/university registry, governed jurisdictions/markets/localities, primary/secondary listing membership, locality-safe listing assignments, reviewable proposal-to-listing candidates, 38 market proposals, provider catalog, recurrence watches, and conditional sports events. No production schema change, Grok connector, pricing/stay-rule write, or notification was enabled by the 2026-09-02 work.
+
+Visual architecture map: [`docs/diagrams/event-signals-data-map.html`](diagrams/event-signals-data-map.html). It distinguishes implemented sources and workflows from the planned official-calendar/news layer, including the academic-date coverage gap.
 
 ## Implementation Boundary
 
@@ -13,7 +15,9 @@ The first production-oriented slice now includes:
 - an authenticated, `market_signals:view`-gated queue and market-readiness UI;
 - a repository boundary that fails closed while the migration is unapplied.
 
-Not yet implemented: provider adapters, scheduled ingestion, cross-source merge persistence, listing assignment review actions, booking-vulnerability joins, reviewer mutations, Adjustment linking, notifications, or any external pricing/stay-rule write.
+Ticketmaster and NWS adapters, durable scheduled jobs, cross-source provider records, booking-vulnerability joins, reviewer actions, and internal Adjustment linking are now implemented in the broader Market Signals system. CFBD is implemented but requires both its server-side key and an explicit false-by-default enable flag.
+
+Not yet implemented: official university-page collection, SeatGeek ingestion, the Grok discovery connector, automatic approval/backfill of market proposals, event-specific prior-year ADR/pacing baselines, notifications for this foundation, or any external pricing/stay-rule write.
 
 ## Decision
 
@@ -61,14 +65,14 @@ Primary evidence:
 
 ## Source Strategy
 
-| Source | Role | Initial cadence | Strength | Important limit |
-|---|---|---:|---|---|
-| Official press/RSS/Atom registry | Earliest verified announcements and changes | 30–60 min | Authoritative, long lead | Market-by-market curation |
-| Ticketmaster Discovery API | Ticketed concerts, sports, theatre, festivals | 2–6 hr | Free structured venue/event data | Ticketmaster ecosystem only; default quota applies |
-| NWS Alerts API | Watches, warnings, advisories, disruption/unwind signals | 5–15 min | Authoritative US weather alerts | US only; negative impact is context-dependent |
-| GDELT/news search | Discovery of host-city and schedule announcements | 30–60 min | Broad, early coverage | Must verify against authoritative evidence |
-| PredictHQ | Normalized events, attendance, local rank, impact patterns, change metadata | 30–60 min | Strong normalization and enrichment | Commercial coverage; Surge alone misses destination patterns |
-| PriceLabs/Hub evidence | Booking vulnerability and current strategy | Existing refresh cadence | Connects the signal to an action | Often confirms demand after the earliest opportunity |
+| Source                           | Role                                                                        |          Initial cadence | Strength                            | Important limit                                              |
+| -------------------------------- | --------------------------------------------------------------------------- | -----------------------: | ----------------------------------- | ------------------------------------------------------------ |
+| Official press/RSS/Atom registry | Earliest verified announcements and changes                                 |                30–60 min | Authoritative, long lead            | Market-by-market curation                                    |
+| Ticketmaster Discovery API       | Ticketed concerts, sports, theatre, festivals                               |                   2–6 hr | Free structured venue/event data    | Ticketmaster ecosystem only; default quota applies           |
+| NWS Alerts API                   | Watches, warnings, advisories, disruption/unwind signals                    |                 5–15 min | Authoritative US weather alerts     | US only; negative impact is context-dependent                |
+| GDELT/news search                | Discovery of host-city and schedule announcements                           |                30–60 min | Broad, early coverage               | Must verify against authoritative evidence                   |
+| PredictHQ                        | Normalized events, attendance, local rank, impact patterns, change metadata |                30–60 min | Strong normalization and enrichment | Commercial coverage; Surge alone misses destination patterns |
+| PriceLabs/Hub evidence           | Booking vulnerability and current strategy                                  | Existing refresh cadence | Connects the signal to an action    | Often confirms demand after the earliest opportunity         |
 
 Google News RSS may be tested as a disposable discovery adapter, but it should not be a canonical dependency because there is no stable public integration contract for this use case. Store and verify the publisher URL, not the aggregator URL.
 

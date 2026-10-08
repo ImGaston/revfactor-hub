@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { generateMarketSignalBriefsForMarket } from "@/lib/market-signals/briefs.server"
 import { syncMarketSignalsForMarket } from "@/lib/market-signals/ingest.server"
 import { scoreMarketVulnerability } from "@/lib/market-signals/vulnerability.server"
+import { enqueueWeatherBotDeliveries } from "@/lib/weather-bot.server"
 
 export type MarketSignalJobReason =
   | "scheduled"
@@ -123,6 +124,10 @@ export async function processMarketSignalJobs(
       const derivedBriefs = derivedOnly
         ? await generateMarketSignalBriefsForMarket(supabase, job.market_id)
         : []
+      const weatherNotificationsQueued = await enqueueWeatherBotDeliveries(
+        supabase,
+        job.market_id
+      )
       const durationMs = Date.now() - startedAt
       const result = {
         sourcesSynced: sourceResults.length,
@@ -146,6 +151,7 @@ export async function processMarketSignalJobs(
         briefsGenerated:
           derivedBriefs.filter((brief) => brief.status === "generated").length +
           sourceResults.reduce((sum, row) => sum + row.briefsGenerated, 0),
+        weatherNotificationsQueued,
       }
       const status = await finishMarketSignalJob(supabase, {
         job,

@@ -2,7 +2,12 @@
 import { createHash, randomBytes } from "node:crypto"
 import { createAdminClient } from "@/lib/supabase/admin"
 
-export const API_SCOPES = ["leads:read"] as const
+export const API_SCOPES = [
+  "leads:read",
+  "weather:read",
+  "weather:deliver",
+  "weather:work",
+] as const
 export type ApiScope = (typeof API_SCOPES)[number]
 
 const KEY_PREFIX = "rvf_live_"

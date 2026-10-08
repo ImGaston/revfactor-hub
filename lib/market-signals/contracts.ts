@@ -3,6 +3,7 @@ import { z } from "zod"
 export const marketSignalSourceTypeSchema = z.enum([
   "official_feed",
   "ticketmaster",
+  "cfbd",
   "nws",
   "gdelt",
   "predicthq",
