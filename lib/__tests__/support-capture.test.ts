@@ -349,6 +349,28 @@ describe("dry-run findings (2026-09-29)", () => {
     expect(reply("uncertain").payload.proposed_answer_ignored).toBe("money at stake needs a passing answer check")
     expect(reply("pass").patch.status).toBe("answered")
   })
+
+  it("lets a passing team reply answer a ticket still in triage (status new)", () => {
+    const event = applied(
+      context(
+        {
+          author_role: "team",
+          events: [
+            {
+              type: "team_reply",
+              ticket_id: T1,
+              body: "Done: the minimum stay is now 3 nights.",
+              proposes_answered: true,
+              answer_check: { verdict: "pass", asked: "Change min stay to 3", replied: "min stay is now 3" },
+            },
+          ],
+        },
+        { tickets: new Map([[T1, snapshot({ status: "new" })]]) }
+      )
+    ).plan.events[0]
+    expect(event.patch.status).toBe("answered")
+    expect(event.payload.proposed_answer_ignored).toBeUndefined()
+  })
 })
 
 describe("events on existing tickets", () => {
