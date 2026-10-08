@@ -18,7 +18,7 @@ import {
   ticketPropertyLabel,
   timeAgo,
 } from "@/lib/support-display"
-import { loadSupportTicket } from "@/lib/support-queue.server"
+import { loadSupportClientListings, loadSupportTicket } from "@/lib/support-queue.server"
 import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
 import {
   SUPPORT_CLOSED_STATUSES,
@@ -44,13 +44,16 @@ import {
   supportRequestTypeLabel,
   supportStatusLabel,
   ticketRef,
+  verificationChecksFor,
   verifyAgeHours,
   type CommitmentTiming,
   type SupportDraftUsage,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
 import { OurAnswer, type OurAnswerProps } from "./our-answer"
+import { PromiseActions } from "./promise-actions"
 import { StatusAndNotes } from "./status-and-notes"
+import { VerificationActions } from "./verification-actions"
 
 // The answer actions (AI Gateway draft, Jev check) run as Server Actions on this page
 export const maxDuration = 120
@@ -77,10 +80,11 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
 
   const { id } = await params
   const supabase = await createClient()
-  const [data, panel, canEdit, profile] = await Promise.all([
+  const [data, panel, canEdit, canControl, profile] = await Promise.all([
     loadSupportTicket(supabase, id),
     loadSupportAnswerPanel(supabase, id),
     hasPermission("support", "edit"),
+    hasPermission("support", "control"),
     getProfile(),
   ])
   // Status changes and notes outside the normal flow: super admins (Fede, Gastón)
@@ -88,6 +92,10 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   if (!data) notFound()
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
+  const clientListings =
+    canEdit && !SUPPORT_CLOSED_STATUSES.includes(t.status) && !t.merged_into
+      ? await loadSupportClientListings(supabase, t.client_id)
+      : []
   const now = new Date()
   const closed = SUPPORT_CLOSED_STATUSES.includes(t.status)
   const due = nextDueAt(t)
@@ -460,6 +468,23 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
                       Waiting {Math.round(verifyAge)}h for verification.
                     </p>
                   )}
+                  {!t.merged_into && (canEdit || canControl) && (
+                    <VerificationActions
+                      ticketId={t.id}
+                      status={t.status}
+                      requestType={t.request_type}
+                      propertyScope={t.property_scope}
+                      propertyValidated={!!t.property_validated_at && t.property_scope !== "unknown"}
+                      selectedListingIds={(t.support_ticket_listings ?? []).map((l) => l.listing_id)}
+                      listings={clientListings}
+                      clientToldLive={!!t.client_told_live_at}
+                      blocked={blockers.length > 0}
+                      overrideRequired={overrideReasonRequired(t)}
+                      checks={verificationChecksFor(t.request_type).map((c) => ({ key: c.key, label: c.label }))}
+                      canEdit={canEdit}
+                      canControl={canControl}
+                    />
+                  )}
                 </>
               )}
               {isDoneNotTold(t) && !closed && (
@@ -502,6 +527,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
                           Likely kept: a linked Adjustment was controlled after this promise. Confirm it.
                         </p>
                       )}
+                      {p.status === "open" && canEdit && !closed && <PromiseActions commitmentId={p.id} />}
                     </div>
                   )
                 })

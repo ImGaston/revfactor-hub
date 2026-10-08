@@ -255,3 +255,13 @@ export async function loadSupportTicket(
     mergedInto: find(ticket.merged_into),
   }
 }
+
+/** The client's listings, for the ticket page's property picker. */
+export async function loadSupportClientListings(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<{ id: string; name: string; status: string | null }[]> {
+  const { data, error } = await supabase.from("listings").select("id, name, status").eq("client_id", clientId).order("name")
+  if (error) throw new Error(`listings load failed: ${error.message}`)
+  return (data ?? []) as { id: string; name: string; status: string | null }[]
+}
