@@ -1,5 +1,11 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-08 — Support sweep bot writes use the existing scoped key
+
+Martín's sweep agent can add internal notes and move support tickets through `PATCH /api/v1/support-tickets/[id]`. It reuses `support:write`: note/status writes are the same support-bot capability as capture and suggested replies, so a second scope would add key-management complexity without separating authority in practice. Every stored actor label is prefixed `Bot:` and retries can carry an event idempotency key.
+
+Bot resolves set `verification.outside_hub` and `by_bot` and deliberately leave `verified_by` null because there is no profile behind a machine key. The database guard permits that exception only for `auth.role() = 'service_role'`; human outside-Hub resolves still require a signed-in super admin, while ordinary resolves retain the verifier and checklist gates. The sweep's close approval is enforced by its caller, so the Hub records the decision rather than adding a duplicate approval workflow. Hand-managed tickets accept bot notes but reject bot status changes because their status is explicitly reserved for a person.
+
 ## 2026-10-07 — Super Admins Can Close Support Tickets Resolved Outside the Hub
 
 Some asks get handled on a call, by email, or with a fix nobody logged. The verification checklist (property, answer, promises, Adjustments, told-live) then blocks closing them forever.
