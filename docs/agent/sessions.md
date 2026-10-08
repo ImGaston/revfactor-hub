@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-08 — Support workspace layout rebuilt on main
+
+Rebuilt PR #64's workspace on today's main, replacing `support-queue-view.tsx` and `support-client-groups.tsx`. New: `support/layout.tsx`, `support-workspace.tsx`, `support-sidebar.tsx`, `support-view-toggle.tsx`, `support-client-page.tsx`, `[id]/ticket-tools.tsx` (owner select, merge with AlertDialog), `lib/support-workspace.ts` (+ tests), plus `assignSupportTicketAction` / `mergeSupportTicketAction` and `loadSupportTeam` / `loadLastCaptureAt` / `loadClientOpenTickets`. The ticket page moved into tabs with a right bar; the answer flow, Jev check, Status and notes, and Verification actions are unchanged.
+
 ## 2026-10-05 — Support answers: blind-first flow; Jev via AI Gateway
 
 Reworked PR #66 to Fede's three-step flow. Step 1 has a lock line only; the suggestion text stays on the server until the team's first save. Step 2 is the side-by-side review: an automatic Jev check, a Jev comparison (`suggestion_covers_missing_point`, `facts_conflict`), and a quote-verified "What the suggestion adds". Step 3 is the final answer: Keep mine / Use suggested / Merge with AI, Check final, Save, and Copy, plus the derived `used_suggestion` metric. The migration was edited in place: answer row with blind first/body/final and snapshots plus a guard trigger, `target` on checks, new `support_answer_comparisons`, and events `suggestion_unlocked` and `answer_finalized`. Jev moved to AI Gateway `/v1/evaluate` (`lib/ai-gateway.server.ts`, `@vercel/oidc`), with the direct TypeSafe call kept as an optional fallback, defensive parsing of both shapes, and a "Test Jev connection" diagnostic. Tests cover the lock (the loader never selects or returns draft text before a saved answer), both Jev shapes, the comparison gate, merge guards, "adds" validation, and `used_suggestion`. The UI was checked on a throwaway fixture route at desktop and 375 px.

@@ -265,3 +265,45 @@ export async function loadSupportClientListings(
   if (error) throw new Error(`listings load failed: ${error.message}`)
   return (data ?? []) as { id: string; name: string; status: string | null }[]
 }
+
+const EXTERNAL_ROLES = ["contractor", "marketing", "hostpricing"]
+
+/** People who can own a ticket: every profile except the external roles. */
+export async function loadSupportTeam(supabase: SupabaseClient): Promise<{ id: string; name: string }[]> {
+  const { data, error } = await supabase.from("profiles").select("id, full_name, email, role").order("full_name")
+  if (error) throw new Error(`team load failed: ${error.message}`)
+  return (data ?? [])
+    .filter((p) => !EXTERNAL_ROLES.includes(p.role))
+    .map((p) => ({ id: p.id, name: p.full_name || p.email }))
+}
+
+/** When the capture bot last recorded a message (null = never), for the workspace status bar. */
+export async function loadLastCaptureAt(supabase: SupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("support_capture_messages")
+    .select("processed_at")
+    .order("processed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(`capture health load failed: ${error.message}`)
+  return data?.processed_at ?? null
+}
+
+/** The client's other open tickets, for the ticket page's right bar and merge targets. */
+export async function loadClientOpenTickets(
+  supabase: SupabaseClient,
+  clientId: string,
+  exceptId: string
+): Promise<{ id: string; ticket_number: number; summary: string; status: string }[]> {
+  const { data, error } = await supabase
+    .from("support_tickets")
+    .select("id, ticket_number, summary, status")
+    .eq("client_id", clientId)
+    .neq("id", exceptId)
+    .in("status", SUPPORT_ACTIVE_STATUSES)
+    .is("merged_into", null)
+    .order("ticket_number", { ascending: false })
+    .limit(25)
+  if (error) throw new Error(`client tickets load failed: ${error.message}`)
+  return (data ?? []) as { id: string; ticket_number: number; summary: string; status: string }[]
+}

@@ -561,3 +561,7 @@ The India team invoices Blackbird Hospitality listings separately, so Monthly Su
 ## 2026-10-06 — Operational churn access and partial exits
 
 Give admins dedicated `churn:view`/`edit` permissions, as requested, while keeping financial fields super_admin-only. Client offboarding remains in Settings and uses the existing `clientStatusPatch`; a listing exit never marks its parent account inactive. Listing reasons share the client reason catalog. Scheduled cancellations use a narrowly projected, permission-gated read of the existing Stripe mirror, avoiding broader financial RLS access and external API calls. Reactivation clears previous exit metadata so a later exit cannot inherit a stale reason or manual billing assertion.
+
+## 2026-10-08 — Support workspace: the queue lives in a layout, filtered in the browser
+
+Fede wanted the PR #64 workspace (list on the left, ticket on the right, no page reload between tickets), rebuilt on main so it keeps the By client view, the client context panel, Status and notes, and the close-out buttons. The queue (open tickets plus 30 days closed) loads once in `support/layout.tsx` and stays mounted, so moving between tickets re-renders only the ticket. Next.js layouts can't read search params, so the sidebar filters that list in the browser from `useSearchParams`. The client-scoped reads (context panel, client stats, full closed history) stay on the server in `page.tsx`. Actions call `revalidatePath("/support", "layout")` so the sidebar counts follow every change.

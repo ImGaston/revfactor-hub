@@ -87,7 +87,8 @@ async function logEvent(
 
 function done(ticketId: string): Result {
   revalidatePath(supportTicketPath(ticketId))
-  revalidatePath("/support")
+  // The layout holds the sidebar queue; "layout" refreshes it and every page under it
+  revalidatePath("/support", "layout")
   return { ok: true }
 }
 
@@ -266,4 +267,42 @@ export async function sendBackSupportTicketAction(ticketId: string, note: string
   if (error) return { ok: false, error: friendlyDbError(error.message) }
   await logEvent(supabase, user, ticket.id, "verification_failed", validNote.value)
   return done(ticket.id)
+}
+
+// Roles that never work client support (see the permission seed in the migration)
+const EXTERNAL_ROLES = new Set(["contractor", "marketing", "hostpricing"])
+
+export async function assignSupportTicketAction(ticketId: string, assigneeId: string | null): Promise<Result> {
+  const ctx = await openTicket(ticketId, "edit")
+  if ("error" in ctx) return ctx
+  const { supabase, user, ticket } = ctx
+
+  let assigneeName: string | null = null
+  if (assigneeId) {
+    if (!uuid.safeParse(assigneeId).success) return { ok: false, error: "Pick a team member" }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .eq("id", assigneeId)
+      .maybeSingle()
+    if (!profile || EXTERNAL_ROLES.has(profile.role)) return { ok: false, error: "Pick a team member" }
+    assigneeName = profile.full_name || profile.email
+  }
+
+  const { error } = await supabase.from("support_tickets").update({ assignee_id: assigneeId }).eq("id", ticket.id)
+  if (error) return { ok: false, error: friendlyDbError(error.message) }
+  await logEvent(supabase, user, ticket.id, "assigned", null, { assignee_id: assigneeId, assignee_name: assigneeName })
+  return done(ticket.id)
+}
+
+/** Merge this ticket into the one that stays (merge_support_ticket writes both timeline events). */
+export async function mergeSupportTicketAction(sourceId: string, targetId: string): Promise<Result> {
+  if (!uuid.safeParse(sourceId).success || !uuid.safeParse(targetId).success)
+    return { ok: false, error: "Pick a ticket to merge into" }
+  const s = await session("edit")
+  if ("error" in s) return s
+  const { error } = await s.supabase.rpc("merge_support_ticket", { p_source: sourceId, p_target: targetId })
+  if (error) return { ok: false, error: friendlyDbError(error.message) }
+  revalidatePath(supportTicketPath(sourceId))
+  return done(targetId)
 }

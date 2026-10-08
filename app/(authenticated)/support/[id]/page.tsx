@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { adjustmentStatusLabel, adjustmentTypeLabel } from "@/lib/adjustments"
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
@@ -18,7 +19,13 @@ import {
   ticketPropertyLabel,
   timeAgo,
 } from "@/lib/support-display"
-import { loadSupportClientListings, loadSupportTicket } from "@/lib/support-queue.server"
+import { parseSupportQueueParams, supportQueueHref, supportQueueSearch } from "@/lib/support-queue"
+import {
+  loadClientOpenTickets,
+  loadSupportClientListings,
+  loadSupportTeam,
+  loadSupportTicket,
+} from "@/lib/support-queue.server"
 import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
 import {
   SUPPORT_CLOSED_STATUSES,
@@ -43,6 +50,7 @@ import {
   supportRequestTypeDoneWhen,
   supportRequestTypeLabel,
   supportStatusLabel,
+  supportTicketPath,
   ticketRef,
   verificationChecksFor,
   verifyAgeHours,
@@ -53,6 +61,7 @@ import { cn } from "@/lib/utils"
 import { OurAnswer, type OurAnswerProps } from "./our-answer"
 import { PromiseActions } from "./promise-actions"
 import { StatusAndNotes } from "./status-and-notes"
+import { MergeTicketButton, OwnerSelect } from "./ticket-tools"
 import { VerificationActions } from "./verification-actions"
 
 // The answer actions (AI Gateway draft, Jev check) run as Server Actions on this page
@@ -74,11 +83,20 @@ function pct(value: unknown): string | null {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : null
 }
 
-export default async function SupportTicketPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SupportTicketPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const canView = await hasPermission("support", "view")
   if (!canView) redirect("/")
 
   const { id } = await params
+  // Keep the sidebar's client and view on every link out of this ticket
+  const filters = parseSupportQueueParams(await searchParams)
+  const search = supportQueueSearch(filters)
   const supabase = await createClient()
   const [data, panel, canEdit, canControl, profile] = await Promise.all([
     loadSupportTicket(supabase, id),
@@ -92,10 +110,12 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   if (!data) notFound()
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
-  const clientListings =
-    canEdit && !SUPPORT_CLOSED_STATUSES.includes(t.status) && !t.merged_into
-      ? await loadSupportClientListings(supabase, t.client_id)
-      : []
+  const workable = canEdit && !SUPPORT_CLOSED_STATUSES.includes(t.status) && !t.merged_into
+  const [clientListings, team, otherTickets] = await Promise.all([
+    workable ? loadSupportClientListings(supabase, t.client_id) : [],
+    workable ? loadSupportTeam(supabase) : [],
+    loadClientOpenTickets(supabase, t.client_id, t.id),
+  ])
   const now = new Date()
   const closed = SUPPORT_CLOSED_STATUSES.includes(t.status)
   const due = nextDueAt(t)
@@ -103,6 +123,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   const blockers = resolutionBlockers(t)
   const promises = t.support_ticket_commitments ?? []
   const adjustments = t.adjustments ?? []
+  const openPromises = promises.filter((p) => p.status === "open").length
   const ai = t.ai_classification as {
     model?: string | null
     confidence?: { category?: number; request_type?: number; sentiment?: number }
@@ -184,14 +205,14 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 p-6">
       <BreadcrumbSetter segment={t.id} label={ticketRef(t.ticket_number)} />
 
       <Link
-        href="/support"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        href={supportQueueHref(filters)}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground lg:hidden"
       >
-        <ArrowLeft className="size-4" />
+        <ArrowLeft className="size-4" aria-hidden />
         Support queue
       </Link>
 
@@ -253,7 +274,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
           {possibleDuplicate && (
             <p>
               Possible duplicate of{" "}
-              <Link className="font-medium underline" href={`/support/${possibleDuplicate.id}`}>
+              <Link className="font-medium underline" href={`${supportTicketPath(possibleDuplicate.id)}${search}`}>
                 {ticketRef(possibleDuplicate.ticket_number)}
               </Link>{" "}
               ({possibleDuplicate.summary}).
@@ -262,7 +283,7 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
           {mergedInto && (
             <p>
               Merged into{" "}
-              <Link className="font-medium underline" href={`/support/${mergedInto.id}`}>
+              <Link className="font-medium underline" href={`${supportTicketPath(mergedInto.id)}${search}`}>
                 {ticketRef(mergedInto.ticket_number)}
               </Link>
               . Work continues there.
@@ -277,8 +298,29 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-4">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <Tabs defaultValue="conversation" className="min-w-0 gap-4">
+          <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
+            <TabsTrigger value="conversation">Conversation</TabsTrigger>
+            <TabsTrigger value="promises">
+              Promises
+              {openPromises > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 font-mono text-[11px]">
+                  {openPromises}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="adjustments">
+              Adjustments
+              {adjustments.length > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 font-mono text-[11px]">
+                  {adjustments.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+          </TabsList>
+          <TabsContent value="conversation" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-baseline justify-between gap-2 text-base">
@@ -402,15 +444,123 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
               )}
             </CardContent>
           </Card>
-        </div>
+          </TabsContent>
+          <TabsContent value="promises" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-baseline justify-between gap-2 text-base">
+                Promises
+                <span className="text-xs font-normal text-muted-foreground">
+                  {openPromises} open
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {promises.length === 0 ? (
+                <p className="text-muted-foreground">No promises on this ticket.</p>
+              ) : (
+                promises.map((p) => {
+                  const timing = commitmentTiming(p, now)
+                  const rescheduled = p.rescheduled_to && effectiveDueAt(p) !== p.due_at
+                  return (
+                    <div key={p.id} className="space-y-1 border-t pt-3 first:border-t-0 first:pt-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="wrap-anywhere">{p.description}</span>
+                        <Badge className={TIMING_BADGE[timing].className}>{TIMING_BADGE[timing].label}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {p.made_by_name ?? "Team"} · due {formatSupportDateTime(p.due_at)}
+                        {rescheduled ? ` → rescheduled to ${formatSupportDateTime(p.rescheduled_to)}` : ""}
+                        {p.closed_at ? ` · closed ${formatSupportDateTime(p.closed_at)}` : ""}
+                      </p>
+                      {promiseLikelyKept(p, adjustments) && (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                          Likely kept: a linked Adjustment was controlled after this promise. Confirm it.
+                        </p>
+                      )}
+                      {p.status === "open" && canEdit && !closed && <PromiseActions commitmentId={p.id} />}
+                    </div>
+                  )
+                })
+              )}
+            </CardContent>
+          </Card>
 
-        <div className="min-w-0 space-y-4">
+          </TabsContent>
+          <TabsContent value="adjustments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Adjustments</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {adjustments.length === 0 ? (
+                <p className="text-muted-foreground">No Adjustment linked.</p>
+              ) : (
+                adjustments.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/adjustments/${a.id}`}
+                    className="flex flex-wrap items-center gap-2 hover:underline"
+                  >
+                    <span>{adjustmentTypeLabel(a.type)}</span>
+                    {a.target_value && <span className="text-muted-foreground">{a.target_value}</span>}
+                    {a.listings?.name && <span className="text-muted-foreground">· {a.listings.name}</span>}
+                    <Badge variant="secondary">{adjustmentStatusLabel(a.status)}</Badge>
+                    <ExternalLink className="size-3 text-muted-foreground" />
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          </TabsContent>
+          <TabsContent value="details" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Property</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <p>{ticketPropertyLabel(t)}</p>
+              <p className="text-xs text-muted-foreground">
+                {t.property_validated_at
+                  ? `Validated ${formatSupportDateTime(t.property_validated_at)}`
+                  : "Not validated yet"}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-baseline justify-between gap-2 text-base">
+                Classification
+                <span className="text-xs font-normal text-muted-foreground">{ai.model ?? "manual"}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1.5 text-sm">
+              <p className="text-muted-foreground">
+                Confidence: category {pct(ai.confidence?.category) ?? "—"} · type{" "}
+                {pct(ai.confidence?.request_type) ?? "—"}
+                {pct(ai.confidence?.sentiment) ? ` · sentiment ${pct(ai.confidence?.sentiment)}` : ""}
+              </p>
+              {ai.rationale && <p className="wrap-anywhere">{ai.rationale}</p>}
+              {ai.triage_reasons && ai.triage_reasons.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Sent to triage: {ai.triage_reasons.map((r) => r.replace(/_/g, " ")).join(", ")}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          </TabsContent>
+        </Tabs>
+
+        <aside className="min-w-0 space-y-4">
           {isSuperAdmin && (
             <StatusAndNotes
               ticketId={t.id}
               status={t.status}
               merged={!!t.merged_into}
-              openPromises={promises.filter((p) => p.status === "open").length}
+              openPromises={openPromises}
             />
           )}
           <Card>
@@ -497,79 +647,20 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-baseline justify-between gap-2 text-base">
-                Promises
-                <span className="text-xs font-normal text-muted-foreground">
-                  {promises.filter((p) => p.status === "open").length} open
-                </span>
-              </CardTitle>
+              <CardTitle className="text-base">Owner</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {promises.length === 0 ? (
-                <p className="text-muted-foreground">No promises on this ticket.</p>
+              {workable ? (
+                <OwnerSelect ticketId={t.id} assigneeId={t.assignee_id} team={team} disabled={!canEdit} />
               ) : (
-                promises.map((p) => {
-                  const timing = commitmentTiming(p, now)
-                  const rescheduled = p.rescheduled_to && effectiveDueAt(p) !== p.due_at
-                  return (
-                    <div key={p.id} className="space-y-1 border-t pt-3 first:border-t-0 first:pt-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="wrap-anywhere">{p.description}</span>
-                        <Badge className={TIMING_BADGE[timing].className}>{TIMING_BADGE[timing].label}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {p.made_by_name ?? "Team"} · due {formatSupportDateTime(p.due_at)}
-                        {rescheduled ? ` → rescheduled to ${formatSupportDateTime(p.rescheduled_to)}` : ""}
-                        {p.closed_at ? ` · closed ${formatSupportDateTime(p.closed_at)}` : ""}
-                      </p>
-                      {promiseLikelyKept(p, adjustments) && (
-                        <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                          Likely kept: a linked Adjustment was controlled after this promise. Confirm it.
-                        </p>
-                      )}
-                      {p.status === "open" && canEdit && !closed && <PromiseActions commitmentId={p.id} />}
-                    </div>
-                  )
-                })
+                <p>{ownerLabel(t.assignee)}</p>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Property</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p>{ticketPropertyLabel(t)}</p>
-              <p className="text-xs text-muted-foreground">
-                {t.property_validated_at
-                  ? `Validated ${formatSupportDateTime(t.property_validated_at)}`
-                  : "Not validated yet"}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Adjustments</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {adjustments.length === 0 ? (
-                <p className="text-muted-foreground">No Adjustment linked.</p>
-              ) : (
-                adjustments.map((a) => (
-                  <Link
-                    key={a.id}
-                    href={`/adjustments/${a.id}`}
-                    className="flex flex-wrap items-center gap-2 hover:underline"
-                  >
-                    <span>{adjustmentTypeLabel(a.type)}</span>
-                    {a.target_value && <span className="text-muted-foreground">{a.target_value}</span>}
-                    {a.listings?.name && <span className="text-muted-foreground">· {a.listings.name}</span>}
-                    <Badge variant="secondary">{adjustmentStatusLabel(a.status)}</Badge>
-                    <ExternalLink className="size-3 text-muted-foreground" />
-                  </Link>
-                ))
+              {workable && (
+                <MergeTicketButton
+                  ticketId={t.id}
+                  targets={otherTickets}
+                  suggestedId={possibleDuplicate?.id ?? null}
+                />
               )}
             </CardContent>
           </Card>
@@ -577,29 +668,39 @@ export default async function SupportTicketPage({ params }: { params: Promise<{ 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-baseline justify-between gap-2 text-base">
-                Classification
-                <span className="text-xs font-normal text-muted-foreground">{ai.model ?? "manual"}</span>
+                {t.clients?.name ?? "Client"}
+                <Link
+                  href={supportQueueHref({ ...filters, clientId: t.client_id, showClosed: false })}
+                  className="text-xs font-normal text-muted-foreground hover:underline"
+                >
+                  All their tickets
+                </Link>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1.5 text-sm">
-              <p className="text-muted-foreground">
-                Confidence: category {pct(ai.confidence?.category) ?? "—"} · type{" "}
-                {pct(ai.confidence?.request_type) ?? "—"}
-                {pct(ai.confidence?.sentiment) ? ` · sentiment ${pct(ai.confidence?.sentiment)}` : ""}
-              </p>
-              {ai.rationale && <p className="wrap-anywhere">{ai.rationale}</p>}
-              {ai.triage_reasons && ai.triage_reasons.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Sent to triage: {ai.triage_reasons.map((r) => r.replace(/_/g, " ")).join(", ")}
-                </p>
+            <CardContent className="space-y-1 text-sm">
+              {otherTickets.length === 0 ? (
+                <p className="text-muted-foreground">No other open tickets.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {otherTickets.slice(0, 8).map((o) => (
+                    <li key={o.id}>
+                      <Link
+                        href={`${supportTicketPath(o.id)}${search}`}
+                        className="flex gap-2 rounded px-1 py-0.5 hover:bg-accent"
+                      >
+                        <span className="font-mono text-xs text-muted-foreground">{ticketRef(o.ticket_number)}</span>
+                        <span className="min-w-0 flex-1 truncate">{o.summary}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {otherTickets.length > 8 && (
+                <p className="text-xs text-muted-foreground">And {otherTickets.length - 8} more in the list.</p>
               )}
             </CardContent>
           </Card>
-
-          <p className="text-xs text-muted-foreground">
-            Triage, recording the answer as sent, verifying, and merging arrive in the next update.
-          </p>
-        </div>
+        </aside>
       </div>
     </div>
   )

@@ -6,8 +6,11 @@ import { loadSupportClientContext } from "@/lib/support-client-context.server"
 import { parseSupportQueueParams } from "@/lib/support-queue"
 import { loadSupportQueue } from "@/lib/support-queue.server"
 import { supportStats } from "@/lib/support-tickets"
-import { SupportQueueView } from "./support-queue-view"
+import { SupportClientPage } from "./support-client-page"
 
+// The queue itself lives in the layout's sidebar. This page fills the main
+// column only when a client is picked; with none, the workspace shows its
+// overview instead.
 export default async function SupportPage({
   searchParams,
 }: {
@@ -16,14 +19,15 @@ export default async function SupportPage({
   const canView = await hasPermission("support", "view")
   if (!canView) redirect("/")
 
-  // ?client=<clients.id>&closed=1&view=status — read on the server; bad values are ignored (By client is the default view)
+  // ?client=<clients.id>&closed=1&view=status — bad values are ignored
   const filters = parseSupportQueueParams(await searchParams)
+  if (!filters.clientId) return null
+  const clientId = filters.clientId
 
   const supabase = await createClient()
-  // One clock for the whole render so every "due in" label agrees and the
-  // client component hydrates with the same values the server printed
+  // One clock for the whole render so every "due in" label agrees
   const now = new Date()
-  const loadContext = async (clientId: string) => {
+  const loadContext = async () => {
     // Mirror the listings/adjustments RLS so a forbidden section stays hidden
     const [adjustments, listings] = await Promise.all([
       hasPermission("adjustments", "view"),
@@ -34,26 +38,27 @@ export default async function SupportPage({
       listings: listings || adjustments,
     })
   }
-  const [data, context] = await Promise.all([
-    loadSupportQueue(supabase, now, filters),
-    filters.clientId ? loadContext(filters.clientId) : Promise.resolve(null),
-  ])
+  const [data, context] = await Promise.all([loadSupportQueue(supabase, now, filters), loadContext()])
   const stats = supportStats(
     data.tickets,
     data.closedCommitments,
     { sentBack30d: data.sentBack30d, clientRejected30d: data.clientRejected30d },
     now
   )
+  const clientName =
+    data.clientOptions.find((c) => c.id === clientId)?.name ??
+    data.tickets.find((t) => t.clients?.name)?.clients?.name ??
+    "This client"
 
   return (
-    <SupportQueueView
+    <SupportClientPage
+      clientName={clientName}
       tickets={data.tickets}
       stats={stats}
-      nowIso={now.toISOString()}
+      context={context}
       filters={filters}
-      clientOptions={data.clientOptions}
-      closed={{ scope: data.closedScope, total: data.closedTotal }}
-      clientContext={context}
+      closedTotal={data.closedTotal}
+      nowIso={now.toISOString()}
     />
   )
 }
