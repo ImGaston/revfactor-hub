@@ -103,6 +103,7 @@ describe("bot boundaries", () => {
 describe("hub queue boundaries", () => {
   const queue = read("lib/support-queue.server.ts")
   const pages = [
+    read("app/(authenticated)/support/layout.tsx"),
     read("app/(authenticated)/support/page.tsx"),
     read("app/(authenticated)/support/[id]/page.tsx"),
   ]
@@ -115,7 +116,7 @@ describe("hub queue boundaries", () => {
     }
   })
 
-  it("gates both pages on support:view and reads client names from clients_basic", () => {
+  it("gates the layout and both pages on support:view and reads client names from clients_basic", () => {
     for (const source of pages) expect(source).toContain('hasPermission("support", "view")')
     expect(queue).toContain("clients:clients_basic(")
     expect(queue).not.toMatch(/\bbilling_amount\b/)

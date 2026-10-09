@@ -269,8 +269,10 @@ describe("THE LOCK: no suggestion text before a saved team answer", () => {
     expect(code).not.toMatch(/suggested_reply(?!_generated_at|->>)/)
     const page = readFileSync(join(process.cwd(), "app/(authenticated)/support/[id]/page.tsx"), "utf8")
     expect(page).not.toMatch(/\.suggested_reply\b/)
-    const queueView = readFileSync(join(process.cwd(), "app/(authenticated)/support/support-queue-view.tsx"), "utf8")
-    expect(queueView).not.toMatch(/suggested_reply(?!_generated_at)/)
+    for (const file of ["layout.tsx", "page.tsx", "support-workspace.tsx", "support-sidebar.tsx", "support-client-page.tsx"]) {
+      const source = readFileSync(join(process.cwd(), "app/(authenticated)/support", file), "utf8")
+      expect(source).not.toMatch(/suggested_reply(?!_generated_at)/)
+    }
   })
 })
 

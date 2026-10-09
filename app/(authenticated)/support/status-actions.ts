@@ -26,7 +26,8 @@ async function superAdmin(): Promise<{ userId: string } | { error: string }> {
 
 function refresh(ticketId: string) {
   revalidatePath(supportTicketPath(ticketId))
-  revalidatePath("/support")
+  // The layout holds the sidebar queue; "layout" refreshes it and every page under it
+  revalidatePath("/support", "layout")
 }
 
 export async function setSupportStatusAction(
