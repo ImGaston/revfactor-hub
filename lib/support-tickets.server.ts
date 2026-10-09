@@ -8,6 +8,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import { prepareSupportTicketUpdate } from "@/lib/support-api-write"
 import {
   planSupportCapture,
   type CaptureClient,
@@ -32,6 +33,129 @@ import {
 } from "@/lib/support-tickets"
 
 export type ApiResult = { status: number; body: unknown }
+
+// ---------------------------------------------------------------------------
+// PATCH /api/v1/support-tickets/:id
+// ---------------------------------------------------------------------------
+
+const WRITE_TICKET_COLUMNS = "id, ticket_number, status, merged_into, hand_managed, client_id"
+
+type WriteTicketRow = {
+  id: string
+  ticket_number: number
+  status: SupportStatus
+  merged_into: string | null
+  hand_managed: boolean
+  client_id: string
+}
+
+type BotUpdateRpcResult = {
+  replayed: boolean
+  event_id: string
+  ticket_id: string
+  ticket_number: number
+  status: SupportStatus
+  previous_status?: SupportStatus
+}
+
+async function replaySupportTicketUpdate(
+  admin: SupabaseClient,
+  ticket: WriteTicketRow,
+  rawBody: unknown,
+  keyId: string
+): Promise<ApiResult | null> {
+  const key = (rawBody as { idempotency_key?: unknown } | null)?.idempotency_key
+  if (typeof key !== "string" || !/^[A-Za-z0-9:_.-]{3,120}$/.test(key)) return null
+  const { data, error } = await admin
+    .from("support_ticket_events")
+    .select("id, ticket_id")
+    .eq("external_key", `api:${keyId}:${key}`)
+    .maybeSingle()
+  if (error) throw new Error(`ticket update replay lookup failed: ${error.message}`)
+  const event = data as { id: string; ticket_id: string } | null
+  if (!event) return null
+  if (event.ticket_id !== ticket.id)
+    return { status: 409, body: { error: "This idempotency_key was already used for another ticket" } }
+  return {
+    status: 200,
+    body: {
+      ticket_id: ticket.id,
+      ticket_number: ticket.ticket_number,
+      status: ticket.status,
+      previous_status: ticket.status,
+      event_id: event.id,
+      replayed: true,
+    },
+  }
+}
+
+export async function updateSupportTicketForApi(
+  admin: SupabaseClient,
+  ticketId: string,
+  rawBody: unknown,
+  auth: { keyId: string }
+): Promise<ApiResult> {
+  const { data, error } = await admin
+    .from("support_tickets")
+    .select(WRITE_TICKET_COLUMNS)
+    .eq("id", ticketId)
+    .maybeSingle()
+  if (error) throw new Error(`ticket update lookup failed: ${error.message}`)
+  const ticket = data as WriteTicketRow | null
+  if (!ticket) return { status: 404, body: { error: "No support ticket with this id" } }
+
+  // A retried request must replay before the state checks: after a successful
+  // status change the ticket is already in that status, which would 409.
+  const replay = await replaySupportTicketUpdate(admin, ticket, rawBody, auth.keyId)
+  if (replay) return replay
+
+  const prepared = prepareSupportTicketUpdate(rawBody, ticket)
+  if (!prepared.ok) {
+    return {
+      status: prepared.status,
+      body: { error: prepared.error, ...(prepared.issues ? { issues: prepared.issues } : {}) },
+    }
+  }
+  const update = prepared.value
+  const externalKey = update.idempotencyKey ? `api:${auth.keyId}:${update.idempotencyKey}` : null
+  const { data: rpcData, error: rpcError } = await admin.rpc("apply_support_ticket_bot_update", {
+    p_ticket: ticket.id,
+    p_actor_label: update.actorLabel,
+    p_api_key_id: auth.keyId,
+    p_note: update.note,
+    p_status: update.status,
+    p_dismiss_reason: update.dismissReason,
+    p_answer_summary: update.answerSummary,
+    p_external_key: externalKey,
+  })
+  if (rpcError) {
+    const message = rpcError.message ?? ""
+    if (message.includes("Ticket not found"))
+      return { status: 404, body: { error: "No support ticket with this id" } }
+    if (message.includes("Add a note") || message.includes("Pick a reason"))
+      return { status: 400, body: { error: message } }
+    if (
+      message.includes("was merged") ||
+      message.includes("already in that status") ||
+      message.includes("hand-managed")
+    )
+      return { status: 409, body: { error: message } }
+    throw new Error(`support ticket bot update failed: ${message}`)
+  }
+
+  const result = rpcData as BotUpdateRpcResult
+  return {
+    status: 200,
+    body: {
+      ticket_id: result.ticket_id,
+      ticket_number: result.ticket_number,
+      status: result.status,
+      previous_status: result.previous_status ?? result.status,
+      event_id: result.event_id,
+      replayed: result.replayed,
+    },
+  }
+}
 
 type ClientRef = {
   hub_client_id?: string
