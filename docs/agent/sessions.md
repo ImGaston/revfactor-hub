@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-08 — Event Intelligence retirement prepared for Gaston
+
+Prepared an isolated main-based retirement branch: removed the Market Signals engine, UI, map/manual cron routes, related scripts/tests and both chained cron hooks. Sidebar/command catalog now open RM; shared permissions/API-key scope and applied migrations remain intact. The original Hub docs/case-study/diagram were preserved byte-for-byte in RM with a SHA-256 manifest, and Hub retains documentation pointers. PriceLabs, Stripe, Report Builder and other Hub modules are retained. No production cron was run and no database/price/provider/AI write occurred. Owner gate: Gaston merges/deploys the Hub PR before RM ingestion is enabled.
+
 ## 2026-10-08 — Support sweep bot ticket writes
 
 Added the scoped, idempotent `PATCH /api/v1/support-tickets/[id]` path for bot-attributed internal notes and status changes, with pure validation, a service-role-only transactional RPC draft, guarded bot resolves, tests, and capture-contract documentation. Hand-managed status remains human-only and the existing `support:write` scope is reused.

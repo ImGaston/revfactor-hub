@@ -123,8 +123,8 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     key: "market-signals",
-    title: "Market Signals",
-    href: "/market-signals",
+    title: "Event Intelligence (RM)",
+    href: "https://pricing.revfactor.io/signals.html",
     icon: Radar,
     resource: "market_signals",
   },
