@@ -15,6 +15,7 @@ const ROUTES = [
   { path: "app/api/v1/support-tickets/digest/route.ts", scope: "support:read" },
   { path: "app/api/v1/support-listings/route.ts", scope: "support:read" },
   { path: "app/api/v1/support-tickets/[id]/suggested-reply/route.ts", scope: "support:write" },
+  { path: "app/api/v1/support-tickets/[id]/route.ts", scope: "support:write" },
 ]
 
 describe("support API routes", () => {

@@ -339,6 +339,33 @@ Content-Type: application/json
 - `answer_check` compares the reply the team **actually sent** with the client's ask, never with the draft.
 - A sent reply that still has an unfilled bracket (`[date]`, `[X]%`, `[owner to fill]`) is a `fail` with `gap: "unfilled placeholder sent"` and no `proposes_answered`.
 
+## Ticket writes (support sweep)
+
+This endpoint is for Martín's support sweep agent, not the capture flow above. The sweep agent's closes are approval-gated on its side; the Hub records the approved bot action and does not add another approval step. The capture bot's rule still stands: it never resolves, merges, or dismisses anything.
+
+```http
+PATCH /api/v1/support-tickets/{id}
+Authorization: Bearer rvf_live_…   (support:write)
+Content-Type: application/json
+```
+
+```json
+{
+  "note": "Confirmed on the Oct 8 sweep that the request was completed.",
+  "status": "closed",
+  "actor_label": "Martín (support sweep)",
+  "idempotency_key": "sweep:ticket-1029:close"
+}
+```
+
+- Send `note` (3–1,000, credential-free) for a timeline note. Every status change also requires a note.
+- `status` is `open`, `in_progress`, `awaiting_client`, `answered`, `resolved`, `closed`, or `dismissed`; `closed` is an alias for `resolved`, and `new` cannot be set.
+- `dismiss_reason` is required only with `dismissed`. `answer_summary` (3–1,000, credential-free) is allowed only with `answered`.
+- `actor_label` defaults to `Support API bot`; the Hub stores every label with a `Bot:` prefix. `idempotency_key` makes a retry return the original event without writing twice.
+- Merged tickets and no-op status changes return 409. Hand-managed tickets accept notes but reject bot status changes.
+
+Responses: 200 returns `ticket_id`, `ticket_number`, `status`, `previous_status`, `event_id`, and `replayed`; 400 means invalid JSON, id, fields, or field combination; 401 means a missing or invalid key; 403 means the key lacks `support:write`; 404 means the ticket does not exist; 409 means the ticket state blocks the change; 500 is a generic internal error.
+
 ## 10. Check-ins and asks raised outside Assembly (v1.5)
 
 **Asks raised on a call or by email** are ordinary client asks. Send them like a chat message:
@@ -384,4 +411,3 @@ A one-time import of asks that were still open when capture went live.
    - The team answered: import it as `answered`.
    - The client only followed up: keep it as one open ticket.
 5. **Import order:** the backfill comes before switching every client to live capture. That way a chase on an old ask lands on its backfilled ticket.
-
