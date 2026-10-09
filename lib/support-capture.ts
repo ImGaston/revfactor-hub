@@ -741,7 +741,8 @@ function planEvent(
         else payload.used_suggestion_ignored = "no draft before this reply"
       }
       const answerText = body ?? clean(event.answer_check?.replied)
-      const answerable = ["open", "in_progress", "awaiting_client", "answered"].includes(ticket.status)
+      // "new" = captured but still needs triage; a passing team reply still answers it
+      const answerable = ["new", "open", "in_progress", "awaiting_client", "answered"].includes(ticket.status)
       if (honorsProposedAnswer(event, ticket) && auto && answerable && answerText) {
         patch.answer_summary = answerText
         patch.answered_at = messageAtIso
