@@ -4,6 +4,7 @@ import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
 import { ListingsSettings } from "./listings-settings"
 import type { AirbnbCancellationPolicy } from "@/lib/airbnb-cancellation-foundation"
+import { DEFAULT_MANAGED_BY, isManagedBy } from "@/lib/listing-managed-by"
 
 export default async function SettingsListingsPage() {
   const [profile, canEdit] = await Promise.all([
@@ -18,7 +19,7 @@ export default async function SettingsListingsPage() {
     supabase
       .from("listings")
       .select(
-        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, initial_setup_date, adjustment_confirmed_date, deactivated_date, default_cancellation_policy, timezone, clients:clients_basic(id, name)"
+        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, pl_synced_at, initial_setup_date, adjustment_confirmed_date, deactivated_date, default_cancellation_policy, timezone, managed_by, clients:clients_basic(id, name)"
       )
       .order("name"),
     supabase
@@ -62,6 +63,7 @@ export default async function SettingsListingsPage() {
       default_cancellation_policy:
         l.default_cancellation_policy as AirbnbCancellationPolicy | null,
       timezone: l.timezone as string | null,
+      managed_by: isManagedBy(l.managed_by) ? l.managed_by : DEFAULT_MANAGED_BY,
     }
   })
 

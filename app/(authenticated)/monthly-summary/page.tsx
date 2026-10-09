@@ -5,6 +5,7 @@ import {
   computeMonthlySummary,
   currentMonthISO,
   getMonthlySummaryListings,
+  hostpricingManagedListings,
   isValidMonthISO,
 } from "@/lib/monthly-summary"
 import { isBillingEntity } from "@/lib/billing-entity"
@@ -28,11 +29,17 @@ export default async function MonthlySummaryPage({
       : "revfactor"
 
   const supabase = await createClient()
-  const rows = await getMonthlySummaryListings(supabase)
-  const summary = computeMonthlySummary(
-    entity === "all" ? rows : rows.filter((r) => r.billing_entity === entity),
+  const allRows = await getMonthlySummaryListings(supabase)
+  const inEntity = (r: { billing_entity: string }) =>
+    entity === "all" || r.billing_entity === entity
+  // Hostpricing's portfolio only: RevFactor-managed listings are left out.
+  const rows = hostpricingManagedListings(allRows)
+  const summary = computeMonthlySummary(rows.filter(inEntity), month)
+  // Disclosed in the view: RevFactor-managed listings active at month end.
+  const internalCount = computeMonthlySummary(
+    allRows.filter((r) => r.managed_by === "revfactor" && inEntity(r)),
     month
-  )
+  ).endCount
   // End-of-month active count per entity for the selector labels.
   const entityCounts = {
     revfactor: computeMonthlySummary(
@@ -50,6 +57,7 @@ export default async function MonthlySummaryPage({
       summary={summary}
       entity={entity}
       entityCounts={entityCounts}
+      internalCount={internalCount}
     />
   )
 }

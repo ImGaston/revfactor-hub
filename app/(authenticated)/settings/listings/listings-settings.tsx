@@ -14,12 +14,20 @@ import {
   Eye,
   EyeOff,
   FlaskConical,
+  Users,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Popover,
   PopoverContent,
@@ -48,6 +56,8 @@ import { ListingDialog } from "./listing-dialog"
 import { ReportOverrides, type ReportOverrideRow } from "./report-overrides"
 import { SeoMetricsUpload } from "./seo-metrics-upload"
 import {
+  bulkUpdateListingsAction,
+  type BulkListingPatch,
   deleteListingAction,
   syncPriceLabsAction,
   syncReportBuilderAction,
@@ -60,6 +70,11 @@ import {
 import { StatusBadge } from "@/components/status-badge"
 import { TEST_STATUS } from "@/lib/status"
 import { matchesListingStatus, type ListingStatusFilter } from "@/lib/listing-status"
+import {
+  MANAGED_BY,
+  MANAGED_BY_LABEL,
+  type ManagedBy,
+} from "@/lib/listing-managed-by"
 
 type SettingsListing = {
   id: string
@@ -78,6 +93,7 @@ type SettingsListing = {
   deactivated_date: string | null
   default_cancellation_policy: AirbnbCancellationPolicy | null
   timezone: string | null
+  managed_by: ManagedBy
 }
 
 type ListingSyncRunResult = {
@@ -107,6 +123,11 @@ export function ListingsSettings({
   const [statusFilter, setStatusFilter] = useState<ListingStatusFilter>("active")
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
   const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set())
+  const [managedByFilter, setManagedByFilter] = useState<ManagedBy | "all">("all")
+  // Bulk-edit selection (listing ids).
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<SettingsListing | undefined>()
   const [deleteTarget, setDeleteTarget] = useState<SettingsListing | null>(null)
@@ -160,9 +181,18 @@ export function ListingsSettings({
         return false
       if (selectedStates.size > 0 && (!l.state || !selectedStates.has(l.state)))
         return false
+      if (managedByFilter !== "all" && l.managed_by !== managedByFilter)
+        return false
       return true
     })
-  }, [listings, search, statusFilter, selectedClients, selectedStates])
+  }, [listings, search, statusFilter, selectedClients, selectedStates, managedByFilter])
+
+  // Bulk actions apply only to selected rows still visible under the filters.
+  const selectedIds = useMemo(
+    () => filtered.filter((l) => selected.has(l.id)).map((l) => l.id),
+    [filtered, selected]
+  )
+  const allSelected = filtered.length > 0 && selectedIds.length === filtered.length
 
   function toggleFilter(
     set: Set<string>,
@@ -176,12 +206,35 @@ export function ListingsSettings({
   }
 
   const hasFilters =
-    search || selectedClients.size > 0 || selectedStates.size > 0
+    search ||
+    selectedClients.size > 0 ||
+    selectedStates.size > 0 ||
+    managedByFilter !== "all"
 
   function clearFilters() {
     setSearch("")
     setSelectedClients(new Set())
     setSelectedStates(new Set())
+    setManagedByFilter("all")
+  }
+
+  async function runBulk(patch: BulkListingPatch, successLabel: string) {
+    if (selectedIds.length === 0) return
+    setBulkBusy(true)
+    try {
+      const result = await bulkUpdateListingsAction(selectedIds, patch)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(
+        `${result.updated} listing${result.updated === 1 ? "" : "s"} ${successLabel}`
+      )
+      setSelected(new Set())
+      router.refresh()
+    } finally {
+      setBulkBusy(false)
+    }
   }
 
   function handleNew() {
@@ -490,6 +543,39 @@ export function ListingsSettings({
             </Popover>
           )}
 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 gap-1">
+                Managed by
+                {managedByFilter !== "all" && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-1 rounded-full px-1.5 text-[10px]"
+                  >
+                    {MANAGED_BY_LABEL[managedByFilter]}
+                  </Badge>
+                )}
+                <ChevronDown className="size-3.5 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {(["all", ...MANAGED_BY] as const).map((key) => (
+                <DropdownMenuItem
+                  key={key}
+                  onSelect={() => setManagedByFilter(key)}
+                >
+                  <Check
+                    className={cn(
+                      "size-3.5",
+                      managedByFilter !== key && "opacity-0"
+                    )}
+                  />
+                  {key === "all" ? "All" : MANAGED_BY_LABEL[key]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {hasFilters && (
             <button
               onClick={clearFilters}
@@ -501,10 +587,91 @@ export function ListingsSettings({
           )}
         </div>
 
+        {selectedIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2">
+            <span className="px-1 text-sm font-medium">
+              {selectedIds.length} selected
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={bulkBusy}>
+                  <Users className="mr-1 size-4" />
+                  Managed by
+                  <ChevronDown className="ml-1 size-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {MANAGED_BY.map((key) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onSelect={() =>
+                      runBulk(
+                        { managed_by: key },
+                        `set to ${MANAGED_BY_LABEL[key]}`
+                      )
+                    }
+                  >
+                    {MANAGED_BY_LABEL[key]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={bulkBusy}>
+                  Status
+                  <ChevronDown className="ml-1 size-3.5 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem
+                  onSelect={() => runBulk({ status: "active" }, "activated")}
+                >
+                  <Eye className="size-3.5" />
+                  Activate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onSelect={() => setConfirmDeactivate(true)}
+                >
+                  <EyeOff className="size-3.5" />
+                  Deactivate…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={bulkBusy}
+              onClick={() => setSelected(new Set())}
+            >
+              Clear
+            </Button>
+          </div>
+        )}
+
         <div className="overflow-x-auto rounded-md border">
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select all visible listings"
+                    checked={
+                      allSelected
+                        ? true
+                        : selectedIds.length > 0
+                          ? "indeterminate"
+                          : false
+                    }
+                    disabled={filtered.length === 0}
+                    onCheckedChange={(c) =>
+                      setSelected(
+                        c === true ? new Set(filtered.map((l) => l.id)) : new Set()
+                      )
+                    }
+                  />
+                </TableHead>
                 <TableHead className="w-[20%] min-w-[180px]">Name</TableHead>
                 <TableHead className="w-[14%] min-w-[120px]">Account</TableHead>
                 <TableHead className="w-[10%] min-w-[100px]">
@@ -536,8 +703,33 @@ export function ListingsSettings({
                     key={listing.id}
                     className={cn(!isActive && "opacity-60")}
                   >
-                    <TableCell className="truncate font-medium">
-                      {listing.name}
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Select ${listing.name}`}
+                        checked={selected.has(listing.id)}
+                        onCheckedChange={(c) =>
+                          setSelected((prev) => {
+                            const next = new Set(prev)
+                            if (c === true) next.add(listing.id)
+                            else next.delete(listing.id)
+                            return next
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">{listing.name}</span>
+                        {listing.managed_by === "revfactor" && (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 text-[10px]"
+                            title="Managed by RevFactor — excluded from Monthly Summary"
+                          >
+                            RevFactor
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="truncate text-muted-foreground">
                       {listing.client_name ?? "Blackbird"}
@@ -637,7 +829,7 @@ export function ListingsSettings({
               {filtered.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="py-8 text-center text-muted-foreground"
                   >
                     {hasFilters || statusFilter !== "all"
@@ -661,6 +853,32 @@ export function ListingsSettings({
         onOpenChange={setDialogOpen}
         listing={editing}
       />
+
+      <AlertDialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Deactivate {selectedIds.length} listing
+              {selectedIds.length === 1 ? "" : "s"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              They will be hidden from Clients &amp; Listings and stamped with
+              today&apos;s deactivation date (counted as churn). Test listings in
+              the selection are skipped.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => runBulk({ status: "inactive" }, "deactivated")}
+              disabled={bulkBusy}
+              className="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!deleteTarget}

@@ -3,6 +3,7 @@ import {
   activeDaysInMonth,
   computeMonthlySummary,
   daysInMonth,
+  hostpricingManagedListings,
   type MonthlySummaryListing,
 } from "@/lib/monthly-summary"
 import { listingBillingEntity } from "@/lib/billing-entity"
@@ -79,5 +80,16 @@ describe("listingBillingEntity", () => {
     expect(listingBillingEntity({ billing_entity: "blackbird" })).toBe("blackbird")
     expect(listingBillingEntity({ billing_entity: "revfactor" })).toBe("revfactor")
     expect(listingBillingEntity({ billing_entity: null })).toBe("revfactor")
+  })
+})
+
+describe("hostpricingManagedListings", () => {
+  it("drops RevFactor-managed listings and keeps hostpricing/unset ones", () => {
+    const rows = [
+      row({ id: "a", managed_by: "hostpricing" }),
+      row({ id: "b", managed_by: "revfactor" }),
+      row({ id: "c" }),
+    ]
+    expect(hostpricingManagedListings(rows).map((r) => r.id)).toEqual(["a", "c"])
   })
 })
