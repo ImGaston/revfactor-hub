@@ -1,5 +1,8 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — preserve listing Event Intelligence history
+
+RM's approved daily snapshot ledger uses a restrictive listing foreign key to preserve immutable evidence. Settings listing deletion now translates that specific `23503` constraint failure into “This listing has event history; set it inactive instead”. It retains the user's session/RLS, performs no privileged history read, does not delete evidence or automatically deactivate the listing, and preserves other failure messages and successful deletions. Prepared as a small separate Hub PR for Gaston; no SQL or Hub merge/deployment is included.
 ## 2026-10-09 — Listing `managed_by` + Settings > Listings bulk edit
 
 Added `listings.managed_by` (migration `20261009120000_listing_managed_by.sql`, `lib/listing-managed-by.ts`). `/monthly-summary` now counts only hostpricing-managed listings via `hostpricingManagedListings` (tested) and discloses how many RevFactor listings were excluded. Settings > Listings got row checkboxes, a select-all over filtered rows, a "Managed by" filter, a RevFactor badge, and a bulk bar (Managed by, Activate, Deactivate with AlertDialog) backed by the permission-checked `bulkUpdateListingsAction`. The listing dialog has a "Managed by" select (only sent when the caller selected the field, like the Airbnb foundation fields).

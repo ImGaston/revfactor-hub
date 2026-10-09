@@ -95,7 +95,15 @@ export async function updateListingAction(id: string, input: ListingInput) {
 export async function deleteListingAction(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from("listings").delete().eq("id", id)
-  if (error) return { error: error.message }
+  if (error) {
+    if (
+      error.code === "23503" &&
+      error.message.includes("rm_event_forward_snapshots_listing_id_fkey")
+    ) {
+      return { error: "This listing has event history; set it inactive instead" }
+    }
+    return { error: error.message }
+  }
   revalidatePath("/settings/listings")
   revalidatePath("/listings")
   revalidatePath("/clients")
