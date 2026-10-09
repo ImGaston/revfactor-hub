@@ -27,4 +27,6 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          git diff --exit-code "$BASE_SHA" HEAD -- 'supabase/migrations/*.sql' lib/permissions.ts
+          # New migration files are allowed; editing, deleting, or renaming one
+          # that is already on the base branch (or touching permissions) fails
+          git diff --exit-code --diff-filter=MDRT "$BASE_SHA" HEAD -- 'supabase/migrations/*.sql' lib/permissions.ts
