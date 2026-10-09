@@ -7,8 +7,8 @@ import { SUPPORT_REDACTED_CREDENTIAL } from "@/lib/support-tickets"
 export type MessageSegment =
   | { type: "text"; text: string }
   | { type: "link"; href: string; label: string }
-  /** A link the capture bot broke by redacting part of it */
-  | { type: "broken-link"; label: string }
+  /** A link the capture bot broke by redacting part of it; `raw` keeps its query (dates, guests) */
+  | { type: "broken-link"; label: string; raw: string }
 
 // The redaction marker has a space and brackets, which would split a URL
 const MARKER_TOKEN = "\u0000redacted\u0000"
@@ -45,7 +45,7 @@ export function shortLinkLabel(url: string): string {
 
 function linkSegment(url: string): MessageSegment {
   return url.includes(MARKER_TOKEN)
-    ? { type: "broken-link", label: shortLinkLabel(url) }
+    ? { type: "broken-link", label: shortLinkLabel(url), raw: restoreMarker(url) }
     : { type: "link", href: url, label: shortLinkLabel(url) }
 }
 

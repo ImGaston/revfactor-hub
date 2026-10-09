@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — Support: ask digest from the whole thread, AI merge check
+
+Ticket #12 showed the first-message rewrite was not enough: the ticket held seven client messages about two properties (Moonlight Chalet comps from Sep 22, AWA condo comps from Oct 2–8). The digest now reads the whole thread plus merged tickets and the client's listings, and adds likely property, comps sent, gaps, and a mixed-properties flag (migration `20261009170000_support_ask_digest.sql`, one JSONB column). The merge dialog got "Check with AI" (same/related/different, what the closing ticket adds, a combined title). Capture contract section 6 now keeps room IDs and booking-search params.
+
 ## 2026-10-09 — Support: plain-English ask, folded original, Assembly link
 
 Fede found long client asks hard to digest. The Client's ask card now leads with an ASD-STE100 rewrite (AI Gateway, `openai/gpt-5.6-luna`, one retry when a sentence passes 25 words), folds the original message, shortens links, and links to the Assembly chat. New table `support_ticket_ask_plain` (RLS: view to read, edit to write with `generated_by = auth.uid()`). Found that the Grok capture bot redacted an Airbnb room ID as a credential and kept the query string, both against contract section 6; the Hub's own credential check does not flag room IDs.

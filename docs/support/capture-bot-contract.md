@@ -218,7 +218,8 @@ Auth (after deploy): `Authorization: Bearer rvf_live_…`. `support:write` to ca
 - **Mask:**
   - emails as `j***@gmail.com`
   - phone numbers to the last 4 digits (`***-***-4477`)
-- **Keep** Airbnb and VRBO listing URLs (useful for matching), but strip their query strings.
+- **Keep** Airbnb and VRBO listing URLs, **including the room ID** (the number in `/rooms/<id>` or the Vrbo path). A room ID is not a credential; the Hub uses it to identify comps.
+- **Strip** other query parameters, but **keep the booking-search ones** on Airbnb and Vrbo links: `check_in`, `check_out`, `adults`, `children`, `infants`, `guests`. They carry no personal data and tell the team which dates and party size the client compared. (Changed 2026-10-09: ticket #12 lost both its comp's room ID and, nearly, its dates.)
 - **The Hub also rejects** anything that still looks like a credential. That item comes back as `error`, and the message is not marked processed.
 
 ## 7. Response and retries

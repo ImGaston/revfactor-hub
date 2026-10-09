@@ -27,7 +27,7 @@ import {
   loadSupportTicket,
 } from "@/lib/support-queue.server"
 import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
-import { loadSupportAskPlain } from "@/lib/support-ask-plain.server"
+import { loadAskInputs, loadSupportAskPlain } from "@/lib/support-ask-plain.server"
 import { supportAssemblyThreadUrl } from "@/lib/support-message"
 import {
   SUPPORT_CLOSED_STATUSES,
@@ -60,7 +60,7 @@ import {
   type SupportDraftUsage,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
-import { OriginalMessage, PlainAsk } from "./client-ask"
+import { OriginalMessages, PlainAsk } from "./client-ask"
 import { OurAnswer, type OurAnswerProps } from "./our-answer"
 import { PromiseActions } from "./promise-actions"
 import { StatusAndNotes } from "./status-and-notes"
@@ -114,11 +114,13 @@ export default async function SupportTicketPage({
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
   const workable = canEdit && !SUPPORT_CLOSED_STATUSES.includes(t.status) && !t.merged_into
+  // Every client message on the ticket (merged tickets included) and the client's listings feed the digest
+  const askInputs = await loadAskInputs(supabase, t)
   const [clientListings, team, otherTickets, askPlain, assemblyClient] = await Promise.all([
     workable ? loadSupportClientListings(supabase, t.client_id) : [],
     workable ? loadSupportTeam(supabase) : [],
     loadClientOpenTickets(supabase, t.client_id, t.id),
-    loadSupportAskPlain(supabase, t.id, t.client_message),
+    loadSupportAskPlain(supabase, t.id, askInputs.hash),
     // Assembly IDs live on clients (not clients_basic); RLS returns nothing without clients access
     supabase
       .from("clients")
@@ -355,17 +357,14 @@ export default async function SupportTicketPage({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {t.client_message ? (
+              {askInputs.messages.length > 0 ? (
                 askPlain.schemaReady ? (
                   <>
-                    <PlainAsk
-                      ticketId={t.id}
-                      initial={askPlain.plain && askPlain.fresh ? { wants: askPlain.plain.wants, says: askPlain.plain.says } : null}
-                    />
-                    <OriginalMessage message={t.client_message} />
+                    <PlainAsk ticketId={t.id} initial={askPlain.fresh ? askPlain.digest : null} />
+                    <OriginalMessages messages={askInputs.messages} />
                   </>
                 ) : (
-                  <OriginalMessage message={t.client_message} defaultOpen />
+                  <OriginalMessages messages={askInputs.messages} defaultOpen />
                 )
               ) : checkIn ? (
                 <p className="text-sm text-muted-foreground">
