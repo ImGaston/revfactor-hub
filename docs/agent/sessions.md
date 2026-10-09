@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — preserve listing Event Intelligence history
+
+RM's approved daily snapshot ledger uses a restrictive listing foreign key to preserve immutable evidence. Settings listing deletion now translates that specific `23503` constraint failure into “This listing has event history; set it inactive instead”. It retains the user's session/RLS, performs no privileged history read, does not delete evidence or automatically deactivate the listing, and preserves other failure messages and successful deletions. Prepared as a small separate Hub PR for Gaston; no SQL or Hub merge/deployment is included.
+
 ## 2026-10-08 — Event Intelligence retirement prepared for Gaston
 
 Prepared an isolated main-based retirement branch: removed the Market Signals engine, UI, map/manual cron routes, related scripts/tests and both chained cron hooks. Sidebar/command catalog now open RM; shared permissions/API-key scope and applied migrations remain intact. The original Hub docs/case-study/diagram were preserved byte-for-byte in RM with a SHA-256 manifest, and Hub retains documentation pointers. PriceLabs, Stripe, Report Builder and other Hub modules are retained. No production cron was run and no database/price/provider/AI write occurred. Owner gate: Gaston merges/deploys the Hub PR before RM ingestion is enabled.
