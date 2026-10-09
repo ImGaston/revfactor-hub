@@ -1,0 +1,1 @@
+Event Intelligence now lives in [RevFactor RM](https://pricing.revfactor.io/signals.html); [current documentation and the preserved Hub archive](https://github.com/federzimer/revfactor-rm/tree/main/docs/market-signals) live in `revfactor-rm`.

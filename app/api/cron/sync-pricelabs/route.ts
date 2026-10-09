@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isPriceLabsConfigured } from "@/lib/pricelabs"
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
 import { advanceReportBuilder } from "@/lib/report-builder/runner"
-import { enqueueMarketSignalJobs } from "@/lib/market-signals/jobs.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -58,21 +57,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let marketSignalJobs = 0
-    try {
-      marketSignalJobs = await enqueueMarketSignalJobs(supabase, {
-        reason: "inventory_refresh",
-        priority: 40,
-      })
-    } catch (err) {
-      console.error("Market Signals queue error:", err)
-    }
-
     return NextResponse.json({
       message: `Synced ${result.synced} listings from PriceLabs`,
       ...result,
       reportBuilder,
-      marketSignalJobs,
     })
   } catch (err) {
     console.error("PriceLabs sync error:", err)
