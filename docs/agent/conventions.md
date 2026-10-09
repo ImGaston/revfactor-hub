@@ -12,6 +12,7 @@
 ## Coding
 
 - Use TypeScript strict mode.
+- Listings with RM Event Intelligence snapshots cannot be permanently deleted: the immutable ledger's restrictive foreign key preserves history. Settings translates its specific `23503` error to “This listing has event history; set it inactive instead”. Keep the session/RLS delete and the human status change; never cascade-delete evidence or add a privileged history read just for this message.
 - Use `@/` imports from the project root.
 - Use shadcn/ui components; install missing primitives with `npx shadcn@latest add [component]`.
 - Use Server Actions (`"use server"`) for data mutations.
