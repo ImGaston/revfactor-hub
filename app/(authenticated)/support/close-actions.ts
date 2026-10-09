@@ -296,13 +296,29 @@ export async function assignSupportTicketAction(ticketId: string, assigneeId: st
 }
 
 /** Merge this ticket into the one that stays (merge_support_ticket writes both timeline events). */
-export async function mergeSupportTicketAction(sourceId: string, targetId: string): Promise<Result> {
+export async function mergeSupportTicketAction(
+  sourceId: string,
+  targetId: string,
+  /** The "Check with AI" title, when the user chose to use it */
+  newTitle: string | null = null
+): Promise<Result> {
   if (!uuid.safeParse(sourceId).success || !uuid.safeParse(targetId).success)
     return { ok: false, error: "Pick a ticket to merge into" }
+  const title = newTitle?.trim() ?? ""
+  if (newTitle !== null && (title.length < 3 || title.length > 300))
+    return { ok: false, error: "The new title must be 3 to 300 characters" }
   const s = await session("edit")
   if ("error" in s) return s
   const { error } = await s.supabase.rpc("merge_support_ticket", { p_source: sourceId, p_target: targetId })
   if (error) return { ok: false, error: friendlyDbError(error.message) }
+
+  if (title) {
+    const { data: before } = await s.supabase.from("support_tickets").select("summary").eq("id", targetId).maybeSingle()
+    const { error: titleError } = await s.supabase.from("support_tickets").update({ summary: title }).eq("id", targetId)
+    // The merge already happened; a failed rename is reported in the log, not undone
+    if (titleError) console.error("[support/close-actions] title after merge failed:", titleError.message)
+    else await logEvent(s.supabase, s.user, targetId, "edited", `Title changed after a merge: ${title}`, { previous_summary: before?.summary ?? null })
+  }
   revalidatePath(supportTicketPath(sourceId))
   return done(targetId)
 }

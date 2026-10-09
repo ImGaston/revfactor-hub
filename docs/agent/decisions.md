@@ -579,3 +579,7 @@ Fede wanted the PR #64 workspace (list on the left, ticket on the right, no page
 ## 2026-10-09 — Listing ownership is `listings.managed_by`, filtered only in Monthly Summary
 
 Some listings will be operated by RevFactor directly instead of the hostpricing (India) team and must not appear in Monthly Summary, which hostpricing invoices from. Gaston chose a `managed_by` field (`hostpricing|revfactor`, default `hostpricing`) over a report-specific `exclude_from_monthly_summary` boolean, so future views can key off who operates a listing. Only Monthly Summary filters on it; the dashboard evolution chart and KPIs keep counting every listing. The flag has no history, so a listing moved to RevFactor drops out of past months too — accepted. Bulk editing (managed_by + status) lives in Settings > Listings.
+
+## 2026-10-09 — The Hub digests asks; the capture bot captures faithfully
+
+Fede asked whether to teach the Grok capture bot to make asks digestible. The Hub owns the digest: it has the client's listings, the whole thread including merged tickets, and can rewrite it whenever a message or merge changes the inputs, so there is one source of truth. The bot's job is faithful capture: keep listing room IDs and booking-search parameters (contract section 6), and keep attaching follow-ups to the open ticket or flagging duplicates. Merges stay a human click; AI only checks and proposes a title.
