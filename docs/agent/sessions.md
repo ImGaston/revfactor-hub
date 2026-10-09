@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — Support: plain-English ask, folded original, Assembly link
+
+Fede found long client asks hard to digest. The Client's ask card now leads with an ASD-STE100 rewrite (AI Gateway, `openai/gpt-5.6-luna`, one retry when a sentence passes 25 words), folds the original message, shortens links, and links to the Assembly chat. New table `support_ticket_ask_plain` (RLS: view to read, edit to write with `generated_by = auth.uid()`). Found that the Grok capture bot redacted an Airbnb room ID as a credential and kept the query string, both against contract section 6; the Hub's own credential check does not flag room IDs.
+
 ## 2026-10-09 — preserve listing Event Intelligence history
 
 RM's approved daily snapshot ledger uses a restrictive listing foreign key to preserve immutable evidence. Settings listing deletion now translates that specific `23503` constraint failure into “This listing has event history; set it inactive instead”. It retains the user's session/RLS, performs no privileged history read, does not delete evidence or automatically deactivate the listing, and preserves other failure messages and successful deletions. Prepared as a small separate Hub PR for Gaston; no SQL or Hub merge/deployment is included.

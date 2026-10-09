@@ -27,6 +27,8 @@ import {
   loadSupportTicket,
 } from "@/lib/support-queue.server"
 import { loadSupportAnswerPanel, supportAnswerRuntimeStatus } from "@/lib/support-answers.server"
+import { loadSupportAskPlain } from "@/lib/support-ask-plain.server"
+import { supportAssemblyThreadUrl } from "@/lib/support-message"
 import {
   SUPPORT_CLOSED_STATUSES,
   SUPPORT_DRAFT_USAGE,
@@ -58,6 +60,7 @@ import {
   type SupportDraftUsage,
 } from "@/lib/support-tickets"
 import { cn } from "@/lib/utils"
+import { OriginalMessage, PlainAsk } from "./client-ask"
 import { OurAnswer, type OurAnswerProps } from "./our-answer"
 import { PromiseActions } from "./promise-actions"
 import { StatusAndNotes } from "./status-and-notes"
@@ -111,11 +114,20 @@ export default async function SupportTicketPage({
 
   const { ticket: t, events, mergedFrom, possibleDuplicate, mergedInto } = data
   const workable = canEdit && !SUPPORT_CLOSED_STATUSES.includes(t.status) && !t.merged_into
-  const [clientListings, team, otherTickets] = await Promise.all([
+  const [clientListings, team, otherTickets, askPlain, assemblyClient] = await Promise.all([
     workable ? loadSupportClientListings(supabase, t.client_id) : [],
     workable ? loadSupportTeam(supabase) : [],
     loadClientOpenTickets(supabase, t.client_id, t.id),
+    loadSupportAskPlain(supabase, t.id, t.client_message),
+    // Assembly IDs live on clients (not clients_basic); RLS returns nothing without clients access
+    supabase
+      .from("clients")
+      .select("assembly_client_id, assembly_company_id")
+      .eq("id", t.client_id)
+      .maybeSingle()
+      .then(({ data }) => data as { assembly_client_id: string | null; assembly_company_id: string | null } | null),
   ])
+  const assemblyUrl = t.source === "assembly" ? supportAssemblyThreadUrl(assemblyClient) : null
   const now = new Date()
   const closed = SUPPORT_CLOSED_STATUSES.includes(t.status)
   const due = nextDueAt(t)
@@ -325,16 +337,36 @@ export default async function SupportTicketPage({
             <CardHeader>
               <CardTitle className="flex items-baseline justify-between gap-2 text-base">
                 {checkIn ? "Check-in plan" : "Client's ask"}
-                <span className="text-xs font-normal text-muted-foreground">
+                <span className="flex flex-wrap items-baseline justify-end gap-x-2 text-xs font-normal text-muted-foreground">
                   {SUPPORT_SOURCE_LABEL[t.source]} · {formatSupportDateTime(t.requested_at)}
+                  {assemblyUrl && (
+                    <a
+                      href={assemblyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-0.5 font-medium text-foreground hover:underline"
+                      title={`Opens ${t.clients?.name ?? "the client"}'s chat. Look for the message sent ${formatSupportDateTime(t.requested_at)}.`}
+                    >
+                      Open in Assembly
+                      <ExternalLink className="size-3" aria-hidden />
+                    </a>
+                  )}
                 </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {t.client_message ? (
-                <blockquote className="border-l-2 pl-3 text-sm whitespace-pre-wrap wrap-anywhere">
-                  {t.client_message}
-                </blockquote>
+                askPlain.schemaReady ? (
+                  <>
+                    <PlainAsk
+                      ticketId={t.id}
+                      initial={askPlain.plain && askPlain.fresh ? { wants: askPlain.plain.wants, says: askPlain.plain.says } : null}
+                    />
+                    <OriginalMessage message={t.client_message} />
+                  </>
+                ) : (
+                  <OriginalMessage message={t.client_message} defaultOpen />
+                )
               ) : checkIn ? (
                 <p className="text-sm text-muted-foreground">
                   We start this one{t.requested_by_name ? ` (planned by ${t.requested_by_name})` : ""}. The
