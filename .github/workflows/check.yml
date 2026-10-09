@@ -1,0 +1,30 @@
+name: Check Hub
+on:
+  pull_request:
+  push:
+    branches: [main, codex/retire-market-signals]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.20.0
+      # Existing workspace build approvals are undecided. Tests/types require no
+      # native install scripts; do not silently grant those packages build access.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --config.ignoreScripts=true typecheck
+      - run: pnpm --config.ignoreScripts=true test
+      - name: Verify applied SQL and permission history stay unchanged
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git diff --exit-code "$BASE_SHA" HEAD -- 'supabase/migrations/*.sql' lib/permissions.ts

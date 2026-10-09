@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-08 — Event Intelligence moves to RM
+
+Event Intelligence code, cron ownership, UI, map endpoint and documentation move to [revfactor-rm](https://github.com/federzimer/revfactor-rm/blob/main/docs/event-intelligence-migration.md). Hub retains `market_signals` permission management and every applied migration file. Its PriceLabs/Stripe syncs keep their own work but no longer enqueue/process market jobs. Gaston merges/deploys this retirement PR before the owner-controlled RM enablement; until then RM stays disabled, preventing dual ingestion. No shared SQL, provider call, paid model call or credential change in Hub is part of this retirement.
+
 ## 2026-10-07 — Super Admins Can Close Support Tickets Resolved Outside the Hub
 
 Some asks get handled on a call, by email, or with a fix nobody logged. The verification checklist (property, answer, promises, Adjustments, told-live) then blocks closing them forever.
