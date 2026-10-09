@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — Listing `managed_by` + Settings > Listings bulk edit
+
+Added `listings.managed_by` (migration `20261009120000_listing_managed_by.sql`, `lib/listing-managed-by.ts`). `/monthly-summary` now counts only hostpricing-managed listings via `hostpricingManagedListings` (tested) and discloses how many RevFactor listings were excluded. Settings > Listings got row checkboxes, a select-all over filtered rows, a "Managed by" filter, a RevFactor badge, and a bulk bar (Managed by, Activate, Deactivate with AlertDialog) backed by the permission-checked `bulkUpdateListingsAction`. The listing dialog has a "Managed by" select (only sent when the caller selected the field, like the Airbnb foundation fields).
+
 ## 2026-10-08 — Event Intelligence retirement prepared for Gaston
 
 Prepared an isolated main-based retirement branch: removed the Market Signals engine, UI, map/manual cron routes, related scripts/tests and both chained cron hooks. Sidebar/command catalog now open RM; shared permissions/API-key scope and applied migrations remain intact. The original Hub docs/case-study/diagram were preserved byte-for-byte in RM with a SHA-256 manifest, and Hub retains documentation pointers. PriceLabs, Stripe, Report Builder and other Hub modules are retained. No production cron was run and no database/price/provider/AI write occurred. Owner gate: Gaston merges/deploys the Hub PR before RM ingestion is enabled.

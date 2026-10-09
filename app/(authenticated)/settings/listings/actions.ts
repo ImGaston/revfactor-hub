@@ -16,7 +16,8 @@ import {
   isValidIanaTimezone,
   type AirbnbCancellationPolicy,
 } from "@/lib/airbnb-cancellation-foundation"
-import { LISTING_STATUSES, type ListingStatus } from "@/lib/status"
+import { LISTING_STATUSES, TEST_STATUS, type ListingStatus } from "@/lib/status"
+import { isManagedBy, type ManagedBy } from "@/lib/listing-managed-by"
 
 type ListingInput = {
   client_id: string | null
@@ -34,6 +35,7 @@ type ListingInput = {
   deactivated_date?: string | null
   default_cancellation_policy?: AirbnbCancellationPolicy | null
   timezone?: string | null
+  managed_by?: ManagedBy
 }
 
 function validateAirbnbFoundationFields(input: ListingInput): string | null {
@@ -46,6 +48,9 @@ function validateAirbnbFoundationFields(input: ListingInput): string | null {
   }
   if (input.timezone && !isValidIanaTimezone(input.timezone)) {
     return "Timezone must be a valid IANA identifier such as America/New_York"
+  }
+  if (input.managed_by !== undefined && !isManagedBy(input.managed_by)) {
+    return "Unknown managed_by value"
   }
   return null
 }
@@ -116,6 +121,56 @@ export async function updateListingStatusAction(
   revalidatePath("/clients")
   revalidatePath("/churn")
   return { error: null }
+}
+
+export type BulkListingPatch = {
+  managed_by?: ManagedBy
+  status?: "active" | "inactive"
+}
+
+/**
+ * Settings > Listings bulk edit. Status flips skip test listings (test is
+ * changed only from the edit dialog) and never write deactivated_date — the
+ * DB trigger stamps/clears it.
+ */
+export async function bulkUpdateListingsAction(
+  ids: string[],
+  patch: BulkListingPatch
+): Promise<{ error: string | null; updated: number }> {
+  if (!(await hasPermission("listings", "edit"))) {
+    return { error: "You don't have permission to edit listings", updated: 0 }
+  }
+  if (ids.length === 0) return { error: "No listings selected", updated: 0 }
+
+  const update: BulkListingPatch = {}
+  if (patch.managed_by !== undefined) {
+    if (!isManagedBy(patch.managed_by)) {
+      return { error: "Unknown managed_by value", updated: 0 }
+    }
+    update.managed_by = patch.managed_by
+  }
+  if (patch.status !== undefined) {
+    if (patch.status !== "active" && patch.status !== "inactive") {
+      return { error: `Invalid status: ${patch.status}`, updated: 0 }
+    }
+    update.status = patch.status
+  }
+  if (Object.keys(update).length === 0) {
+    return { error: "Nothing to update", updated: 0 }
+  }
+
+  const supabase = await createClient()
+  let query = supabase.from("listings").update(update).in("id", ids)
+  if (update.status) query = query.neq("status", TEST_STATUS)
+  const { data, error } = await query.select("id")
+  if (error) return { error: error.message, updated: 0 }
+
+  revalidatePath("/settings/listings")
+  revalidatePath("/listings")
+  revalidatePath("/clients")
+  revalidatePath("/churn")
+  revalidatePath("/monthly-summary")
+  return { error: null, updated: data?.length ?? 0 }
 }
 
 export async function syncPriceLabsAction() {

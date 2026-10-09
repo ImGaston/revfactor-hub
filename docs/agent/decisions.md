@@ -571,3 +571,7 @@ The India team invoices Blackbird Hospitality listings separately, so Monthly Su
 ## 2026-10-06 — Operational churn access and partial exits
 
 Give admins dedicated `churn:view`/`edit` permissions, as requested, while keeping financial fields super_admin-only. Client offboarding remains in Settings and uses the existing `clientStatusPatch`; a listing exit never marks its parent account inactive. Listing reasons share the client reason catalog. Scheduled cancellations use a narrowly projected, permission-gated read of the existing Stripe mirror, avoiding broader financial RLS access and external API calls. Reactivation clears previous exit metadata so a later exit cannot inherit a stale reason or manual billing assertion.
+
+## 2026-10-09 — Listing ownership is `listings.managed_by`, filtered only in Monthly Summary
+
+Some listings will be operated by RevFactor directly instead of the hostpricing (India) team and must not appear in Monthly Summary, which hostpricing invoices from. Gaston chose a `managed_by` field (`hostpricing|revfactor`, default `hostpricing`) over a report-specific `exclude_from_monthly_summary` boolean, so future views can key off who operates a listing. Only Monthly Summary filters on it; the dashboard evolution chart and KPIs keep counting every listing. The flag has no history, so a listing moved to RevFactor drops out of past months too — accepted. Bulk editing (managed_by + status) lives in Settings > Listings.
