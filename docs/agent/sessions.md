@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — Support: plain-English ask, folded original, Assembly link
+
+Fede found long client asks hard to digest. The Client's ask card now leads with an ASD-STE100 rewrite (AI Gateway, `openai/gpt-5.6-luna`, one retry when a sentence passes 25 words), folds the original message, shortens links, and links to the Assembly chat. New table `support_ticket_ask_plain` (RLS: view to read, edit to write with `generated_by = auth.uid()`). Found that the Grok capture bot redacted an Airbnb room ID as a credential and kept the query string, both against contract section 6; the Hub's own credential check does not flag room IDs.
+
 ## 2026-10-09 — Listing `managed_by` + Settings > Listings bulk edit
 
 Added `listings.managed_by` (migration `20261009120000_listing_managed_by.sql`, `lib/listing-managed-by.ts`). `/monthly-summary` now counts only hostpricing-managed listings via `hostpricingManagedListings` (tested) and discloses how many RevFactor listings were excluded. Settings > Listings got row checkboxes, a select-all over filtered rows, a "Managed by" filter, a RevFactor badge, and a bulk bar (Managed by, Activate, Deactivate with AlertDialog) backed by the permission-checked `bulkUpdateListingsAction`. The listing dialog has a "Managed by" select (only sent when the caller selected the field, like the Airbnb foundation fields).

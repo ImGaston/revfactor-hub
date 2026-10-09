@@ -56,6 +56,7 @@ Deep links:
 
 - Individual chat: `https://dashboard.assembly.com/clients/users/details/{assembly_client_id}/messages`
 - Company chat: `https://dashboard.assembly.com/companies/{assembly_company_id}/messages`
+- No per-message deep link is documented: link to the chat and show the message's send time (support tickets do this, `lib/support-message.ts`).
 - Company chat is primary when a company exists; keep a separate Direct Chat link.
 
 Pending Assembly work:
