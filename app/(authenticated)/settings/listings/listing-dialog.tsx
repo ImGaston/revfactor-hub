@@ -38,6 +38,12 @@ import {
   isValidIanaTimezone,
   type AirbnbCancellationPolicy,
 } from "@/lib/airbnb-cancellation-foundation"
+import {
+  DEFAULT_MANAGED_BY,
+  MANAGED_BY,
+  MANAGED_BY_LABEL,
+  type ManagedBy,
+} from "@/lib/listing-managed-by"
 
 const BLACKBIRD_ACCOUNT = "__blackbird__"
 const UNSET_POLICY = "__unset_policy__"
@@ -57,6 +63,7 @@ type ListingRecord = {
   deactivated_date?: string | null
   default_cancellation_policy?: AirbnbCancellationPolicy | null
   timezone?: string | null
+  managed_by?: ManagedBy
 }
 
 type ClientOption = { id: string; name: string }
@@ -89,6 +96,9 @@ export function ListingDialog({
       listing?.default_cancellation_policy ?? null
     )
   const [timezone, setTimezone] = useState(listing?.timezone ?? "")
+  const [managedBy, setManagedBy] = useState<ManagedBy>(
+    listing?.managed_by ?? DEFAULT_MANAGED_BY
+  )
   const [values, setValues] = useState<ListingFormValues>(
     listingValuesFromRecord(listing)
   )
@@ -130,6 +140,8 @@ export function ListingDialog({
       !listing ||
       "default_cancellation_policy" in listing ||
       "timezone" in listing
+    // Same guard for managed_by: only callers that selected it may write it.
+    const includeManagedBy = !listing || "managed_by" in listing
     const input = {
       client_id: clientId,
       status: status || "active",
@@ -143,6 +155,7 @@ export function ListingDialog({
             timezone: normalizedTimezone || null,
           }
         : {}),
+      ...(includeManagedBy ? { managed_by: managedBy } : {}),
     }
 
     const result = isEdit
@@ -254,7 +267,7 @@ export function ListingDialog({
                 </FieldDescription>
               </Field>
 
-              <Field className="sm:col-span-2">
+              <Field>
                 <FieldLabel htmlFor="listing-status">Status</FieldLabel>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger id="listing-status" className="w-full">
@@ -274,6 +287,30 @@ export function ListingDialog({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="listing-managed-by">Managed by</FieldLabel>
+                <Select
+                  value={managedBy}
+                  onValueChange={(value) => setManagedBy(value as ManagedBy)}
+                >
+                  <SelectTrigger id="listing-managed-by" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {MANAGED_BY.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {MANAGED_BY_LABEL[key]}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  RevFactor listings are excluded from Monthly Summary.
+                </FieldDescription>
               </Field>
 
               <div className="space-y-2">

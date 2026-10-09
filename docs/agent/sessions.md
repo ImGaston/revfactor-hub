@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-09 — Listing `managed_by` + Settings > Listings bulk edit
+
+Added `listings.managed_by` (migration `20261009120000_listing_managed_by.sql`, `lib/listing-managed-by.ts`). `/monthly-summary` now counts only hostpricing-managed listings via `hostpricingManagedListings` (tested) and discloses how many RevFactor listings were excluded. Settings > Listings got row checkboxes, a select-all over filtered rows, a "Managed by" filter, a RevFactor badge, and a bulk bar (Managed by, Activate, Deactivate with AlertDialog) backed by the permission-checked `bulkUpdateListingsAction`. The listing dialog has a "Managed by" select (only sent when the caller selected the field, like the Airbnb foundation fields).
+
 ## 2026-10-08 — Support workspace layout rebuilt on main
 
 Rebuilt PR #64's workspace on today's main, replacing `support-queue-view.tsx` and `support-client-groups.tsx`. New: `support/layout.tsx`, `support-workspace.tsx`, `support-sidebar.tsx`, `support-view-toggle.tsx`, `support-client-page.tsx`, `[id]/ticket-tools.tsx` (owner select, merge with AlertDialog), `lib/support-workspace.ts` (+ tests), plus `assignSupportTicketAction` / `mergeSupportTicketAction` and `loadSupportTeam` / `loadLastCaptureAt` / `loadClientOpenTickets`. The ticket page moved into tabs with a right bar; the answer flow, Jev check, Status and notes, and Verification actions are unchanged.

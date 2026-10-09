@@ -118,6 +118,16 @@
   "Inactive" never includes them. Test rows in Settings > Listings show a Test
   badge instead of the active/hidden Switch — change their status from the
   edit dialog.
+- Settings > Listings supports bulk edit: row checkboxes plus a select-all
+  over the currently filtered rows, and a bar that sets `managed_by`
+  (Hostpricing / RevFactor) or `status` (Activate / Deactivate, the latter
+  behind an `AlertDialog`) through `bulkUpdateListingsAction`. The action
+  checks `listings:edit`, skips `test` rows on status changes, and never
+  writes `deactivated_date` (the trigger does). Selection only acts on rows
+  still visible under the filters.
+- `listings.managed_by = 'revfactor'` excludes a listing from
+  `/monthly-summary` (all months) and nothing else. Do not filter other
+  views/aggregates on it without a decision.
 - Listing detail has a PriceLabs-style KPI row: Base Price, Min Price, Occ(7N), Mkt Occ(7N), Occ(30N), Mkt Occ(30N), Wknd Occ(30N), Mkt Wknd(30N), MPI(30N), Last Booked.
 - `occColor(occ, marketOcc)` uses red under 0.8x market, amber from 0.8x to 1x, green from 1x to 1.2x, blue above 1.2x.
 - Client detail listing cards show Occ(7N), Occ(30N), MPI(30N), Last Booked from real PriceLabs data.
