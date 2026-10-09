@@ -11,7 +11,6 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "benchmark:market-signals": "tsx scripts/benchmark-market-signal-scale.ts",
     "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts"
   },
   "dependencies": {

@@ -4,7 +4,6 @@ import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 
 const protectedCronRoutes = [
-  "app/api/cron/market-signals/route.ts",
   "app/api/cron/report-builder/route.ts",
   "app/api/cron/sync-pricelabs/route.ts",
   "app/api/cron/sync-stripe/route.ts",
