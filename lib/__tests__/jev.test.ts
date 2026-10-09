@@ -86,14 +86,17 @@ describe("Jev contract", () => {
 })
 
 describe("question mapping", () => {
-  it("noul becomes boolean and choice keeps labels, with meanings in the instructions", () => {
+  it("noul becomes boolean and both keep their criteria (the gateway requires a choice's)", () => {
     const mapped = toGatewayQuestions(QUESTIONS)
     expect(mapped.promise_without_date).toEqual({
       type: "boolean",
-      instructions: "The reply promises work without a date.\nTrue means: an undated promise\nFalse means: no undated promise",
+      instructions: "The reply promises work without a date.",
+      criteria: { true: "an undated promise", false: "no undated promise" },
     })
-    expect(mapped.answers_ask).toMatchObject({ type: "choice", options: ["fully", "partly", "no", "unknown"] })
-    expect(mapped.answers_ask.instructions).toContain("- partly: some of it")
+    expect(mapped.answers_ask).toMatchObject({ type: "choice" })
+    expect(mapped.answers_ask.criteria).toMatchObject({ partly: "some of it" })
+    expect(Object.keys(mapped.answers_ask.criteria)).toEqual(["fully", "partly", "no", "unknown"])
+    expect(mapped.answers_ask).not.toHaveProperty("options")
   })
 })
 
@@ -191,7 +194,8 @@ describe("jevDecide transports", () => {
     const body = JSON.parse(init.body)
     expect(body.model).toBe("typesafe-ai/jev")
     expect(body.questions.promise_without_date.type).toBe("boolean")
-    expect(body.questions.answers_ask.options).toEqual(["fully", "partly", "no", "unknown"])
+    expect(Object.keys(body.questions.answers_ask.criteria)).toEqual(["fully", "partly", "no", "unknown"])
+    expect(body.questions.answers_ask).not.toHaveProperty("options")
     expect(result).toMatchObject({
       ok: true,
       transport: "gateway",
@@ -262,7 +266,7 @@ describe("jevDecide transports", () => {
 describe("testJevConnection", () => {
   it("reports transport, model, latency, and the live answer fields", async () => {
     process.env.AI_GATEWAY_API_KEY = GATEWAY_KEY
-    const fetchImpl = vi.fn().mockResolvedValue(Response.json({ answers: { connection_check: { probability: 0.98, rationale: "x" } } }))
+    const fetchImpl = vi.fn().mockResolvedValue(Response.json({ answers: { connection_check: { probability: 0.98, rationale: "x" }, connection_choice: { choice: "blue", probabilities: { blue: 0.99, other: 0.01 } } } }))
     const result = await testJevConnection({ fetchImpl })
     expect(result).toMatchObject({
       ok: true,

@@ -55,32 +55,25 @@ export type JevNoulQuestion = {
 export type JevQuestion = JevChoiceQuestion | JevNoulQuestion
 export type JevQuestions = Record<string, JevQuestion>
 
-/** Gateway question shapes: `boolean` (probability 0–1) and `choice` (one of `options`). */
-export type JevGatewayQuestion =
-  | { type: "boolean"; instructions: string }
-  | { type: "choice"; instructions: string; options: string[] }
-
 /**
- * Our questions → the gateway's. The gateway's choice takes option labels
- * only, so each option's meaning moves into the instructions; the boolean's
- * true/false meanings do too.
+ * Gateway question shapes (AI Gateway decisions, as documented 2026-10-07):
+ * `boolean` (probability 0–1) with optional true/false `criteria`, and
+ * `choice` whose `criteria` maps each option to its meaning. The gateway
+ * rejects a choice without `criteria` (the older `options` list is gone).
  */
+export type JevGatewayQuestion =
+  | { type: "boolean"; instructions: string; criteria: { true: string; false: string } }
+  | { type: "choice"; instructions: string; criteria: Record<string, string> }
+
+/** Our questions → the gateway's: `noul` becomes `boolean`; criteria pass through as they are. */
 export function toGatewayQuestions(questions: JevQuestions): Record<string, JevGatewayQuestion> {
   return Object.fromEntries(
-    Object.entries(questions).map(([key, q]) => {
-      if (q.type === "noul") {
-        return [
-          key,
-          {
-            type: "boolean",
-            instructions: `${q.instructions}\nTrue means: ${q.criteria.true}\nFalse means: ${q.criteria.false}`,
-          },
-        ]
-      }
-      const options = Object.keys(q.criteria)
-      const meanings = options.map((o) => `- ${o}: ${q.criteria[o]}`).join("\n")
-      return [key, { type: "choice", instructions: `${q.instructions}\nOptions:\n${meanings}`, options }]
-    })
+    Object.entries(questions).map(([key, q]) => [
+      key,
+      q.type === "noul"
+        ? { type: "boolean", instructions: q.instructions, criteria: { true: q.criteria.true, false: q.criteria.false } }
+        : { type: "choice", instructions: q.instructions, criteria: { ...q.criteria } },
+    ])
   )
 }
 

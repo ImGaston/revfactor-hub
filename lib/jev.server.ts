@@ -20,6 +20,7 @@ import {
   jevResponseModelVersion,
   normalizeJevAnswers,
   toGatewayQuestions,
+  type JevChoiceAnswer,
   type JevQuestions,
   type JevTransport,
 } from "@/lib/jev"
@@ -216,7 +217,11 @@ export type JevConnectionTest =
     }
   | { ok: false; reason: Failure["reason"]; error: string; status?: number }
 
-/** One trivial boolean question: confirms auth, transport, and the response shape without exposing any secret. */
+/**
+ * One trivial boolean and one trivial choice: confirms auth, transport, and
+ * both request and response shapes (the answer checks use choices) without
+ * exposing any secret.
+ */
 export async function testJevConnection(options: { fetchImpl?: typeof fetch } = {}): Promise<JevConnectionTest> {
   const questions: JevQuestions = {
     connection_check: {
@@ -224,9 +229,16 @@ export async function testJevConnection(options: { fetchImpl?: typeof fetch } = 
       instructions: "`text` says the sky is blue.",
       criteria: { true: "The text says the sky is blue.", false: "The text says something else." },
     },
+    connection_choice: {
+      type: "choice",
+      instructions: "What color does `text` say the sky is?",
+      criteria: { blue: "The text says blue.", other: "The text says another color or none." },
+    },
   }
   const result = await jevDecide({ text: "The sky is blue." }, questions, { ...options, timeoutMs: 15_000 })
   if (!result.ok) return { ok: false, reason: result.reason, error: result.error, status: result.status }
+  if (!(result.answers.connection_choice as JevChoiceAnswer | undefined)?.choice)
+    return { ok: false, reason: "bad_response", error: "Jev answered the yes/no question but not the choice question." }
   const rawAnswer = (result.raw.answers as Record<string, unknown>)?.connection_check
   const gate = gateNoul(result.answers.connection_check)
   return {
