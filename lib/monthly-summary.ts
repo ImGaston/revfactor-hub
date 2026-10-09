@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { TEST_STATUS } from "@/lib/status"
 import { type BillingEntity, listingBillingEntity } from "@/lib/billing-entity"
+import { type ManagedBy, isManagedBy } from "@/lib/listing-managed-by"
 
 export type MonthlySummaryListing = {
   id: string
@@ -16,6 +17,8 @@ export type MonthlySummaryListing = {
   deactivated_date: string | null
   client_name: string | null
   billing_entity: BillingEntity
+  // Absent on client evolution rows; listings default to hostpricing.
+  managed_by?: ManagedBy
 }
 
 export type MonthlySummary = {
@@ -42,7 +45,7 @@ export async function getMonthlySummaryListings(
   const { data, error } = await supabase
     .from("listings")
     .select(
-      "id, name, status, initial_setup_date, deactivated_date, clients:clients_basic(id, name, billing_entity)"
+      "id, name, status, initial_setup_date, deactivated_date, managed_by, clients:clients_basic(id, name, billing_entity)"
     )
     .neq("status", TEST_STATUS)
     .order("name")
@@ -61,8 +64,20 @@ export async function getMonthlySummaryListings(
       deactivated_date: (l.deactivated_date as string | null) ?? null,
       client_name: client?.name ?? null,
       billing_entity: listingBillingEntity(client),
+      managed_by: isManagedBy(l.managed_by) ? l.managed_by : "hostpricing",
     }
   })
+}
+
+/**
+ * The monthly summary covers the hostpricing team's portfolio only: listings
+ * RevFactor manages internally (managed_by = 'revfactor') are left out, in
+ * every month. The dashboard evolution chart does not apply this filter.
+ */
+export function hostpricingManagedListings(
+  rows: MonthlySummaryListing[]
+): MonthlySummaryListing[] {
+  return rows.filter((r) => r.managed_by !== "revfactor")
 }
 
 /**

@@ -131,10 +131,12 @@ export function MonthlySummaryView({
   summary,
   entity,
   entityCounts,
+  internalCount,
 }: {
   summary: MonthlySummary
   entity: EntityFilter
   entityCounts: Record<BillingEntity, number>
+  internalCount: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -273,8 +275,14 @@ export function MonthlySummaryView({
         ))}
       </div>
 
-      {unknownCount > 0 && (
+      {(unknownCount > 0 || internalCount > 0) && (
         <p className="text-xs text-muted-foreground">
+          {internalCount > 0 && (
+            <>
+              {internalCount} listing{internalCount === 1 ? "" : "s"} managed
+              by RevFactor (not hostpricing) excluded.
+            </>
+          )}{" "}
           {summary.unknownSetup.length > 0 && (
             <>
               {summary.unknownSetup.length} listing
