@@ -16,6 +16,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /** `client`: one group per client (default). `status`: the queue sections. */
 export type SupportQueueView = "status" | "client"
 
+/**
+ * `?recent=opened`: tickets asked in the last 24 hours. `?recent=active`:
+ * those plus older tickets the client wrote on in the last 24 hours.
+ */
+export type SupportRecentFilter = "opened" | "active"
+
 export type SupportQueueFilters = {
   /** `clients.id` from `?client=`; null when absent or not a uuid. */
   clientId: string | null
@@ -27,6 +33,8 @@ export type SupportQueueFilters = {
    * view either way; the param is kept so "All clients" returns to it.
    */
   view: SupportQueueView
+  /** `?recent=opened|active`; absent shows all time. Kept on ticket links. */
+  recent?: SupportRecentFilter
 }
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -36,7 +44,7 @@ function first(value: string | string[] | undefined): string | undefined {
 }
 
 /**
- * `/support?client=<uuid>&closed=1&view=status`. Anything else is ignored: a
+ * `/support?client=<uuid>&closed=1&view=status&recent=opened`. Anything else is ignored: a
  * bad client value falls back to every client, `closed` without a client is
  * dropped (the status view already shows the last 30 days of closed
  * tickets), and any `view` but `status` means the default "By client" view.
@@ -44,10 +52,12 @@ function first(value: string | string[] | undefined): string | undefined {
 export function parseSupportQueueParams(sp: SearchParams): SupportQueueFilters {
   const raw = first(sp.client)?.trim() ?? ""
   const clientId = UUID_RE.test(raw) ? raw.toLowerCase() : null
+  const recent = first(sp.recent)
   return {
     clientId,
     showClosed: clientId !== null && first(sp.closed) === "1",
     view: first(sp.view) === "status" ? "status" : "client",
+    ...(recent === "opened" || recent === "active" ? { recent } : {}),
   }
 }
 
@@ -59,6 +69,7 @@ export function supportQueueSearch(filters: SupportQueueFilters): string {
     if (filters.showClosed) params.set("closed", "1")
   }
   if (filters.view === "status") params.set("view", "status")
+  if (filters.recent) params.set("recent", filters.recent)
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }

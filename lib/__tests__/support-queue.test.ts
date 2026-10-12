@@ -359,3 +359,23 @@ describe("loadSupportQueue query building", () => {
     expect(stats.promiseOnTimeRate).toBeNull()
   })
 })
+
+describe("last 24 hours filter (?recent=)", () => {
+  it("parses opened and active, ignores anything else", () => {
+    expect(parseSupportQueueParams({ recent: "opened" }).recent).toBe("opened")
+    expect(parseSupportQueueParams({ recent: "active" }).recent).toBe("active")
+    expect(parseSupportQueueParams({ recent: "week" }).recent).toBeUndefined()
+    expect(parseSupportQueueParams({}).recent).toBeUndefined()
+  })
+
+  it("keeps the filter on queue links, after client and view", () => {
+    const clientId = "11111111-2222-4333-8444-555555555555"
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "client", recent: "opened" })).toBe(
+      "/support?recent=opened"
+    )
+    expect(supportQueueHref({ clientId, showClosed: false, view: "status", recent: "active" })).toBe(
+      `/support?client=${clientId}&view=status&recent=active`
+    )
+    expect(supportQueueHref({ clientId: null, showClosed: false, view: "client" })).toBe("/support")
+  })
+})

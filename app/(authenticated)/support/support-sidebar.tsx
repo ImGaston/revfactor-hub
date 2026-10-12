@@ -8,6 +8,7 @@ import { ArrowLeft, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { groupTicketsByClient } from "@/lib/support-client-view"
 import { ownerLabel } from "@/lib/support-display"
 import {
@@ -15,6 +16,7 @@ import {
   supportQueueSearch,
   type SupportClientOption,
   type SupportQueueFilters,
+  type SupportRecentFilter,
 } from "@/lib/support-queue"
 import {
   SUPPORT_ACTIVE_STATUSES,
@@ -31,6 +33,7 @@ import {
 import {
   SUPPORT_STATUS_VIEWS,
   defaultStatusView,
+  isRecentTicket,
   isStatusView,
   matchesTicketSearch,
   statusViews,
@@ -42,6 +45,10 @@ import { SupportViewToggle } from "./support-view-toggle"
 const ALL = "all"
 const UNASSIGNED = "unassigned"
 const VIEW_STORAGE_KEY = "support-status-view"
+const RECENT_EMPTY: Record<SupportRecentFilter, string> = {
+  opened: "No tickets opened in the last 24 hours",
+  active: "No client activity in the last 24 hours",
+}
 
 const ALERT_CHIP = "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
 const WARN_CHIP = "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
@@ -76,7 +83,7 @@ export function SupportSidebar({
   const [owner, setOwner] = useState(ALL)
 
   // Owner filter first; a picked client narrows everything below it
-  const scoped = useMemo(
+  const ownerScoped = useMemo(
     () =>
       tickets.filter(
         (t) =>
@@ -84,6 +91,18 @@ export function SupportSidebar({
           (!filters.clientId || t.client_id === filters.clientId)
       ),
     [tickets, owner, filters.clientId]
+  )
+  // Then the last-24-hours filter (?recent=), counted for its labels
+  const recentCounts = useMemo(
+    () => ({
+      opened: ownerScoped.filter((t) => isRecentTicket(t, "opened", now)).length,
+      active: ownerScoped.filter((t) => isRecentTicket(t, "active", now)).length,
+    }),
+    [ownerScoped, now]
+  )
+  const scoped = useMemo(
+    () => (filters.recent ? ownerScoped.filter((t) => isRecentTicket(t, filters.recent!, now)) : ownerScoped),
+    [ownerScoped, filters.recent, now]
   )
   const views = useMemo(() => statusViews(scoped, currentUserId, now), [scoped, currentUserId, now])
   const [statusView, setStatusView] = useState<SupportStatusView>(() => defaultStatusView(views))
@@ -153,6 +172,8 @@ export function SupportSidebar({
     router.push(supportQueueHref({ ...filters, clientId, showClosed: false }))
   const setMode = (view: SupportQueueFilters["view"]) =>
     router.replace(`${pathname}${supportQueueSearch({ ...filters, view })}`, { scroll: false })
+  const setRecent = (recent: SupportRecentFilter | undefined) =>
+    router.replace(`${pathname}${supportQueueSearch({ ...filters, recent })}`, { scroll: false })
 
   // j / k move through the visible tickets
   useEffect(() => {
@@ -211,6 +232,32 @@ export function SupportSidebar({
             className="pl-8"
           />
         </div>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          value={filters.recent ?? "all"}
+          onValueChange={(next) => {
+            if (next === "all") setRecent(undefined)
+            else if (next === "opened" || next === "active") setRecent(next)
+          }}
+          aria-label="When"
+        >
+          <ToggleGroupItem value="all" className="flex-1 text-xs">
+            All
+          </ToggleGroupItem>
+          <ToggleGroupItem value="opened" className="flex-1 text-xs" title="Asked in the last 24 hours">
+            New 24h <span className="font-mono tabular-nums">{recentCounts.opened}</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="active"
+            className="flex-1 text-xs"
+            title="Asked, or the client wrote again, in the last 24 hours"
+          >
+            Active 24h <span className="font-mono tabular-nums">{recentCounts.active}</span>
+          </ToggleGroupItem>
+        </ToggleGroup>
         {filters.clientId && (
           <div className="flex items-center justify-between gap-2 text-sm">
             <Link
@@ -310,7 +357,13 @@ export function SupportSidebar({
           <ul className="space-y-1" aria-label="Tickets">
             {visibleTickets.length === 0 ? (
               <li className="p-4 text-center text-sm text-muted-foreground">
-                {searching ? "No tickets match" : filters.clientId ? "No open tickets for this client" : "Nothing here"}
+                {searching
+                  ? "No tickets match"
+                  : filters.recent
+                    ? RECENT_EMPTY[filters.recent]
+                    : filters.clientId
+                      ? "No open tickets for this client"
+                      : "Nothing here"}
               </li>
             ) : (
               visibleTickets.map((t) => (
@@ -328,7 +381,9 @@ export function SupportSidebar({
         )}
 
         {byClient && !filters.clientId && !searching && groups.length === 0 && (
-          <p className="p-4 text-center text-sm text-muted-foreground">No open tickets</p>
+          <p className="p-4 text-center text-sm text-muted-foreground">
+            {filters.recent ? RECENT_EMPTY[filters.recent] : "No open tickets"}
+          </p>
         )}
 
         {filters.clientId && !searching && (

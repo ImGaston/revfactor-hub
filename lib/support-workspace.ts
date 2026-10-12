@@ -2,6 +2,7 @@
 // pure; the views reuse the queue's own bucketing so the sidebar, the stats,
 // and the By client groups never disagree.
 
+import type { SupportRecentFilter } from "@/lib/support-queue"
 import { bucketSupportTickets, type SupportTicket } from "@/lib/support-tickets"
 
 // ---------------------------------------------------------------------------
@@ -69,4 +70,25 @@ export function matchesTicketSearch(ticket: SupportTicket, query: string): boole
     .join(" ")
     .toLowerCase()
   return haystack.includes(q)
+}
+
+// ---------------------------------------------------------------------------
+// Last 24 hours (`?recent=`)
+// ---------------------------------------------------------------------------
+
+export const SUPPORT_RECENT_HOURS = 24
+
+/**
+ * `opened`: the client asked in the last 24 hours (`requested_at`, not when
+ * the Hub imported it, so bulk-loaded backlog stays out). `active`: that, or
+ * the client wrote again in the last 24 hours.
+ */
+export function isRecentTicket(
+  ticket: Pick<SupportTicket, "requested_at" | "last_client_message_at">,
+  mode: SupportRecentFilter,
+  now: Date = new Date()
+): boolean {
+  const cutoff = now.getTime() - SUPPORT_RECENT_HOURS * 3_600_000
+  const after = (iso: string | null | undefined) => !!iso && new Date(iso).getTime() >= cutoff
+  return after(ticket.requested_at) || (mode === "active" && after(ticket.last_client_message_at))
 }
