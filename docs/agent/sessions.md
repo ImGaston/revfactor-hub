@@ -875,3 +875,7 @@ The client and listing comboboxes on `/reservations` are now multi-select (`clie
 ## 2026-10-12 — Supabase consumer key migration prepared
 
 Names-only inventory found shared Hub credentials in Hub locals, RM Vercel Production/Preview, Mac/Atlas collectors, the snapshot builder and the deployed PriceLabs Edge Function. Map has no direct Supabase key. Other-business project keys are excluded. Hub PR #82 prepares public/server key selection and header transport; typecheck and 779 tests pass and hosted CI is green. RM PR #47 adds matching transport plus regression-tested safe env parsing/redaction; typecheck and 266 tests pass locally, while hosted CI cannot allocate a runner. Owner-created keys, consumer verification and owner disable/rejection verification are pending; no production keys/settings or SQL changed. Event redesign PR #46 remains preserved.
+
+### 2026-10-12 — Supabase consumer cutover verification
+
+RM production and the read-only map were redeployed for consumer API keys; real user RLS reads and a rolled-back authenticated watch review passed. Mac/Atlas collector reads and the private snapshot build passed. PriceLabs Edge now uses a dedicated consumer key with explicit authorization before provider/database access; source and regression coverage are included in the Hub security PR. Hub production env/deployment remains Gaston's handoff. Legacy keys remain enabled pending that confirmation; GitHub RM CI is blocked by account billing, so neither the security PR nor Events summary PR is merged. No migration SQL or model flag was changed.
