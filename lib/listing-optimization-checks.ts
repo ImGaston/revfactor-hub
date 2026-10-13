@@ -77,7 +77,7 @@ export const LISTING_CHECKS: CheckDefinition[] = [
 
   // Rules, guest settings and safety
   { id: "rules.kids", section: "rules_settings", label: "Kids and infants setting matches the listing", source: "guest", part: "structure", points: 2, kind: "owner_choice" },
-  { id: "rules.pets", section: "rules_settings", label: "Pet rules are clear and consistent", source: "guest", part: "structure", points: 1, kind: "owner_choice" },
+  { id: "rules.pets", section: "rules_settings", label: "Pet rules are clear and consistent (max pets set when allowed)", source: "guest", part: "structure", points: 1, kind: "owner_choice" },
   { id: "rules.quiet_hours", section: "rules_settings", label: "Quiet hours and house rules set", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "rules.capacity", section: "rules_settings", label: "Guest count matches the beds", source: "guest", part: "structure", points: 1, kind: "owner_choice" },
   { id: "rules.sleeping", section: "rules_settings", label: "Sleeping arrangements match the description", source: "host", part: "structure", points: 1, kind: "change" },
@@ -89,6 +89,7 @@ export const LISTING_CHECKS: CheckDefinition[] = [
   { id: "settings.cancellation", section: "rules_settings", label: "Cancellation policy fits the market", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "safety.devices", section: "rules_settings", label: "Safety devices listed", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "safety.disclosures", section: "rules_settings", label: "Safety disclosures are accurate", source: "host", part: "completion", points: 1, kind: "owner_choice" },
+  { id: "safety.camera_details", section: "rules_settings", label: "Exterior cameras and noise monitors are disclosed with details", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "settings.accessibility", section: "rules_settings", label: "Accessibility features", source: "host", part: "completion", points: 1, kind: "owner_choice" },
 
   // Arrival guide

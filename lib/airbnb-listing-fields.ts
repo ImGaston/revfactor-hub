@@ -1,5 +1,6 @@
 // Canonical map of every editable field in the Airbnb host listing editor
-// (mapped 2026-10-13 from a live listing; amenity rows cover each amenity).
+// (mapped 2026-10-13 from a live condo, then extended from 6 sampled homes:
+// pool/theater, cabin, pet-friendly, 7BR two-house, city houses with permits).
 // Every field is either audited by at least one standard check
 // (lib/listing-optimization-checks.ts) or explicitly recorded as out of scope
 // with a reason. A test fails if a field has neither, so audits can't skip one.
@@ -14,6 +15,8 @@ export type AirbnbListingField = {
   valueType: string
   guestVisible: boolean | "unknown"
   cohostEditable: boolean | "unknown"
+  /** When the field only appears for some listings (e.g. pets allowed, room type present). */
+  condition?: string
 } & (
   | { checks: string[]; recordOnly?: never }
   | { recordOnly: string; checks?: never }
@@ -3367,5 +3370,789 @@ export const AIRBNB_LISTING_FIELDS: AirbnbListingField[] = [
     guestVisible: true,
     cohostEditable: "unknown",
     recordOnly: "Pricing and availability work, not listing optimization",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Balcony",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Balcony' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Balcony",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Balcony' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Balcony",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Balcony' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Hot tub",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Hot tub' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Hot tub",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Hot tub' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Hot tub",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Hot tub' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Hot tub",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Hot tub' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Movie theater",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Movie theater' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Movie theater",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Movie theater' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Movie theater",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Movie theater' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Game room",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Game room' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Game room",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Game room' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Game room",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Game room' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Half bathroom",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Half bathroom' room is added to the photo tour (Add a room or space) ; this room type has no Privacy info sub-page",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Half bathroom",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Half bathroom' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Half bathroom",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Half bathroom' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Workspace",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Workspace' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Workspace",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Workspace' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Workspace",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Workspace' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Backyard",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Backyard' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Backyard",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Backyard' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Backyard",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Backyard' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Backyard",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Backyard' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Deck",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Deck' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Deck",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Deck' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Deck",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Deck' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Gym",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Gym' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Gym",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Gym' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Gym",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Gym' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Gym",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Gym' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Office",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Office' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Office",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Office' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Office",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Office' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Office",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Office' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Patio",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Patio' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Patio",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Patio' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Patio",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Patio' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Patio",
+    field: "Accessibility features",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/accessibility",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Patio' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Childrens playroom",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Childrens playroom' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Childrens playroom",
+    field: "Privacy info",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/privacy",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Childrens playroom' room is added to the photo tour (Add a room or space) ; privacy is a single 'Shared space' on/off toggle",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Childrens playroom",
+    field: "Amenities",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/amenities",
+    valueType: "multi-select",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.room_details"],
+    condition:
+      "Appears only after a 'Childrens playroom' room is added to the photo tour (Add a room or space)",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour > Porch",
+    field: "Photos",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour/:roomId/photos",
+    valueType: "photo",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Appears only after a 'Porch' room is added; sub-pages (privacy/amenities/accessibility) not opened",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour",
+    field: "Room type catalog (Add a room or space: unused types)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour (+ button > Add a room or space)",
+    valueType: "list",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Catalog of 41 room types: Art studio, Backyard, Balcony, Bedroom, Bowling alley, Childrens playroom, Courtyard, Darkroom, Deck, Dining area, Event room, Exterior, Front yard, Full bathroom, Full kitchen, Game room, Garage, Garden, Gym, Half bathroom, Hot tub, Kitchenette, Laundry area, Library, Living room, Movie theater, Music studio, Office, Patio, Photography studio, Pool, Porch, Rooftop, Sunroom, Terrace, Theme room, Wine cellar, Woodshop, Workshop, Workspace. Only Living room, Full kitchen, Dining area, Bedroom, Full bathroom, Laundry area, Exterior and Pool were in the map; the other types are separate cards above or still unopened (Art studio, Bowling alley, Courtyard, Darkroom, Event room, Front yard, Garage, Garden, Kitchenette, Library, Music studio, Photography studio, Rooftop, Sunroom, Terrace, Theme room, Wine cellar, Woodshop, Workshop).",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour",
+    field:
+      "Numbered repeated rooms (Living room 1/2, Full kitchen 1/2, Dining area 1-3, Laundry area 1/2, Full bathroom 1-6)",
+    editorPath: "/hosting/listings/editor/:listingId/details/photo-tour",
+    valueType: "list",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "Airbnb appends a number when a room type is added more than once (multi-house or large homes); each numbered room has its own photos and sub-pages",
+  },
+  {
+    group: "Your space",
+    card: "Photo tour",
+    field: "Rooms with no photos (task: Add photos: <room>)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/photo-tour > View your tasks",
+    valueType: "task",
+    guestVisible: false,
+    cohostEditable: true,
+    checks: ["photos.tour_rooms"],
+    condition:
+      "A room created with 0 photos shows 'Add photos'; Airbnb hides the whole tour from guests until every room has a photo. Tasks dialog also offers 'Refresh your photos' (photographer quote), which is an ad, not a field",
+  },
+  {
+    group: "Your space",
+    card: "House rules",
+    field: "Maximum number of pets allowed",
+    editorPath: "/hosting/listings/editor/:listingId/details/house-rules",
+    valueType: "number",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["rules.pets"],
+    condition:
+      "Appears only when 'Pets allowed' is on; service-animal note is read-only text",
+  },
+  {
+    group: "Your space",
+    card: "Guest safety > Safety devices",
+    field:
+      "Exterior security camera details (where cameras are and what they record)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/guest-safety > Safety devices",
+    valueType: "text",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["safety.camera_details"],
+    condition:
+      "Free-text guest-visible disclosure with an Edit link; shown when 'Exterior security camera present' is on",
+  },
+  {
+    group: "Your space",
+    card: "Guest safety > Safety devices",
+    field: "Noise decibel monitor details",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/guest-safety > Safety devices",
+    valueType: "text",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["safety.devices"],
+    condition:
+      "'Add details about your noise decibel meter' free text; shown when the monitor toggle is on",
+  },
+  {
+    group: "Your space",
+    card: "Guest safety > Safety devices",
+    field: "Carbon monoxide alarm details",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/guest-safety > Safety devices",
+    valueType: "text",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["safety.devices"],
+    condition: "'Add details about your carbon monoxide alarm' free text",
+  },
+  {
+    group: "Your space",
+    card: "Guest safety > Safety devices",
+    field: "Smoke alarm details",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/guest-safety > Safety devices",
+    valueType: "text",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["safety.devices"],
+    condition: "'Add details about your smoke alarm' free text",
+  },
+  {
+    group: "Your space",
+    card: "Accessibility features",
+    field: "Verification status badge (e.g. Approved) on a feature",
+    editorPath: "/hosting/listings/editor/:listingId/details/accessibility",
+    valueType: "status",
+    guestVisible: "unknown",
+    cohostEditable: false,
+    checks: ["settings.accessibility"],
+    condition:
+      "Shown beside 'Disabled parking spot' after Airbnb reviews the supporting photo or details",
+  },
+  {
+    group: "Settings",
+    card: "Settings > Regulations",
+    field: "Register your listing task (Start)",
+    editorPath: "/hosting/listings/editor/:listingId/preferences/regulations",
+    valueType: "task",
+    guestVisible: "unknown",
+    cohostEditable: "unknown",
+    checks: ["description.permit"],
+    condition:
+      "Shown when the local government requires registration; guided Airbnb flow. The variant is absent where no task applies",
+  },
+  {
+    group: "Settings",
+    card: "Settings > Regulations",
+    field: "Registration complete status and number shown to guests",
+    editorPath: "/hosting/listings/editor/:listingId/preferences/regulations",
+    valueType: "status",
+    guestVisible: true,
+    cohostEditable: "unknown",
+    checks: ["description.permit"],
+    condition:
+      "Shown after registration is completed in Airbnb's flow; the number is displayed on the listing. Variant 3: 'You have no regulation tasks to complete' (TN, FL)",
+  },
+  {
+    group: "Settings",
+    card: "Settings > Taxes",
+    field: "Taxes Airbnb submits (read-only list)",
+    editorPath: "/hosting/listings/editor/:listingId/preferences/taxes",
+    valueType: "list",
+    guestVisible: false,
+    cohostEditable: false,
+    recordOnly:
+      "Taxes: handled by the taxes framework, not listing optimization",
+    condition:
+      "Lists each tax Airbnb collects and remits for the jurisdiction (e.g. state sales tax, county hotel/motel tax, local sales tax)",
+  },
+  {
+    group: "Settings",
+    card: "Settings > Taxes",
+    field: "Taxes you'll submit (Add a tax)",
+    editorPath: "/hosting/listings/editor/:listingId/preferences/taxes",
+    valueType: "list",
+    guestVisible: false,
+    cohostEditable: "unknown",
+    recordOnly:
+      "Taxes: handled by the taxes framework, not listing optimization",
+    condition: "Custom taxes the host collects and remits themselves",
+  },
+  {
+    group: "Your space",
+    card: "Cancellation policy",
+    field: "Additional policy option: Airbnb extended cancellation (NEW)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/cancellation-policy/additional",
+    valueType: "option",
+    guestVisible: true,
+    cohostEditable: true,
+    checks: ["settings.cancellation"],
+    condition:
+      "Third choice beside None and Non-refundable (guest pays host 10% less); applies to short-term stays; lets guests buy extra flexibility from Airbnb",
+  },
+  {
+    group: "Your space",
+    card: "Co-hosts > Co-host settings",
+    field: "Permissions level (e.g. Full access)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/co-hosts/:coHostId",
+    valueType: "select",
+    guestVisible: false,
+    cohostEditable: "unknown",
+    recordOnly: "Co-host access and payouts, managed by RevFactor onboarding",
+    condition:
+      "Per co-host; Full access = edit calendar, message guests, manage damage requests, listing and co-hosts",
+  },
+  {
+    group: "Your space",
+    card: "Co-hosts > Co-host settings",
+    field: "Shown as Host on listing and reservations (Yes/No)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/co-hosts/:coHostId",
+    valueType: "toggle",
+    guestVisible: true,
+    cohostEditable: "unknown",
+    recordOnly: "Co-host access and payouts, managed by RevFactor onboarding",
+    condition: "Per co-host; chooses who appears as the Host on the listing",
+  },
+  {
+    group: "Your space",
+    card: "Co-hosts > Co-host settings",
+    field: "Payout split / payouts setup state (summary only, not opened)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/co-hosts/:coHostId",
+    valueType: "status",
+    guestVisible: false,
+    cohostEditable: false,
+    recordOnly: "Payouts: out of scope",
+    condition:
+      "Shows 'Not set up' plus who can edit payouts; financial, out of scope for audits",
+  },
+  {
+    group: "Your space",
+    card: "Co-hosts > Co-host settings",
+    field: "Activity log and Remove co-host",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/co-hosts/:coHostId",
+    valueType: "link",
+    guestVisible: false,
+    cohostEditable: "unknown",
+    recordOnly: "Co-host access and payouts, managed by RevFactor onboarding",
+    condition: "Per co-host; activity log of what they did since joining",
+  },
+  {
+    group: "Your space",
+    card: "Co-hosts",
+    field: "Listing owner role label",
+    editorPath: "/hosting/listings/editor/:listingId/details/co-hosts",
+    valueType: "label",
+    guestVisible: false,
+    cohostEditable: false,
+    recordOnly: "Co-host access and payouts, managed by RevFactor onboarding",
+    condition:
+      "One entry in the co-host list is tagged Listing owner (distinct from Primary Host)",
   },
 ]
