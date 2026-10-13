@@ -5,7 +5,7 @@ import { loadStaffReport } from "@/lib/listing-optimization.server"
 import { checkCoverage } from "@/lib/listing-optimization-checks"
 import PortalShell from "@/app/portal/layout"
 import { OptimizationPortal } from "@/app/portal/optimization/optimization-portal"
-import { ReportStatusControls } from "./report-status-controls"
+import { ReviewWorkspace } from "./review-workspace"
 
 export default async function ListingOptimizationReportPage({
   params,
@@ -19,13 +19,15 @@ export default async function ListingOptimizationReportPage({
 
   return (
     <div>
-      <ReportStatusControls
+      <ReviewWorkspace
         reportId={id}
         status={data.status}
         clientName={data.clientName}
         canEdit={canEdit}
         channelManager={data.channelManager}
         coverage={{ checked: coverage.checked, total: coverage.total, complete: coverage.complete }}
+        ownerMessage={data.ownerMessage}
+        ownerMessageSentAt={data.ownerMessageSentAt}
       />
       {/* Exactly what the owner sees in the portal, read-only for staff. */}
       <PortalShell>
