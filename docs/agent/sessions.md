@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-13 — Skills section (`/skills`)
+
+Added a read-only Skills catalog: `lib/skills.ts` (defensive normalizer, sort/filter, wiki-link resolver), `app/(authenticated)/skills/` list (search plus kind/area/status filters, retired at the bottom) and `[id]` detail (facts, sections as markdown, runs/run-by links, "Open in wikifactor"), nav key `skills`. Data is `data/wikifactor/skills.json` from wikifactor `export_skills.py`. Tests: `lib/__tests__/skills.test.ts`.
+
 ## 2026-10-09 — Support: ask digest from the whole thread, AI merge check
 
 Ticket #12 showed the first-message rewrite was not enough: the ticket held seven client messages about two properties (Moonlight Chalet comps from Sep 22, AWA condo comps from Oct 2–8). The digest now reads the whole thread plus merged tickets and the client's listings, and adds likely property, comps sent, gaps, and a mixed-properties flag (migration `20261009170000_support_ask_digest.sql`, one JSONB column). The merge dialog got "Check with AI" (same/related/different, what the closing ticket adds, a combined title). Capture contract section 6 now keeps room IDs and booking-search params.

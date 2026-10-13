@@ -12,6 +12,7 @@ import {
   Archive,
   BarChart3,
   Bot,
+  Brain,
   BookOpen,
   Briefcase,
   Building2,
@@ -114,6 +115,7 @@ export const NAV_ITEMS: NavItem[] = [
     resource: "ghl",
   },
   { key: "knowledge", title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
+  { key: "skills", title: "Skills", href: "/skills", icon: Brain, resource: "knowledge" },
   {
     key: "agent-studio",
     title: "Agent Studio",

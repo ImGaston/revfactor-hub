@@ -1,0 +1,610 @@
+{
+ "source": "wikifactor skills/",
+ "sourceRevision": "7e3d401",
+ "skills": [
+  {
+   "id": "channel-discounts",
+   "name": "Channel discounts and promotions",
+   "kind": "rule",
+   "area": "discounts",
+   "status": "team decision — default discounts stated by Fede 2026-10-09 (pricing sheet); the Vrbo opt-out is approved in the Hub knowledge base",
+   "owner": "Fede.",
+   "channels": "Airbnb, Vrbo.",
+   "tools": "PriceLabs, PMS, Airbnb and Vrbo dashboards.",
+   "whenToUse": "setting or reviewing stay-length discounts, Airbnb's top-rated-guest discount, or Vrbo promotions.",
+   "summary": "Default Airbnb discounts are weekly 24%, monthly 28%, trip length 21–26%, early bird 20%, last minute 20%; the 15% top-rated-guest discount is a per-listing choice (encouraged after slow bookings, paired with a 55% markup); opt out of Vrbo Members Only Deals.",
+   "statusLevel": "team decision",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. **Vrbo Members Only Deals** (host-funded 12–20%, stacked on weekly/monthly discounts from 2026-09-18): opt out. The control location depends on the setup (Vrbo direct, Hospitable, Hostaway).\n2. **Airbnb top-rated-guest discount** (15%, guests rated 4.8+ with 3+ reviews): a per-listing choice. When we use it, the Airbnb markup is 55% instead of 44% ([[skills/ota-markup]]). We encourage it for listings coming out of slow bookings, for an extra exposure bump in Airbnb search (Fede, 2026-10-09; Spencer's two listings). Keep a per-client opt-out: some clients refuse it, others want it only with a markup.\n3. **Default Airbnb discounts** (Fede's pricing sheet, 2026-10-09; set in PriceLabs):\n   - Weekly (7+ nights) 24%; monthly (28+ nights) 28%.\n   - Trip length: 3+ nights 21%, 5+ nights 22%, 14+ nights 26%.\n   - Early bird (booked 1+ month ahead) 20%; last minute (0–28 days ahead) 20%."
+    },
+    {
+     "title": "How Airbnb stacks them (checked 2026-10-09)",
+     "markdown": "- Only one of these applies to a reservation: new listing promotion, custom promotion, length of stay (weekly, monthly, trip length), early bird, last minute. Airbnb picks by priority in that order, not by size.\n- The top-rated-guest discount (15%) is the one that adds on top of whichever applies; it is taken off the already-discounted price.\n- A non-refundable discount, if offered, comes off last, after all other discounts.\n- With our defaults, trip length starts at 3 nights (21%) and outranks early bird and last minute, so those two only reach stays under 3 nights.\n- Common client question. Answer: \"Only one of weekly, monthly, trip length, early bird or last minute applies, picked by Airbnb's order; the top-rated-guest discount is the only one that adds on top.\""
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not leave a promotion on that a client did not choose: log a client's choice to keep one in Assembly.\n- Do not stack discounts without checking the effective nightly rate (see [[skills/ota-markup]])."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Decided: default discounts and the two Airbnb markups, 44% without and 55% with the top-rated-guest discount (Fede, 2026-10-09). They replace the 2026-09-10 private-note figures (weekly was noted as 25%).\n- Open: Fede's review of the page as a whole."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: `vrbo-members-only-deals-opt-out-and-control-procedure` (approved, client-safe).\n- RM: Pricing skills page.\n- Bots: answer drafts cite the Vrbo article."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub knowledge article `vrbo-members-only-deals-opt-out-and-control-procedure`.\n- Fede's default pricing sheet and Spencer's Airbnb discounts and listing markups (screenshots shared 2026-10-09).\n- Airbnb help: \"Discounts for homes\" (airbnb.co.in/help/article/3421: top-rated discount \"may be combined\"; only one of the others per reservation) and \"Combining discounts and rule sets\" (airbnb.com/resources/hosting-homes/a/combining-discounts-and-rule-sets-694: priority order; non-refundable applies last). Read 2026-10-09.\n- [[policies/launch-and-listing-pricing]] (Granola ad2ebf1c 2026-07-27; Slack 2026-09-07; Granola 1c97175c)."
+    }
+   ],
+   "path": "skills/channel-discounts.md"
+  },
+  {
+   "id": "child-listing-pricing",
+   "name": "Child listing pricing",
+   "kind": "rule",
+   "area": "rates",
+   "status": "stated in meetings — Evidence v2",
+   "owner": "Fede. Andrés applies it.",
+   "channels": "all.",
+   "tools": "PriceLabs.",
+   "whenToUse": "a parent listing has a child listing (a unit that books as part of the parent or on its own).",
+   "summary": "Keep the child closed in high season, price it about 30% under the parent further out, and never above the parent.",
+   "statusLevel": "stated in meetings",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. High season: keep the child closed with doubled rates, a 7-night minimum, and blocks.\n2. Further out: price the child about 30% under the parent.\n3. Last minute: price the child more aggressively."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not price a child above its parent (it caused a near-cancellation, Granola abfed974 2026-07-03)."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: not reviewed by Fede as a written rule."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[policies/launch-and-listing-pricing]] (Granola ac1c2c17 2026-08-20; 9f4178d6 2026-08-20; abfed974 2026-07-03)."
+    }
+   ],
+   "path": "skills/child-listing-pricing.md"
+  },
+  {
+   "id": "comp-analysis",
+   "name": "Comp analysis (fit, tier, performance)",
+   "kind": "framework",
+   "area": "comps",
+   "status": "draft — comp analyzer v3, proposed 2026-10-08",
+   "owner": "Fede approves comp sets and any number sent to a client or lead.",
+   "channels": "Airbnb first (search and calendars); AirDNA and PriceLabs market data.",
+   "tools": "RM (fit engine, coverage, AirDNA discovery), AirDNA, PriceLabs Market Dashboard.",
+   "whenToUse": "client pricing setup, lead analysis, purchase underwriting, new-build estimates, and checking a client's own comps.",
+   "summary": "Judge every comp on three separate checks (fit, competitive tier, performance); only comps that pass fit and sit in the subject's tier or above may set rate targets or ceilings.",
+   "statusLevel": "draft",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. **Fit:** same product for the same guests and trip (rooms, amenities, location, design, signature).\n2. **Competitive tier:** reputation and presentation (Guest Favorite, rating, reviews, Superhost, photos, search position).\n3. **Performance:** what the comp books and asks, always labeled booked or asking.\n4. Gate out mid-term rentals (28+ night minimums) and anything that fails bedrooms, capacity, class, or marketed amenities.\n\nFull method: [[playbooks/comp-analysis]] and RM `docs/comp-analyzer-v3.md`."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not let one blended score decide a comp.\n- Do not let a high-fit but weak-tier comp set a ceiling.\n- Do not treat a lead (city page card, AirDNA row) as an approved comp."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: Fede's approval of v3. Client comps that \"price higher\" (ticket #12) are checked with the same three tests before they move rates."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: comp coverage, AirDNA external comps, comp research pages; agent skill `skills/revfactor-comps/SKILL.md`.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[playbooks/comp-analysis]] (draft 2026-10-08).\n- [[policies/launch-and-listing-pricing]] (two comp types: apples-to-apples and next-best alternative)."
+    }
+   ],
+   "path": "skills/comp-analysis.md"
+  },
+  {
+   "id": "comps-guest-count",
+   "name": "Comps with a different guest count",
+   "kind": "framework",
+   "area": "comps",
+   "status": "stated in meetings — Fede's method across calls (2026-08 to 2026-10); flagged by Fede as very important 2026-10-09",
+   "owner": "Fede.",
+   "channels": "Airbnb first (search filters by party size); PriceLabs comp filters.",
+   "tools": "Airbnb and PriceLabs comp filters (bedrooms, bathrooms, guests), RM comp scorecard, booking history by party size.",
+   "whenToUse": "any comp review, and whenever a client sends a comp that hosts a different number of guests than their listing.",
+   "summary": "Compare against comps with the same real guest capacity first; a comp that hosts fewer or more guests is context, not a rate setter, because capacity changes who books, which searches it appears in, and the revenue tier.",
+   "statusLevel": "stated in meetings",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Build tiers by capacity and layout: Tier 1 matches bedrooms, guest capacity, bed setup, layout, and indoor gathering space; Tier 2 keeps the rooms with different amenities; Tier 3 is market context ([[skills/comp-analysis]]; capacity within ±20%).\n2. Filter comps by guest count in Airbnb or PriceLabs, and compare pacing and occupancy, not just the displayed nightly rate.\n3. Treat a comp with a different guest count as context only. Ticket #12: the client's \"best comp\" is the same unit as hers, but it hosts 4 and hers hosts 6, so it sells to a different party size.\n4. Price for the party size the listing actually books, not its maximum. In a Colorado case, pricing a home for 14 guests hurt ranking because real demand was 6–10 guests (guest avatar mismatch).\n5. Set a different capacity's revenue target from comps at that capacity, not from a fixed amount per extra guest: a 7-guest home was estimated at about $70K a year, 14-guest comps at $90K–$150K, and an 8-guest comp with a sauna at about $99K. Check the permit or HOA occupancy limit before changing listed capacity.\n6. Before setting extra-guest fees, look at booking history by party size and booking type to find the valuable group segments."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not carry a comp's rate across capacities with a per-guest uplift.\n- Do not assume a higher maximum occupancy is better."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: no standard capacity adjustment or extra-guest-fee rule is on file. Fede's message to Michelle on guest-count comps (2026-10-09) was not captured by the Hub: add it here."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none yet.\n- RM: comp scorecard (capacity is part of \"rooms and layout\"); Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Granola e3a3e73e 2026-10-07 (Fede and Gastón: comp scorecard tiers and weights; rooms and layout 25%, including guest capacity).\n- Granola 72e26ff2 (comp filters: bedrooms, bathrooms, guest count; compare pacing and occupancy).\n- Granola 4498e895 2026-08-04 (Corzly: Colorado guest avatar mismatch; analyze booking history by guest count).\n- Granola f4e3534a 2026-08-26 (listing review: 7-guest vs 14-guest revenue benchmarks).\n- Hub ticket #12 (Michelle Lohr, 2026-10-08 message about her best comp)."
+    }
+   ],
+   "path": "skills/comps-guest-count.md"
+  },
+  {
+   "id": "event-pricing",
+   "name": "Event pricing (pace first)",
+   "kind": "framework",
+   "area": "events",
+   "status": "design rule — 2026-10-08; RM event intelligence in pilot",
+   "owner": "Fede.",
+   "channels": "all.",
+   "tools": "RM event intelligence (queue, listing Events tab, market map), forward pace snapshots.",
+   "whenToUse": "an event, holiday, or weather alert might move demand for a listing's dates.",
+   "summary": "Pace is the trigger and the event is the explanation; raise rates only when forward pace confirms demand, and never raise rates on a weather alert.",
+   "statusLevel": "design rule",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Watch the event, but act on pace: compare the listing's and the market's forward pace for the dates.\n2. When comparable forward pace is missing, keep the event on watch; do not move rates.\n3. Weather alerts allow only hold, decrease, or flexibility (minimum stay, cancellation), never an increase."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not raise rates because an event exists.\n- Do not raise rates on a weather alert."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: market coverage and source approvals in RM."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: event intelligence queue and listing Events tab; Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- RM `README.md` and `docs/event-intelligence-ui.md` (pace-gated suggestions; weather permits only hold/decrease/flexibility).\n- Hub `docs/market-signals/hotel-airline-event-rm-research.md` (pace is the trigger, the event is the explanation)."
+    }
+   ],
+   "path": "skills/event-pricing.md"
+  },
+  {
+   "id": "explain-markups-and-discounts",
+   "name": "Explaining markups and discounts to a client",
+   "kind": "skill",
+   "area": "communication",
+   "status": "team decision — Fede's message to Spencer, 2026-10-09",
+   "owner": "Fede (wording). The account owner sends it.",
+   "channels": "Airbnb (markup and discounts), Vrbo (markup).",
+   "tools": "Airbnb listing discounts page, PMS listing markups (e.g. Hospitable), PriceLabs target rate.",
+   "whenToUse": "after onboarding sets markups and discounts, or when a client asks why Airbnb shows discounts, whether discounts stack, or why the Airbnb price is higher than PriceLabs.",
+   "summary": "Explain in one short message that PriceLabs sets the target, the channel markup (Airbnb 44% or 55%) absorbs fees and discounts, only one of length-of-stay, early bird or last minute applies, and the top-rated-guest discount is the one that stacks; show one worked example.",
+   "statusLevel": "team decision",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Check the live settings first: each listing's Airbnb and Vrbo markup in the PMS, and the discounts on Airbnb's discounts page. Never send numbers you have not seen on the listing.\n2. Fill the template below. Say which markup each listing uses and why: 44% without the top-rated-guest discount, 55% with it. For listings coming out of slow bookings, say we turned the discount on for an extra exposure bump ([[skills/channel-discounts]]).\n3. Keep the stacking explanation to two sentences ([[skills/channel-discounts]], \"How Airbnb stacks them\").\n4. Use one worked example: a $100 target, or the listing's own target if the client prefers real numbers.\n5. Add the taxes line only if pass-through taxes were set up ([[skills/taxes-pass-through]])."
+    },
+    {
+     "title": "Message template",
+     "markdown": "**Your target rate and the markup**\n\nPriceLabs sets your target nightly rate. Each channel adds a markup on top, so platform fees and discounts come out of the markup, not your target. Vrbo is [12]%.\n\nOn Airbnb we use one of two markups: **44%** when we don't use the top-rated-guest discount, **55%** when we do. [Reason, e.g.: Since your listings are coming out of a slow booking period, we turned on the top-rated-guest discount for an extra exposure bump in Airbnb search, so your listings are at 55%.]\n\n**Your Airbnb discounts**\n\n- Trip length: [21]% for 3+ nights, [22]% for 5+, [26]% for 14+\n- Weekly (7+ nights): [24]%\n- Monthly (28+ nights): [28]%\n- Early bird (booked 1+ month ahead): [20]%\n- Last minute (booked within 28 days): [20]%\n- Top-rated guests (rated 4.8+ with 3+ reviews): [15]%\n\n**How they combine**\n\nOnly one of the length-of-stay, early-bird or last-minute discounts applies to a booking. Airbnb picks length of stay first, so early bird and last minute only matter on 1–2 night stays. The top-rated-guest discount is the only one that adds on top.\n\n**Example:** with a $100 PriceLabs target, Airbnb shows $155. A 7-night stay gets the weekly discount: $117.80 a night. A top-rated guest gets 15% more off: $100.13, right at your target. These are nightly prices before Airbnb's fees and taxes.\n\n[If set up: **Taxes are separate:** the county taxes we set up show at checkout and come to you as their own \"pass-through\" payout line.]"
+    },
+    {
+     "title": "Example math (55% markup, $100 target, defaults)",
+     "markdown": "- 2 nights, booked 2 months out: early bird 20%, $124.00 (top-rated guest $105.40).\n- 3 nights: trip length 21% outranks early bird, $122.45 (top-rated $104.08).\n- 7 nights: weekly 24%, $117.80 (top-rated $100.13).\n- 30 nights: monthly 28%, $111.60 (top-rated $94.86, a bit under target on purpose).\n- With 44% (no top-rated discount): 7 nights is $144 × 0.76 = $109.44."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not promise that a discount brings bookings or a ranking position: say \"exposure bump\", not a result.\n- Do not quote a payout after Airbnb's fees: our numbers are guest-facing nightly prices before fees and taxes.\n- Do not send a client another client's numbers."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Decided: two Airbnb markups, 44% and 55% (Fede, 2026-10-09). Spencer's listings: both at 55%, Vrbo 12%.\n- Open: Fede's review of the Hub article `airbnb-discounts-and-markups`."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: `airbnb-discounts-and-markups` (draft, needs review, created 2026-10-10; answer drafts use it after Fede approves it and clicks \"Approve for agent\"). Related approved article: `ota-markup-policy`.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Fede's message to Spencer Ritterskamp, drafted and approved 2026-10-09.\n- [[skills/channel-discounts]] (defaults and stacking rules, Airbnb help pages read 2026-10-09); [[skills/ota-markup]]."
+    }
+   ],
+   "path": "skills/explain-markups-and-discounts.md"
+  },
+  {
+   "id": "international-taxes",
+   "name": "International taxes (Mexico first)",
+   "kind": "framework",
+   "area": "taxes",
+   "status": "draft — from Fede's questions to Michelle Lohr on Hub ticket #84 (2026-10-09); Mexico details pending Fede",
+   "owner": "Fede. The owner's accountant confirms what is owed.",
+   "channels": "Airbnb first; check Vrbo and Booking.com per country.",
+   "tools": "the owner's payout breakdown (screenshot), the channel's tax settings for that country.",
+   "whenToUse": "any listing outside the US, or an owner who is a tax resident of another country.",
+   "summary": "Abroad, the platform may withhold income tax and VAT from the host's payout as well as charge taxes to the guest; separate the two, work out the owner's net per night, and use it for the price floor.",
+   "statusLevel": "draft",
+   "sections": [
+    {
+     "title": "Why it differs from the US",
+     "markdown": "- In the US, local taxes are mostly charged to the guest; the fix is collecting the missing ones as pass-through ([[skills/taxes-pass-through]]).\n- Abroad, the platform may also take taxes from the host's payout. For a host resident in Mexico, Fede's understanding (to confirm with the owner): Airbnb withholds income tax and VAT from the payout. Those lower what the owner nets per night, which is why Michelle asked for a slow-season price floor (ticket #84).\n- Tax residency changes the treatment: Michelle is a resident of Mexico (ticket #84, 2026-10-09)."
+    },
+    {
+     "title": "Steps",
+     "markdown": "1. Ask the owner for their tax residency, every tax they pay locally, and a payout breakdown. Fede's opening question: \"Are there other taxes you are paying locally besides VAT on accommodation and the lodging tax?\"\n2. Separate taxes charged to the guest (collected at checkout) from taxes withheld from the host (taken from the payout).\n3. Check which guest taxes the channel collects and remits, and add any missing one as pass-through ([[skills/taxes-pass-through]]).\n4. Work out the owner's net per night after withholdings and channel fees, and feed it into [[skills/minimum-price-floor]].\n5. Record each country's confirmed rules in a section below, with the date and source."
+    },
+    {
+     "title": "Mexico (as of 2026-10-09, to confirm)",
+     "markdown": "- Guest-side: VAT on accommodation; Impuesto Sobre Hospedaje (state lodging tax), 6% per Fede's message.\n- Host-side: Airbnb withholds income tax and VAT from a Mexico-resident host's payout (Fede's question; the owner's confirmation pending).\n- Withholding rates: not on file."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not assume the US pass-through setup covers taxes withheld from the payout.\n- Do not give tax or legal advice: revenue advice only; the owner's accountant confirms."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: Fede to confirm Mexico's rates and rules; add other countries as they come up."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none yet.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub ticket #84 (Michelle Lohr, Playa del Carmen listings): her ask (2026-10-02, a slow-season price floor because of Mexican taxes) and Fede's tax questions (2026-10-09)."
+    }
+   ],
+   "path": "skills/international-taxes.md"
+  },
+  {
+   "id": "minimum-price-floor",
+   "name": "Minimum price floor",
+   "kind": "framework",
+   "area": "rates",
+   "status": "draft — Fede: a floor has to be reviewed over time (2026-10-09); how it is computed is pending Fede",
+   "owner": "Fede. Andrés sets it in PriceLabs.",
+   "channels": "all (the floor is set in PriceLabs before channel markups).",
+   "tools": "PriceLabs minimum price and safety minimum price, the owner's payout breakdown.",
+   "whenToUse": "onboarding, each new season, or when an owner says a booking below some price is not worth taking.",
+   "summary": "Set a per-listing, per-season floor from what the owner nets per night after channel fees and taxes, protect it in PriceLabs, and review it every season instead of setting it once.",
+   "statusLevel": "draft",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Work out what the owner nets per night at a given rate: channel fees and markup ([[skills/ota-markup]]), taxes withheld from the payout ([[skills/international-taxes]]), and any tax still paid out of profit ([[skills/taxes-pass-through]]).\n2. Agree the floor with the owner for each season. Examples on file: Spencer's winter minimums noted as $600/$550 (Mount Washington) and $900 (Horse Farm), reasons not on file; Michelle asked for a slow-season floor because of Mexican taxes (ticket #84).\n3. Set it as the PriceLabs minimum price; use PriceLabs' safety minimum price to protect it (suggested on the Corzly call, 2026-08-04).\n4. Review it every season and whenever taxes, fees, costs, or the market change."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not set a floor once and forget it.\n- Do not let a floor override slow-week discounts the owner has approved: check the two together (Michelle okayed lower October and early-November rates on her Mexico listings, ticket #137)."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open (Fede to set): how the floor is computed (cost-based, net payout target, or market-based), which costs go in, and the review schedule."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none yet.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub tickets #84 (2026-10-02 ask, 2026-10-09 tax questions) and #137 (2026-10-09).\n- Granola 3a2f8768 2026-10-05 (Spencer onboarding notes: winter minimum prices).\n- Granola 4498e895 2026-08-04 (Corzly: PriceLabs safety minimum price to protect the floor)."
+    }
+   ],
+   "path": "skills/minimum-price-floor.md"
+  },
+  {
+   "id": "mtr-visibility-recovery",
+   "name": "Visibility recovery after a mid-term stay",
+   "kind": "skill",
+   "area": "visibility",
+   "status": "draft — method from Fede's answer on Hub ticket #12, gaps answered 2026-10-09",
+   "owner": "Fede (method). Andrés applies the rates; Martín uses the client wording.",
+   "channels": "mostly Airbnb (its ranking leans on conversion). Vrbo and Booking.com: case by case.",
+   "tools": "PriceLabs (rates), RankBreeze (visibility and conversion), the guest's MTR booking.",
+   "whenToUse": "a client asks why a listing gets few views, ranks low, or is \"not visible\", and the listing has a mid-term stay (MTR, about 30+ nights) coming up, running, or just ended. Also when planning rates around a confirmed MTR.",
+   "summary": "After a mid-term stay, relaunch the listing like a new launch (competitive rates for 30 days of open calendar) to rebuild Airbnb conversion and ranking, without undercutting a possible extension.",
+   "statusLevel": "draft",
+   "sections": [
+    {
+     "title": "Why it happens",
+     "markdown": "- During an MTR, Airbnb records no new short-stay bookings for the listing for weeks.\n- Conversion (search views that turn into bookings) is one of Airbnb's strongest ranking signals. With no recent conversions, the listing comes back ranked lower."
+    },
+    {
+     "title": "Steps",
+     "markdown": "1. **Before the MTR:** keep competitive rates on the open dates before check-in, so the listing keeps converting until the stay starts.\n2. **While an extension is possible:** hold the rates for dates after check-out where they are. A guest who is thinking about extending must not see lower rates on Airbnb.\n3. **Extension check:** propose asking the MTR guest about an extension about 4 weeks before check-out (ticket #12: early April for a May check-out). That is the first proposal; adjust the timing to the client's response.\n4. **After check-out, no extension:** treat the return like a new listing launch ([[skills/new-listing-launch]]). Use competitive rates for the first 30 days of open calendar after the stay, to win bookings fast, rebuild conversion, and regain ranking.\n   - \"Competitive\" has no fixed number: set it from a separate analysis of where the market is at the time (comps, market occupancy and rates for those dates).\n5. **After the 30 days:** step rates back up based on pickup and pacing, plus visibility and conversion against the market (check in [[stack/rankbreeze]]).\n6. **Tell the client** in this shape: a bold \"<property> visibility\" title; the cause in two sentences (algorithm, conversion); the key idea (relaunch like a new listing); the plan split \"Before the MTR stay\" / \"After the MTR stay\"; the dated next step (the extension check)."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not promise a ranking position or a date when visibility comes back.\n- Do not lower rates on dates the MTR guest could extend into before the extension is ruled out.\n- Do not use this when there is no MTR: low visibility can also come from blocks, minimum stays, reviews, or listing quality. Check those first."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Decided by Fede (2026-10-09): relaunch level has no fixed % or floor (a separate market analysis sets it each time); the extension check is first proposed about 4 weeks before check-out and adjusted to the client's response; rates step back up by pickup, pacing, and RankBreeze visibility and conversion; mostly Airbnb.\n- Open: Fede's review of this page as a whole."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none yet (proposed slug `airbnb-visibility-after-a-mid-term-stay`; drafts use it only after \"Approve for agent\").\n- RM: Pricing skills page.\n- Bots: the support capture bot's `revfactor-pricing-voice` skill should follow the same steps."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub ticket #12 (client Michelle Lohr, listing AWA 105 / \"D105\"): Fede's answer in Assembly, 2026-10-09, summarized above.\n- [[policies/launch-and-listing-pricing]] (new listing launch rules)."
+    }
+   ],
+   "path": "skills/mtr-visibility-recovery.md"
+  },
+  {
+   "id": "new-listing-launch",
+   "name": "New listing launch pricing",
+   "kind": "framework",
+   "area": "launch",
+   "status": "team decision — 2026-06-11 launch markup; the rest stated in meetings (Evidence v2)",
+   "owner": "Fede (rules). Andrés applies them.",
+   "channels": "Airbnb (the new-listing discount is Airbnb's); the competitive-first-weeks rule applies to every channel.",
+   "tools": "PriceLabs.",
+   "whenToUse": "a listing goes live for the first time, or comes back after a long gap (see [[skills/mtr-visibility-recovery]]).",
+   "summary": "Launch only when the listing is fully ready, price competitively for the first 30–60 days to win bookings and reviews, and offset Airbnb's new-listing discount with a 20% markup that steps down.",
+   "statusLevel": "team decision",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Go live only when the listing is 100% ready, with professional photos.\n2. Price competitively for the first 30–60 calendar days to win bookings and reviews. Far-out dates can carry a premium.\n3. Airbnb gives new listings a 20% discount for the first guests. Mark base rates up 20% from day 1, drop the markup to 10% after 30 days out, and remove it after the first 3 bookings.\n4. Price new or renovated properties to market potential and last year's market pacing, not to the owner's prior-year numbers ([[skills/no-history-pricing]])."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not launch an unfinished listing to \"test the market\".\n- Do not lock in low rates on far-out peak dates during the launch window (one client opened 45 days out at a 20% discount to avoid locking low holiday rates)."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Decided: the launch markup applies from day 1 on every new listing ([[decisions/2026-06-11-new-listing-launch-markup]]).\n- Open: how \"competitive\" is set in numbers (see the market-analysis note in [[skills/mtr-visibility-recovery]])."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[policies/launch-and-listing-pricing]] (Granola ffc41f83 2026-06-11; fd8d6a85 2026-06-09; 9bf38589 2026-07-16; ac1c2c17 2026-08-20; 7aab0b9f 2026-08-25).\n- [[decisions/2026-06-11-new-listing-launch-markup]]."
+    }
+   ],
+   "path": "skills/new-listing-launch.md"
+  },
+  {
+   "id": "no-history-pricing",
+   "name": "Pricing a property without booking history",
+   "kind": "framework",
+   "area": "rates",
+   "status": "stated in meetings — Evidence v2; a standard is still open",
+   "owner": "Fede. Andrés applies it.",
+   "channels": "all.",
+   "tools": "PriceLabs, market data (last year's market pacing), comps.",
+   "whenToUse": "new, renovated, or newly onboarded properties with no usable history of their own.",
+   "summary": "Price to market potential using last year's market pacing, set a 12-month revenue target by month, and review pacing quarterly.",
+   "statusLevel": "stated in meetings",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Price to market potential, not to the owner's prior-year numbers.\n2. Use last year's **market** pacing, not the owner's pacing.\n3. Set a 12-month revenue target split by month for each property.\n4. Run quarterly pacing reviews and flag properties 15–20% behind target."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not apply the India team's 20% safety buffer against last year: it works only when the property has history."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: a standard for listings without history was raised 3+ times over 6 weeks without a fix (Granola 5a4edf7e 2026-07-01)."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[policies/launch-and-listing-pricing]] (Granola 5a4edf7e 2026-07-01; 6be61332 2026-07-01)."
+    }
+   ],
+   "path": "skills/no-history-pricing.md"
+  },
+  {
+   "id": "ota-markup",
+   "name": "OTA markup and Airbnb discounts",
+   "kind": "framework",
+   "area": "channels",
+   "status": "approved — Hub knowledge article, client-safe",
+   "owner": "Fede.",
+   "channels": "Airbnb (markup set through the PMS, e.g. Hospitable).",
+   "tools": "PriceLabs, PMS channel markup, Airbnb reservation breakdown.",
+   "whenToUse": "a client asks why Airbnb shows discounts, or whether discounts lower their rate or payout.",
+   "summary": "Send the PriceLabs target through the PMS, then add a channel markup (Airbnb 44%, or 55% when the listing uses the top-rated-guest discount; Vrbo 12% on Spencer's listings) so fees and discounts come off the markup, not the target.",
+   "statusLevel": "approved",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Send the target rate from PriceLabs through the PMS.\n2. Apply an Airbnb channel markup before Airbnb applies the eligible promotion (example: $100 target + 44% markup = $144; a 20% discount gives $115.20 before fees and taxes).\n3. Two Airbnb markups: **44%** without the top-rated-guest discount, **55%** with it (Fede, 2026-10-09; [[skills/channel-discounts]]). Vrbo: 12% on Spencer's listings (other listings: check the PMS).\n4. Before quoting exact numbers, verify the live markup, discount, accommodation subtotal, guest total, and host payout."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not promise that a discount brings ranking or bookings.\n- Do not confirm numbers when PriceLabs, PMS, and Airbnb rates do not reconcile: escalate."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Approved in the Hub knowledge base. Markup defaults (44% / 55% with the top-rated-guest discount) stated by Fede 2026-10-09."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: `ota-markup-policy` (approved, client-safe, used by answer drafts).\n- RM: Pricing skills page.\n- Bots: answer drafts cite it."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub knowledge article `ota-markup-policy` (\"OTA Markups and Airbnb Discounts\").\n- Fede's default pricing sheet and Spencer's listing markups (screenshots shared 2026-10-09)."
+    }
+   ],
+   "path": "skills/ota-markup.md"
+  },
+  {
+   "id": "outcome-check",
+   "name": "Price change outcome check (+7 / +30)",
+   "kind": "framework",
+   "area": "measurement",
+   "status": "draft — pilot only",
+   "owner": "Fede decides whether it runs for all clients.",
+   "channels": "OTA bookings (Airbnb, Vrbo, Booking.com) vs direct.",
+   "tools": "Hub adjustments and reservations, STLY comparison.",
+   "whenToUse": "after any measurable pricing change (price, min/max price, minimum stay, discount, markup).",
+   "summary": "Check every pricing change at +7 and +30 days against the same time last year, and pool many changes before drawing a rule.",
+   "statusLevel": "draft",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. Record the baseline the day before the change (revenue and nights on the books).\n2. Measure pickup at +7 and +30 days for the affected nights, and the same for STLY.\n3. Read it: supports the change, against the change, or can't tell (fewer than 3 bookings, mostly direct, other changes in the window, no history)."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not treat one listing and one change as a rule."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: Fede decides whether to run it for all clients; revenue rules are pending ([[metrics/portfolio-metrics]])."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[processes/decision-outcome-loop]]."
+    }
+   ],
+   "path": "skills/outcome-check.md"
+  },
+  {
+   "id": "reservation-alterations",
+   "name": "Reservation alterations without repricing",
+   "kind": "rule",
+   "area": "channels",
+   "status": "needs review — Hub knowledge article not yet approved",
+   "owner": "Fede.",
+   "channels": "Airbnb.",
+   "tools": "Airbnb reservation tools.",
+   "whenToUse": "a guest wants to change the dates or length of a confirmed Airbnb reservation.",
+   "summary": "The host initiates the alteration and sets the full revised accommodation cost, so Airbnb does not reprice the whole stay with extra discounts.",
+   "statusLevel": "needs review",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "1. If the guest already sent a request at the wrong price, do not accept it: ask them to withdraw it.\n2. Send a host-side change from the reservation (Manage reservation → Change reservation), enter the full revised accommodation cost, and check the price difference.\n3. Recheck the price adjustment, service-fee adjustment, new host payout, and guest total before sending."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not accept guest-initiated alterations that reprice the stay below the approved value."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: the Hub article is still `needs_review`; every live alteration is escalated for a person to execute."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: `reservation-alterations` (needs review, not used by drafts yet).\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Hub knowledge article `reservation-alterations`."
+    }
+   ],
+   "path": "skills/reservation-alterations.md"
+  },
+  {
+   "id": "seasons-cap",
+   "name": "Seasons / Cap (retired)",
+   "kind": "framework",
+   "area": "rates",
+   "status": "retired — 2026-09-26",
+   "owner": "Fede.",
+   "channels": "n/a.",
+   "tools": "n/a.",
+   "whenToUse": "do not use. Kept so nobody revives it by accident.",
+   "summary": "The seasonal cancellation-gap \"Seasons\" apply (including the Cap wave) was killed on 2026-09-26; nothing runs or is scheduled.",
+   "statusLevel": "retired",
+   "sections": [
+    {
+     "title": "Steps",
+     "markdown": "- None. Old Hub Adjustments of type `pricing_flexibility` from Seasons stay as history."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not restart Seasons without a new decision from Fede."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Decided: retired ([[decisions/2026-09-26-seasons-retired]])."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none.\n- RM: Pricing skills page (retired section).\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- [[decisions/2026-09-26-seasons-retired]]; [[stack/seasons-cap]]."
+    }
+   ],
+   "path": "skills/seasons-cap.md"
+  },
+  {
+   "id": "taxes-pass-through",
+   "name": "Local taxes as pass-through, not markup",
+   "kind": "framework",
+   "area": "taxes",
+   "status": "stated in meetings — Fede's method on the Spencer onboarding call 2026-10-05; in use on Spencer's two listings and Fede's own Grand Prairie house",
+   "owner": "Fede. The team sets it up during onboarding; the owner and their accountant file and pay.",
+   "channels": "Airbnb (host-submitted taxes); Vrbo (check what it collects; with Hospitable payments, Hospitable is merchant of record).",
+   "tools": "Airbnb listing tax settings, Vrbo tax settings, the county or city tax rules, the owner's payout history.",
+   "whenToUse": "onboarding a listing, or when an owner says they pay a local occupancy, lodging, or tourism tax \"out of profits\".",
+   "summary": "Collect every local tax the channel does not remit as a separate pass-through tax at checkout, so the owner stops paying it from profit and the search price stays competitive; never mark up rates to cover tax.",
+   "statusLevel": "stated in meetings",
+   "sections": [
+    {
+     "title": "Why",
+     "markdown": "- Guests see taxes only at checkout, not in search prices. A tax added as a separate line keeps the nightly rate competitive.\n- Marking up the rate to cover a tax makes the listing less competitive, and the markup is revenue that is taxed again: the owner always loses.\n- On Spencer's listings this moved about $100+ per booking out of the owner's profit and onto the guest (Fede's estimate on the call)."
+    },
+    {
+     "title": "Steps",
+     "markdown": "1. List every tax the stay owes for the property's address: state, county, and city occupancy, lodging, transient, or tourism taxes, with the rate and any long-stay exemption (Bullitt County, KY: 4%, stays under 30 nights only).\n2. Check what each channel already collects and remits. It differs by channel and jurisdiction: on Spencer's Mount Washington home, Vrbo collected 2 state taxes and the county tax, while Airbnb collected only the 2 state taxes.\n3. For each tax the channel does not remit, add it to the listing as a tax the host submits (Airbnb: \"taxes you will submit\"), with the owner's registration or tax number for that authority. Airbnb collects it from the guest at checkout and pays it to the host as a separate payout line (\"pass-through TOT\" or \"TLT\").\n4. Split a multi-part local tax into separate lines for tracking (Shelby County, KY: 3% transient room tax + 1% conference center tax), even when Airbnb shows them as one line.\n5. Tell the owner and their accountant: the pass-through line is tax to remit, not revenue. They keep filing as before; only the source of the money changes."
+    },
+    {
+     "title": "Do not",
+     "markdown": "- Do not mark up nightly rates to cover taxes.\n- Do not add a tax the channel already remits (the guest would pay it twice).\n- Do not copy owners' tax ID or registration numbers into this vault or into tickets.\n- Do not give tax or legal advice: we set up collection; the owner's accountant confirms what is owed."
+    },
+    {
+     "title": "Decided / open",
+     "markdown": "- Open: Fede's review; a client-safe Hub knowledge article for owners and accountants (not written yet)."
+    },
+    {
+     "title": "Lives in",
+     "markdown": "- Hub knowledge: none yet.\n- RM: Pricing skills page.\n- Bots: none."
+    },
+    {
+     "title": "Sources",
+     "markdown": "- Granola 3a2f8768 2026-10-05 (Spencer onboarding: Bullitt County 4%, Shelby County 3% + 1%, pass-through payout line, Fede's Grand Prairie TX house: Airbnb collects the 6% state tax, the 7% city tax is pass-through).\n- [[skills/international-taxes]] for countries where platforms also withhold from the payout."
+    }
+   ],
+   "path": "skills/taxes-pass-through.md"
+  }
+ ]
+}

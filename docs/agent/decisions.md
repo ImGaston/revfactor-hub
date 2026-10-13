@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-13 — Skills section reads a committed wikifactor export
+
+Fede asked for RevFactor's skills in a Hub section. Wikifactor stays the source of truth: the Hub renders a committed copy of its `exports/pricing-skills.json` (`data/wikifactor/skills.json`, refreshed with `scripts/sync-wikifactor-skills.sh`), read-only, behind `knowledge:view`. No DB table and no runtime GitHub fetch in this slice: the repo is private, the list is small, and a deploy per sync keeps what is shown reviewable. Runnable skills join the same export with `kind: "runnable"`, `runs` (framework page ids) and `skillPath`. The Skills thread owns content and the export shape; Hub code owns the UI. The section is the first entry in the micro-app structure (playbook + skill + exceptions + actions + outcome).
+
 ## 2026-10-13 — Listing review publish can send the owner message to Assembly
 
 Each listing review carries a deterministic owner message (`lib/listing-optimization-message.ts`: first name, top 3 fixes, owner-task count, where we apply changes), drafted at intake and editable in `/listing-optimization/[id]`. "Publish & send" publishes and posts it to the client's Assembly chat (company channel when linked, else individual) in one staff action; "Send message" retries after a plain publish. This is the separately authorized, human-approved Assembly send path: Fede approved it (2026-10-13), each send needs a `listings:edit` click, it sends at most once, and it logs `NotifyOwnerOfReview`. No bot or cron sends.
