@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { ACTION_FAILED_MESSAGE } from "@/lib/listing-optimization"
 import { MAX_OWNER_MESSAGE_LENGTH } from "@/lib/listing-optimization-message"
 import { saveOwnerMessageAction, sendOwnerMessageAction } from "../actions"
 
@@ -51,29 +52,37 @@ export function OwnerMessagePanel({
 
   function save() {
     startTransition(async () => {
-      const result = await saveOwnerMessageAction(reportId, value)
-      if (!result.ok) toast.error(result.error)
-      else {
-        toast.success("Message saved.")
-        router.refresh()
+      try {
+        const result = await saveOwnerMessageAction(reportId, value)
+        if (!result.ok) toast.error(result.error)
+        else {
+          toast.success("Message saved.")
+          router.refresh()
+        }
+      } catch {
+        toast.error(ACTION_FAILED_MESSAGE)
       }
     })
   }
 
   function send() {
     startTransition(async () => {
-      if (dirty) {
-        const saved = await saveOwnerMessageAction(reportId, value)
-        if (!saved.ok) {
-          toast.error(saved.error)
-          return
+      try {
+        if (dirty) {
+          const saved = await saveOwnerMessageAction(reportId, value)
+          if (!saved.ok) {
+            toast.error(saved.error)
+            return
+          }
         }
-      }
-      const result = await sendOwnerMessageAction(reportId)
-      if (!result.ok) toast.error(result.error)
-      else {
-        toast.success("Sent to the owner's Assembly chat.")
-        router.refresh()
+        const result = await sendOwnerMessageAction(reportId)
+        if (!result.ok) toast.error(result.error)
+        else {
+          toast.success("Sent to the owner's Assembly chat.")
+          router.refresh()
+        }
+      } catch {
+        toast.error(ACTION_FAILED_MESSAGE)
       }
     })
   }

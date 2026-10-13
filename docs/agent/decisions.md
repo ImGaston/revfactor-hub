@@ -591,3 +591,7 @@ Some listings will be operated by RevFactor directly instead of the hostpricing 
 ## 2026-10-09 — The Hub digests asks; the capture bot captures faithfully
 
 Fede asked whether to teach the Grok capture bot to make asks digestible. The Hub owns the digest: it has the client's listings, the whole thread including merged tickets, and can rewrite it whenever a message or merge changes the inputs, so there is one source of truth. The bot's job is faithful capture: keep listing room IDs and booking-search parameters (contract section 6), and keep attaching follow-ups to the open ticket or flagging duplicates. Merges stay a human click; AI only checks and proposes a title.
+
+## 2026-10-13 — Client calls to server actions catch thrown errors
+
+Publishing Jacob's listing review from a tab opened before a deploy crashed the whole page ("Application error: a client-side exception"): the old page called a server action id the new deployment no longer had, the call threw inside `startTransition`, and there is no error boundary. Listing-review buttons (publish, publish & send, save/send message, owner accept/decline in the portal) now wrap the call in try/catch and show a toast asking to reload (`ACTION_FAILED_MESSAGE` in `lib/listing-optimization.ts`). Nothing is written when this happens. Vercel Skew Protection would remove the cause; it is a project setting, not enabled yet.

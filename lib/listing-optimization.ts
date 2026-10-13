@@ -36,6 +36,14 @@ export type OptimizationItemKind = "change" | "owner_choice" | "owner_task" | "i
 /** Airbnb page where hosts edit their own profile; co-hosts cannot change it. */
 export const AIRBNB_HOST_PROFILE_EDIT_URL =
   "https://www.airbnb.com/users/profile/about?context=host&editMode=true"
+
+/**
+ * Shown when a server action call throws instead of returning a result. The
+ * usual cause is a deploy while the page was open (the old page's action ids
+ * no longer exist), which otherwise crashes the whole page.
+ */
+export const ACTION_FAILED_MESSAGE =
+  "That didn't go through. The page may be out of date: reload it and try again."
 export type OptimizationPriority = "high" | "medium" | "low"
 export type OptimizationClientStatus = "pending" | "accepted" | "declined"
 export type OptimizationApplyStatus =
