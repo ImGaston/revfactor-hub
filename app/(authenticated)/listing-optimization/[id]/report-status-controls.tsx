@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { ACTION_FAILED_MESSAGE } from "@/lib/listing-optimization"
+import { MAX_OWNER_MESSAGE_LENGTH } from "@/lib/listing-optimization-message"
 import { publishAndSendAction, setOptimizationReportStatusAction } from "../actions"
 
 export function ReportStatusControls({
@@ -30,6 +32,7 @@ export function ReportStatusControls({
   coverage,
   channelManager,
   ownerMessage,
+  onOwnerMessageChange,
   messageSent,
 }: {
   reportId: string
@@ -40,6 +43,7 @@ export function ReportStatusControls({
   channelManager: string | null
   /** Current (possibly unsaved) owner message text from the message panel. */
   ownerMessage: string
+  onOwnerMessageChange: (text: string) => void
   messageSent: boolean
 }) {
   const [isPending, startTransition] = useTransition()
@@ -127,21 +131,23 @@ export function ReportStatusControls({
                     The owner will see it in their portal. Publishing approves every suggestion in
                     it: anything they accept goes straight to the apply queue in Adjustments.
                     {!messageSent && ownerMessage.trim()
-                      ? " Publish & send also posts the message below to their Assembly chat."
+                      ? " Publish & send also posts the message below to their Assembly chat. You can edit it here."
                       : ""}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                {!messageSent && ownerMessage.trim() && (
-                  <pre className="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
-                    {ownerMessage.trim()}
-                  </pre>
+                {!messageSent && (
+                  <Textarea
+                    value={ownerMessage}
+                    onChange={(e) => onOwnerMessageChange(e.target.value)}
+                    rows={12}
+                    maxLength={MAX_OWNER_MESSAGE_LENGTH}
+                    className="max-h-[50vh] text-sm"
+                    aria-label="Message to the owner"
+                  />
                 )}
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-transparent text-foreground hover:bg-muted"
-                    onClick={() => setStatus("published")}
-                  >
+                  <AlertDialogAction variant="outline" onClick={() => setStatus("published")}>
                     Publish only
                   </AlertDialogAction>
                   {!messageSent && ownerMessage.trim() && (

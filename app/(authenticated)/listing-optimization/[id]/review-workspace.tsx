@@ -36,6 +36,7 @@ export function ReviewWorkspace({
         channelManager={channelManager}
         coverage={coverage}
         ownerMessage={text}
+        onOwnerMessageChange={setText}
         messageSent={Boolean(ownerMessageSentAt)}
       />
       <OwnerMessagePanel
