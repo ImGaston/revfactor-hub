@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {contactProfile,subscriptionBilling,publicListingUrl,FIELDS,ONBOARDING_CALENDAR} from './enrichment.ts';
+import {contactProfile,subscriptionBilling,publicListingUrl,FIELDS,ONBOARDING_CALENDAR,DISCOVERY_CALENDARS} from './enrichment.ts';
 import type {Job,Json} from './core.ts';
 const job:Job={invoiceId:'in_test',contactId:'contact000001',email:'qa@example.com',givenName:'QA',familyName:'Example',legalName:'QA Business',listings:2,subscriptionPayment:{transactionId:'txn',orderId:'order',subscriptionId:'ghlSub'}};
 const location='location000001';
@@ -22,6 +22,14 @@ test('foreign contact/calendar and timezone-free appointment timestamps fail clo
   assert.throws(()=>contactProfile(job,contact(),location,{...appt,startTime:'2026-09-22 16:00:00'},null),/time/);
   assert.throws(()=>contactProfile(job,contact(),location,{...appt,contactId:'someone-else'},null),/conflict/);
   for(const url of ['javascript:alert(1)','https://airbnb.com.attacker.example/rooms/123','https://user:secret@airbnb.com/rooms/123']) assert.equal(publicListingUrl(url),null);
+});
+test('records who hosted the discovery call and rejects foreign calendars',()=>{
+  const call={id:'appointment0002',contactId:job.contactId,locationId:location,calendarId:DISCOVERY_CALENDARS[0],startTime:'2026-10-13T12:20:00-04:00',appointmentStatus:'showed',assignedUserId:'sales-host'};
+  const p=contactProfile(job,contact(),location,null,null,{appointment:call,host:'Emily Marx'});
+  assert.deepEqual((p.onboarding as Json).sales_call,{id:'appointment0002',start:'2026-10-13T12:20:00-04:00',status:'showed',host_id:'sales-host',host_name:'Emily Marx'});
+  assert.equal((contactProfile(job,contact(),location,null,null).onboarding as Json).sales_call,null);
+  assert.throws(()=>contactProfile(job,contact(),location,null,null,{appointment:{...call,calendarId:ONBOARDING_CALENDAR},host:null}),/conflict/);
+  assert.throws(()=>contactProfile(job,contact(),location,null,null,{appointment:{...call,startTime:'2026-10-13 12:20'},host:null}),/time/);
 });
 test('only the existing Live Stripe identity can link, with automatic collection independently verified',()=>{
   const f=JSON.parse(readFileSync(new URL('./subscription-test-fixture.json',import.meta.url),'utf8'));

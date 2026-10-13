@@ -421,6 +421,12 @@ export function ClientDetailPage({
             {client.ghl_onboarding.airbnb_listing_url && (
               <a className="block text-sm text-primary underline" href={client.ghl_onboarding.airbnb_listing_url} target="_blank" rel="noopener noreferrer">View submitted Airbnb listing</a>
             )}
+            {client.ghl_onboarding.sales_call && (
+              <p className="text-sm">
+                Sales call by: {client.ghl_onboarding.sales_call.host_name ?? "Host not assigned"}
+                {" · "}{new Date(client.ghl_onboarding.sales_call.start).toLocaleString("en-US", {timeZone:"America/New_York",dateStyle:"medium",timeStyle:"short"})} (New York)
+              </p>
+            )}
             {client.ghl_onboarding.appointment && (
               <p className="text-sm">
                 Onboarding call: {new Date(client.ghl_onboarding.appointment.start).toLocaleString("en-US", {timeZone:"America/New_York",dateStyle:"medium",timeStyle:"short"})} (New York)

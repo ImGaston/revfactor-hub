@@ -80,6 +80,7 @@ export type Client = {
     airbnb_listing_url: string | null
     access_verified: boolean
     appointment: { id: string; start: string; end: string; status: string; host_id: string; host_name: string | null } | null
+    sales_call?: { id: string; start: string; status: string; host_id: string; host_name: string | null } | null
   } | null
   ghl_synced_at?: string | null
   ghl_sync_error?: string | null

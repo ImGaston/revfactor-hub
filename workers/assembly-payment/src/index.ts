@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { advance, object, str, verifiedJob, invoiceIdFromPayload, type Json, type Job, type State } from './core.ts';
 import { ensureHubClient, hubDatabase } from './hub.ts';
 import { verifiedSubscriptionJob } from './subscription.ts';
-import { contactProfile, subscriptionBilling, ONBOARDING_CALENDAR } from './enrichment.ts';
+import { contactProfile, subscriptionBilling, ONBOARDING_CALENDAR, DISCOVERY_CALENDARS, type SalesCall } from './enrichment.ts';
 import { copySignedContract, eligibleContractCopy } from './contracts.ts';
 
 type Secrets = { HIGHLEVEL_API_KEY: string; ASSEMBLY_API_KEY: string; WEBHOOK_SECRET: string; HUB_SUPABASE_URL: string; HUB_SUPABASE_SERVICE_ROLE_KEY: string };
@@ -67,35 +67,45 @@ async function identity(email: string): Promise<string> {
   return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
 }
 export class PaidClient extends DurableObject<Environment> {
+  private async appointmentWithHost(event: Json): Promise<{appointment:Json;host:string|null}> {
+    const id=str(event.id);
+    if(!/^[a-zA-Z0-9]{10,40}$/.test(id)) throw new Error('invalid_appointment_id');
+    const appointment=object((await api(this.env,'ghl',`/calendars/events/appointments/${id}`)).appointment);
+    const userId=str(appointment.assignedUserId);
+    let host:string|null=null;
+    if(/^[a-zA-Z0-9]{10,40}$/.test(userId)) {
+      const user=await api(this.env,'ghl',`/users/${userId}`);
+      if(user.id!==userId) throw new Error('host_identity_conflict');
+      host=str(user.name)||[str(user.firstName),str(user.lastName)].filter(Boolean).join(' ')||null;
+    }
+    return {appointment,host};
+  }
   private async enrichHub(s: State, includeBooking: boolean) {
     if(!s.hubClientId || !s.clientId) throw new Error('hub_not_provisioned');
     const contact=object((await api(this.env,'ghl',`/contacts/${s.job.contactId}`)).contact);
-    let appointment: Json|null=null,host:string|null=null;
+    let appointment: Json|null=null,host:string|null=null,sales:SalesCall|null=null;
     if(includeBooking) {
       const result=await api(this.env,'ghl',`/contacts/${s.job.contactId}/appointments`);
       if(!Array.isArray(result.events)) throw new Error('invalid_appointment_response');
-      const matches=result.events.map(object).filter(e=>e.calendarId===ONBOARDING_CALENDAR && e.deleted!==true);
+      const events=result.events.map(object).filter(e=>e.deleted!==true);
+      const latest=(list:Json[])=>list.sort((a,b)=>str(b.startTime).localeCompare(str(a.startTime)))[0];
+      const matches=events.filter(e=>e.calendarId===ONBOARDING_CALENDAR);
       // Prefer current/future bookings, retain the latest past or canceled record
       // when no current booking remains. Never retain an obsolete confirmed call.
       const live=matches.filter(e=>['confirmed','new','showed'].includes(str(e.appointmentStatus)));
-      const sorted=(live.length?live:matches).sort((a,b)=>str(b.startTime).localeCompare(str(a.startTime)));
-      if(sorted[0]) {
-        const id=str(sorted[0].id);
-        if(!/^[a-zA-Z0-9]{10,40}$/.test(id)) throw new Error('invalid_appointment_id');
-        appointment=object((await api(this.env,'ghl',`/calendars/events/appointments/${id}`)).appointment);
-        const userId=str(appointment.assignedUserId);
-        if(/^[a-zA-Z0-9]{10,40}$/.test(userId)) {
-          const user=await api(this.env,'ghl',`/users/${userId}`);
-          if(user.id!==userId) throw new Error('host_identity_conflict');
-          host=str(user.name)||[str(user.firstName),str(user.lastName)].filter(Boolean).join(' ')||null;
-        }
-      }
+      const booking=latest(live.length?live:matches);
+      if(booking) ({appointment,host}=await this.appointmentWithHost(booking));
+      // Sales call: the discovery call that happened (showed), else the latest one.
+      const discovery=events.filter(e=>DISCOVERY_CALENDARS.includes(str(e.calendarId)));
+      const showed=discovery.filter(e=>str(e.appointmentStatus)==='showed');
+      const salesEvent=latest(showed.length?showed:discovery);
+      if(salesEvent) sales=await this.appointmentWithHost(salesEvent);
     }
     const billing=s.job.subscriptionPayment?subscriptionBilling(s.job,await api(this.env,'ghl',`/payments/subscriptions/${s.job.subscriptionPayment.subscriptionId}?altId=${this.env.LOCATION_ID}&altType=location`),this.env.LOCATION_ID):null;
     const db=hubDatabase(this.env.HUB_SUPABASE_URL,this.env.HUB_SUPABASE_SERVICE_ROLE_KEY);
     const result=await db.rpc('apply_ghl_client_enrichment',{
       p_client_id:s.hubClientId,p_contact_id:s.job.contactId,p_email:s.job.email,
-      p_assembly_client_id:s.clientId,p_profile:contactProfile(s.job,contact,this.env.LOCATION_ID,appointment,host),p_billing:billing
+      p_assembly_client_id:s.clientId,p_profile:contactProfile(s.job,contact,this.env.LOCATION_ID,appointment,host,sales),p_billing:billing
     });
     if(result.error) throw new Error('hub_enrichment_'+result.error.code+'_'+(/conflict/.test(result.error.message)?'conflict':'failed'));
     if(result.data!==s.hubClientId) throw new Error('hub_enrichment_identity_conflict');
