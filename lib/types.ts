@@ -770,6 +770,7 @@ export type AdjustmentType =
   | "blocked_dates"
   | "pricing_flexibility"
   | "cancellation_policy"
+  | "listing_content"
   | "other"
 
 export type AdjustmentOrigin = "client" | "internal" | "hostpricing" | "agent"

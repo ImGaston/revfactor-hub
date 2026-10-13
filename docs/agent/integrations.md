@@ -74,6 +74,13 @@ Client onboarding Custom App contract:
 - Upsert retries are idempotent through `onboarding_runs (client_id, external_key)`. Use optimistic concurrency through `revision`; a save updates only when the submitted revision matches, then increments it.
 - The migration is a contract only until it is applied and the app's Supabase adapter is enabled. Keep the hosted app in explicit preview mode until then.
 
+## Assembly Custom App: owner listing review (2026-10-12)
+
+- URL to register in Assembly as a Custom App (client-visible tab): `https://hub.revfactor.io/portal/optimization`. Assembly appends `?token=`.
+- Key: `ASSEMBLY_LISTING_REVIEW_APP_API_KEY` (the Custom App's own key), falling back to `ASSEMBLY_APP_API_KEY` then `ASSEMBLY_API_KEY`. Server-only.
+- Every render and every decision re-validates the token and re-checks that the item's published report belongs to the viewer's Hub client. Internal Assembly users see a read-only view.
+- Owner Accept → `listing_content` adjustment (origin `client`); resolve = applied, control = live, via trigger.
+
 ## Agent Studio and Vercel AI Gateway
 
 The authenticated `/agent-studio` route is the internal pre-production environment for the RevFactor client-service agent.

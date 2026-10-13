@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@assembly-js/node-sdk':
+        specifier: ^4.2.4
+        version: 4.2.4
       '@hello-pangea/dnd':
         specifier: ^18.0.1
         version: 18.0.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -237,6 +240,10 @@ packages:
 
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
+
+  '@assembly-js/node-sdk@4.2.4':
+    resolution: {integrity: sha512-fmG3A2x6eDL6oJh8jrpMN3UDa78/3wsiQkvkV+g4sceGEmdGZZksGlt5LE/VClDU+q6kNwAs2yCrj19QZ9kCMg==}
+    engines: {node: '>=18'}
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -6199,6 +6206,8 @@ snapshots:
       is-potential-custom-element-name: 1.0.1
 
   '@asamuzakjp/nwsapi@2.3.9': {}
+
+  '@assembly-js/node-sdk@4.2.4': {}
 
   '@babel/code-frame@7.29.0':
     dependencies:

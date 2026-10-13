@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 
 export const API_SCOPES = [
   "leads:read",
+  "listing-optimization:write",
   "market-map:read",
   "support:read",
   "support:write",
