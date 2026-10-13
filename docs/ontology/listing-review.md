@@ -1,12 +1,6 @@
-# Ontology: onboarding and the listing review
+# Ontology mapping: onboarding and the listing review (Hub)
 
-This is the RevFactor ontology applied to onboarding v2 and the owner listing review (2026-10-12). It follows `codex-brief-phases-0-2.md`:
-- **Listing** is the anchor (canonical Airbnb identity).
-- State changes only through named, permission-checked actions.
-- Every exception follows Exception → Recommendation → Decision → Execution → Outcome.
-- Deterministic code computes every number.
-
-Fold this into RM `docs/ontology.md` when phase 0 lands.
+**Source of truth:** wikifactor `ontology/README.md` and `ontology/listing-review-and-onboarding.md` (business objects, actions, the exception → decision → outcome chain). This file only maps those names to Hub code and tables; when they disagree, the wiki wins and this file gets fixed.
 
 ## Objects
 
