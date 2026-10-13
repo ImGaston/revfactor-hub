@@ -2,6 +2,8 @@ import { object, str, type Job, type Json } from './core.ts';
 import { STRIPE_ACCOUNT } from './subscription.ts';
 
 export const ONBOARDING_CALENDAR = 's2jDCEAg86oW89dfOPup';
+// Discovery (sales) calendars: main round robin, Fede, affiliate and referral.
+export const DISCOVERY_CALENDARS = ['lArwJ0BFe3TYOsCYHfet','IHWzG8HbKo7sJQjjUFNB','uxowqzbazJC93wGGVmtm','TJDh53qIJx0rPHvQCPCL'];
 export const FIELDS = {
   vrbo:'2EucGs4SAH2ggI8t0AXf', pricelabs:'6EoDuBSQ3RN6IDWeC6Ro',
   airbnbReady:'EqzdKhFohX2uwtAQ7Amt', usesPms:'JsSaZVzfzOUJUFoVtXjP',
@@ -15,7 +17,8 @@ export function publicListingUrl(value: unknown): string | null {
     return u.origin+u.pathname; // Strip tracking and any private query parameters.
   } catch {return null;}
 }
-export function contactProfile(job: Job, contact: Json, locationId: string, appointment: Json|null, host: string|null): Json {
+export type SalesCall = {appointment: Json; host: string|null};
+export function contactProfile(job: Job, contact: Json, locationId: string, appointment: Json|null, host: string|null, sales: SalesCall|null = null): Json {
   if(contact.id!==job.contactId || contact.locationId!==locationId || str(contact.email).toLowerCase()!==job.email) throw new Error('enrichment_contact_identity_conflict');
   const fields=Array.isArray(contact.customFields)?contact.customFields.map(object):[];
   const value=(id:string)=>fields.find(f=>f.id===id)?.value;
@@ -31,7 +34,8 @@ export function contactProfile(job: Job, contact: Json, locationId: string, appo
     readiness:Array.isArray(readiness)?readiness.map(str).filter(Boolean).slice(0,20).map(s=>s.slice(0,500)):[],
     airbnb_listing_url:publicListingUrl(value(FIELDS.listing))??publicListingUrl(contact.website),
     access_verified:false,
-    appointment:null
+    appointment:null,
+    sales_call:null
   };
   if(appointment) {
     if(appointment.contactId!==job.contactId || appointment.locationId!==locationId || appointment.calendarId!==ONBOARDING_CALENDAR || !str(appointment.id)) throw new Error('enrichment_appointment_identity_conflict');
@@ -40,6 +44,12 @@ export function contactProfile(job: Job, contact: Json, locationId: string, appo
     const start=str(appointment.startTime),end=str(appointment.endTime);
     if(!/T.*(?:Z|[+-]\d\d:\d\d)$/.test(start) || !Number.isFinite(Date.parse(start)) || !Number.isFinite(Date.parse(end))) throw new Error('invalid_appointment_time');
     onboarding.appointment={id:appointment.id,start,end,status:str(appointment.appointmentStatus),host_id:str(appointment.assignedUserId),host_name:host};
+  }
+  if(sales) {
+    const a=sales.appointment,start=str(a.startTime);
+    if(a.contactId!==job.contactId || a.locationId!==locationId || !DISCOVERY_CALENDARS.includes(str(a.calendarId)) || !str(a.id)) throw new Error('enrichment_sales_call_identity_conflict');
+    if(!/T.*(?:Z|[+-]\d\d:\d\d)$/.test(start) || !Number.isFinite(Date.parse(start))) throw new Error('invalid_sales_call_time');
+    onboarding.sales_call={id:a.id,start,status:str(a.appointmentStatus),host_id:str(a.assignedUserId),host_name:sales.host};
   }
   const profile:Json={name:`${job.givenName} ${job.familyName}`,business_name:job.legalName,phone:str(contact.phone)||null,onboarding};
   if(pms?.toLowerCase()==='no') profile.pms_name=null;
