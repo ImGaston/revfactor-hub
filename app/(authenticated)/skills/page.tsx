@@ -13,6 +13,7 @@ export default async function SkillsPage() {
   return (
     <SkillsView
       skills={sortSkills(catalog.skills.map(toSkillListItem))}
+      roadmap={catalog.roadmap}
       sourceRevision={catalog.sourceRevision}
     />
   )

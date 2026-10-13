@@ -10,11 +10,12 @@ import {
   getSkill,
   getSkillCatalog,
   isRunnable,
-  statusTone,
+  stripFrontmatter,
   wikifactorUrl,
 } from "@/lib/skills"
 
 import { SkillMarkdown } from "../skill-markdown"
+import { SkillLevelBadge, WikiPageBadge } from "../skills-view"
 
 type Props = { params: Promise<{ id: string }> }
 
@@ -28,19 +29,37 @@ export default async function SkillDetailPage({ params }: Props) {
 
   const catalog = getSkillCatalog()
   const knownIds = catalog.skills.map((s) => s.id)
+  const knownIdSet = new Set(knownIds)
   const byId = new Map(catalog.skills.map((s) => [s.id, s]))
   // Runnable skills point at the frameworks they execute; frameworks list
   // the runnable skills that execute them.
   const runs = skill.runs.map((r) => byId.get(r)).filter((s) => s !== undefined)
-  const runBy = catalog.skills.filter((s) => s.runs.includes(skill.id))
+  const runBy = catalog.skills.filter(
+    (s) => s.runs.includes(skill.id) || skill.runnableIds.includes(s.id)
+  )
+  const roadmapItems = catalog.roadmap.filter((r) => skill.roadmapIds.includes(r.id))
+  // Playbooks and other pages it implements that are not already linked as frameworks.
+  const otherPages = skill.implementsPaths.filter(
+    (p) => !runs.some((r) => p === `skills/${r.id}`)
+  )
 
-  const facts = [
-    ["Use when", skill.whenToUse],
-    ["Owner", skill.owner],
-    ["Channels", skill.channels],
-    ["Tools", skill.tools],
-    ["Status", skill.status],
-  ].filter(([, v]) => v)
+  const facts = (
+    isRunnable(skill)
+      ? [
+          ["Stage", skill.stage],
+          ["Runs on", skill.runsOn],
+          ["Model tier", skill.modelTier],
+          ["Source", skill.source],
+          ["Roadmap", roadmapItems.map((r) => r.item).join("; ")],
+        ]
+      : [
+          ["Use when", skill.whenToUse],
+          ["Owner", skill.owner],
+          ["Channels", skill.channels],
+          ["Tools", skill.tools],
+          ["Status", skill.status],
+        ]
+  ).filter(([, v]) => v)
 
   return (
     <div className="flex max-w-4xl flex-col gap-6">
@@ -53,9 +72,7 @@ export default async function SkillDetailPage({ params }: Props) {
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={statusTone(skill.statusLevel)} className="capitalize">
-            {skill.statusLevel}
-          </Badge>
+          <SkillLevelBadge skill={skill} />
           {isRunnable(skill) ? (
             <Badge variant="secondary">
               <Zap data-icon="inline-start" />
@@ -112,6 +129,15 @@ export default async function SkillDetailPage({ params }: Props) {
         </div>
       )}
 
+      {otherPages.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Implements</span>
+          {otherPages.map((p) => (
+            <WikiPageBadge key={p} path={p} knownIds={knownIdSet} />
+          ))}
+        </div>
+      )}
+
       {skill.sections.map((section) => (
         <Card key={section.title}>
           <CardHeader>
@@ -122,6 +148,33 @@ export default async function SkillDetailPage({ params }: Props) {
           </CardContent>
         </Card>
       ))}
+
+      {isRunnable(skill) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">SKILL.md</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {skill.skillMarkdown ? (
+              <details>
+                <summary className="cursor-pointer text-sm text-muted-foreground">
+                  Show the full skill instructions
+                </summary>
+                <div className="mt-4">
+                  <SkillMarkdown
+                    markdown={stripFrontmatter(skill.skillMarkdown)}
+                    knownSkillIds={knownIds}
+                  />
+                </div>
+              </details>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Not in wikifactor yet{skill.source ? `: ${skill.source}` : "."}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

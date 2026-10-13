@@ -1,6 +1,6 @@
 {
  "source": "wikifactor skills/",
- "sourceRevision": "7e3d401",
+ "sourceRevision": "b192fec",
  "skills": [
   {
    "id": "channel-discounts",
@@ -40,7 +40,10 @@
      "markdown": "- Hub knowledge article `vrbo-members-only-deals-opt-out-and-control-procedure`.\n- Fede's default pricing sheet and Spencer's Airbnb discounts and listing markups (screenshots shared 2026-10-09).\n- Airbnb help: \"Discounts for homes\" (airbnb.co.in/help/article/3421: top-rated discount \"may be combined\"; only one of the others per reservation) and \"Combining discounts and rule sets\" (airbnb.com/resources/hosting-homes/a/combining-discounts-and-rule-sets-694: priority order; non-refundable applies last). Read 2026-10-09.\n- [[policies/launch-and-listing-pricing]] (Granola ad2ebf1c 2026-07-27; Slack 2026-09-07; Granola 1c97175c)."
     }
    ],
-   "path": "skills/channel-discounts.md"
+   "path": "skills/channel-discounts.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "child-listing-pricing",
@@ -76,7 +79,10 @@
      "markdown": "- [[policies/launch-and-listing-pricing]] (Granola ac1c2c17 2026-08-20; 9f4178d6 2026-08-20; abfed974 2026-07-03)."
     }
    ],
-   "path": "skills/child-listing-pricing.md"
+   "path": "skills/child-listing-pricing.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "comp-analysis",
@@ -105,14 +111,19 @@
     },
     {
      "title": "Lives in",
-     "markdown": "- Hub knowledge: none.\n- RM: comp coverage, AirDNA external comps, comp research pages; agent skill `skills/revfactor-comps/SKILL.md`.\n- Bots: none."
+     "markdown": "- Hub knowledge: none.\n- RM: comp coverage, AirDNA external comps, comp research pages; agent skill `skills/revfactor-comps/SKILL.md`.\n- Runnable skill: [[skills/revfactor-comps/README|revfactor-comps]] (tested on 5).\n- Bots: none."
     },
     {
      "title": "Sources",
      "markdown": "- [[playbooks/comp-analysis]] (draft 2026-10-08).\n- [[policies/launch-and-listing-pricing]] (two comp types: apples-to-apples and next-best alternative)."
     }
    ],
-   "path": "skills/comp-analysis.md"
+   "path": "skills/comp-analysis.md",
+   "runnableIds": [
+    "revfactor-comps"
+   ],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "comps-guest-count",
@@ -141,14 +152,19 @@
     },
     {
      "title": "Lives in",
-     "markdown": "- Hub knowledge: none yet.\n- RM: comp scorecard (capacity is part of \"rooms and layout\"); Pricing skills page.\n- Bots: none."
+     "markdown": "- Hub knowledge: none yet.\n- RM: comp scorecard (capacity is part of \"rooms and layout\"); Pricing skills page.\n- Runnable skill: [[skills/revfactor-comps/README|revfactor-comps]] (tested on 5), partly.\n- Bots: none."
     },
     {
      "title": "Sources",
      "markdown": "- Granola e3a3e73e 2026-10-07 (Fede and Gastón: comp scorecard tiers and weights; rooms and layout 25%, including guest capacity).\n- Granola 72e26ff2 (comp filters: bedrooms, bathrooms, guest count; compare pacing and occupancy).\n- Granola 4498e895 2026-08-04 (Corzly: Colorado guest avatar mismatch; analyze booking history by guest count).\n- Granola f4e3534a 2026-08-26 (listing review: 7-guest vs 14-guest revenue benchmarks).\n- Hub ticket #12 (Michelle Lohr, 2026-10-08 message about her best comp)."
     }
    ],
-   "path": "skills/comps-guest-count.md"
+   "path": "skills/comps-guest-count.md",
+   "runnableIds": [
+    "revfactor-comps"
+   ],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "event-pricing",
@@ -184,7 +200,10 @@
      "markdown": "- RM `README.md` and `docs/event-intelligence-ui.md` (pace-gated suggestions; weather permits only hold/decrease/flexibility).\n- Hub `docs/market-signals/hotel-airline-event-rm-research.md` (pace is the trigger, the event is the explanation)."
     }
    ],
-   "path": "skills/event-pricing.md"
+   "path": "skills/event-pricing.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "explain-markups-and-discounts",
@@ -228,7 +247,10 @@
      "markdown": "- Fede's message to Spencer Ritterskamp, drafted and approved 2026-10-09.\n- [[skills/channel-discounts]] (defaults and stacking rules, Airbnb help pages read 2026-10-09); [[skills/ota-markup]]."
     }
    ],
-   "path": "skills/explain-markups-and-discounts.md"
+   "path": "skills/explain-markups-and-discounts.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "international-taxes",
@@ -272,7 +294,10 @@
      "markdown": "- Hub ticket #84 (Michelle Lohr, Playa del Carmen listings): her ask (2026-10-02, a slow-season price floor because of Mexican taxes) and Fede's tax questions (2026-10-09)."
     }
    ],
-   "path": "skills/international-taxes.md"
+   "path": "skills/international-taxes.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "minimum-price-floor",
@@ -308,7 +333,10 @@
      "markdown": "- Hub tickets #84 (2026-10-02 ask, 2026-10-09 tax questions) and #137 (2026-10-09).\n- Granola 3a2f8768 2026-10-05 (Spencer onboarding notes: winter minimum prices).\n- Granola 4498e895 2026-08-04 (Corzly: PriceLabs safety minimum price to protect the floor)."
     }
    ],
-   "path": "skills/minimum-price-floor.md"
+   "path": "skills/minimum-price-floor.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "mtr-visibility-recovery",
@@ -348,7 +376,10 @@
      "markdown": "- Hub ticket #12 (client Michelle Lohr, listing AWA 105 / \"D105\"): Fede's answer in Assembly, 2026-10-09, summarized above.\n- [[policies/launch-and-listing-pricing]] (new listing launch rules)."
     }
    ],
-   "path": "skills/mtr-visibility-recovery.md"
+   "path": "skills/mtr-visibility-recovery.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "new-listing-launch",
@@ -384,7 +415,10 @@
      "markdown": "- [[policies/launch-and-listing-pricing]] (Granola ffc41f83 2026-06-11; fd8d6a85 2026-06-09; 9bf38589 2026-07-16; ac1c2c17 2026-08-20; 7aab0b9f 2026-08-25).\n- [[decisions/2026-06-11-new-listing-launch-markup]]."
     }
    ],
-   "path": "skills/new-listing-launch.md"
+   "path": "skills/new-listing-launch.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "no-history-pricing",
@@ -420,7 +454,10 @@
      "markdown": "- [[policies/launch-and-listing-pricing]] (Granola 5a4edf7e 2026-07-01; 6be61332 2026-07-01)."
     }
    ],
-   "path": "skills/no-history-pricing.md"
+   "path": "skills/no-history-pricing.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "ota-markup",
@@ -456,7 +493,10 @@
      "markdown": "- Hub knowledge article `ota-markup-policy` (\"OTA Markups and Airbnb Discounts\").\n- Fede's default pricing sheet and Spencer's listing markups (screenshots shared 2026-10-09)."
     }
    ],
-   "path": "skills/ota-markup.md"
+   "path": "skills/ota-markup.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "outcome-check",
@@ -492,7 +532,10 @@
      "markdown": "- [[processes/decision-outcome-loop]]."
     }
    ],
-   "path": "skills/outcome-check.md"
+   "path": "skills/outcome-check.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "reservation-alterations",
@@ -528,7 +571,10 @@
      "markdown": "- Hub knowledge article `reservation-alterations`."
     }
    ],
-   "path": "skills/reservation-alterations.md"
+   "path": "skills/reservation-alterations.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "seasons-cap",
@@ -564,7 +610,10 @@
      "markdown": "- [[decisions/2026-09-26-seasons-retired]]; [[stack/seasons-cap]]."
     }
    ],
-   "path": "skills/seasons-cap.md"
+   "path": "skills/seasons-cap.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
   },
   {
    "id": "taxes-pass-through",
@@ -604,7 +653,186 @@
      "markdown": "- Granola 3a2f8768 2026-10-05 (Spencer onboarding: Bullitt County 4%, Shelby County 3% + 1%, pass-through payout line, Fede's Grand Prairie TX house: Airbnb collects the 6% state tax, the 7% city tax is pass-through).\n- [[skills/international-taxes]] for countries where platforms also withhold from the payout."
     }
    ],
-   "path": "skills/taxes-pass-through.md"
+   "path": "skills/taxes-pass-through.md",
+   "runnableIds": [],
+   "runs": [],
+   "skillPath": null
+  },
+  {
+   "id": "airbnb-audit",
+   "name": "airbnb-audit",
+   "kind": "runnable",
+   "area": "",
+   "status": "missing — the SKILL.md lives only in `~/.claude/skills/airbnb-audit` on Fede's MacBook",
+   "statusLevel": "needs review",
+   "owner": "",
+   "channels": "",
+   "tools": "",
+   "whenToUse": "",
+   "sections": [],
+   "runs": [],
+   "skillPath": null,
+   "implements": "[[playbooks/listing-optimization]] (layer 2, 16 dimensions), launch report in [[playbooks/onboarding-v2]]",
+   "roadmap": "listing-review, onboarding-v2",
+   "stage": "missing — the SKILL.md lives only in `~/.claude/skills/airbnb-audit` on Fede's MacBook",
+   "runsOn": "Claude Code on Fede's Mac",
+   "modelTier": "unknown until the file is in the repo",
+   "source": "not yet copied. Fede copies the folder here (or into a folder Claude can read) and this README is updated.",
+   "summary": "Score an Airbnb listing on 16 dimensions (title, cover, photo order, photo quality, captions, photo tour, profile, first 500 characters, the space, guest access, interaction, other notes, amenities, review responses, location, safety).",
+   "stageLevel": "missing",
+   "implementsPaths": [
+    "playbooks/listing-optimization",
+    "playbooks/onboarding-v2"
+   ],
+   "roadmapIds": [
+    "listing-review",
+    "onboarding-v2"
+   ],
+   "inRepo": false,
+   "description": null,
+   "skillMarkdown": null,
+   "notes": "",
+   "path": "skills/airbnb-audit/README.md"
+  },
+  {
+   "id": "revfactor-comps",
+   "name": "revfactor-comps",
+   "kind": "runnable",
+   "area": "",
+   "status": "tested on 5 — portfolio comp rollout in RM",
+   "statusLevel": "draft",
+   "owner": "",
+   "channels": "",
+   "tools": "",
+   "whenToUse": "",
+   "sections": [
+    {
+     "title": "Notes",
+     "markdown": "- The SKILL.md hardcodes a path on Fede's MacBook (`RM_ROOT`); it should resolve the checkout from the git remote only."
+    }
+   ],
+   "runs": [
+    "comp-analysis",
+    "comps-guest-count"
+   ],
+   "skillPath": null,
+   "implements": "[[skills/comp-analysis]], [[skills/comps-guest-count]], [[playbooks/comp-analysis]]",
+   "roadmap": "pricing",
+   "stage": "tested on 5 — portfolio comp rollout in RM",
+   "runsOn": "Claude Code in the revfactor-rm checkout",
+   "modelTier": "Sonnet for collection and scoring; reports need review",
+   "source": "`federzimer/revfactor-rm` `skills/revfactor-comps/SKILL.md`. Kept in RM because it drives RM's scripts; this page is the pointer.",
+   "summary": "Build, extend or review source-backed comp sets with reusable listing profiles and weighted subject/candidate scores.",
+   "stageLevel": "tested on 5",
+   "implementsPaths": [
+    "skills/comp-analysis",
+    "skills/comps-guest-count",
+    "playbooks/comp-analysis"
+   ],
+   "roadmapIds": [
+    "pricing"
+   ],
+   "inRepo": false,
+   "description": null,
+   "skillMarkdown": null,
+   "notes": "- The SKILL.md hardcodes a path on Fede's MacBook (`RM_ROOT`); it should resolve the checkout from the git remote only.",
+   "path": "skills/revfactor-comps/README.md"
+  },
+  {
+   "id": "revfactor-listing-review",
+   "name": "revfactor-listing-review",
+   "kind": "runnable",
+   "area": "",
+   "status": "tested on 5 — in daily use by Fede before 2026-10-13; Fede moves it to approved",
+   "statusLevel": "draft",
+   "owner": "",
+   "channels": "",
+   "tools": "",
+   "whenToUse": "",
+   "sections": [
+    {
+     "title": "Notes",
+     "markdown": "- Numbers come from the Rankbreeze file; the skill writes the wording.\n- Next step (roadmap 1): fold into one listing-review skill that runs the whole [[playbooks/listing-optimization]] flow, together with `airbnb-audit`."
+    }
+   ],
+   "runs": [],
+   "skillPath": "skills/revfactor-listing-review/SKILL.md",
+   "implements": "[[playbooks/comp-analysis]], [[ontology/listing-review-and-onboarding]]",
+   "roadmap": "listing-review",
+   "stage": "tested on 5 — in daily use by Fede before 2026-10-13; Fede moves it to approved",
+   "runsOn": "Claude (Fede's claude.ai account skills)",
+   "modelTier": "Opus or Sonnet (owner PDFs); digest only is cheap-model safe",
+   "source": "copied unchanged from Fede's claude.ai account skill on 2026-10-13. This folder is now the source of truth; re-upload to the account after edits.",
+   "summary": "Digest a Rankbreeze Listing Review export (RevPAR, ADR, Occupancy vs market, STLY) and optionally produce an owner-facing PDF in Fede's voice.",
+   "stageLevel": "tested on 5",
+   "implementsPaths": [
+    "playbooks/comp-analysis",
+    "ontology/listing-review-and-onboarding"
+   ],
+   "roadmapIds": [
+    "listing-review"
+   ],
+   "inRepo": true,
+   "description": "Analyze a RevFactor Listing Review export from Rankbreeze (typically named \"Listing_Review_*.xlsx\") and produce a digest comparing a single listing's RevPAR, ADR, and Occupancy against the market. Use this skill whenever Fede shares a Rankbreeze listing review, asks for help \"digesting\" or \"summarizing\" a listing's performance, mentions reviewing an owner's performance, or uploads a spreadsheet with columns like \"Rental RevPAR\", \"Market RevPAR\", \"STLY\", or \"RevPAR Index\". Trigger this even when Fede only says things like \"help me look at this report\" or \"owner wants feedback on performance\" with a Rankbreeze-shaped file attached. Also trigger when Fede asks for a polished PDF owner report based on a listing review.",
+   "skillMarkdown": "---\nname: revfactor-listing-review\ndescription: \"Analyze a RevFactor Listing Review export from Rankbreeze (typically named \\\"Listing_Review_*.xlsx\\\") and produce a digest comparing a single listing's RevPAR, ADR, and Occupancy against the market. Use this skill whenever Fede shares a Rankbreeze listing review, asks for help \\\"digesting\\\" or \\\"summarizing\\\" a listing's performance, mentions reviewing an owner's performance, or uploads a spreadsheet with columns like \\\"Rental RevPAR\\\", \\\"Market RevPAR\\\", \\\"STLY\\\", or \\\"RevPAR Index\\\". Trigger this even when Fede only says things like \\\"help me look at this report\\\" or \\\"owner wants feedback on performance\\\" with a Rankbreeze-shaped file attached. Also trigger when Fede asks for a polished PDF owner report based on a listing review.\"\n---\n\n# RevFactor Listing Review Digest\n\n## What this skill does\n\nWhen Fede shares a Rankbreeze Listing Review export, produce a digest that:\n\n1. Reads the spreadsheet correctly (handles the Rankbreeze column structure)\n2. Detects whether the listing is in its first year on platform (STLY = 0)\n3. Computes ADR (not provided in the export — derive it from RevPAR / Occupancy)\n4. Compares listing performance to market across RevPAR, ADR, and Occupancy\n5. Renders a three-chart visual using `visualize:show_widget` for sharing with the owner\n6. Surfaces the strategic narrative: what the data says about RevFactor's pricing strategy\n7. On request, generates a polished owner-facing PDF report (see Step 8)\n\n## Background on Fede's workflow\n\nFede is co-founder of two related businesses:\n\n- **Blackbird** — full-service property management. Blackbird controls everything: listing copy, photos, pricing, guest comms, reviews, ops. Performance conversations can span the full operating picture because everything is in scope.\n- **RevFactor** — revenue management strategy only. RevFactor's deliverable is the pricing strategy; the owner (or a separate operator) controls listing quality, photos, guest experience, reviews, and ops. Performance conversations must stay inside RevFactor's actual scope — revenue, RevPAR, ADR, occupancy, market positioning. RevFactor does not take credit for, or accept blame for, anything outside the pricing system.\n\nRevFactor's pricing strategy is proprietary IP — it intentionally optimizes for **RevPAR** (revenue per available night) by holding **ADR** at a premium, accepting **lower occupancy** as the tradeoff. The owner conversation almost always lands on \"why is my occupancy below market?\" — and the answer is in the RevPAR and ADR numbers.\n\nThis skill should support that framing: lead with RevPAR, then ADR (the strategy executing), then occupancy (the deliberate tradeoff). Pricing strategy itself is never debated on calls; the data is.\n\n### Identify the client type before drafting owner-facing materials\n\nBefore producing any owner-facing material (email draft, PDF report, talking points), identify whether the property is a Blackbird or RevFactor client. If unclear, ask Fede directly with a one-line question — don't guess. The answer changes the scope, the credit assignment, and the language.\n\n**For Blackbird clients** — full scope is fair game. Listing performance, reviews, photo quality, guest experience, ops, channel mix, and pricing are all things \"we\" did and are accountable for. Plural-possessive language (\"our listing,\" \"our reviews,\" \"what we delivered\") is natural.\n\n**For RevFactor clients** — scope is pricing strategy and revenue outcomes only. Adjust language accordingly:\n\n- Don't take credit for things outside pricing. If the owner mentions reviews, photos, listing quality, growth post-relaunch, or anything operational — acknowledge it as theirs, not ours. \"Glad to see the review score where it is — your team has nailed the guest experience\" rather than \"our reviews are strong.\"\n- Don't say \"our property\" or \"our listing.\" Use \"the listing,\" \"Emberglow,\" \"your property.\"\n- Don't take blame for things outside pricing either. If a listing underperforms because of photos, broken hot tub, or weak reviews, name it as an operational input we'd flag — not something we own.\n- Credit on revenue outcomes stays with the strategy: \"RevPAR is running 2.5x the comp set — the strategy is executing well\" is fine. \"We delivered a great spring\" is not.\n- Talking about future direction, use \"the plan from here\" or \"what we'd watch next\" rather than \"what we'll do next\" if \"what we'll do\" implies operational levers.\n\nOwner-facing PDFs follow the same rules: the Blackbird version of the report can speak to listing quality and reviews; the RevFactor version stays scoped to revenue, rate, and occupancy.\n\n## The Rankbreeze export structure\n\nFiles are typically named `Listing_Review_*.xlsx` with one client per file. Expect these columns:\n\n- `Group Name` — the client/listing name\n- `Year & Month` — e.g., \"2026-01 (Jan)\"\n- `Rental Revenue` — $ booked for that month\n- `RevPAR Index` — Rankbreeze's own index (use cautiously, breaks down at low market RevPAR)\n- `Rental RevPAR`, `Rental RevPAR STLY`, `Rental RevPAR LY`\n- `Market RevPAR`, `Market RevPAR STLY`, `Market RevPAR LY`\n- `Occupancy %`, `Occupancy % STLY`, `Market Occupancy %`, `Market Occupancy % STLY`, `Occupancy % LY`, `Market Occupancy % LY`\n\n**ADR is not in the export.** Compute it: `ADR = RevPAR / (Occupancy% / 100)`.\n\n## Step 1: Read and inspect the file\n\nUse pandas. Filter out empty rows. Quick sanity check:\n\n```python\nimport pandas as pd\ndf = pd.read_excel('<file>')\ndf = df[df['Year & Month'].notna()].copy()\nprint(df['Group Name'].iloc[0])  # confirm listing name\n```\n\n## Step 2: Detect first-year status\n\nThis is critical. Check whether ALL of `Rental RevPAR STLY`, `Occupancy % STLY` are zero across all months.\n\n```python\nis_first_year = (df['Rental RevPAR STLY'].sum() == 0) and (df['Occupancy % STLY'].sum() == 0)\n```\n\nIf first-year:\n- Drop YoY/STLY framing entirely from the digest\n- Note this explicitly: \"First year on platform — no last-year comparison possible. Frame is listing vs market, current period.\"\n- The current year IS the baseline being established\n\nIf not first-year:\n- Use STLY columns for trend analysis\n- Compare market trend (Market RevPAR vs Market RevPAR STLY) to assess whether the market is rising or falling\n- Compare listing trend to market trend\n\n## Step 3: Compute the comparisons\n\nFor every month with non-zero data, compute:\n\n```python\ndf['Listing_ADR'] = df.apply(lambda r: r['Rental RevPAR']/(r['Occupancy %']/100) if r['Occupancy %']>0 else 0, axis=1)\ndf['Market_ADR']  = df.apply(lambda r: r['Market RevPAR']/(r['Market Occupancy %']/100) if r['Market Occupancy %']>0 else 0, axis=1)\ndf['RevPAR_vs_Market'] = df.apply(lambda r: r['Rental RevPAR']/r['Market RevPAR']-1 if r['Market RevPAR']>0 else None, axis=1)\ndf['Occ_vs_Market']    = df.apply(lambda r: (r['Occupancy %']-r['Market Occupancy %'])/r['Market Occupancy %'] if r['Market Occupancy %']>0 else None, axis=1)\ndf['ADR_vs_Market']    = df.apply(lambda r: r['Listing_ADR']/r['Market_ADR']-1 if r['Market_ADR']>0 else None, axis=1)\n```\n\n## Step 4: Identify the meaningful months\n\nNot every month is comparable. Filter to \"meaningful\" months for the headline read:\n\n- **Drop months with 0 listing revenue** (calendar blocks, not booked yet, or owner stays — not a strategy signal)\n- **Drop months with very low Market RevPAR** (e.g., <$15) — index becomes unreliable. These are typically deep low-season months (Sep–Dec depending on market) where pacing is incomplete.\n- The remaining months are the headline comparison set.\n\nCompute averages across the meaningful months only:\n\n```python\nmeaningful = df[(df['Rental Revenue'] > 0) & (df['Market RevPAR'] >= 15)].copy()\navg_revpar_premium = meaningful['RevPAR_vs_Market'].mean()\navg_adr_premium = meaningful['ADR_vs_Market'].mean()\ntotal_revenue_meaningful = meaningful['Rental Revenue'].sum()\n```\n\n## Step 5: Write the digest\n\nStructure the response as:\n\n### Big picture (2–3 lines)\nOne sentence on the strategy result (RevPAR vs market). One sentence on the ADR/occupancy split. One caveat if relevant (first-year, missing STLY, market data thin in low season).\n\n### Caveats\n- First-year status if applicable\n- STLY data missing if applicable\n- Months excluded from the headline read and why\n\n### Detail breakdown\n- RevPAR vs market — month by month, with the standout months called out\n- Occupancy vs market — frame as the deliberate tradeoff, not a problem\n- ADR vs market — frame as the strategy executing\n- Any month where RevPAR fell below market — diagnostic, but one month doesn't change the strategy\n\n### Strategic framing\nEnd with how to walk an owner through this if they're questioning strategy. The line: optimizing for occupancy would lower revenue. RevPAR is the real outcome.\n\n**Style:** Big picture first, then concise bullet details — no walls of text. Match Fede's preferred tone.\n\n## Step 6: Render the three-chart visualization\n\nUse `visualize:show_widget` (load the `chart` module via `visualize:read_me` first if you haven't already this conversation).\n\nThe default visual is **three vertical bar charts stacked**, in this order:\n\n1. **RevPAR: listing vs market** — purple (`#534AB7`) for listing, gray (`#B4B2A9`) for market\n2. **ADR: listing vs market** — teal (`#1D9E75`) for listing, gray for market\n3. **Occupancy: listing vs market** — coral (`#D85A30`) for listing, gray for market\n\nAbove the charts, place 3 metric cards:\n- Avg RevPAR vs market (the headline win)\n- Avg ADR vs market (the strategy executing)\n- Revenue booked YTD across meaningful months\n\nX-axis: only the meaningful months (skip empty/low-season months that would distort the read).\n\nTooltip and tick formatters: round to nearest dollar for RevPAR/ADR, nearest whole percent for occupancy.\n\nEach canvas needs `role=\"img\"` and `aria-label` per the visualize chart module rules.\n\n## Step 7: Offer next steps\n\nAfter the digest and chart, offer:\n- A reduced single-chart version (just RevPAR) for owner-facing sharing if they only want one visual\n- An owner-facing message draft if Fede signals the conversation is heading toward a strategy debate\n- A polished owner-facing PDF report (see Step 8) if Fede signals he wants to send something formal\n\n## Step 8: Owner-facing PDF report\n\nWhen Fede asks for a PDF, a report, or \"something I can send the owner,\" produce a polished 2–3 page PDF using `reportlab` for layout and `matplotlib` for the charts (saved as PNGs and embedded). This is the deliverable that goes to the homeowner, so the voice and framing differ from the internal digest above.\n\n### Tone for owner-facing materials\n\nThe internal digest is for Fede — it can talk about strategy tradeoffs, proprietary pricing, etc. The owner-facing PDF cannot. Adjust:\n\n- **Confirm the client type first** (Blackbird vs RevFactor — see the section above) and apply the matching scope rules. The PDF can be a Blackbird version (full-scope, \"our listing\" language ok) or a RevFactor version (revenue-only, no credit-claiming on reviews/listing/ops). The cover page and the takeaway are the two places where the language differs most visibly.\n- **Don't preempt complaints the data doesn't justify.** If the listing is winning on both rate and occupancy this period, do NOT include lines like \"the goal is total revenue, not booked nights\" or \"we trade occupancy for rate.\" Those read as defensive and signal weakness where there is none. Save that framing for periods where occupancy actually IS below market and the question is likely to come up.\n- **Match the framing to the data.** When occupancy is below market → describe it as a deliberate strategy that trades a few occupancy points for a higher rate. When occupancy is above market → describe rate and occupancy as winning at the same time (a strong combination). Don't carry the \"tradeoff\" framing into months where there is no tradeoff to defend.\n- **Define every term in plain language.** Owners don't necessarily know RevPAR or ADR. One short parenthetical or sentence per term is enough — e.g., \"RevPAR (revenue per available night)\".\n- **Lead with what's actually winning.** RevPAR, ADR, then occupancy — same order as the internal digest — but every section header should describe the metric in owner-friendly terms (\"the headline outcome\", \"your nightly rate vs the market\", \"nights booked vs the market\").\n- **Close confidently, not defensively.** The takeaway paragraph should describe what the listing is doing well and what's worth watching going forward. It should NOT justify the strategy. For RevFactor specifically, keep the takeaway focused on rate, occupancy, and revenue outcomes — don't generalize into operational compliments.\n\n### Structure\n\n1. **Header** — `Listing performance review` as H1, then a subtitle line: `<Listing name> · <Month range> · Prepared by <Blackbird | RevFactor>`. The \"Prepared by\" must match the client's business relationship; never label a RevFactor client's report as a Blackbird report or vice versa.\n2. **Three metric cards** in a row — RevPAR vs market, ADR vs market, Revenue booked. Card background `#F7F6F1`, centered label + value. Color the RevPAR value in `#534AB7` (purple) and the ADR value in `#0F6E56` (teal); keep revenue in default ink.\n3. **Big picture** — one paragraph (3–4 sentences) of plain-language summary. Lead with the comp-set result, end with the market-context framing if relevant.\n4. **Three chart sections**, each: section heading, one-line definition of the metric, the bar chart, one-line caption with the numbers. Wrap each in `KeepTogether` so the heading/chart/caption never split across pages. Use the same color system as the widget: purple/teal/coral for the listing, gray (`#B4B2A9`) for market.\n5. **Market context** — when there's enough LY/STLY data, two short paragraphs: first describing how the wider market has moved YoY, second describing how the listing held up against that backdrop. Skip this section entirely if data is too thin to read a market trend.\n6. **Summary table** — all three months in columns, RevPAR / ADR / Occupancy / Revenue in rows, listing and market interleaved. Mark any still-pacing months with an asterisk and footnote that \"Most stays are booked in the 30–60 days before arrival.\"\n7. **The takeaway** — one short paragraph, confident voice. Describe what's working and what we're monitoring next. No strategy-defense language.\n8. **Sources footer** — single small-text line: `Sources: Rankbreeze market data, comp set defined by Rankbreeze. RevPAR = revenue per available night. ADR = revenue ÷ booked nights. Occupancy = booked nights ÷ available nights.`\n\n### Technical notes\n\n- Render charts with matplotlib at `dpi=200`, figsize ~`(7.2, 3.2)`. Save as PNG to a working dir, then embed via `reportlab.platypus.Image` at `width=7.1*inch, height=3.0*inch`.\n- Bar chart styling: hide top/right spines, light gray gridlines on y-axis only, value labels above each bar, legend in upper right (no frame). Format y-axis as `${int(v):,}` for dollars and `{int(v)}%` for occupancy.\n- Use Letter page size, ~0.65\" margins. Helvetica throughout — no need to load custom fonts.\n- Wrap chart blocks (heading + intro + image + caption) in `KeepTogether`. This sometimes pushes a chart to the next page leaving whitespace below — that's the right tradeoff over stranded captions.\n- **Do NOT use Unicode subscript/superscript characters** anywhere in the PDF — reportlab's built-in fonts don't include those glyphs and they render as black boxes. Use ReportLab's XML markup tags (`<sub>`, `<super>`) in `Paragraph` objects if needed.\n- Save the PDF to the outputs directory with filename pattern `<ListingName>_Performance_Review_<Period>.pdf` (spaces → underscores).\n\n### Verification before sharing\n\nBefore declaring the PDF done, render at least one page to an image (e.g., via `pdf2image.convert_from_path`) and inspect it. Watch for:\n- Stranded captions or headings on the wrong page\n- Black-box characters indicating missing glyphs\n- Truncated chart titles or value labels\n- Empty bottom-of-page whitespace large enough to be worth reflowing\n\n## Things to avoid\n\n- **Don't lean on RevPAR Index from Rankbreeze blindly.** When market RevPAR is very low (deep low season), the index returns absurd numbers (e.g., 2811% in December because market RevPAR is $5). Compute your own ratio and gate on a market RevPAR floor.\n- **Don't frame lower occupancy as a problem.** It's the tradeoff. The strategy is RevPAR-optimized, not occupancy-optimized.\n- **Don't engage in defending specific pricing decisions** (why a particular night was priced X). The strategy is proprietary IP. The conversation stays at outcome level: RevPAR, ADR, revenue.\n- **Don't carry defensive framing into owner-facing materials when the data doesn't call for it.** Pre-empting a complaint the owner has no reason to raise reads as weakness. See Step 8 tone notes.\n- **Don't compute YoY trend from `*_LY` columns unless they have data across multiple months.** Rankbreeze sometimes only populates LY for the last 3 months of the year, which is not enough to read a trend.\n- **Don't reproduce the chart content as text after rendering it.** The widget shows the user; restating the bars in prose is redundant.\n\n## Example trigger phrases\n\n- \"Owner wants feedback on their performance, here's the report\"\n- \"Help me digest this listing review\"\n- \"Can you look at this Rankbreeze export\"\n- \"[uploads Listing_Review_*.xlsx with no other context]\"\n- \"Client is questioning our pricing — here's their numbers\"\n- \"Can you build a PDF report I can share with the owner?\"\n- \"Turn this into something I can send the homeowner\"\n\n\n# Fede's voice — tone profile for client emails\n\n*Distilled from sent owner-comms in Gmail: Hunt May Bookings, Leslie Nightly Rate Question, Abby Sharp Pricing Update, Kassidy Tucson Pricing Strategy, Joanna Property Analysis, Sarah/William Revenue Potential, Guatemala Owner Report. Add this as a \"Step 9\" section in the revfactor-listing-review SKILL.md so future email drafts match his voice.*\n\n## Voice patterns he actually uses\n\n- **Casual opener.** \"Hi [Name]! How are you?\" / \"Hi Guys!\" / \"Hey [Name]!\" Almost never a cold \"Hello\" or \"Dear\". If he's already in a thread, he skips the opener.\n- **Smileys are normal.** \":)\" lands naturally at the end of a friendly sentence. Don't force them, but don't strip them either.\n- **\"We\" not \"I\"** when describing the work — \"we've been reviewing the booking data\", \"we made some adjustments\", \"we're seeing\". Singular only for personal notes (\"I'm happy to walk through this on a call\").\n- **Specific raw numbers, always paired with the comparison.** \"$7,504 on the books, a 27% increase from $5,900 last May\" — not \"performance is up\". He shows the work.\n- **Acronyms used naturally.** ADR, RevPAR, STLY, LY, occupancy — all comfortable. He occasionally defines them in passing for newer owners (\"RevPAR (ADR/Occ)\") but only the first time in a thread.\n- **Pacing/strategy vocabulary that sounds like him**: \"the books\", \"pace\", \"close the gap\", \"rate strength to work with\", \"premium capture window\", \"booking window\", \"rate-led month\", \"the expected trade as price moves up the curve\", \"yield high on prime bookings\".\n- **No em dashes or en dashes.** Use periods or commas instead. Parentheticals (like this) are fine for short asides, but break longer thoughts into separate sentences rather than stringing them with dashes. This applies everywhere: client emails, owner reports, even internal notes drafted in his voice.\n- **Light typos and casual punctuation are fine.** Don't over-polish. He'll write \"lol\", \"haha\", a missed apostrophe, or \"underperformaning\". Keeping a small imperfection makes it sound real.\n- **Honest hedges.** \"We know this sounds risky and we're in uncharted territory\" / \"in any case happy to jump on a call\". He admits uncertainty rather than over-promising.\n- **Concrete commitments at the end.** \"I'm happy to start making pricing adjustments today if you'd like\" / \"Let me know what you think\" / \"happy to walk through any of it on a call\". He gives the owner a clear next step.\n- **Reassurance close, often with a smiley.** \"Just want to make sure you feel good about the plan and confident that we'll hit our revenue goals (and ideally beat them!)\" / \"we always aim to achieve higher results :)\"\n- **Sign-off**: \"Federico\" for more formal owner reports, \"Fede\" for warm threads with regular owners.\n\n## Phrases to NOT use (sound like a consultant, not Fede)\n\n- \"On Bowman,\" / \"On Pine Grove,\" as a paragraph opener — too clipped. He'd say \"Bowman is doing X\" or \"For Pine Grove, ...\"\n- \"The honest read\" / \"the data shows\" / \"directionally\" — analyst voice.\n- \"I'd hold the current strategy\" — passive and detached. He'd say \"I'd give the strategy another 30 days\" or \"let's let it ride for 30 more days\".\n- \"outran demand\" / \"the property absorbed\" / \"we pushed further than\" — abstract. He'd say \"we pushed rate a bit too aggressively\" or \"the rate move didn't get accepted\".\n- \"Bottom line\" / \"key takeaway\" — corporate.\n- Bullet points in casual reply emails. Bullets are fine in structured analyses (Property Analysis, Owner Report). For replies to client concerns, he writes in flowing paragraphs.\n\n## When the data is mixed (some listings winning, some losing)\n\nMirror the structure he used in the Leslie thread: acknowledge the owner's concern first, give the framework you're tracking against (current pace vs STLY vs LY, or vs market), share the specific numbers, then either defend the strategy with evidence OR own the miss and commit to a correction. Don't do the same thing for all listings in one email — adapt per listing.\n\n## When admitting a miss (like Pine Grove)\n\nHe owns it directly but constructively. Pattern from \"Pricing Update\" thread with Abby: acknowledge → name the specific adjustment being made → give the framework being used to monitor → offer a call. Don't pad with apology language. One direct sentence + the fix + the monitoring plan is the right length.\n\n## Reference snippets (real Fede)\n\n**Casual + numbers + emoji close (Hunt May Bookings):**\n\n> Hi Guys!\n>\n> Looks like we're closing May with $7504.38 on the books, which is a 27% increase from the $5900 from May 2024, with the booking we just got!\n>\n> We have 87% occupancy vs 57% market occupancy. Our RevPar (ADR/Occ) is $181.63 vs $139.41 Mkt, and occupancy in the market is 10% down from last year.\n>\n> Wanted to share this good news but it's too late to text, lol!\n>\n> I know June is coming slow still, but May's booking window was 10 days, which is a huge drop from last year, so we may expect to see lots of last minute!\n>\n> Thanks again for staying on top of our performance and want to make sure you know we're working hard on making this property profitable so you can get many more for us to manage :)\n>\n> Fede\n\n**Defending strategy after owner pushback (Leslie Nightly Rate Question):**\n\n> Hi Leslie! Thanks so much for your email — I really appreciate your insights to making sure we stay on track for our summer goals.\n>\n> To give you a transparent view into how we're tracking performance, we're actively monitoring a dashboard called \"Summer 2025 FU\" that compares three key indicators: Current Pace, Last Year (LY), and Same Time Last Year (STLY)...\n>\n> This tells us that market demand is currently stronger than last year at this point, up more than 7 points STLY — a very positive sign. Our current occupancy is behind, but we're also holding at a much higher ADR — up ~64% vs. STLY and ~69% vs. LY — which means we have rate strength to work with.\n>\n> We're currently in what we call the \"premium capture window\"...\n>\n> That said, I'm more than happy to start making pricing adjustments today if you'd like to begin moving the needle sooner. Just want to make sure you feel good about the plan and confident that we'll hit our revenue goals (and ideally beat them!).\n\n**Acknowledging slow performance + small adjustment (Abby Sharp Pricing Update):**\n\n> Hi Abby! How are you?\n>\n> We've been reviewing the booking data with Gaston, who supports me on Revenue Management, and made some adjustments to lower future rates slightly — this should help open up the booking window and align with your great suggestion.\n>\n> Looking at past data across Airbnb, VRBO, and upcoming bookings, March 2025 was slower compared to previous years. But we're optimistic that with the adjustments we've made, we're on track to close the gap with April and May...\n>\n> Hope you find this helpful, in any case would love to jump on a call to walk you through this data and chat more ideas :) Let me know when it's good!\n>\n> Federico\n\n**Tight rate-led summary (Guatemala Owner Report):**\n\n> April's report is attached.\n>\n> A rate-led month: net revenue closed at $3,241 — up 15.5% on April 2025, with ADR climbing 44% over the same period. Occupancy gave back about seven points as the season tapers, which is the expected trade as price moves up the curve.\n>\n> One operations item and a pricing observation flagged inside.\n>\n> Happy to walk through any of it on a call.\n>\n> — Federico\n",
+   "notes": "- Numbers come from the Rankbreeze file; the skill writes the wording.\n- Next step (roadmap 1): fold into one listing-review skill that runs the whole [[playbooks/listing-optimization]] flow, together with `airbnb-audit`.",
+   "path": "skills/revfactor-listing-review/README.md"
+  }
+ ],
+ "roadmap": [
+  {
+   "id": "listing-review",
+   "item": "Listing review (Jacob, then Brandy, Blue, Spencer, then ~300 on the cheap pipeline)",
+   "playbook": "playbooks/listing-optimization",
+   "needs": [
+    "airbnb-audit in repo",
+    "one listing-review skill that runs the whole playbook"
+   ]
+  },
+  {
+   "id": "onboarding-v2",
+   "item": "Onboarding v2 (GHL form, call script, launch report)",
+   "playbook": "playbooks/onboarding-v2",
+   "needs": [
+    "prep pack skill",
+    "call notes to goals record",
+    "setup spec draft",
+    "launch report skill"
+   ]
+  },
+  {
+   "id": "goals-and-targets",
+   "item": "Goals and targets",
+   "playbook": "playbooks/goals-and-targets",
+   "needs": [
+    "targets skill (stage and market support in code, wording by AI)"
+   ]
+  },
+  {
+   "id": "client-education",
+   "item": "Client education (taxes, then guest count)",
+   "playbook": "skills/explain-markups-and-discounts",
+   "needs": [
+    "client-explainer skill over approved pages",
+    "guest-count education piece"
+   ]
+  },
+  {
+   "id": "pricing",
+   "item": "Pricing frameworks",
+   "playbook": "playbooks/comp-analysis",
+   "needs": [
+    "framework pages: setup spec, base-price method, min-stay profiles, pacing definition"
+   ]
+  },
+  {
+   "id": "retention",
+   "item": "Retention (\"revenue is down\")",
+   "playbook": null,
+   "needs": [
+    "revenue-down diagnosis playbook and skill (Kate Henry case)",
+    "confirm str-revenue-analysis"
+   ]
   }
  ]
 }

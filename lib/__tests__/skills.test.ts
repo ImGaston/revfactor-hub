@@ -6,6 +6,8 @@ import {
   normalizeSkillCatalog,
   resolveWikiLinks,
   sortSkills,
+  stripFrontmatter,
+  toSkillListItem,
 } from "@/lib/skills"
 
 describe("skills catalog", () => {
@@ -55,5 +57,30 @@ describe("skills catalog", () => {
     expect(out).toContain(
       "[the playbook](https://github.com/federzimer/wikifactor/blob/main/playbooks/comp-analysis.md)"
     )
+  })
+
+  it("reads runnable stages and the roadmap", () => {
+    const catalog = normalizeSkillCatalog({
+      skills: [
+        {
+          id: "run",
+          name: "Run",
+          kind: "runnable",
+          stageLevel: "tested on 5",
+          inRepo: true,
+          skillMarkdown: "---\nname: run\n---\n# Body",
+          roadmapIds: ["listing-review"],
+        },
+        { id: "odd", name: "Odd", kind: "runnable", stageLevel: "sometime" },
+      ],
+      roadmap: [{ id: "listing-review", item: "Listing review", needs: ["x", 2] }, { id: "" }],
+    })
+    expect(catalog.skills[0]).toMatchObject({ stageLevel: "tested on 5", inRepo: true })
+    expect(catalog.skills[1].stageLevel).toBeNull()
+    expect(catalog.roadmap).toEqual([
+      { id: "listing-review", item: "Listing review", playbook: null, needs: ["x"] },
+    ])
+    expect(stripFrontmatter(catalog.skills[0].skillMarkdown ?? "")).toBe("# Body")
+    expect(toSkillListItem(catalog.skills[0])).not.toHaveProperty("skillMarkdown")
   })
 })

@@ -33,8 +33,11 @@ import {
   WIKIFACTOR_REPO_URL,
   filterSkills,
   isRunnable,
+  stageTone,
   statusTone,
+  wikiPageHref,
   type SkillListItem,
+  type SkillRoadmapItem,
   type SkillStatusLevel,
 } from "@/lib/skills"
 
@@ -42,9 +45,11 @@ const ALL = "__all"
 
 export function SkillsView({
   skills,
+  roadmap,
   sourceRevision,
 }: {
   skills: SkillListItem[]
+  roadmap: SkillRoadmapItem[]
   sourceRevision: string | null
 }) {
   const [q, setQ] = useState("")
@@ -129,6 +134,8 @@ export function SkillsView({
         )}
       </div>
 
+      {roadmap.length > 0 && !filtered && <RoadmapGaps roadmap={roadmap} skills={skills} />}
+
       {visible.length === 0 ? (
         <Empty>
           <EmptyHeader>
@@ -193,9 +200,7 @@ function SkillGrid({ skills }: { skills: SkillListItem[] }) {
           <Card className="h-full transition-colors group-hover:bg-muted/40">
             <CardHeader>
               <div className="flex flex-wrap items-center gap-1.5">
-                <Badge variant={statusTone(s.statusLevel)} className="capitalize">
-                  {s.statusLevel}
-                </Badge>
+                <SkillLevelBadge skill={s} />
                 {isRunnable(s) ? (
                   <Badge variant="secondary">
                     <Zap data-icon="inline-start" />
@@ -226,5 +231,88 @@ function SkillGrid({ skills }: { skills: SkillListItem[] }) {
         </Link>
       ))}
     </div>
+  )
+}
+
+/** Runnable skills show their stage; frameworks show how settled they are. */
+export function SkillLevelBadge({ skill }: { skill: SkillListItem }) {
+  if (isRunnable(skill) && skill.stageLevel) {
+    return (
+      <Badge variant={stageTone(skill.stageLevel)} className="capitalize">
+        {skill.stageLevel}
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant={statusTone(skill.statusLevel)} className="capitalize">
+      {skill.statusLevel}
+    </Badge>
+  )
+}
+
+function RoadmapGaps({
+  roadmap,
+  skills,
+}: {
+  roadmap: SkillRoadmapItem[]
+  skills: SkillListItem[]
+}) {
+  const knownIds = new Set(skills.map((s) => s.id))
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Roadmap gaps</CardTitle>
+        <CardDescription>What each roadmap item still needs before it can run.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ol className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {roadmap.map((r, i) => {
+            const runnables = skills.filter((s) => isRunnable(s) && s.roadmapIds.includes(r.id))
+            return (
+              <li key={r.id} className="flex flex-col gap-2 text-sm">
+                <div className="font-medium">
+                  {i + 1}. {r.item}
+                </div>
+                {r.needs.length > 0 && (
+                  <ul className="list-disc pl-5 text-muted-foreground">
+                    {r.needs.map((n) => (
+                      <li key={n}>{n}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {r.playbook && <WikiPageBadge path={r.playbook} knownIds={knownIds} />}
+                  {runnables.map((s) => (
+                    <Badge key={s.id} variant="secondary" asChild>
+                      <Link href={`/skills/${s.id}`}>
+                        <Zap data-icon="inline-start" />
+                        {s.name}
+                      </Link>
+                    </Badge>
+                  ))}
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Links a wikifactor page: skill pages stay in the Hub, others open wikifactor. */
+export function WikiPageBadge({ path, knownIds }: { path: string; knownIds: Set<string> }) {
+  const href = wikiPageHref(path, knownIds)
+  const label = path.split("/").pop()
+  return (
+    <Badge variant="outline" asChild>
+      {href.startsWith("/") ? (
+        <Link href={href}>{label}</Link>
+      ) : (
+        <a href={href} target="_blank" rel="noreferrer">
+          {label}
+        </a>
+      )}
+    </Badge>
   )
 }

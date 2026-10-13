@@ -5,4 +5,4 @@
 set -euo pipefail
 HUB="$(cd "$(dirname "$0")/.." && pwd)"
 WIKI="$(cd "${1:-$HUB/../wikifactor}" && pwd)"
-python3 "$WIKI/tools/brain/export_skills.py" "$HUB/data/wikifactor/skills.json"
+python3 "$WIKI/tools/brain/export_catalog.py" "$HUB/data/wikifactor/skills.json"
