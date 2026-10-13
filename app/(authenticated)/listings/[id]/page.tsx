@@ -166,6 +166,7 @@ export default async function ListingPage({
       }
       subscriptionOptions={subscriptionOptions}
       clientCustomerIds={clientCustomerIds}
+      canViewPricingPlan={canViewReservations}
       reservationsCard={
         canViewReservations ? (
           <RecentReservationsCard

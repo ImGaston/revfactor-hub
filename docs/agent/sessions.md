@@ -877,3 +877,6 @@ Added `/portal/optimization` (Assembly Custom App iframe; server-validated sessi
 
 ## 2026-10-13 — Listing review owner message ("Publish & send")
 Added `owner_message` (+ sent at/by/Assembly id) to reviews (migration `20261013150000_listing_optimization_owner_message.sql`, applied), a deterministic message builder with tests, an editable message panel and "Publish & send" / "Send message" on `/listing-optimization/[id]`, sending through the Assembly API with a `NotifyOwnerOfReview` event. Backfilled messages for the 4 existing reviews (Jacob's review was already published; his message is unsent).
+
+## 2026-10-13 — Listing Pricing plan tab (read-only v1)
+Added the Pricing plan tab on `/listings/[id]` (reservations:view): suggestions, revenue by month with expected pickup, booking curve, channel math with payout ladder, owner economics, editable 12-month targets with pace, channel history. Pure math in `lib/pricing-plan.ts` with tests; data loaded on tab open from `pricelabs_reservations_cache` (no guest names). Phase 2 (saved/approved plans → adjustments) proposed in `docs/pricing-plan.md`.

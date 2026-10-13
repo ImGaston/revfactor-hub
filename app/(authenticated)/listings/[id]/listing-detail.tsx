@@ -29,6 +29,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PricingPlanTab } from "./pricing-plan-tab"
 import { cn } from "@/lib/utils"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { AirbnbCalendarButton } from "@/components/listings/airbnb-calendar-button"
@@ -175,6 +176,7 @@ export function ListingDetail({
   clientCustomerIds = [],
   reservationsCard = null,
   canViewClient = false,
+  canViewPricingPlan = false,
 }: {
   listing: ListingWithMetrics
   client: ClientData
@@ -186,6 +188,8 @@ export function ListingDetail({
   subscriptionOptions?: ListingSubscriptionOption[]
   clientCustomerIds?: string[]
   reservationsCard?: React.ReactNode
+  /** Pricing plan tab needs reservations:view (it reads synced reservations). */
+  canViewPricingPlan?: boolean
 }) {
   // A listing is reached through its client, so back returns there rather than
   // to the flat listings table. Falls back when there is no client, or when the
@@ -509,6 +513,7 @@ export function ListingDetail({
           <TabsTrigger value="market">Market Position</TabsTrigger>
           <TabsTrigger value="window">Booking Window</TabsTrigger>
           <TabsTrigger value="pacing">Pacing</TabsTrigger>
+          {canViewPricingPlan && <TabsTrigger value="pricing-plan">Pricing plan</TabsTrigger>}
         </TabsList>
 
         {/* ─── Overview Tab (Report Builder) ───────────────── */}
@@ -530,6 +535,16 @@ export function ListingDetail({
         <TabsContent value="pacing" className="space-y-4">
           <ReportPacing report={report} />
         </TabsContent>
+
+        {/* ─── Pricing plan (loads its data when opened) ───── */}
+        {canViewPricingPlan && (
+          <TabsContent value="pricing-plan" className="space-y-4">
+            <PricingPlanTab
+              listingId={listing.id}
+              current={{ min: listing.pl_min_price ?? null, base: listing.pl_base_price ?? null, max: listing.pl_max_price ?? null }}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* ─── Recent Reservations (server-rendered slot) ────
