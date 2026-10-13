@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ACTION_FAILED_MESSAGE } from "@/lib/listing-optimization"
 import { publishAndSendAction, setOptimizationReportStatusAction } from "../actions"
 
 export function ReportStatusControls({
@@ -46,7 +47,13 @@ export function ReportStatusControls({
 
   function publishAndSend() {
     startTransition(async () => {
-      const result = await publishAndSendAction(reportId, ownerMessage)
+      let result: Awaited<ReturnType<typeof publishAndSendAction>>
+      try {
+        result = await publishAndSendAction(reportId, ownerMessage)
+      } catch {
+        toast.error(ACTION_FAILED_MESSAGE)
+        return
+      }
       if (!result.ok) {
         toast.error(
           result.published
@@ -63,7 +70,13 @@ export function ReportStatusControls({
 
   function setStatus(next: "draft" | "published" | "archived") {
     startTransition(async () => {
-      const result = await setOptimizationReportStatusAction(reportId, next)
+      let result: Awaited<ReturnType<typeof setOptimizationReportStatusAction>>
+      try {
+        result = await setOptimizationReportStatusAction(reportId, next)
+      } catch {
+        toast.error(ACTION_FAILED_MESSAGE)
+        return
+      }
       if (!result.ok) {
         toast.error(result.error)
         return

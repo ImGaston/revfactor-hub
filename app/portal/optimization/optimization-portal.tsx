@@ -38,6 +38,7 @@ import {
   type OptimizationDecision,
   type OptimizationItem,
   type OptimizationReport,
+  ACTION_FAILED_MESSAGE,
   OPTIMIZATION_SECTIONS,
 } from "@/lib/listing-optimization"
 import { passedChecks } from "@/lib/listing-optimization-checks"
@@ -676,14 +677,20 @@ function ItemRow({
 
   function run(decision: OptimizationDecision) {
     startTransition(async () => {
-      const result = await decide({
-        token,
-        item,
-        decision,
-        choice: decision === "accept" ? choice : null,
-        note: showNote ? note : null,
-        preview,
-      })
+      let result: Awaited<ReturnType<typeof decide>>
+      try {
+        result = await decide({
+          token,
+          item,
+          decision,
+          choice: decision === "accept" ? choice : null,
+          note: showNote ? note : null,
+          preview,
+        })
+      } catch {
+        toast.error(ACTION_FAILED_MESSAGE)
+        return
+      }
       if (result.ok) {
         onItem(result.item)
         setEditing(false)
