@@ -9,6 +9,8 @@ import {
   type OptimizationReport,
 } from "@/lib/listing-optimization"
 import type { PortalViewer } from "@/lib/assembly-portal-session.server"
+import { buildOwnerMessage } from "@/lib/listing-optimization-message"
+import { getCompanyChannels, getOrCreateMessageChannel, sendAssemblyMessage } from "@/lib/assembly"
 import {
   CHECKLIST_VERSION,
   gradeSections,
@@ -23,6 +25,7 @@ export type OptimizationAction =
   | "ArchiveListingReview"
   | "DecideSuggestion"
   | "MarkOwnerTaskDone"
+  | "NotifyOwnerOfReview"
 
 /** Append-only ontology audit row. Failures are logged, never thrown. */
 export async function logEvent(input: {
@@ -302,7 +305,7 @@ export async function createDraftReport(
 
   const { data: client } = await supabase
     .from("clients")
-    .select("id")
+    .select("id, name")
     .eq("id", input.client_id)
     .maybeSingle()
   if (!client) return { ok: false, status: 404, error: "Client not found" }
@@ -335,6 +338,11 @@ export async function createDraftReport(
         : {}),
       checks: input.checks,
       checklist_version: CHECKLIST_VERSION,
+      owner_message: buildOwnerMessage({
+        ownerName: client.name,
+        items: input.items,
+        channelManager: input.report.channel_manager,
+      }),
       status: "draft",
       source: input.source,
       created_by: createdBy,
@@ -424,12 +432,16 @@ export async function loadStaffReport(
   status: string
   clientName: string | null
   channelManager: string | null
+  ownerMessage: string | null
+  ownerMessageSentAt: string | null
 } | null> {
   const { createClient } = await import("@/lib/supabase/server")
   const supabase = await createClient()
   const { data: r } = await supabase
     .from("listing_optimization_reports")
-    .select(`${REPORT_COLUMNS}, status, channel_manager, clients:clients_basic(name)`)
+    .select(
+      `${REPORT_COLUMNS}, status, channel_manager, owner_message, owner_message_sent_at, clients:clients_basic(name)`
+    )
     .eq("id", id)
     .maybeSingle()
   if (!r) return null
@@ -442,6 +454,8 @@ export async function loadStaffReport(
   return {
     status: r.status,
     channelManager: (r as { channel_manager?: string | null }).channel_manager ?? null,
+    ownerMessage: (r as { owner_message?: string | null }).owner_message ?? null,
+    ownerMessageSentAt: (r as { owner_message_sent_at?: string | null }).owner_message_sent_at ?? null,
     clientName: (Array.isArray(client) ? client[0]?.name : client?.name) ?? null,
     report: {
       id: r.id,
@@ -458,4 +472,75 @@ export async function loadStaffReport(
       items: ((items ?? []) as ItemRow[]).map(toItem),
     },
   }
+}
+
+/**
+ * Sends a published review's owner message to the client's Assembly chat
+ * (the company channel when the client belongs to one, else their individual
+ * channel). Callers must have checked the staff user's permission. Sends at
+ * most once per review; logs NotifyOwnerOfReview.
+ */
+export async function sendReviewOwnerMessage(input: {
+  reportId: string
+  actorUserId: string | null
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createAdminClient()
+  const { data: report } = await supabase
+    .from("listing_optimization_reports")
+    .select("id, client_id, status, owner_message, owner_message_sent_at")
+    .eq("id", input.reportId)
+    .maybeSingle()
+  if (!report) return { ok: false, error: "Review not found." }
+  if (report.status !== "published") return { ok: false, error: "Publish the review before sending the message." }
+  if (report.owner_message_sent_at) return { ok: false, error: "The message was already sent." }
+  const text = report.owner_message?.trim()
+  if (!text) return { ok: false, error: "The message is empty." }
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("assembly_client_id, assembly_company_id")
+    .eq("id", report.client_id)
+    .maybeSingle()
+  if (!client?.assembly_client_id) {
+    return { ok: false, error: "This client isn't linked to Assembly yet." }
+  }
+
+  let channelId: string
+  try {
+    const company = client.assembly_company_id
+      ? (await getCompanyChannels(client.assembly_client_id)).find(
+          (c) => c.companyId === client.assembly_company_id
+        )
+      : undefined
+    channelId = company?.id ?? (await getOrCreateMessageChannel(client.assembly_client_id)).id
+  } catch (error) {
+    console.error("listing optimization: assembly channel lookup failed", error)
+    return { ok: false, error: "Couldn't find the client's Assembly chat." }
+  }
+
+  let messageId: string | null = null
+  try {
+    const sent = await sendAssemblyMessage(channelId, text)
+    messageId = sent?.id ?? null
+  } catch (error) {
+    console.error("listing optimization: assembly send failed", error)
+    return { ok: false, error: "Assembly didn't accept the message. Try again." }
+  }
+
+  await supabase
+    .from("listing_optimization_reports")
+    .update({
+      owner_message_sent_at: new Date().toISOString(),
+      owner_message_sent_by: input.actorUserId,
+      owner_message_assembly_id: messageId,
+    })
+    .eq("id", report.id)
+  await logEvent({
+    reportId: report.id,
+    action: "NotifyOwnerOfReview",
+    actorType: "staff",
+    actorId: input.actorUserId,
+    details: { channel_id: channelId, assembly_message_id: messageId },
+  })
+  return { ok: true }
 }

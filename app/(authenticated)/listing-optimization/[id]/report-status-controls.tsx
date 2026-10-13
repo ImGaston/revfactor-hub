@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { setOptimizationReportStatusAction } from "../actions"
+import { publishAndSendAction, setOptimizationReportStatusAction } from "../actions"
 
 export function ReportStatusControls({
   reportId,
@@ -28,6 +28,8 @@ export function ReportStatusControls({
   canEdit,
   coverage,
   channelManager,
+  ownerMessage,
+  messageSent,
 }: {
   reportId: string
   status: string
@@ -35,9 +37,29 @@ export function ReportStatusControls({
   canEdit: boolean
   coverage: { checked: number; total: number; complete: boolean }
   channelManager: string | null
+  /** Current (possibly unsaved) owner message text from the message panel. */
+  ownerMessage: string
+  messageSent: boolean
 }) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  function publishAndSend() {
+    startTransition(async () => {
+      const result = await publishAndSendAction(reportId, ownerMessage)
+      if (!result.ok) {
+        toast.error(
+          result.published
+            ? `Published, but the message didn't send: ${result.error} Use "Send message" to retry.`
+            : result.error
+        )
+        if (result.published) router.refresh()
+        return
+      }
+      toast.success("Published and sent to the owner's Assembly chat.")
+      router.refresh()
+    })
+  }
 
   function setStatus(next: "draft" | "published" | "archived") {
     startTransition(async () => {
@@ -91,11 +113,27 @@ export function ReportStatusControls({
                   <AlertDialogDescription>
                     The owner will see it in their portal. Publishing approves every suggestion in
                     it: anything they accept goes straight to the apply queue in Adjustments.
+                    {!messageSent && ownerMessage.trim()
+                      ? " Publish & send also posts the message below to their Assembly chat."
+                      : ""}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                {!messageSent && ownerMessage.trim() && (
+                  <pre className="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
+                    {ownerMessage.trim()}
+                  </pre>
+                )}
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => setStatus("published")}>Publish</AlertDialogAction>
+                  <AlertDialogAction
+                    className="bg-transparent text-foreground hover:bg-muted"
+                    onClick={() => setStatus("published")}
+                  >
+                    Publish only
+                  </AlertDialogAction>
+                  {!messageSent && ownerMessage.trim() && (
+                    <AlertDialogAction onClick={publishAndSend}>Publish &amp; send</AlertDialogAction>
+                  )}
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
