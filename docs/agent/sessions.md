@@ -2,7 +2,7 @@
 
 ## 2026-10-13 — Skills section (`/skills`)
 
-Added a read-only Skills catalog: `lib/skills.ts` (defensive normalizer, sort/filter, wiki-link resolver), `app/(authenticated)/skills/` list (search plus kind/area/status filters, retired at the bottom) and `[id]` detail (facts, sections as markdown, runs/run-by links, "Open in wikifactor"), nav key `skills`. Data is `data/wikifactor/skills.json` from wikifactor `export_skills.py`. Tests: `lib/__tests__/skills.test.ts`.
+Added a read-only Skills catalog: `lib/skills.ts` (defensive normalizer, sort/filter, wiki-link resolver), `app/(authenticated)/skills/` list (search plus kind/area/status filters, retired at the bottom) and `[id]` detail (facts, sections as markdown, runs/run-by links, "Open in wikifactor"), nav key `skills`. Data is `data/wikifactor/skills.json` from wikifactor `export_catalog.py`: runnable skills show their stage and SKILL.md, and the list opens with a Roadmap gaps block. Tests: `lib/__tests__/skills.test.ts`.
 
 ## 2026-10-09 — Support: ask digest from the whole thread, AI merge check
 
