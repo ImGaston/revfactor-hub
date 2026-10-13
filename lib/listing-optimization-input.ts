@@ -60,6 +60,8 @@ export const draftReportSchema = z.object({
       .transform((grades) =>
         Object.fromEntries(Object.entries(grades).filter(([k]) => (sectionKeys as string[]).includes(k)))
       ),
+    // PMS that syncs content to Airbnb (e.g. "Guesty"); null = edited in Airbnb.
+    channel_manager: optionalText(80),
     owner_line: optionalText(500),
     summary: optionalText(1500),
     audited_at: z.string().datetime({ offset: true }).nullish().transform((v) => v ?? null),

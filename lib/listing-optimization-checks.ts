@@ -26,7 +26,7 @@ export type CheckDefinition = {
 }
 
 /** Bump when checks are added/removed so old reports stay interpretable. */
-export const CHECKLIST_VERSION = "2026-10-12"
+export const CHECKLIST_VERSION = "2026-10-13"
 
 export const LISTING_CHECKS: CheckDefinition[] = [
   // Title
@@ -53,6 +53,9 @@ export const LISTING_CHECKS: CheckDefinition[] = [
   { id: "photos.real", section: "photos", label: "Only real photos of the place (no graphics or text images)", source: "guest", part: "ota_style", points: 1, kind: "change" },
   { id: "photos.tour_rooms", section: "photos", label: "Every photo is assigned to a room in the photo tour", source: "host", part: "completion", points: 2, kind: "change" },
   { id: "photos.sleeping_match", section: "photos", label: "Bedroom photos match the sleeping arrangements", source: "guest", part: "structure", points: 1, kind: "change" },
+  { id: "photos.alt_text", section: "photos", label: "Photos have visual descriptions (alt text)", source: "host", part: "ota_style", points: 1, kind: "change" },
+  { id: "photos.room_details", section: "photos", label: "Photo tour rooms list their amenities, privacy and accessibility", source: "host", part: "completion", points: 2, kind: "change" },
+  { id: "property.details", section: "other", label: "Property details (type, floors, floor, year built, size)", source: "host", part: "completion", points: 1, kind: "change" },
 
   // Captions
   { id: "captions.coverage", section: "captions", label: "Photos have captions", source: "guest", part: "ota_style", points: 3, kind: "change" },
@@ -68,6 +71,7 @@ export const LISTING_CHECKS: CheckDefinition[] = [
   { id: "location.neighborhood", section: "location", label: "Neighborhood description", source: "host", part: "completion", points: 2, kind: "change" },
   { id: "location.getting_around", section: "location", label: "Getting around", source: "host", part: "completion", points: 1, kind: "change" },
   { id: "location.scenic_views", section: "location", label: "Scenic views", source: "host", part: "seo", points: 1, kind: "change" },
+  { id: "location.features", section: "location", label: "Location features (beach, resort, waterfront, private entrance)", source: "host", part: "seo", points: 1, kind: "change" },
   { id: "location.pin", section: "location", label: "Exact map location shown", source: "host", part: "seo", points: 1, kind: "owner_choice" },
   { id: "location.verified", section: "location", label: "Location verified with Airbnb", source: "host", part: "completion", points: 1, kind: "owner_task" },
 
@@ -78,6 +82,10 @@ export const LISTING_CHECKS: CheckDefinition[] = [
   { id: "rules.capacity", section: "rules_settings", label: "Guest count matches the beds", source: "guest", part: "structure", points: 1, kind: "owner_choice" },
   { id: "rules.sleeping", section: "rules_settings", label: "Sleeping arrangements match the description", source: "host", part: "structure", points: 1, kind: "change" },
   { id: "settings.instant_book", section: "rules_settings", label: "Instant Book", source: "host", part: "seo", points: 1, kind: "owner_choice" },
+  { id: "settings.guest_requirements", section: "rules_settings", label: "Guest requirements (track record, profile photo)", source: "host", part: "seo", points: 1, kind: "owner_choice" },
+  { id: "settings.booking_message", section: "rules_settings", label: "Message shown to guests before they book", source: "host", part: "completion", points: 1, kind: "change" },
+  { id: "settings.custom_link", section: "other", label: "Custom listing link", source: "host", part: "seo", points: 1, kind: "change" },
+  { id: "settings.languages", section: "other", label: "Listing languages and translations", source: "host", part: "seo", points: 1, kind: "owner_choice" },
   { id: "settings.cancellation", section: "rules_settings", label: "Cancellation policy fits the market", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "safety.devices", section: "rules_settings", label: "Safety devices listed", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "safety.disclosures", section: "rules_settings", label: "Safety disclosures are accurate", source: "host", part: "completion", points: 1, kind: "owner_choice" },
@@ -90,6 +98,7 @@ export const LISTING_CHECKS: CheckDefinition[] = [
   { id: "arrival.house_manual", section: "arrival", label: "House manual", source: "host", part: "completion", points: 1, kind: "owner_choice" },
   { id: "arrival.checkout", section: "arrival", label: "Checkout instructions", source: "host", part: "completion", points: 1, kind: "change" },
   { id: "arrival.guidebook", section: "arrival", label: "Guidebook", source: "host", part: "completion", points: 1, kind: "change" },
+  { id: "arrival.interaction", section: "arrival", label: "How you'll interact with guests", source: "host", part: "completion", points: 1, kind: "owner_choice" },
 
   // Host profile
   { id: "profile.about", section: "host_profile", label: "Host profile filled in (about you, profile questions)", source: "guest", part: "completion", points: 2, kind: "owner_task" },

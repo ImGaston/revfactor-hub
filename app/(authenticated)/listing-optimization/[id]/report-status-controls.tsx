@@ -27,12 +27,14 @@ export function ReportStatusControls({
   clientName,
   canEdit,
   coverage,
+  channelManager,
 }: {
   reportId: string
   status: string
   clientName: string | null
   canEdit: boolean
   coverage: { checked: number; total: number; complete: boolean }
+  channelManager: string | null
 }) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
@@ -69,6 +71,9 @@ export function ReportStatusControls({
       </Badge>
       <Badge variant={coverage.complete ? "outline" : "destructive"}>
         {coverage.checked}/{coverage.total} checks{coverage.complete ? "" : " · partial"}
+      </Badge>
+      <Badge variant="outline">
+        {channelManager ? `Content synced from ${channelManager}` : "Edited in Airbnb"}
       </Badge>
       <span className="text-xs text-muted-foreground">Staff preview: this is what the owner sees.</span>
       {canEdit && (

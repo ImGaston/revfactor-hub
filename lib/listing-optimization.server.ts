@@ -116,7 +116,12 @@ export async function loadPublishedReports(hubClientId: string): Promise<Optimiz
   }))
 }
 
-function adjustmentMessage(item: ItemRow, choice: string | null, note: string | null): string {
+function adjustmentMessage(
+  item: ItemRow,
+  choice: string | null,
+  note: string | null,
+  channelManager: string | null
+): string {
   const lines = [
     `Owner accepted a listing suggestion in the portal (${sectionLabel(item.section)}).`,
     `Suggestion: ${item.headline}`,
@@ -124,7 +129,11 @@ function adjustmentMessage(item: ItemRow, choice: string | null, note: string | 
   if (item.current_value) lines.push(`Current: ${item.current_value}`)
   if (choice) lines.push(`Apply: ${choice}`)
   if (note) lines.push(`Owner note: ${note}`)
-  lines.push("Apply through the co-host seat, then mark the portal item applied.")
+  lines.push(
+    channelManager
+      ? `This listing's content is synced from ${channelManager}: apply the change in ${channelManager}, not in Airbnb, or the next sync overwrites it. Then resolve this adjustment.`
+      : "Apply through the co-host seat in Airbnb, then resolve this adjustment."
+  )
   return lines.join("\n")
 }
 
@@ -155,7 +164,7 @@ export async function recordOwnerDecision(input: {
   const { data: row, error } = await supabase
     .from("listing_optimization_items")
     .select(
-      `${ITEM_COLUMNS}, listing_optimization_reports!inner(id, client_id, status, listing_id)`
+      `${ITEM_COLUMNS}, listing_optimization_reports!inner(id, client_id, status, listing_id, channel_manager)`
     )
     .eq("id", input.itemId)
     .maybeSingle()
@@ -168,6 +177,7 @@ export async function recordOwnerDecision(input: {
         client_id: string
         status: string
         listing_id: string | null
+        channel_manager: string | null
       }
     }
   ).listing_optimization_reports
@@ -204,7 +214,7 @@ export async function recordOwnerDecision(input: {
           urgency: item.priority === "high" ? "high" : "medium",
           status: "open",
           requested_by: viewer.displayName,
-          origin_message: adjustmentMessage(item, checked.choice, checked.note),
+          origin_message: adjustmentMessage(item, checked.choice, checked.note, report.channel_manager),
         })
         .select("id")
         .single()
@@ -219,7 +229,7 @@ export async function recordOwnerDecision(input: {
       await supabase
         .from("adjustments")
         .update({
-          origin_message: adjustmentMessage(item, checked.choice, checked.note),
+          origin_message: adjustmentMessage(item, checked.choice, checked.note, report.channel_manager),
           status: "open",
           updated_at: now,
         })
@@ -409,12 +419,17 @@ export async function loadStaffReports(): Promise<StaffReportRow[]> {
 /** One report in the owner-facing shape, for staff preview (RLS: listings:view). */
 export async function loadStaffReport(
   id: string
-): Promise<{ report: OptimizationReport; status: string; clientName: string | null } | null> {
+): Promise<{
+  report: OptimizationReport
+  status: string
+  clientName: string | null
+  channelManager: string | null
+} | null> {
   const { createClient } = await import("@/lib/supabase/server")
   const supabase = await createClient()
   const { data: r } = await supabase
     .from("listing_optimization_reports")
-    .select(`${REPORT_COLUMNS}, status, clients:clients_basic(name)`)
+    .select(`${REPORT_COLUMNS}, status, channel_manager, clients:clients_basic(name)`)
     .eq("id", id)
     .maybeSingle()
   if (!r) return null
@@ -426,6 +441,7 @@ export async function loadStaffReport(
   const client = (r as { clients?: { name: string } | { name: string }[] | null }).clients
   return {
     status: r.status,
+    channelManager: (r as { channel_manager?: string | null }).channel_manager ?? null,
     clientName: (Array.isArray(client) ? client[0]?.name : client?.name) ?? null,
     report: {
       id: r.id,

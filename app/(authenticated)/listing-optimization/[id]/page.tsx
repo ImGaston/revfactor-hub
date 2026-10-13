@@ -24,6 +24,7 @@ export default async function ListingOptimizationReportPage({
         status={data.status}
         clientName={data.clientName}
         canEdit={canEdit}
+        channelManager={data.channelManager}
         coverage={{ checked: coverage.checked, total: coverage.total, complete: coverage.complete }}
       />
       {/* Exactly what the owner sees in the portal, read-only for staff. */}
