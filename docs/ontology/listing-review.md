@@ -17,6 +17,8 @@ Fold this into RM `docs/ontology.md` when phase 0 lands.
 | Suggestion (Recommendation) | `listing_optimization_items.id` | `listing_optimization_items` | ListingReview, ReviewCheck (`check_id`), Adjustment (`adjustment_id`) | same | built (branch) |
 | ReviewEvent (Decision/audit) | `listing_optimization_events.id` | `listing_optimization_events` (append-only) | ListingReview, Suggestion | `listings:view` | built (branch) |
 | Adjustment (Execution) | `adjustments.id` | `adjustments`, type `listing_content` | Listing/Client | existing | live (type added on branch) |
+| AirbnbListingField | `card::field` | `lib/airbnb-listing-fields.ts` (305 editable editor fields, 2026-10-13) | ReviewCheck (`checks[]`) or `recordOnly` reason | code | built (branch) |
+| ChannelManager (property of ListingReview) | `listing_optimization_reports.channel_manager` | Airbnb editor settings → property management software | ListingReview; decides where Execution happens | `listings:view` | built (branch) |
 | OnboardingRun | `onboarding_runs.id` | `onboarding_runs` | Client | existing | live, not used by GHL-native flow |
 | OwnerGoal (per listing) | planned | GHL `revfactor_listings` fields mirrored to Hub | Listing, Client | `clients:view` (financial fields scoped) | planned (wikifactor playbooks/onboarding-v2.md) |
 
@@ -32,7 +34,9 @@ Fold this into RM `docs/ontology.md` when phase 0 lands.
 | `ApplyListingContent` | Adjustment → Suggestion | team (co-host seat) | team review | adjustment status + `ApplyListingContent` event (trigger) | Re-edit the listing; reopen the adjustment | resolve the adjustment |
 | `VerifyListingContentLive` | Adjustment → Suggestion | team with `adjustments:control` | team review | event (trigger) | Reopen | control the adjustment |
 
-No action writes to Airbnb automatically. Agents never call owner or staff actions.
+No action writes to Airbnb automatically. When `channel_manager` is set, `ApplyListingContent` happens in that PMS (the adjustment message says so), because the PMS sync overwrites direct Airbnb edits.
+
+Skill that produces `SubmitListingReviewDraft` payloads: `~/.claude/skills/revfactor-listing-review/SKILL.md` (Claude), mirrored for Grok from its `listing-score-report` / `revfactor-listing-audit` skills. Agents never call owner or staff actions.
 
 ## The chain for the listing review
 
@@ -61,5 +65,6 @@ Exception-interface sources to add to `ont_exception` (planned):
 | **Outcome** | Pace vs the target curve at day 14 and day 30. RevPAR index vs comps and same time last year. Day-30 re-audit of the listing review. |
 
 ## Numbers and text
+- Coverage is enforced twice: every Airbnb field maps to a check or an explicit out-of-scope reason (test), and every review must give every check a status before publishing.
 - Score, part scores and grades come from `scoreChecks` / `gradeSections` (weights 0.30 / 0.25 / 0.20 / 0.25). Any submitted score is ignored.
 - LLMs may write suggestion wording and summaries only.
