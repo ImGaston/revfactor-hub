@@ -2,7 +2,7 @@
 
 ## 2026-10-14 — Client page tabs (journey, profile, tickets, adjustments)
 
-Built the client tabs Fede approved from the prototype. The page itself (`clients/[id]/page.tsx`) is unchanged and now sits in the Legacy tab; `ClientDetailPage` gained an `embedded` prop so the name header isn't shown twice. New: `components/clients/tabs/*`, `clients/[id]/tab-actions.ts`, `lib/client-journey.ts` (pure, 16 tests; plus `client-tabs.test.ts`), `lib/client-profile.ts`, `lib/client-tabs.ts`, an updated `loading.tsx`, and migration `20261014120000_client_journey_and_profile.sql` (drafted, not applied). Until the migration is applied, the journey works read-only and the profile can't be saved; both show a notice.
+Built the client tabs Fede approved from the prototype. The page itself (`clients/[id]/page.tsx`) is unchanged and now sits in the Legacy tab; `ClientDetailPage` gained an `embedded` prop so the name header isn't shown twice. New: `components/clients/tabs/*`, `clients/[id]/tab-actions.ts`, `lib/client-journey.ts` (pure, 16 tests; plus `client-tabs.test.ts`), `lib/client-profile.ts`, `lib/client-tabs.ts`, an updated `loading.tsx`, and migration `20261014130000_client_journey_and_profile.sql` (applied 2026-10-14). Until the migration is applied, the journey works read-only and the profile can't be saved; both show a notice.
 
 ## 2026-10-09 — Support: ask digest from the whole thread, AI merge check
 
