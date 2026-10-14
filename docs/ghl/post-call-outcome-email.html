@@ -1,0 +1,52 @@
+<!-- RevFactor | Post-call outcome email v2 (2026-10-14). Email-safe: tables + inline styles. Keep the 5 existing outcome link URLs in the href placeholders. -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e6e1;padding:24px 0;">
+<tr><td align="center" style="padding:0 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#f5f2eb;border-radius:14px;overflow:hidden;font-family:Inter,Helvetica,Arial,sans-serif;color:#142d26;">
+  <tr><td style="background:#142d26;padding:22px 28px;">
+    <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:600;color:#f5f2eb;">revfactor</div>
+    <div style="margin-top:14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a9b3a5;">Discovery call ended</div>
+    <div style="margin-top:4px;font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.15;font-weight:600;color:#f5f2eb;">How did it go with {{contact.first_name}}?</div>
+  </td></tr>
+  <tr><td style="padding:22px 28px 6px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ebe8e1;border-radius:10px;">
+      <tr><td style="padding:14px 16px;font-size:14px;line-height:1.6;">
+        <strong style="font-size:16px;">{{contact.name}}</strong><br>
+        <span style="color:#5d625e;">Call:</span> {{appointment.start_time}} &nbsp;·&nbsp; <span style="color:#5d625e;">Host:</span> {{appointment.user.name}}<br>
+        <span style="color:#5d625e;">Email:</span> {{contact.email}} &nbsp;·&nbsp; <span style="color:#5d625e;">Phone:</span> {{contact.phone}}
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:16px 28px 4px;font-size:14px;font-weight:700;">Pick one outcome. It updates the contact and sends the matching follow-up.</td></tr>
+  <tr><td style="padding:8px 28px 0;">
+    <!-- 1 Start onboarding (primary) -->
+    <a href="{{outcome_link_start_onboarding}}" style="display:block;text-decoration:none;background:#142d26;border-radius:10px;padding:16px 18px;margin:0 0 10px;">
+      <span style="display:block;font-size:16px;font-weight:700;color:#ffffff;">✓ Start onboarding</span>
+      <span style="display:block;margin-top:3px;font-size:13px;line-height:1.45;color:#c9d1c6;">Sends the signup link: details, agreement, payment, then the onboarding call.</span>
+    </a>
+    <!-- 2 Follow up -->
+    <a href="{{outcome_link_follow_up}}" style="display:block;text-decoration:none;background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #5d6d59;border-radius:10px;padding:14px 18px;margin:0 0 10px;">
+      <span style="display:block;font-size:15px;font-weight:700;color:#142d26;">↻ Follow up / nurture</span>
+      <span style="display:block;margin-top:3px;font-size:13px;line-height:1.45;color:#5d625e;">Sends a follow-up email and creates a task to reconnect.</span>
+    </a>
+    <!-- 4 Needs listing review -->
+    <a href="{{outcome_link_listing_review}}" style="display:block;text-decoration:none;background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #b08a3e;border-radius:10px;padding:14px 18px;margin:0 0 10px;">
+      <span style="display:block;font-size:15px;font-weight:700;color:#142d26;">⌕ Needs listing review</span>
+      <span style="display:block;margin-top:3px;font-size:13px;line-height:1.45;color:#5d625e;">Asks for their public listing links and alerts the team to review them.</span>
+    </a>
+    <!-- 5 No-show -->
+    <a href="{{outcome_link_no_show}}" style="display:block;text-decoration:none;background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #76574c;border-radius:10px;padding:14px 18px;margin:0 0 10px;">
+      <span style="display:block;font-size:15px;font-weight:700;color:#142d26;">⏱ No-show</span>
+      <span style="display:block;margin-top:3px;font-size:13px;line-height:1.45;color:#5d625e;">Sends the link to book another discovery call.</span>
+    </a>
+    <!-- 3 Not a fit -->
+    <a href="{{outcome_link_not_a_fit}}" style="display:block;text-decoration:none;background:transparent;border:1px dashed #b9b6ae;border-radius:10px;padding:12px 18px;margin:0 0 10px;">
+      <span style="display:block;font-size:14px;font-weight:700;color:#5d625e;">✕ Not a fit</span>
+      <span style="display:block;margin-top:2px;font-size:13px;line-height:1.45;color:#7a7d78;">Sends a polite closing email and marks the opportunity lost.</span>
+    </a>
+  </td></tr>
+  <tr><td style="padding:10px 28px 24px;font-size:12px;line-height:1.5;color:#5d625e;">
+    Tap once. If an outcome was already picked for this call, don't pick another.<br>Call notes are in Granola.
+  </td></tr>
+</table>
+</td></tr>
+</table>
