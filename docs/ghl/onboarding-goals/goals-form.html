@@ -1,0 +1,289 @@
+<title>RevFactor Goals Form</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  /* Layout: GHL onboarding funnel shell — forest page, one warm-stone card, sections stacked. Single light look on purpose (matches the GHL funnel). */
+  :root {
+    --forest: #142d26; --forest-deep: #0f2923;
+    --stone: #f5f2eb; --stone-2: #ebe8e1; --stone-3: #e8e6e1; --line: #cfccc5;
+    --sage: #5d6d59; --rust: #76574c; --muted: #5d625e; --ink: #161910;
+    --display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --body: Inter, Helvetica, Arial, sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--forest); color: var(--forest); font-family: var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 56px; }
+  .wrap { max-width: 800px; margin: 0 auto; display: grid; gap: 28px; }
+  header { color: var(--stone-3); display: grid; gap: 14px; }
+  .wordmark { font-family: var(--display); font-size: 26px; font-weight: 600; letter-spacing: .02em; color: var(--stone); }
+  .steps { display: flex; flex-wrap: wrap; gap: 6px 10px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a9b3a5; }
+  .steps b { color: var(--stone); font-weight: 600; }
+  h1 { font-family: var(--display); font-weight: 500; font-size: clamp(34px, 6vw, 48px); line-height: 1.05; margin: 0; color: var(--stone); text-wrap: balance; }
+  .lead { margin: 0; max-width: 60ch; font-size: 16px; line-height: 1.6; color: #d7dbd3; }
+  .booked { margin: 0; justify-self: start; padding: 8px 14px; border-radius: 999px; background: rgba(221,218,211,.14); color: var(--stone); font-size: 14px; font-weight: 600; }
+  .later { margin: 0; max-width: 60ch; padding: 12px 16px; border-left: 3px solid #a9b3a5; border-radius: 7px; background: rgba(221,218,211,.08); color: #d7dbd3; font-size: 14px; line-height: 1.55; }
+  .later strong { color: var(--stone); }
+  .card { padding: 38px; border: 1px solid rgba(20,45,38,.13); border-radius: 18px; background: var(--stone); box-shadow: 0 24px 60px rgba(0,0,0,.25); display: grid; gap: 34px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 20px; min-width: 0; }
+  legend { padding: 0; margin-bottom: 4px; }
+  .sec-title { display: block; font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1.15; }
+  .sec-sub { display: block; margin-top: 4px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+  .q { display: grid; gap: 10px; }
+  .q > .label, label.label { font-size: 14px; font-weight: 700; line-height: 1.4; margin: 0; }
+  .help { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  input[type=text], input[type=number], textarea {
+    width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #c9c8c2; border-radius: 8px; background: #fff; color: var(--ink);
+    font: 500 16px/1.35 var(--body); outline: none; transition: border-color .18s, box-shadow .18s; }
+  textarea { min-height: 104px; resize: vertical; }
+  input:focus, textarea:focus { border-color: var(--sage); box-shadow: 0 0 0 3px rgba(93,109,89,.16); }
+  .money { position: relative; }
+  .money span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-weight: 600; pointer-events: none; }
+  .money input { padding-left: 30px; font-variant-numeric: tabular-nums; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .row > * { min-width: 0; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { position: relative; }
+  .pill input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .pill span { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--stone-2); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+  .pill input:checked + span { background: var(--forest); border-color: var(--forest); color: var(--stone); }
+  .pill input:focus-visible + span { box-shadow: 0 0 0 3px rgba(93,109,89,.35); }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--stone-2); cursor: pointer; font-size: 14px; font-weight: 600; line-height: 1.4; }
+  .choice input { width: 20px; height: 20px; margin: 0; accent-color: var(--forest); flex: 0 0 auto; }
+  .reveal { display: grid; gap: 20px; padding-left: 16px; border-left: 2px solid var(--line); }
+  .note { padding: 16px 18px; border-left: 3px solid var(--rust); border-radius: 7px; background: var(--stone-3); color: #3e4944; font-size: 14px; line-height: 1.55; }
+  .note strong { color: var(--forest); }
+  .sublabel { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--sage); margin: 0 0 6px; }
+  .submit { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; border: 0; border-radius: 8px; background: var(--forest); color: #fff; font: 700 14px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: transform .18s, background .18s; }
+  .submit:hover { background: var(--forest-deep); transform: translateY(-1px); }
+  .submit:focus-visible { outline: 3px solid var(--sage); outline-offset: 2px; }
+  .secure { margin: 12px 0 0; text-align: center; color: var(--muted); font-size: 12px; }
+  .done { display: grid; gap: 12px; text-align: center; padding: 20px 0; }
+  .done h2 { font-family: var(--display); font-size: 32px; font-weight: 600; margin: 0; }
+  .preview-tag { justify-self: start; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; background: var(--rust); color: var(--stone); }
+  pre { margin: 0; text-align: left; overflow-x: auto; padding: 14px; border-radius: 8px; background: var(--stone-3); font-size: 12px; line-height: 1.5; color: var(--ink); }
+  @media (max-width: 680px) {
+    body { padding-block: 24px 36px; }
+    .card { padding: 24px 20px; border-radius: 14px; gap: 28px; }
+    .row, .choices { grid-template-columns: 1fr; }
+    .reveal { padding-left: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="wordmark">revfactor</div>
+    <div class="steps"><span>Details</span>·<span>Agreement</span>·<span>Payment</span>·<b>Your goals</b>·<span>Onboarding call</span></div>
+    <h1>Your goals for this property</h1>
+    <p class="booked">✓ Your onboarding call is booked. Check your email for the calendar invite.</p>
+    <p class="lead">Please complete these few questions before your call, so it's about your property, not paperwork. It takes about 3 minutes. Rough numbers are fine, and "I don't know" is a perfectly good answer.</p>
+    <p class="later"><strong>No time right now?</strong> We've emailed you a link to this form. You can come back and fill it in any time before your call.</p>
+  </header>
+
+  <form class="card" id="goals-form" novalidate>
+    <span class="preview-tag">Preview · answers are not sent</span>
+
+    <fieldset>
+      <legend><span class="sec-title">Property</span><span class="sec-sub">If you have more than one property, fill this form once for each.</span></legend>
+      <div class="q">
+        <label class="label" for="rf_goal_property">Which property is this for? *</label>
+        <input id="rf_goal_property" name="rf_goal_property" type="text" placeholder="Property name or Airbnb link" value="Lakeview Cabin (example)">
+      </div>
+    </fieldset>
+
+    <hr>
+
+    <fieldset>
+      <legend><span class="sec-title">Your revenue goal</span></legend>
+      <div class="q">
+        <p class="label" id="has-target-l">Do you have a revenue goal for this property?</p>
+        <div class="pills" role="radiogroup" aria-labelledby="has-target-l">
+          <label class="pill"><input type="radio" id="ht-yes" name="rf_goal_has_target" value="yes" checked><span>Yes</span></label>
+          <label class="pill"><input type="radio" id="ht-no" name="rf_goal_has_target" value="no"><span>No</span></label>
+          <label class="pill"><input type="radio" id="ht-unsure" name="rf_goal_has_target" value="not_sure"><span>Not sure</span></label>
+        </div>
+      </div>
+
+      <div class="reveal" id="target-yes">
+        <div class="row">
+          <div class="q">
+            <label class="label" for="rf_goal_target_amount">What is your goal?</label>
+            <div class="money"><span>$</span><input id="rf_goal_target_amount" name="rf_goal_target_amount" type="number" inputmode="decimal" min="0" placeholder="60,000" value="60000"></div>
+          </div>
+          <div class="q">
+            <p class="label" id="tp-l">Per</p>
+            <div class="pills" role="radiogroup" aria-labelledby="tp-l">
+              <label class="pill"><input type="radio" id="tp-year" name="rf_goal_target_period" value="year" checked><span>Year</span></label>
+              <label class="pill"><input type="radio" id="tp-month" name="rf_goal_target_period" value="month"><span>Month</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="q">
+          <p class="label">Where does that number come from?</p>
+          <p class="help">Pick all that apply.</p>
+          <div class="choices">
+            <label class="choice"><input type="checkbox" id="src-past" name="rf_goal_target_source" value="own_past_bookings" checked>My own past bookings on this property</label>
+            <label class="choice"><input type="checkbox" id="src-mgr" name="rf_goal_target_source" value="previous_manager">A previous manager, co-host or PMS report</label>
+            <label class="choice"><input type="checkbox" id="src-tool" name="rf_goal_target_source" value="data_tool">AirDNA, PriceLabs or another data tool</label>
+            <label class="choice"><input type="checkbox" id="src-plan" name="rf_goal_target_source" value="purchase_plan">My purchase or financing plan</label>
+            <label class="choice"><input type="checkbox" id="src-friend" name="rf_goal_target_source" value="other_host">Another host or a friend</label>
+            <label class="choice"><input type="checkbox" id="src-gut" name="rf_goal_target_source" value="estimate">An estimate or gut feeling</label>
+          </div>
+          <input id="rf_goal_target_source_other" name="rf_goal_target_source_other" type="text" placeholder="Other (optional)">
+        </div>
+      </div>
+
+      <div class="reveal" id="target-no" hidden>
+        <div class="q">
+          <label class="label" for="rf_goal_happy_amount">What yearly revenue would make you happy with this property?</label>
+          <p class="help">Optional. A rough number helps us aim.</p>
+          <div class="money"><span>$</span><input id="rf_goal_happy_amount" name="rf_goal_happy_amount" type="number" inputmode="decimal" min="0" placeholder="50,000"></div>
+        </div>
+        <div class="q">
+          <label class="label" for="rf_goal_happy_notes">What would you like to see change?</label>
+          <textarea id="rf_goal_happy_notes" name="rf_goal_happy_notes" placeholder="More bookings in winter, fewer one-night stays, higher weekend rates…"></textarea>
+        </div>
+      </div>
+    </fieldset>
+
+    <hr>
+
+    <fieldset>
+      <legend><span class="sec-title">Your break-even</span><span class="sec-sub">What the property needs to make to cover its costs: mortgage or rent, utilities, supplies, platform fees. Leave out cleaning fees you charge guests.</span></legend>
+      <div class="q">
+        <p class="label" id="be-l">Do you know your break-even number?</p>
+        <div class="pills" role="radiogroup" aria-labelledby="be-l">
+          <label class="pill"><input type="radio" id="be-yes" name="rf_goal_has_breakeven" value="yes" checked><span>Yes</span></label>
+          <label class="pill"><input type="radio" id="be-no" name="rf_goal_has_breakeven" value="no"><span>No</span></label>
+        </div>
+      </div>
+      <div class="reveal" id="be-yes-fields">
+        <div class="row">
+          <div class="q">
+            <label class="label" for="rf_goal_breakeven_amount">Break-even amount</label>
+            <div class="money"><span>$</span><input id="rf_goal_breakeven_amount" name="rf_goal_breakeven_amount" type="number" inputmode="decimal" min="0" placeholder="3,200" value="3200"></div>
+          </div>
+          <div class="q">
+            <p class="label" id="bp-l">Per</p>
+            <div class="pills" role="radiogroup" aria-labelledby="bp-l">
+              <label class="pill"><input type="radio" id="bp-month" name="rf_goal_breakeven_period" value="month" checked><span>Month</span></label>
+              <label class="pill"><input type="radio" id="bp-year" name="rf_goal_breakeven_period" value="year"><span>Year</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="q">
+          <p class="label" id="bs-l">Where does that number come from?</p>
+          <div class="pills" role="radiogroup" aria-labelledby="bs-l">
+            <label class="pill"><input type="radio" id="bs-books" name="rf_goal_breakeven_source" value="bookkeeping" checked><span>My own bookkeeping</span></label>
+            <label class="pill"><input type="radio" id="bs-acct" name="rf_goal_breakeven_source" value="accountant"><span>An accountant</span></label>
+            <label class="pill"><input type="radio" id="bs-est" name="rf_goal_breakeven_source" value="estimate"><span>A rough estimate</span></label>
+            <label class="pill"><input type="radio" id="bs-other" name="rf_goal_breakeven_source" value="other"><span>Other</span></label>
+          </div>
+        </div>
+      </div>
+      <p class="help" id="be-no-note" hidden>No problem. We'll work it out together on the call.</p>
+    </fieldset>
+
+    <hr>
+
+    <fieldset>
+      <legend><span class="sec-title">Your comfort floors</span></legend>
+      <div class="note"><strong>This is not the price we will set.</strong> Our pricing moves every day with demand. We just want to know the lowest you would ever be comfortable with, so we never go below it without talking to you first. Leave a box blank if you have no floor.</div>
+
+      <div class="q">
+        <p class="label">Lowest nightly price you'd accept</p>
+        <div class="row">
+          <div><p class="sublabel"><label for="rf_floor_price_weekday">Weeknights · Sun–Thu</label></p><div class="money"><span>$</span><input id="rf_floor_price_weekday" name="rf_floor_price_weekday" type="number" inputmode="decimal" min="0" placeholder="120" value="120"></div></div>
+          <div><p class="sublabel"><label for="rf_floor_price_weekend">Weekends · Fri–Sat</label></p><div class="money"><span>$</span><input id="rf_floor_price_weekend" name="rf_floor_price_weekend" type="number" inputmode="decimal" min="0" placeholder="160" value="160"></div></div>
+        </div>
+      </div>
+
+      <div class="q">
+        <p class="label">Shortest stay you'd accept</p>
+        <div class="row">
+          <div>
+            <p class="sublabel" id="msw-l">Weeknights</p>
+            <div class="pills" role="radiogroup" aria-labelledby="msw-l">
+              <label class="pill"><input type="radio" id="msw-1" name="rf_floor_minstay_weekday" value="1"><span>1</span></label>
+              <label class="pill"><input type="radio" id="msw-2" name="rf_floor_minstay_weekday" value="2" checked><span>2</span></label>
+              <label class="pill"><input type="radio" id="msw-3" name="rf_floor_minstay_weekday" value="3"><span>3</span></label>
+              <label class="pill"><input type="radio" id="msw-4" name="rf_floor_minstay_weekday" value="4+"><span>4+</span></label>
+              <label class="pill"><input type="radio" id="msw-np" name="rf_floor_minstay_weekday" value="no_preference"><span>No preference</span></label>
+            </div>
+          </div>
+          <div>
+            <p class="sublabel" id="mse-l">Weekends</p>
+            <div class="pills" role="radiogroup" aria-labelledby="mse-l">
+              <label class="pill"><input type="radio" id="mse-1" name="rf_floor_minstay_weekend" value="1"><span>1</span></label>
+              <label class="pill"><input type="radio" id="mse-2" name="rf_floor_minstay_weekend" value="2" checked><span>2</span></label>
+              <label class="pill"><input type="radio" id="mse-3" name="rf_floor_minstay_weekend" value="3"><span>3</span></label>
+              <label class="pill"><input type="radio" id="mse-4" name="rf_floor_minstay_weekend" value="4+"><span>4+</span></label>
+              <label class="pill"><input type="radio" id="mse-np" name="rf_floor_minstay_weekend" value="no_preference"><span>No preference</span></label>
+            </div>
+          </div>
+        </div>
+        <p class="help">"Nights" means the number of nights in one booking.</p>
+      </div>
+    </fieldset>
+
+    <hr>
+
+    <fieldset>
+      <legend><span class="sec-title">Anything else?</span></legend>
+      <div class="q">
+        <label class="label" for="rf_goal_notes">Dates you block, seasons that matter, past pricing that went badly</label>
+        <textarea id="rf_goal_notes" name="rf_goal_notes" placeholder="Optional"></textarea>
+      </div>
+    </fieldset>
+
+    <div>
+      <button class="submit" type="submit">Send my answers</button>
+      <p class="secure">Your answers go only to the RevFactor team · Never enter passwords or access codes</p>
+    </div>
+  </form>
+
+  <div class="card done" id="done" hidden>
+    <span class="preview-tag" style="justify-self:center">Preview · nothing was sent</span>
+    <h2>Thanks, we've got it</h2>
+    <p class="help">These are the fields that would be saved to the client's GHL contact:</p>
+    <pre id="payload"></pre>
+    <button class="submit" type="button" id="back">Back to the form</button>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const form = document.getElementById("goals-form")
+    const $ = (id) => document.getElementById(id)
+    const val = (name) => form.querySelector(`input[name="${name}"]:checked`)?.value
+    function sync() {
+      const t = val("rf_goal_has_target")
+      $("target-yes").hidden = t !== "yes"
+      $("target-no").hidden = t === "yes"
+      const b = val("rf_goal_has_breakeven")
+      $("be-yes-fields").hidden = b !== "yes"
+      $("be-no-note").hidden = b === "yes"
+    }
+    form.addEventListener("change", sync)
+    sync()
+    form.addEventListener("submit", (e) => {
+      e.preventDefault()
+      const out = {}
+      for (const el of form.querySelectorAll("input, textarea")) {
+        if (el.closest("[hidden]")) continue
+        if ((el.type === "radio" || el.type === "checkbox") && !el.checked) continue
+        if (!el.value) continue
+        if (el.type === "checkbox") (out[el.name] ||= []).push(el.value)
+        else out[el.name] = el.value
+      }
+      $("payload").textContent = JSON.stringify(out, null, 2)
+      form.hidden = true
+      $("done").hidden = false
+      window.scrollTo({ top: 0 })
+    })
+    $("back").addEventListener("click", () => { $("done").hidden = true; form.hidden = false })
+  })()
+</script>
