@@ -1,6 +1,6 @@
 // Pricing plan math (client & server safe). Pure functions over a listing's
 // synced reservations plus editable channel settings. Numbers come from code;
-// the UI only displays them. Prototype: docs/pricing-plan.md.
+// the UI only displays them. Prototype: docs/listing-strategy.md.
 
 export type PlanDiscountKind = "los" | "alt" | "promo"
 

@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import {
   AlertTriangle,
@@ -29,7 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PricingPlanTab } from "./pricing-plan-tab"
+import { AuditTab, CompsTab, EventsTab, GoalsTab, StrategyTab } from "./listing-strategy-tabs"
 import { cn } from "@/lib/utils"
 import { BreadcrumbSetter } from "@/components/layout/breadcrumb-context"
 import { AirbnbCalendarButton } from "@/components/listings/airbnb-calendar-button"
@@ -177,6 +178,7 @@ export function ListingDetail({
   reservationsCard = null,
   canViewClient = false,
   canViewPricingPlan = false,
+  canEditPlan = false,
 }: {
   listing: ListingWithMetrics
   client: ClientData
@@ -190,6 +192,8 @@ export function ListingDetail({
   reservationsCard?: React.ReactNode
   /** Pricing plan tab needs reservations:view (it reads synced reservations). */
   canViewPricingPlan?: boolean
+  /** listings:edit — answer questions, save and approve the plan. */
+  canEditPlan?: boolean
 }) {
   // A listing is reached through its client, so back returns there rather than
   // to the flat listings table. Falls back when there is no client, or when the
@@ -200,6 +204,20 @@ export function ListingDetail({
       : { href: "/listings", label: "Back to listings" }
 
   const hasPLData = listing.pl_synced_at != null
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const LISTING_TABS = ["legacy", "strategy", "goals", "comps", "events", "audit"]
+  const initialTab = searchParams.get("tab") ?? "legacy"
+  const [tab, setTab] = useState(LISTING_TABS.includes(initialTab) ? initialTab : "legacy")
+  const selectTab = (next: string) => {
+    setTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === "legacy") params.delete("tab")
+    else params.set("tab", next)
+    const q = params.toString()
+    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false })
+  }
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
   const editorUrl = airbnbEditorUrl(listing)
@@ -329,6 +347,50 @@ export function ListingDetail({
         </div>
       </div>
 
+      {/* ─── Listing tabs: Legacy is the original page ──── */}
+      <Tabs value={tab} onValueChange={selectTab} className="space-y-4">
+        <div className="overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="legacy">Legacy</TabsTrigger>
+            {canViewPricingPlan && <TabsTrigger value="strategy">Strategy</TabsTrigger>}
+            {canViewPricingPlan && <TabsTrigger value="goals">Goals</TabsTrigger>}
+            <TabsTrigger value="comps">Comps</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="audit">Listing Audit</TabsTrigger>
+          </TabsList>
+        </div>
+
+        {canViewPricingPlan && (
+          <TabsContent value="strategy" className="space-y-4">
+            <StrategyTab listingId={listing.id} canEdit={canEditPlan} />
+          </TabsContent>
+        )}
+        {canViewPricingPlan && (
+          <TabsContent value="goals" className="space-y-4">
+            <GoalsTab listingId={listing.id} canEdit={canEditPlan} />
+          </TabsContent>
+        )}
+        <TabsContent value="comps" className="space-y-4">
+          <CompsTab
+            listingId={listing.id}
+            canEdit={canEditPlan}
+            market={(report?.metrics ?? []).map((m) => ({
+              period: m.period,
+              adr: m.market_adr ?? null,
+              occ: m.market_occupancy_pct ?? null,
+              revpar: m.market_revpar ?? null,
+              index: m.revpar_index ?? null,
+            }))}
+          />
+        </TabsContent>
+        <TabsContent value="events" className="space-y-4">
+          <EventsTab listingId={listing.id} canEdit={canEditPlan} />
+        </TabsContent>
+        <TabsContent value="audit" className="space-y-4">
+          <AuditTab listingId={listing.id} />
+        </TabsContent>
+
+        <TabsContent value="legacy" className="space-y-6">
       {/* ─── Sync Status Banner ─────────────────────────── */}
       {hasPLData ? (
         <div className="rounded-lg border border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800 px-4 py-3 flex items-center justify-between">
@@ -513,7 +575,6 @@ export function ListingDetail({
           <TabsTrigger value="market">Market Position</TabsTrigger>
           <TabsTrigger value="window">Booking Window</TabsTrigger>
           <TabsTrigger value="pacing">Pacing</TabsTrigger>
-          {canViewPricingPlan && <TabsTrigger value="pricing-plan">Pricing plan</TabsTrigger>}
         </TabsList>
 
         {/* ─── Overview Tab (Report Builder) ───────────────── */}
@@ -536,15 +597,6 @@ export function ListingDetail({
           <ReportPacing report={report} />
         </TabsContent>
 
-        {/* ─── Pricing plan (loads its data when opened) ───── */}
-        {canViewPricingPlan && (
-          <TabsContent value="pricing-plan" className="space-y-4">
-            <PricingPlanTab
-              listingId={listing.id}
-              current={{ min: listing.pl_min_price ?? null, base: listing.pl_base_price ?? null, max: listing.pl_max_price ?? null }}
-            />
-          </TabsContent>
-        )}
       </Tabs>
 
       {/* ─── Recent Reservations (server-rendered slot) ────
@@ -552,6 +604,8 @@ export function ListingDetail({
           analysis, and the reservation list is the supporting detail you scroll
           to afterwards. */}
       {reservationsCard}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

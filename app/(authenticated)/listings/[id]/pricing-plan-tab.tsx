@@ -3,7 +3,7 @@
 // Pricing plan tab (read-only v1): what we'd change, pace from the listing's own
 // booking curve, channel payout math, owner economics and editable 12-month
 // targets. Data loads when the tab opens. Nothing is saved yet: edits stay on
-// screen. Saved, approved plans are phase 2 (docs/pricing-plan.md).
+// screen. Saved, approved plans are phase 2 (docs/listing-strategy.md).
 
 import { useEffect, useMemo, useState } from "react"
 import { Bar, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, XAxis, YAxis } from "recharts"
@@ -57,12 +57,30 @@ const monthlyConfig: ChartConfig = {
 const curveConfig: ChartConfig = { share: { label: "Booked by then", color: "var(--chart-1)" } }
 const LADDER_NIGHTS = [1, 2, 3, 4, 5, 7, 10, 14, 21, 28]
 
+export type PricingPlanSeed = {
+  targets?: MonthTarget[]
+  channels?: PlanChannel[]
+  floor?: number | null
+}
+
+/**
+ * Shared pricing view. mode "strategy": suggestions and channel math;
+ * mode "goals": KPIs, revenue chart, booking curve, economics, targets.
+ */
 export function PricingPlanTab({
   listingId,
   current,
+  mode = "goals",
+  seed,
+  onSaveTargets,
+  onSaveChannels,
 }: {
   listingId: string
   current: { min: number | null; base: number | null; max: number | null }
+  mode?: "strategy" | "goals"
+  seed?: PricingPlanSeed
+  onSaveTargets?: (targets: MonthTarget[]) => Promise<void>
+  onSaveChannels?: (channels: PlanChannel[]) => Promise<void>
 }) {
   const [data, setData] = useState<{ today: string; reservations: PlanReservation[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -91,26 +109,57 @@ export function PricingPlanTab({
       </div>
     )
   }
-  return <PricingPlan today={data.today} reservations={data.reservations} current={current} />
+  return (
+    <PricingPlan
+      today={data.today}
+      reservations={data.reservations}
+      current={current}
+      mode={mode}
+      seed={seed}
+      onSaveTargets={onSaveTargets}
+      onSaveChannels={onSaveChannels}
+    />
+  )
 }
 
 function PricingPlan({
   today,
   reservations,
   current,
+  mode,
+  seed,
+  onSaveTargets,
+  onSaveChannels,
 }: {
   today: string
   reservations: PlanReservation[]
   current: { min: number | null; base: number | null; max: number | null }
+  mode: "strategy" | "goals"
+  seed?: PricingPlanSeed
+  onSaveTargets?: (targets: MonthTarget[]) => Promise<void>
+  onSaveChannels?: (channels: PlanChannel[]) => Promise<void>
 }) {
+  const [saving, setSaving] = useState(false)
   const history = useMemo(() => buildHistory(reservations, today), [reservations, today])
   const hasHistory = history.leads.length > 0
-  const [targets, setTargets] = useState<MonthTarget[]>(() => draftTargetsFromHistory(hasHistory ? history : null, today))
-  const [channels, setChannels] = useState<PlanChannel[]>(() => structuredClone(DEFAULT_PLAN_CHANNELS))
+  const [targets, setTargets] = useState<MonthTarget[]>(() =>
+    seed?.targets && seed.targets.length ? seed.targets : draftTargetsFromHistory(hasHistory ? history : null, today)
+  )
+  const [channels, setChannels] = useState<PlanChannel[]>(() =>
+    seed?.channels && seed.channels.length ? structuredClone(seed.channels) : structuredClone(DEFAULT_PLAN_CHANNELS)
+  )
   const [price, setPrice] = useState(current.base ?? 300)
-  const [floor, setFloor] = useState(0)
+  const [floor, setFloor] = useState(seed?.floor ?? 0)
+  const save = async (fn: () => Promise<void>) => {
+    setSaving(true)
+    try {
+      await fn()
+    } finally {
+      setSaving(false)
+    }
+  }
   const [nights, setNights] = useState(Math.max(1, Math.round(history.avgStay ?? 3)))
-  const [mode, setMode] = useState<DiscountMode>("auto")
+  const [discMode, setDiscMode] = useState<DiscountMode>("auto")
   const [econ, setEcon] = useState({ fixedMonthly: 0, cleaningPerTurn: 0, guestCleaningFee: 0, avgStay: history.avgStay ?? 3, revfactorMonthly: 0 })
 
   const mix = useMemo(() => channelMix(channels, hasHistory ? history : null), [channels, history, hasHistory])
@@ -144,7 +193,7 @@ function PricingPlan({
   const curve = hasHistory ? Array.from({ length: 61 }, (_, i) => ({ d: i * 3, share: Math.round((curveAt(history, i * 3) ?? 0) * 100) })) : []
   const ladder = LADDER_NIGHTS.map((n) => {
     const row: Record<string, number | string> = { n: `${n}n` }
-    channels.forEach((ch) => (row[ch.key] = Math.round(price * payoutShare(ch, appliedDiscounts(ch, n, mode === "worst" ? "auto" : mode)))))
+    channels.forEach((ch) => (row[ch.key] = Math.round(price * payoutShare(ch, appliedDiscounts(ch, n, discMode === "worst" ? "auto" : discMode)))))
     return row
   })
   const ladderConfig: ChartConfig = Object.fromEntries(channels.map((ch, i) => [ch.key, { label: ch.label, color: `var(--chart-${(i % 5) + 1})` }]))
@@ -158,11 +207,7 @@ function PricingPlan({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Draft view. Targets start from the same month last year; channel settings start from the RevFactor markup policy. Edits stay on this screen and are not saved yet.
-      </p>
-
-      {/* KPIs */}
+      {mode === "goals" && (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="12-month target" value={usd(totals.target)} note={`${mLabel(targets[0].month)} – ${mLabel(targets[targets.length - 1].month)}`} />
         <Kpi label="Same months last year" value={hasHistory ? usd(totals.ly) : "—"} note={hasHistory && totals.ly ? `${totals.target >= totals.ly ? "+" : ""}${pct(totals.target / totals.ly - 1)} target vs last year` : "No synced history"} />
@@ -174,8 +219,10 @@ function PricingPlan({
           tone={totals.behind.length ? "bad" : undefined}
         />
       </div>
+      )}
 
       {/* Suggestions */}
+      {mode === "strategy" && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><Lightbulb className="size-4" /> What we&apos;d change</CardTitle>
@@ -204,8 +251,10 @@ function PricingPlan({
           ))}
         </CardContent>
       </Card>
+      )}
 
       {/* Monthly chart + curve */}
+      {mode === "goals" && (
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -249,8 +298,10 @@ function PricingPlan({
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Channel math */}
+      {mode === "strategy" && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Channel math</CardTitle>
@@ -263,7 +314,7 @@ function PricingPlan({
             <NumField label="Stay length (nights)" value={nights} onChange={(v) => setNights(Math.max(1, v))} step={1} />
             <label className="grid gap-1 text-xs text-muted-foreground">
               Discounts
-              <select className="h-9 rounded-md border bg-background px-2 text-sm text-foreground" value={mode} onChange={(e) => setMode(e.target.value as DiscountMode)}>
+              <select className="h-9 rounded-md border bg-background px-2 text-sm text-foreground" value={discMode} onChange={(e) => setDiscMode(e.target.value as DiscountMode)}>
                 <option value="auto">What this stay gets</option>
                 <option value="worst">Worst case (deepest stack)</option>
                 <option value="none">None</option>
@@ -286,7 +337,7 @@ function PricingPlan({
               </TableHeader>
               <TableBody>
                 {channels.map((ch, i) => {
-                  const ds = appliedDiscounts(ch, nights, mode)
+                  const ds = appliedDiscounts(ch, nights, discMode)
                   const share = payoutShare(ch, ds)
                   const guest = price * (1 + ch.markup) * ds.reduce((a, d) => a * (1 - d.pct), 1)
                   const keep = price * share
@@ -297,7 +348,7 @@ function PricingPlan({
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           {ch.discounts.filter((d) => d.kind !== "los").map((d) => (
                             <label key={d.label} className="inline-flex items-center gap-1">
-                              <input type="checkbox" checked={!!d.on} disabled={mode !== "auto"} onChange={(e) => togglePromo(i, d.label, e.target.checked)} />
+                              <input type="checkbox" checked={!!d.on} disabled={discMode !== "auto"} onChange={(e) => togglePromo(i, d.label, e.target.checked)} />
                               {d.label} {pct(d.pct)}
                             </label>
                           ))}
@@ -341,10 +392,17 @@ function PricingPlan({
               </LineChart>
             </ChartContainer>
           </div>
+          {onSaveChannels && (
+            <div className="flex justify-end">
+              <Button size="sm" disabled={saving} onClick={() => save(() => onSaveChannels(channels))}>Save channel settings to the plan</Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+      )}
 
       {/* Owner economics */}
+      {mode === "goals" && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Owner economics</CardTitle>
@@ -366,8 +424,10 @@ function PricingPlan({
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Targets */}
+      {mode === "goals" && (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4" /> 12-month targets and pace</CardTitle>
@@ -430,14 +490,16 @@ function PricingPlan({
               </TableRow>
             </TableFooter>
           </Table>
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => setTargets(draftTargetsFromHistory(hasHistory ? history : null, today))}>Reset to last year</Button>
+            {onSaveTargets && <Button size="sm" disabled={saving} onClick={() => save(() => onSaveTargets(targets))}>Save goals to the plan</Button>}
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Channel history */}
-      {hasHistory && (
+      {mode === "goals" && hasHistory && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Channel history</CardTitle>
