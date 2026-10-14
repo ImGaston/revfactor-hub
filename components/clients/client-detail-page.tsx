@@ -189,7 +189,14 @@ export function ClientDetailPage({
   onUnlinkAssembly,
   onLoadStripeOptions,
   onCreateStripeCheckout,
+  embedded = false,
 }: {
+  /**
+   * Rendered inside the client tabs shell (Legacy tab): the shell owns the
+   * back link, name, status and business name, so only the Edit action
+   * stays here.
+   */
+  embedded?: boolean
   client: Client
   credentials?: ClientCredential[]
   isSuperAdmin: boolean
@@ -337,6 +344,18 @@ export function ClientDetailPage({
   return (
     <div className="space-y-6">
       <BreadcrumbSetter segment={client.id} label={client.name} />
+      {embedded ? (
+        <div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEditDialogOpen(true)}
+          >
+            <Pencil className="mr-1 size-3.5" />
+            Edit
+          </Button>
+        </div>
+      ) : (
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2 mb-4">
           <Link href="/clients">
@@ -363,6 +382,7 @@ export function ClientDetailPage({
           <p className="mt-1 text-sm text-muted-foreground">{client.business_name}</p>
         )}
       </div>
+      )}
 
       <div className="space-y-4">
         {client.email && (

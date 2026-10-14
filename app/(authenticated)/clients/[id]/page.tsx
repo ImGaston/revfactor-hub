@@ -20,22 +20,27 @@ import {
 import { getClientStripeBilling } from "@/lib/client-stripe-billing"
 import { getRecentReservationsByClient, type Reservation } from "@/lib/reservations"
 import { RecentReservationsCard } from "@/components/reservations/recent-reservations-card"
+import { ClientTabs } from "@/components/clients/tabs/client-tabs"
+import { parseClientTab } from "@/lib/client-tabs"
 
 export default async function ClientPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string | string[] }>
 }) {
-  const { id } = await params
+  const [{ id }, { tab }] = await Promise.all([params, searchParams])
   const [supabase, profile] = await Promise.all([
     createClient(),
     getProfile(),
   ])
   const isSuperAdmin = profile?.role === "super_admin"
 
-  const [canViewAdjustments, canViewReservations] = await Promise.all([
+  const [canViewAdjustments, canViewReservations, canViewSupport] = await Promise.all([
     hasPermission("adjustments", "view"),
     hasPermission("reservations", "view"),
+    hasPermission("support", "view"),
   ])
 
   const [
@@ -96,9 +101,12 @@ export default async function ClientPage({
     listings: (client.listings ?? []).filter((l: { status?: string }) => l.status !== "inactive"),
   }
 
-  return (
+  // Legacy tab = today's client page, unchanged. The other tabs load their own
+  // data on first open (tab-actions.ts), so this request does no extra work.
+  const legacy = (
     <div className="space-y-6">
       <ClientDetailPage
+      embedded
       client={filteredClient}
       credentials={credentials ?? []}
       isSuperAdmin={isSuperAdmin}
@@ -129,5 +137,18 @@ export default async function ClientPage({
         />
       )}
     </div>
+  )
+
+  return (
+    <ClientTabs
+      clientId={id}
+      name={client.name}
+      status={client.status}
+      businessName={client.business_name ?? null}
+      initialTab={parseClientTab(tab)}
+      canViewSupport={canViewSupport}
+      canViewAdjustments={canViewAdjustments}
+      legacy={legacy}
+    />
   )
 }
