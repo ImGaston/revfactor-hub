@@ -595,3 +595,11 @@ Fede asked whether to teach the Grok capture bot to make asks digestible. The Hu
 ## 2026-10-13 — Client calls to server actions catch thrown errors
 
 Publishing Jacob's listing review from a tab opened before a deploy crashed the whole page ("Application error: a client-side exception"): the old page called a server action id the new deployment no longer had, the call threw inside `startTransition`, and there is no error boundary. Listing-review buttons (publish, publish & send, save/send message, owner accept/decline in the portal) now wrap the call in try/catch and show a toast asking to reload (`ACTION_FAILED_MESSAGE` in `lib/listing-optimization.ts`). Nothing is written when this happens. Vercel Skew Protection would remove the cause; it is a project setting, not enabled yet.
+
+## 2026-10-13 — Pricing math in code; listing strategy tabs (2026-10-14)
+
+Fede liked the pricing planner prototype (Jacob Raabe, Kasey Booth) and asked for it inside the Hub listing. v1 is a read-only tab: it computes history, the booking curve, pace, channel payout math and owner economics from synced reservations, with on-screen edits only. Saving and approving plans (with adjustments for the team) is phase 2 because it needs a new table and Fede's sign-off on the workflow. All numbers and suggestions are deterministic code in `lib/pricing-plan.ts`; no AI. The tab loads its data when opened, following the Financials planning pattern, so the listing page stays fast. Rule recorded from Fede: an owner's minimum price is a payout after markups and discounts.
+
+## 2026-10-14 — The Hub is the source of truth for listing strategy
+
+Fede reviewed a clickable prototype and asked to ship it: the listing page gets top-level tabs (Legacy, Strategy, Goals, Comps, Events, Listing Audit) and revfactor-rm's pricing work moves into the Hub, which becomes the source of truth (revfactor-rm was "mostly a test"). Plans, open questions and their answers are stored per listing; approval requires the blocking questions answered and creates a setup adjustment so the team's existing apply → control flow carries the work. The original page stays intact under Legacy so nothing is lost while the new tabs take over.
