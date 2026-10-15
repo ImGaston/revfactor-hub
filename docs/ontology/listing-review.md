@@ -17,7 +17,7 @@ Fold this into RM `docs/ontology.md` when phase 0 lands.
 | Suggestion (Recommendation) | `listing_optimization_items.id` | `listing_optimization_items` | ListingReview, ReviewCheck (`check_id`), Adjustment (`adjustment_id`) | same | built (branch) |
 | ReviewEvent (Decision/audit) | `listing_optimization_events.id` | `listing_optimization_events` (append-only) | ListingReview, Suggestion | `listings:view` | built (branch) |
 | Adjustment (Execution) | `adjustments.id` | `adjustments`, type `listing_content` | Listing/Client | existing | live (type added on branch) |
-| AirbnbListingField | `card::field` | `lib/airbnb-listing-fields.ts` (366 editable editor fields, 2026-10-13: a condo specimen plus 6 sampled homes; conditional fields carry a `condition`) | ReviewCheck (`checks[]`) or `recordOnly` reason | code | built (branch) |
+| AirbnbListingField | `card::field` | `lib/airbnb-listing-fields.ts` (376 editable editor fields, 2026-10-13: a condo specimen plus 6 sampled homes, extended 2026-10-14 with amenity sub-details and the PMS-managed field list; conditional fields carry a `condition`) | ReviewCheck (`checks[]`) or `recordOnly` reason | code | built (branch) |
 | ChannelManager (property of ListingReview) | `listing_optimization_reports.channel_manager` | Airbnb editor settings → property management software | ListingReview; decides where Execution happens | `listings:view` | built (branch) |
 | OnboardingRun | `onboarding_runs.id` | `onboarding_runs` | Client | existing | live, not used by GHL-native flow |
 | OwnerGoal (per listing) | planned | GHL `revfactor_listings` fields mirrored to Hub | Listing, Client | `clients:view` (financial fields scoped) | planned (wikifactor playbooks/onboarding-v2.md) |

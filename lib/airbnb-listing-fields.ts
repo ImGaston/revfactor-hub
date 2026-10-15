@@ -2220,6 +2220,116 @@ export const AIRBNB_LISTING_FIELDS: AirbnbListingField[] = [
     cohostEditable: true,
     checks: ["amenities.filters", "amenities.copy_match", "amenities.false"],
   },
+  // Sub-details set per amenity once it is checked (click the amenity in the
+  // editor). Found 2026-10-14 on Guesty-connected homes; they qualify the
+  // amenity, so the text and photos must agree with them.
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Air conditioning type (e.g. Portable vs a system)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Air conditioning",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Air conditioning is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Hot tub privacy and capacity (Private • N people / Public or shared)",
+    editorPath: "/hosting/listings/editor/:listingId/details/amenities > Hot tub",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Hot tub is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Parking type (e.g. Parking garage / Parking lot)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > <parking amenity>",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when a parking amenity is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Cleaning during stay cost (e.g. Available at extra cost)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Cleaning available during stay",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Cleaning available during stay is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Dining table seats",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Dining table",
+    valueType: "number",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Dining table is checked",
+    checks: ["amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Crib availability (e.g. Guests must request it)",
+    editorPath: "/hosting/listings/editor/:listingId/details/amenities > Crib",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Crib is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Washer / dryer location (e.g. In unit)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Washer / Dryer",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Washer or Dryer is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Indoor fireplace type (e.g. Gas / Wood burning)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Indoor fireplace",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Indoor fireplace is checked",
+    checks: ["amenities.false", "amenities.copy_match", "description.claims"],
+  },
+  {
+    group: "Your space",
+    card: "Amenities > Amenity details",
+    field: "Clothing storage type (e.g. Closet)",
+    editorPath:
+      "/hosting/listings/editor/:listingId/details/amenities > Clothing storage",
+    valueType: "select",
+    guestVisible: true,
+    cohostEditable: true,
+    condition: "Only when Clothing storage is checked",
+    recordOnly:
+      "Low guest impact; the Clothing storage amenity itself is audited, the storage type is noted only if the text contradicts it",
+  },
   {
     group: "Your space",
     card: "Accessibility features",
@@ -2614,6 +2724,8 @@ export const AIRBNB_LISTING_FIELDS: AirbnbListingField[] = [
     valueType: "text",
     guestVisible: true,
     cohostEditable: true,
+    condition:
+      "Once filled, the Booking settings card shows it as \"Pre-booking message\"; it appears for every booking, including when Instant Book is off",
     checks: ["settings.booking_message"],
   },
   {
@@ -3197,6 +3309,19 @@ export const AIRBNB_LISTING_FIELDS: AirbnbListingField[] = [
     cohostEditable: "unknown",
     recordOnly:
       "Channel manager: decides where changes are applied (recorded on the report)",
+  },
+  {
+    group: "Settings",
+    card: "Settings > Property management software",
+    field: "Fields not currently managed by the PMS",
+    editorPath: "/hosting/listings/editor/:listingId/preferences/api-status",
+    valueType: "list",
+    guestVisible: false,
+    cohostEditable: "unknown",
+    condition:
+      "Only when a PMS is connected; per-listing list such as \"Description: Listing Description\", \"Amenities: Air conditioning\", \"Check-in method\", \"Title\", \"Location: Address\"",
+    recordOnly:
+      "Channel manager routing: a listed field is edited directly in Airbnb; any other field must be changed in the PMS or the next sync overwrites it (recorded with the report's channel manager)",
   },
   {
     group: "Settings",
