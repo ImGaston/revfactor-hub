@@ -61,7 +61,20 @@ export async function runListingSetupCheck(
     dryRun = false,
     today = todayUtc(),
     deadline,
-  }: { listingIds?: string[]; dryRun?: boolean; today?: string; deadline?: number } = {}
+    allPriceLabsListings,
+  }: {
+    listingIds?: string[]
+    dryRun?: boolean
+    today?: string
+    deadline?: number
+    /**
+     * Every PriceLabs listing, sync on and off (only_syncing_listings=false),
+     * when the caller already fetched it (the daily cron's sync). A
+     * syncing-only list would make push-off listings look missing, so only
+     * pass the full list; omitted, the check fetches it itself.
+     */
+    allPriceLabsListings?: PriceLabsListing[]
+  } = {}
 ): Promise<SetupCheckResult> {
   const result: SetupCheckResult = {
     listings: 0,
@@ -111,11 +124,15 @@ export async function runListingSetupCheck(
 
   // One call returns every listing (including ones with sync off).
   let plListings: PriceLabsListing[]
-  try {
-    plListings = await fetchPriceLabsListings(false)
-  } catch (e) {
-    result.errors.push(e instanceof Error ? e.message : "PriceLabs listings request failed")
-    return result
+  if (allPriceLabsListings) {
+    plListings = allPriceLabsListings
+  } else {
+    try {
+      plListings = await fetchPriceLabsListings(false, { deadline })
+    } catch (e) {
+      result.errors.push(e instanceof Error ? e.message : "PriceLabs listings request failed")
+      return result
+    }
   }
   const plById = new Map(plListings.map((l) => [String(l.id), l]))
 

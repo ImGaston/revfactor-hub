@@ -181,6 +181,7 @@ export default async function ListingPage({
           setup={setup}
           preview={setupPreview}
           canEdit={canEditListings}
+          canViewResults={canViewReservations}
         />
       }
       canViewPricingPlan={canViewReservations}

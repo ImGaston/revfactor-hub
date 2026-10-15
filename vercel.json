@@ -5,6 +5,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/report-builder",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sync-stripe",
       "schedule": "30 8 * * *"
     }
