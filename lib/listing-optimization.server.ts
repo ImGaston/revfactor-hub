@@ -558,7 +558,7 @@ export type StaffReportRow = {
   created_at: string
   published_at: string | null
   owner_message_sent_at: string | null
-  counts: { total: number; pending: number; accepted: number; declined: number; live: number }
+  counts: { total: number; pending: number; accepted: number; declined: number; live: number; applied: number; toApply: number }
 }
 
 /** Staff list (RLS: listings:view). */
@@ -596,6 +596,9 @@ export async function loadStaffReports(): Promise<StaffReportRow[]> {
         accepted: items.filter((i) => i.client_status === "accepted").length,
         declined: items.filter((i) => i.client_status === "declined").length,
         live: items.filter((i) => i.apply_status === "verified").length,
+        applied: items.filter((i) => i.client_status === "accepted" && (i.apply_status === "applied" || i.apply_status === "verified")).length,
+        // Accepted work still on us: not applied, verified or skipped yet.
+        toApply: items.filter((i) => i.client_status === "accepted" && !["applied", "verified", "skipped"].includes(i.apply_status)).length,
       },
     }
   })
@@ -705,3 +708,52 @@ export async function sendReviewOwnerMessage(input: {
   })
   return { ok: true }
 }
+
+const DECISION_SESSION_MINUTES = 30
+
+/**
+ * Tell the team in Slack when an owner starts accepting suggestions, so the
+ * work (already queued as listing_content adjustments) gets picked up. One
+ * message per decision session: skipped when the same review had another
+ * decision in the last 30 minutes. Needs SLACK_LISTING_REVIEWS_CHANNEL_ID;
+ * without it (or without a Slack token) this is a silent skip.
+ */
+export async function notifyTeamOfOwnerDecision(itemId: string): Promise<void> {
+  const channelId = process.env.SLACK_LISTING_REVIEWS_CHANNEL_ID?.trim()
+  if (!channelId) return
+  try {
+    const supabase = createAdminClient()
+    const { data: item } = await supabase
+      .from("listing_optimization_items")
+      .select("report_id, listing_optimization_reports!inner(id, listing_title, client_id, clients:clients_basic(name))")
+      .eq("id", itemId)
+      .maybeSingle()
+    if (!item) return
+    const report = (item as unknown as {
+      listing_optimization_reports: { id: string; listing_title: string; clients: { name: string } | { name: string }[] | null }
+    }).listing_optimization_reports
+    const since = new Date(Date.now() - DECISION_SESSION_MINUTES * 60_000).toISOString()
+    const { count } = await supabase
+      .from("listing_optimization_events")
+      .select("id", { count: "exact", head: true })
+      .eq("report_id", report.id)
+      .in("action", ["DecideSuggestion", "MarkOwnerTaskDone"])
+      .gte("created_at", since)
+    // The decision that triggered this call is already logged; anything more means an ongoing session.
+    if ((count ?? 0) > 1) return
+    const { count: accepted } = await supabase
+      .from("listing_optimization_items")
+      .select("id", { count: "exact", head: true })
+      .eq("report_id", report.id)
+      .eq("client_status", "accepted")
+    const client = Array.isArray(report.clients) ? report.clients[0]?.name : report.clients?.name
+    const { postSlackMessage } = await import("@/lib/slack")
+    await postSlackMessage({
+      channelId,
+      text: `${client ?? "An owner"} is accepting listing changes on "${report.listing_title}" (${accepted ?? 0} accepted so far). They're queued in Adjustments as Listing content: https://hub.revfactor.io/listing-optimization/${report.id}`,
+    })
+  } catch (error) {
+    console.error("listing optimization: decision notification failed", error)
+  }
+}
+
