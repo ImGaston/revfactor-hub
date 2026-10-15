@@ -174,6 +174,7 @@ export function ListingDetail({
   subscriptionOptions = [],
   clientCustomerIds = [],
   reservationsCard = null,
+  setupTab = null,
   canViewClient = false,
 }: {
   listing: ListingWithMetrics
@@ -186,6 +187,8 @@ export function ListingDetail({
   subscriptionOptions?: ListingSubscriptionOption[]
   clientCustomerIds?: string[]
   reservationsCard?: React.ReactNode
+  /** Server-rendered Setup tab (decided settings + change history). */
+  setupTab?: React.ReactNode
 }) {
   // A listing is reached through its client, so back returns there rather than
   // to the flat listings table. Falls back when there is no client, or when the
@@ -509,6 +512,7 @@ export function ListingDetail({
           <TabsTrigger value="market">Market Position</TabsTrigger>
           <TabsTrigger value="window">Booking Window</TabsTrigger>
           <TabsTrigger value="pacing">Pacing</TabsTrigger>
+          {setupTab && <TabsTrigger value="setup">Setup</TabsTrigger>}
         </TabsList>
 
         {/* ─── Overview Tab (Report Builder) ───────────────── */}
@@ -530,6 +534,13 @@ export function ListingDetail({
         <TabsContent value="pacing" className="space-y-4">
           <ReportPacing report={report} />
         </TabsContent>
+
+        {/* ─── Setup Tab (listing revenue setup, read-only) ─── */}
+        {setupTab && (
+          <TabsContent value="setup" className="space-y-4">
+            {setupTab}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* ─── Recent Reservations (server-rendered slot) ────

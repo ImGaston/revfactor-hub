@@ -170,6 +170,16 @@ Display:
 - Agent Studio health separates connection health from listing coverage: a fresh portfolio sync displays `connected`, with named notes for active listings that have a missing ID, have never synced, or are older than the 36-hour freshness target.
 - Reservations, pricing calendar, and pacing tabs still depend on PMS/reservations work.
 
+### Guesty-connected listings: takeover gotchas (learned 2026-10-15, Jacob Raabe / HK332)
+
+- Turning off Guesty PriceOptimizer resets the next 12 months to the listing's "original pricing" (often a stale old PriceLabs push). Stage PriceLabs settings with push off first, then switch GPO off and turn PriceLabs push on right away. GPO's exit survey needs a typed reason before it completes; GPO's own promotions drop to 0 listings when it goes off.
+- A PriceLabs listing can look mapped while its Guesty token has expired: Sync Price shows "11 months ago" and the calendar says "Unable to get your listing details from Guesty". The fix is to disconnect/reconnect PriceLabs in Guesty Marketplace and paste the new key into PriceLabs (Add/Re-import → Guesty). The owner or Fede handles the key; agents never do. Guesty warns a disconnect "can take up to 24 hours", but it took minutes.
+- Guesty markups exist at two levels; listing level (Pricing & policies → Pricing → Markup/Markdown) overrides account level (Revenue management → Markups). Check prices on the channel side to see which one applies.
+- Guesty weekly/monthly discounts don't reach Booking.com and are overridden on Airbnb by length-of-stay promos; on Airbnb, set trip-length/weekly/monthly in Airbnb itself. Airbnb pre-fills its own suggestions (e.g. 31% weekly, 58% monthly), so overwrite them before saving.
+- The PriceLabs Customer API covers date overrides (min price, min stay, check-in/out, `lead_time_expiry`) and pricing customizations, including a custom seasonal profile. It doesn't cover min-stay profiles or orphan-day prices; those are set in the dashboard. A date override's `lead_time_expiry` expires the whole record, including its min price, so hold seasonal minimum prices in a seasonal profile instead.
+- PriceLabs check-in/check-out restrictions for Guesty must be enabled by PriceLabs support (in-app chat → "Connect to a human"), and the listing also needs a default Check In – Check Out setting. Until then, date-level check-in/out rules are saved but don't push.
+- RevFactor's Guesty user in a client account may be read-only for listing content (descriptions save returns 403, shown as "internal server problem"), while pricing toggles still work. The owner has to raise the role.
+
 ### PriceLabs Report Builder
 
 Net-new integration (migration `035_report_builder.sql`, `lib/report-builder/`) that ingests a **monthly** listing × month grid for the whole portfolio in a single API call — distinct from the daily `pl_*` current-state snapshot on `listings`.
