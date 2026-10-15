@@ -1,5 +1,6 @@
 import { History, Info } from "lucide-react"
 
+import { SettingRowMenu, SetupToolbar } from "@/components/listings/listing-setup-controls"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -62,12 +63,19 @@ function scopeLabel(row: { channel: keyof typeof CHANNEL_LABELS; date_from: stri
 
 /** Read-only Setup tab: current decided settings and their change history. */
 export function ListingSetupTab({
+  listingId,
   setup,
   preview = false,
+  canEdit = false,
 }: {
+  listingId: string
   setup: ListingSetup
   preview?: boolean
+  /** listings:edit — record changes, verify, flag drift, run the PriceLabs check. */
+  canEdit?: boolean
 }) {
+  // Preview data is a local fixture; never offer writes against it.
+  const editable = canEdit && !preview
   if (!setup.available) {
     return (
       <Card>
@@ -86,11 +94,15 @@ export function ListingSetupTab({
   const changeSets = newestFirst(setup.changeSets, (cs) => cs.created_at)
   if (settings.length === 0 && changes.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-6 text-sm text-muted-foreground">
-          No setup recorded for this listing yet.
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        {editable && <SetupToolbar listingId={listingId} />}
+        <Card>
+          <CardContent className="py-6 text-sm text-muted-foreground">
+            No setup recorded for this listing yet.
+            {editable && " Use Record change to log the first decisions (min/base/max, markups, fees, stay rules)."}
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
@@ -115,6 +127,8 @@ export function ListingSetupTab({
         </p>
       )}
 
+      {editable && <SetupToolbar listingId={listingId} />}
+
       <div className="flex flex-wrap gap-2 text-xs">
         {(Object.keys(STATUS_LABELS) as SettingStatus[])
           .filter((s) => counts[s])
@@ -138,7 +152,8 @@ export function ListingSetupTab({
                   <TableHead>Value</TableHead>
                   <TableHead>Where</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="pr-6">Last change</TableHead>
+                  <TableHead className={editable ? undefined : "pr-6"}>Last change</TableHead>
+                  {editable && <TableHead className="w-10 pr-4" aria-label="Actions" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -162,7 +177,12 @@ export function ListingSetupTab({
                           {STATUS_LABELS[s.status]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="pr-6 align-top text-xs text-muted-foreground whitespace-normal">
+                      <TableCell
+                        className={cn(
+                          "align-top text-xs text-muted-foreground whitespace-normal",
+                          !editable && "pr-6"
+                        )}
+                      >
                         {last ? (
                           <>
                             <div>{fmtDateTime(last.occurred_at)}</div>
@@ -172,6 +192,11 @@ export function ListingSetupTab({
                           "—"
                         )}
                       </TableCell>
+                      {editable && (
+                        <TableCell className="pr-4 align-top">
+                          <SettingRowMenu listingId={listingId} setting={s} />
+                        </TableCell>
+                      )}
                     </TableRow>
                   )
                 })}
@@ -206,7 +231,7 @@ export function ListingSetupTab({
             />
           ))}
           {ungrouped.length > 0 && (
-            <ChangeSetBlock title="Other changes" subtitle="" status={null} notes={null} changes={ungrouped} />
+            <ChangeSetBlock title="Automatic checks and one-off updates" subtitle="PriceLabs check, Mark verified, Flag drift" status={null} notes={null} changes={ungrouped} />
           )}
         </CardContent>
       </Card>

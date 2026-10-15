@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 import { isPriceLabsConfigured } from "@/lib/pricelabs"
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
 import { advanceReportBuilder } from "@/lib/report-builder/runner"
+import { runListingSetupCheck } from "@/lib/listing-setup-check.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -10,6 +11,8 @@ export const maxDuration = 60
 // Total time budget for the function; the Report Builder gets whatever is left
 // after the pl_* sync, with headroom so we never exceed maxDuration.
 const FUNCTION_BUDGET_MS = 52_000
+// The setup check stops starting new listings after this point.
+const SETUP_CHECK_BUDGET_MS = 30_000
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
@@ -31,6 +34,24 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await syncPriceLabsData(supabase)
+
+    // Listing revenue setup: confirm the decided PriceLabs settings (or flag
+    // drift) right after the sync. Few listings carry setup rows, so this is a
+    // handful of requests; it never blocks the Report Builder for long.
+    let setupCheck:
+      | Awaited<ReturnType<typeof runListingSetupCheck>>
+      | { error: string }
+      | null = null
+    try {
+      setupCheck = await runListingSetupCheck(supabase, {
+        deadline: startedAt + SETUP_CHECK_BUDGET_MS,
+      })
+      // The per-setting details stay out of the cron response.
+      setupCheck = { ...setupCheck, details: [] }
+    } catch (err) {
+      console.error("Listing setup check (chained) error:", err)
+      setupCheck = { error: err instanceof Error ? err.message : "Unknown error" }
+    }
 
     // Chain the Report Builder ingestion onto the same daily cron (same API key)
     // so we don't add a separate cron job. It advances its own state machine and
@@ -60,6 +81,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       message: `Synced ${result.synced} listings from PriceLabs`,
       ...result,
+      setupCheck,
       reportBuilder,
     })
   } catch (err) {

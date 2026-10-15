@@ -99,6 +99,29 @@ export async function fetchPriceLabsListings(
   return data.listings
 }
 
+export type PriceLabsOverride = {
+  date: string
+  min_stay?: number | null
+  min_price?: number | string | null
+  min_price_type?: string | null
+  check_in?: string | null
+  check_out?: string | null
+  lead_time_expiry?: number | null
+  reason?: string | null
+}
+
+/** Date-specific overrides (DSOs) for one listing, today onward. */
+export async function fetchPriceLabsOverrides(
+  listingId: string,
+  pms: string
+): Promise<PriceLabsOverride[]> {
+  const data = await priceLabsFetch<{ overrides?: PriceLabsOverride[] }>(
+    `/listings/${encodeURIComponent(listingId)}/overrides`,
+    { pms }
+  )
+  return data.overrides ?? []
+}
+
 /**
  * Parse a percentage string like "100 %" or "57 %" → integer (100, 57)
  * Also handles plain numbers.
