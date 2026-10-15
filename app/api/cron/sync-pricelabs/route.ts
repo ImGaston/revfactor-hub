@@ -8,6 +8,7 @@ import {
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
 import { advanceReportBuilder } from "@/lib/report-builder/runner"
 import { runListingSetupCheck } from "@/lib/listing-setup-check.server"
+import { captureDailySnapshots, runOutcomeCheckpoints } from "@/lib/listing-outcomes.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -19,7 +20,9 @@ const FUNCTION_BUDGET_MS = 52_000
 // this point so the chained steps still get their turn.
 const LISTINGS_FETCH_BUDGET_MS = 35_000
 // The setup check stops starting new listings after this point.
-const SETUP_CHECK_BUDGET_MS = 42_000
+const SETUP_CHECK_BUDGET_MS = 38_000
+// Checkpoint reviews (AI summaries) stop starting new ones after this point.
+const OUTCOMES_BUDGET_MS = 40_000
 
 const errorMessage = (err: unknown) =>
   err instanceof Error ? err.message : "Unknown error"
@@ -102,6 +105,35 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Listing outcomes: store today's PriceLabs market numbers (pace vs market
+  // needs history the pl_* columns overwrite) and save due day-7/14/30/60/90
+  // checkpoint reviews. Both are no-ops until the outcomes migration exists.
+  // Snapshots only take listings synced today, so after a failed sync they
+  // capture nothing; checkpoints read reservations and stored snapshots, so
+  // they still run (and run after the capture to see today's). Each step
+  // fails on its own.
+  let snapshots:
+    | Awaited<ReturnType<typeof captureDailySnapshots>>
+    | { error: string }
+  try {
+    snapshots = await captureDailySnapshots(supabase)
+  } catch (err) {
+    console.error("Listing outcome snapshots (chained) error:", err)
+    snapshots = { error: errorMessage(err) }
+  }
+  let checkpoints:
+    | Awaited<ReturnType<typeof runOutcomeCheckpoints>>
+    | { error: string }
+  try {
+    checkpoints = await runOutcomeCheckpoints(supabase, {
+      deadline: startedAt + OUTCOMES_BUDGET_MS,
+    })
+  } catch (err) {
+    console.error("Listing outcome checkpoints (chained) error:", err)
+    checkpoints = { error: errorMessage(err) }
+  }
+  const outcomes = { snapshots, checkpoints }
+
   // Chain the Report Builder ingestion onto the same daily cron (same API key)
   // so we don't add a separate cron job. It advances its own state machine and
   // only inline-polls with the time left in this function's budget; a slow
@@ -129,6 +161,7 @@ export async function GET(request: NextRequest) {
       {
         error: `PriceLabs sync failed: ${syncError}`,
         setupCheck,
+        outcomes,
         reportBuilder,
       },
       { status: 500 }
@@ -139,6 +172,7 @@ export async function GET(request: NextRequest) {
     message: `Synced ${sync.synced} listings from PriceLabs`,
     ...sync,
     setupCheck,
+    outcomes,
     reportBuilder,
   })
 }

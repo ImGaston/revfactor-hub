@@ -1,5 +1,6 @@
 import { History, Info } from "lucide-react"
 
+import { ListingOutcomes } from "@/components/listings/listing-outcomes"
 import { SettingRowMenu, SetupToolbar } from "@/components/listings/listing-setup-controls"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -67,12 +68,15 @@ export function ListingSetupTab({
   setup,
   preview = false,
   canEdit = false,
+  canViewResults = false,
 }: {
   listingId: string
   setup: ListingSetup
   preview?: boolean
   /** listings:edit — record changes, verify, flag drift, run the PriceLabs check. */
   canEdit?: boolean
+  /** reservations:view — the Results section reads booking revenue. */
+  canViewResults?: boolean
 }) {
   // Preview data is a local fixture; never offer writes against it.
   const editable = canEdit && !preview
@@ -128,6 +132,10 @@ export function ListingSetupTab({
       )}
 
       {editable && <SetupToolbar listingId={listingId} />}
+
+      {canViewResults && !preview && changeSets.length > 0 && (
+        <ListingOutcomes listingId={listingId} canSummarize={editable} />
+      )}
 
       <div className="flex flex-wrap gap-2 text-xs">
         {(Object.keys(STATUS_LABELS) as SettingStatus[])
