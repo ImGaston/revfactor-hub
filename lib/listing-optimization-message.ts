@@ -75,13 +75,85 @@ export function buildOwnerMessage(input: {
     "",
     `Each suggestion has Accept or Decline. Nothing changes until you accept it, and we'll make the changes in ${where} for you.`
   )
-  if (ownerTasks.length === 1) {
-    lines.push("One is something only you can do in Airbnb, and it has a direct link.")
-  } else if (ownerTasks.length > 1) {
+  const tasksLine = ownerTasksLine(ownerTasks.length)
+  if (tasksLine) lines.push(tasksLine)
+  lines.push("", "Can you take a look this week?")
+  return lines.join("\n")
+}
+
+function ownerTasksLine(count: number): string | null {
+  if (count === 1) return "One is something only you can do in Airbnb, and it has a direct link."
+  if (count > 1) {
     const words = ["Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
-    const count = words[ownerTasks.length - 2] ?? String(ownerTasks.length)
-    lines.push(`${count} are things only you can do in Airbnb, and those have a direct link.`)
+    const n = words[count - 2] ?? String(count)
+    return `${n} are things only you can do in Airbnb, and those have a direct link.`
   }
+  return null
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? ""
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`
+}
+
+type BundleMessageItem = MessageItem & { check_id?: string | null }
+
+export type BundleReview = {
+  /** Owner-friendly listing name (the Hub listing name, not the Airbnb title). */
+  listingName: string
+  items: BundleMessageItem[]
+  channelManager: string | null | undefined
+}
+
+/**
+ * One message for several reviews of the same owner (owner-level "Publish &
+ * send all"): the top fixes per listing, one owner-task count (the host
+ * profile is shared, so its tasks count once), and where we apply changes.
+ */
+export function buildOwnerBundleMessage(input: {
+  ownerName: string | null | undefined
+  reviews: BundleReview[]
+}): string {
+  if (input.reviews.length === 1) {
+    const [only] = input.reviews
+    return buildOwnerMessage({ ownerName: input.ownerName, items: only.items, channelManager: only.channelManager })
+  }
+  const first = firstNameOf(input.ownerName)
+  const names = input.reviews.map((r) => r.listingName)
+  const perListing = input.reviews.length <= 2 ? 3 : 2
+
+  const lines = [
+    `Hi ${first}! Your listing reviews for ${joinNames(names)} are ready in the portal, under the Listing Review tab.`,
+    "",
+    "We went through every part of each Airbnb listing and wrote up what we'd change. The ones that matter most:",
+  ]
+  for (const review of input.reviews) {
+    const fixes = topFixes(review.items, perListing)
+    if (fixes.length === 0) continue
+    lines.push("", review.listingName)
+    fixes.forEach((fix, i) => lines.push(`${i + 1}. ${fix}`))
+  }
+
+  const managers = [...new Set(input.reviews.map((r) => r.channelManager?.trim() || null))]
+  const where =
+    managers.length === 1 && managers[0]
+      ? `we'll make the changes for you in ${managers[0]}, or in Airbnb for anything ${managers[0]} doesn't sync.`
+      : managers.length === 1
+        ? "we'll make the changes in Airbnb for you."
+        : "we'll make the changes for you."
+  lines.push("", `Each suggestion has Accept or Decline. Nothing changes until you accept it, and ${where}`)
+
+  // Host profile tasks are about the owner's own profile, shared by every listing.
+  const taskKeys = new Set<string>()
+  input.reviews.forEach((review, r) => {
+    for (const item of review.items) {
+      if (item.kind !== "owner_task") continue
+      const key = item.section === "host_profile" ? `profile:${item.check_id ?? item.headline}` : `${r}:${item.sort_order}:${item.headline}`
+      taskKeys.add(key)
+    }
+  })
+  const tasksLine = ownerTasksLine(taskKeys.size)
+  if (tasksLine) lines.push(tasksLine)
   lines.push("", "Can you take a look this week?")
   return lines.join("\n")
 }

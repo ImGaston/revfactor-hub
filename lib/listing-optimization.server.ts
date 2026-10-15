@@ -7,12 +7,14 @@ import {
   type OptimizationDecision,
   type OptimizationItem,
   type OptimizationReport,
+  type OwnerReviewRow,
 } from "@/lib/listing-optimization"
 import type { PortalViewer } from "@/lib/assembly-portal-session.server"
 import { buildOwnerMessage } from "@/lib/listing-optimization-message"
 import { getCompanyChannels, getOrCreateMessageChannel, sendAssemblyMessage } from "@/lib/assembly"
 import {
   CHECKLIST_VERSION,
+  checkCoverage,
   gradeSections,
   scoreChecks,
   type CheckResult,
@@ -372,6 +374,157 @@ export async function createDraftReport(
   return { ok: true, reportId: report.id }
 }
 
+/**
+ * The client's Assembly chat: the company channel when the client belongs to
+ * one, else their individual channel.
+ */
+async function resolveOwnerChannel(
+  clientId: string
+): Promise<{ ok: true; channelId: string } | { ok: false; error: string }> {
+  const { data: client } = await createAdminClient()
+    .from("clients")
+    .select("assembly_client_id, assembly_company_id")
+    .eq("id", clientId)
+    .maybeSingle()
+  if (!client?.assembly_client_id) {
+    return { ok: false, error: "This client isn't linked to Assembly yet." }
+  }
+  try {
+    const company = client.assembly_company_id
+      ? (await getCompanyChannels(client.assembly_client_id)).find(
+          (c) => c.companyId === client.assembly_company_id
+        )
+      : undefined
+    const channelId = company?.id ?? (await getOrCreateMessageChannel(client.assembly_client_id)).id
+    return { ok: true, channelId }
+  } catch (error) {
+    console.error("listing optimization: assembly channel lookup failed", error)
+    return { ok: false, error: "Couldn't find the client's Assembly chat." }
+  }
+}
+
+/**
+ * Sends ONE message for several published reviews of the same owner
+ * (owner-level "Publish & send all"). Every review in the bundle is stamped
+ * with the same send time, Assembly message id and text, so none of them can
+ * be sent again, and each gets a NotifyOwnerOfReview event naming the bundle.
+ * Callers must have checked the staff user's permission.
+ */
+export async function sendOwnerBundleMessage(input: {
+  clientId: string
+  reportIds: string[]
+  text: string
+  actorUserId: string | null
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const text = input.text.trim()
+  if (!text) return { ok: false, error: "The message is empty." }
+  const ids = [...new Set(input.reportIds)]
+  if (ids.length === 0) return { ok: false, error: "Pick at least one review." }
+
+  const supabase = createAdminClient()
+  const { data: reports, error } = await supabase
+    .from("listing_optimization_reports")
+    .select("id, client_id, status, owner_message_sent_at")
+    .in("id", ids)
+  if (error) return { ok: false, error: "Couldn't load the reviews." }
+  if (!reports || reports.length !== ids.length) return { ok: false, error: "Some reviews weren't found." }
+  if (reports.some((r) => r.client_id !== input.clientId)) {
+    return { ok: false, error: "All reviews must belong to the same owner." }
+  }
+  if (reports.some((r) => r.status !== "published")) {
+    return { ok: false, error: "Publish every review before sending the message." }
+  }
+  if (reports.some((r) => r.owner_message_sent_at)) {
+    return { ok: false, error: "A message was already sent for one of these reviews." }
+  }
+
+  const channel = await resolveOwnerChannel(input.clientId)
+  if (!channel.ok) return channel
+
+  let messageId: string | null = null
+  try {
+    const sent = await sendAssemblyMessage(channel.channelId, text)
+    messageId = sent?.id ?? null
+  } catch (sendError) {
+    console.error("listing optimization: assembly bundle send failed", sendError)
+    return { ok: false, error: "Assembly didn't accept the message. Try again." }
+  }
+
+  const { error: stampError } = await supabase
+    .from("listing_optimization_reports")
+    .update({
+      owner_message: text,
+      owner_message_sent_at: new Date().toISOString(),
+      owner_message_sent_by: input.actorUserId,
+      owner_message_assembly_id: messageId,
+    })
+    .in("id", ids)
+    .is("owner_message_sent_at", null)
+  if (stampError) console.error("listing optimization: bundle stamp failed", stampError)
+  await Promise.all(
+    ids.map((reportId) =>
+      logEvent({
+        reportId,
+        action: "NotifyOwnerOfReview",
+        actorType: "staff",
+        actorId: input.actorUserId,
+        details: { channel_id: channel.channelId, assembly_message_id: messageId, bundle: ids },
+      })
+    )
+  )
+  return { ok: true }
+}
+
+
+/**
+ * One owner's reviews that can still go out with the owner message: drafts
+ * and published reviews whose message hasn't been sent (RLS: listings:view).
+ */
+export async function loadOwnerReviews(clientId: string): Promise<{
+  clientName: string | null
+  pending: OwnerReviewRow[]
+  sentCount: number
+} | null> {
+  const { createClient } = await import("@/lib/supabase/server")
+  const supabase = await createClient()
+  const [{ data: client }, { data: rows, error }] = await Promise.all([
+    supabase.from("clients_basic").select("name").eq("id", clientId).maybeSingle(),
+    supabase
+      .from("listing_optimization_reports")
+      .select(
+        `id, listing_title, status, overall_score, channel_manager, checks, owner_message_sent_at, created_at,
+         listings(name),
+         listing_optimization_items(section, kind, priority, sort_order, headline, check_id)`
+      )
+      .eq("client_id", clientId)
+      .in("status", ["draft", "published"])
+      .order("created_at", { ascending: true }),
+  ])
+  if (error) throw new Error(`Could not load reviews: ${error.message}`)
+  if (!client && (!rows || rows.length === 0)) return null
+  const all = rows ?? []
+  const pending = all
+    .filter((r) => !r.owner_message_sent_at)
+    .map((r) => {
+      const listing = (r as { listings?: { name: string } | { name: string }[] | null }).listings
+      const listingName = (Array.isArray(listing) ? listing[0]?.name : listing?.name) ?? r.listing_title
+      const coverage = checkCoverage(Array.isArray(r.checks) ? (r.checks as CheckResult[]) : [])
+      return {
+        id: r.id,
+        listingName,
+        listingTitle: r.listing_title,
+        status: r.status as "draft" | "published",
+        overallScore: r.overall_score,
+        channelManager: r.channel_manager ?? null,
+        coverage: { checked: coverage.checked, total: coverage.total, complete: coverage.complete },
+        items: ((r as { listing_optimization_items?: OwnerReviewRow["items"] }).listing_optimization_items ?? [])
+          .slice()
+          .sort((a, b) => a.sort_order - b.sort_order),
+      }
+    })
+  return { clientName: client?.name ?? null, pending, sentCount: all.length - pending.length }
+}
+
 export type StaffReportRow = {
   id: string
   client_id: string
@@ -382,6 +535,7 @@ export type StaffReportRow = {
   source: string
   created_at: string
   published_at: string | null
+  owner_message_sent_at: string | null
   counts: { total: number; pending: number; accepted: number; declined: number; live: number }
 }
 
@@ -392,7 +546,7 @@ export async function loadStaffReports(): Promise<StaffReportRow[]> {
   const { data, error } = await supabase
     .from("listing_optimization_reports")
     .select(
-      `id, client_id, listing_title, status, overall_score, source, created_at, published_at,
+      `id, client_id, listing_title, status, overall_score, source, created_at, published_at, owner_message_sent_at,
        clients:clients_basic(name),
        listing_optimization_items(kind, client_status, apply_status)`
     )
@@ -413,6 +567,7 @@ export async function loadStaffReports(): Promise<StaffReportRow[]> {
       source: r.source,
       created_at: r.created_at,
       published_at: r.published_at,
+      owner_message_sent_at: r.owner_message_sent_at ?? null,
       counts: {
         total: items.length,
         pending: items.filter((i) => i.client_status === "pending").length,
@@ -430,6 +585,7 @@ export async function loadStaffReport(
 ): Promise<{
   report: OptimizationReport
   status: string
+  clientId: string
   clientName: string | null
   channelManager: string | null
   ownerMessage: string | null
@@ -440,7 +596,7 @@ export async function loadStaffReport(
   const { data: r } = await supabase
     .from("listing_optimization_reports")
     .select(
-      `${REPORT_COLUMNS}, status, channel_manager, owner_message, owner_message_sent_at, clients:clients_basic(name)`
+      `${REPORT_COLUMNS}, client_id, status, channel_manager, owner_message, owner_message_sent_at, clients:clients_basic(name)`
     )
     .eq("id", id)
     .maybeSingle()
@@ -453,6 +609,7 @@ export async function loadStaffReport(
   const client = (r as { clients?: { name: string } | { name: string }[] | null }).clients
   return {
     status: r.status,
+    clientId: (r as { client_id: string }).client_id,
     channelManager: (r as { channel_manager?: string | null }).channel_manager ?? null,
     ownerMessage: (r as { owner_message?: string | null }).owner_message ?? null,
     ownerMessageSentAt: (r as { owner_message_sent_at?: string | null }).owner_message_sent_at ?? null,
@@ -496,27 +653,9 @@ export async function sendReviewOwnerMessage(input: {
   const text = report.owner_message?.trim()
   if (!text) return { ok: false, error: "The message is empty." }
 
-  const { data: client } = await supabase
-    .from("clients")
-    .select("assembly_client_id, assembly_company_id")
-    .eq("id", report.client_id)
-    .maybeSingle()
-  if (!client?.assembly_client_id) {
-    return { ok: false, error: "This client isn't linked to Assembly yet." }
-  }
-
-  let channelId: string
-  try {
-    const company = client.assembly_company_id
-      ? (await getCompanyChannels(client.assembly_client_id)).find(
-          (c) => c.companyId === client.assembly_company_id
-        )
-      : undefined
-    channelId = company?.id ?? (await getOrCreateMessageChannel(client.assembly_client_id)).id
-  } catch (error) {
-    console.error("listing optimization: assembly channel lookup failed", error)
-    return { ok: false, error: "Couldn't find the client's Assembly chat." }
-  }
+  const channel = await resolveOwnerChannel(report.client_id)
+  if (!channel.ok) return channel
+  const channelId = channel.channelId
 
   let messageId: string | null = null
   try {
