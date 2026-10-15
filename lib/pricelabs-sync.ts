@@ -90,6 +90,27 @@ export function buildPriceLabsUpdate(
   }
 }
 
+/** Listing updates in flight at once (Supabase handles this easily; keeps the cron well under budget). */
+export const SYNC_CONCURRENCY = 10
+
+/** Runs `fn` over `items` with at most `limit` in flight; results keep input order. */
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++
+      results[i] = await fn(items[i], i)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return results
+}
+
 export async function syncPriceLabsData(
   supabase: SupabaseClient,
   dependencies: PriceLabsSyncDependencies = {}
@@ -145,20 +166,21 @@ export async function syncPriceLabsData(
     priceLabsListings.map((listing) => [String(listing.id).trim(), listing])
   )
   const syncedAt = now()
-  const results: PriceLabsListingSyncResult[] = []
 
-  for (const dbListing of dbListings) {
+  // One update per listing, run SYNC_CONCURRENCY at a time: done one by one,
+  // ~340 updates took ~24s of the cron's 60s and starved the chained steps
+  // (Oct 15 2026: the setup check hit its deadline before checking anything).
+  const results = await mapWithConcurrency(dbListings, SYNC_CONCURRENCY, async (dbListing): Promise<PriceLabsListingSyncResult> => {
     const priceLabsId = dbListing.listing_id?.trim() ?? ""
     const priceLabsListing = priceLabsById.get(priceLabsId)
 
     if (!priceLabsListing) {
-      results.push({
+      return {
         listingId: dbListing.id,
         priceLabsId,
         status: "not_found",
         syncedAt: null,
-      })
-      continue
+      }
     }
 
     const { data: updatedListing, error: updateError } = await supabase
@@ -175,23 +197,22 @@ export async function syncPriceLabsData(
         priceLabsId,
         error,
       })
-      results.push({
+      return {
         listingId: dbListing.id,
         priceLabsId,
         status: "failed",
         syncedAt: null,
         error,
-      })
-      continue
+      }
     }
 
-    results.push({
+    return {
       listingId: dbListing.id,
       priceLabsId,
       status: "synced",
       syncedAt,
-    })
-  }
+    }
+  })
 
   const result = {
     synced: results.filter((item) => item.status === "synced").length,

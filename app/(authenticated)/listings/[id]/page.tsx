@@ -175,7 +175,15 @@ export default async function ListingPage({
       }
       subscriptionOptions={subscriptionOptions}
       clientCustomerIds={clientCustomerIds}
-      setupTab={<ListingSetupTab setup={setup} preview={setupPreview} />}
+      setupTab={
+        <ListingSetupTab
+          listingId={id}
+          setup={setup}
+          preview={setupPreview}
+          canEdit={canEditListings}
+          canViewResults={canViewReservations}
+        />
+      }
       canViewPricingPlan={canViewReservations}
       canEditPlan={canEditListings}
       reservationsCard={

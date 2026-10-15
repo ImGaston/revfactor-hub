@@ -1,7 +1,8 @@
 // Report Builder ingestion: parse the envelope (20 listing / 35 month split),
 // rename to snake_case, resolve each listing to a hub client, and upsert
-// idempotently into report_listings + report_metrics. Errors are accumulated,
-// not thrown per-row, so a partial payload still lands what it can.
+// idempotently into report_listings + report_metrics. Upsert errors are
+// accumulated per chunk and then thrown before the run is stamped 'completed',
+// so consumers (which read the latest completed run) never see a partial load.
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import {
@@ -102,6 +103,7 @@ async function chunkedUpsert(
 /**
  * Ingest a completed envelope for `runId`. Upserts listings + metrics, then
  * stamps report_runs with counts/currency/completed and prunes old envelopes.
+ * Throws (leaving the run for the caller to fail) if any upsert failed.
  */
 export async function ingestReport(
   supabase: SupabaseClient,
@@ -172,6 +174,7 @@ export async function ingestReport(
     "listing_id,period,report_run_id",
     errors
   )
+  if (errors.length > 0) throw new Error(errors.join("; "))
 
   const completedAt = new Date().toISOString()
   const { error: runError } = await supabase
@@ -185,10 +188,10 @@ export async function ingestReport(
       payload_bytes: payloadBytes,
       report_currency: reportCurrency,
       raw_envelope: envelope,
-      error_reason: errors.length > 0 ? errors.join("; ") : null,
+      error_reason: null,
     })
     .eq("id", runId)
-  if (runError) errors.push(`report_runs update: ${runError.message}`)
+  if (runError) throw new Error(`report_runs update: ${runError.message}`)
 
   await pruneRawEnvelopes(supabase, errors)
 

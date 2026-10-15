@@ -4,6 +4,7 @@
 
 export const CLIENT_TABS = [
   { value: "legacy", label: "Legacy" },
+  { value: "onboarding", label: "Onboarding" },
   { value: "journey", label: "Customer Journey" },
   { value: "profile", label: "Client Profile" },
   { value: "tickets", label: "Support Tickets" },

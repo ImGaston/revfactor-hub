@@ -6,6 +6,7 @@ import {
   decisionProgress,
   groupItemsBySection,
   isDecisionLocked,
+  ownerSendGroups,
   sectionPriority,
   validateDecision,
   type OptimizationItem,
@@ -156,5 +157,38 @@ describe("draftReportSchema", () => {
       ],
     })
     expect(r.success).toBe(false)
+  })
+})
+
+describe("ownerSendGroups", () => {
+  const row = (id: string, client_id: string, status: string, sent: string | null = null) => ({
+    id,
+    client_id,
+    client_name: client_id === "s" ? "Spencer Ritterskamp" : "Kasey Booth",
+    status,
+    owner_message_sent_at: sent,
+  })
+
+  it("groups owners with two or more unsent drafts or published reviews", () => {
+    const groups = ownerSendGroups([
+      row("a", "s", "draft"),
+      row("b", "s", "published"),
+      row("c", "k", "draft"),
+      row("d", "k", "archived"),
+      row("e", "k", "published", "2026-10-14T00:00:00Z"),
+    ])
+    expect(groups).toEqual([{ clientId: "s", clientName: "Spencer Ritterskamp", reportIds: ["a", "b"] }])
+  })
+})
+
+describe("reviewStage", () => {
+  const c = (accepted: number, toApply: number) => ({ accepted, toApply })
+  it("maps reviews to Draft / Published / Accepted / Completed", async () => {
+    const { reviewStage } = await import("@/lib/listing-optimization")
+    expect(reviewStage({ status: "draft", counts: c(0, 0) })).toBe("draft")
+    expect(reviewStage({ status: "published", counts: c(0, 0) })).toBe("published")
+    expect(reviewStage({ status: "published", counts: c(3, 2) })).toBe("accepted")
+    expect(reviewStage({ status: "published", counts: c(3, 0) })).toBe("completed")
+    expect(reviewStage({ status: "archived", counts: c(3, 0) })).toBe("archived")
   })
 })

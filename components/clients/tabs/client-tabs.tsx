@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatusBadge } from "@/components/status-badge"
 import { CLIENT_TABS, DEFAULT_CLIENT_TAB, parseClientTab, type ClientTab } from "@/lib/client-tabs"
 import { JourneyTab } from "./journey-tab"
+import { OnboardingTab } from "./onboarding-tab"
 import { ProfileTab } from "./profile-tab"
 import { TicketsTab } from "./tickets-tab"
 import { AdjustmentsTab } from "./adjustments-tab"
@@ -97,6 +98,11 @@ export function ClientTabs({
         <TabsContent value="legacy" forceMount className="data-[state=inactive]:hidden">
           {legacy}
         </TabsContent>
+        {visited.has("onboarding") && (
+          <TabsContent value="onboarding" forceMount className="data-[state=inactive]:hidden">
+            <OnboardingTab clientId={clientId} />
+          </TabsContent>
+        )}
         {visited.has("journey") && (
           <TabsContent value="journey" forceMount className="data-[state=inactive]:hidden">
             <JourneyTab clientId={clientId} />

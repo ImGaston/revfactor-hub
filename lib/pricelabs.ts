@@ -1,5 +1,13 @@
 const PRICELABS_BASE_URL = "https://api.pricelabs.co/v1"
 const FETCH_TIMEOUT = 15_000
+// GET /listings returns every listing (~400, ~1MB) and usually takes 8-11s;
+// 15s was too tight on a slow day (Oct 14 2026 cron), so it gets its own
+// per-attempt timeout and one retry.
+const LISTINGS_FETCH_TIMEOUT = 20_000
+const LISTINGS_FETCH_RETRIES = 1
+// A retry only starts when at least this much of the caller's deadline is left.
+const MIN_RETRY_WINDOW_MS = 8_000
+const RETRY_DELAY_MS = 1_000
 
 // --- Types ---
 
@@ -58,9 +66,47 @@ export function isPriceLabsConfigured(): boolean {
   return !!process.env.PRICELABS_API_KEY
 }
 
+export class PriceLabsApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message)
+    this.name = "PriceLabsApiError"
+  }
+}
+
+export type PriceLabsFetchOptions = {
+  /** Per-attempt timeout. */
+  timeoutMs?: number
+  /** Extra attempts after a timeout or 5xx (4xx never retries). */
+  retries?: number
+  /** Epoch ms; attempts are cut to fit and no retry starts too close to it. */
+  deadline?: number
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function isTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "TimeoutError" || err.name === "AbortError")
+  )
+}
+
+function isRetryable(err: unknown): boolean {
+  if (err instanceof PriceLabsApiError) return err.status >= 500
+  return isTimeoutError(err)
+}
+
 async function priceLabsFetch<T>(
   path: string,
-  params?: Record<string, string>
+  params?: Record<string, string>,
+  {
+    timeoutMs = FETCH_TIMEOUT,
+    retries = 0,
+    deadline,
+  }: PriceLabsFetchOptions = {}
 ): Promise<T> {
   const apiKey = process.env.PRICELABS_API_KEY
   if (!apiKey) throw new Error("PRICELABS_API_KEY is not configured")
@@ -72,31 +118,103 @@ async function priceLabsFetch<T>(
     }
   }
 
-  const res = await fetch(url.toString(), {
-    headers: { "X-API-Key": apiKey },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT),
-  })
+  const attemptTimeouts: number[] = []
+  for (let attempt = 0; ; attempt++) {
+    const remaining = deadline ? deadline - Date.now() : Infinity
+    const timeout = Math.max(1, Math.min(timeoutMs, remaining))
+    attemptTimeouts.push(timeout)
+    try {
+      const res = await fetch(url.toString(), {
+        headers: { "X-API-Key": apiKey },
+        signal: AbortSignal.timeout(timeout),
+      })
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "")
-    throw new Error(
-      `PriceLabs API error ${res.status}: ${body || res.statusText}`
-    )
+      if (!res.ok) {
+        const body = await res.text().catch(() => "")
+        throw new PriceLabsApiError(
+          res.status,
+          `PriceLabs API error ${res.status}: ${body || res.statusText}`
+        )
+      }
+
+      return (await res.json()) as T
+    } catch (err) {
+      const windowLeft = deadline
+        ? deadline - Date.now() - RETRY_DELAY_MS
+        : Infinity
+      if (
+        attempt < retries &&
+        isRetryable(err) &&
+        windowLeft >= MIN_RETRY_WINDOW_MS
+      ) {
+        console.warn(`PriceLabs ${path} attempt ${attempt + 1} failed; retrying`, {
+          error: err instanceof Error ? err.message : String(err),
+        })
+        await sleep(RETRY_DELAY_MS)
+        continue
+      }
+      if (isTimeoutError(err)) {
+        const seconds = attemptTimeouts.map((ms) => `${Math.round(ms / 1000)}s`)
+        throw new Error(
+          `PriceLabs ${path} timed out (${attemptTimeouts.length} attempt${
+            attemptTimeouts.length === 1 ? "" : "s"
+          }: ${seconds.join(", ")})`,
+          { cause: err }
+        )
+      }
+      throw err
+    }
   }
-
-  return res.json() as Promise<T>
 }
 
 // --- API Functions ---
 
+/**
+ * onlySyncing=false returns every listing, including ones with sync (push)
+ * off; the Hub sync and the setup check both need that full list.
+ * Times out per attempt after 20s and retries once on a timeout or 5xx;
+ * pass `deadline` to keep both attempts inside a caller's time budget.
+ */
 export async function fetchPriceLabsListings(
-  onlySyncing = true
+  onlySyncing = true,
+  options: PriceLabsFetchOptions = {}
 ): Promise<PriceLabsListing[]> {
-  const data = await priceLabsFetch<PriceLabsListingsResponse>("/listings", {
-    only_syncing_listings: String(onlySyncing),
-    skip_hidden: "true",
-  })
+  const data = await priceLabsFetch<PriceLabsListingsResponse>(
+    "/listings",
+    {
+      only_syncing_listings: String(onlySyncing),
+      skip_hidden: "true",
+    },
+    {
+      timeoutMs: LISTINGS_FETCH_TIMEOUT,
+      retries: LISTINGS_FETCH_RETRIES,
+      ...options,
+    }
+  )
   return data.listings
+}
+
+export type PriceLabsOverride = {
+  date: string
+  min_stay?: number | null
+  min_price?: number | string | null
+  min_price_type?: string | null
+  check_in?: string | null
+  check_out?: string | null
+  lead_time_expiry?: number | null
+  reason?: string | null
+}
+
+/** Date-specific overrides (DSOs) for one listing, today onward. */
+export async function fetchPriceLabsOverrides(
+  listingId: string,
+  pms: string
+): Promise<PriceLabsOverride[]> {
+  const data = await priceLabsFetch<{ overrides?: PriceLabsOverride[] }>(
+    `/listings/${encodeURIComponent(listingId)}/overrides`,
+    { pms }
+  )
+  return data.overrides ?? []
 }
 
 /**

@@ -1,7 +1,7 @@
 "use server"
 
-// Lazy data for the client page tabs (Customer Journey, Client Profile,
-// Support Tickets, Adjustment Requests). Each tab calls its loader when it is
+// Lazy data for the client page tabs (Onboarding, Customer Journey, Client
+// Profile, Support Tickets, Adjustment Requests). Each tab calls its loader when it is
 // first opened, so the Legacy tab — the default — costs nothing extra.
 // Everything runs on the session client: RLS is the backstop and the
 // permission checks here decide what to even ask for.
@@ -23,6 +23,16 @@ import {
   type JourneyReportInput,
   type JourneySetupAdjustmentInput,
 } from "@/lib/client-journey"
+import {
+  buildOnboardingView,
+  validateOnboardingSave,
+  type GhlOnboardingInput,
+  type OnboardingEventInput,
+  type OnboardingListingInput,
+  type OnboardingRowInput,
+  type OnboardingSaveInput,
+  type OnboardingView,
+} from "@/lib/client-onboarding"
 import {
   validateClientProfile,
   type ClientProfileRecord,
@@ -46,6 +56,153 @@ function isMissingRelation(error: PgError): boolean {
 }
 
 type Result<T> = { data: T; error?: undefined } | { data?: undefined; error: string }
+
+type Person = { full_name: string | null; email: string } | { full_name: string | null; email: string }[] | null
+
+function personName(p: Person): string | null {
+  const who = Array.isArray(p) ? p[0] : p
+  return who?.full_name ?? who?.email ?? null
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding
+// ---------------------------------------------------------------------------
+
+const ONBOARDING_MIGRATION_PENDING =
+  "This needs the onboarding migration (20261018120000), which isn't applied yet"
+
+export type ClientOnboardingData = {
+  view: OnboardingView
+  /** Raw intake answers, exactly as GHL submitted them. */
+  intake: GhlOnboardingInput
+  ghlSyncedAt: string | null
+  ghlSyncError: boolean
+  events: OnboardingEventInput[]
+  /** False until migration 20261018120000 is applied: read-only prefill. */
+  itemsAvailable: boolean
+  canEdit: boolean
+}
+
+export async function loadClientOnboardingAction(clientId: string): Promise<Result<ClientOnboardingData>> {
+  if (!UUID.test(clientId)) return { error: "Invalid client" }
+  const [canView, canEdit] = await Promise.all([
+    hasPermission("clients", "view"),
+    hasPermission("clients", "edit"),
+  ])
+  if (!canView) return { error: "You don't have access to clients" }
+
+  const supabase = await createClient()
+  const [clientResult, itemsResult, eventsResult] = await Promise.all([
+    supabase
+      .from("clients")
+      .select(
+        "pms_name, has_vrbo, ghl_onboarding, ghl_synced_at, ghl_sync_error, listings(id, name, status, airbnb_link, listing_id, pricelabs_link, pl_synced_at)"
+      )
+      .eq("id", clientId)
+      .single(),
+    supabase
+      .from("client_onboarding_items")
+      .select(
+        "listing_id, item_key, status, value, note, completed_at, updated_at, completer:profiles!client_onboarding_items_completed_by_fkey(full_name, email), updater:profiles!client_onboarding_items_updated_by_fkey(full_name, email)"
+      )
+      .eq("client_id", clientId),
+    supabase
+      .from("client_onboarding_item_events")
+      .select(
+        "listing_id, item_key, from_status, to_status, from_value, to_value, note, created_at, actor:profiles!client_onboarding_item_events_actor_id_fkey(full_name, email)"
+      )
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+  ])
+  if (clientResult.error || !clientResult.data) return { error: "Client not found" }
+
+  const client = clientResult.data as unknown as {
+    pms_name: string | null
+    has_vrbo: boolean | null
+    ghl_onboarding: GhlOnboardingInput
+    ghl_synced_at: string | null
+    ghl_sync_error: string | null
+    listings: (OnboardingListingInput & { status: string })[] | null
+  }
+  const itemsAvailable = !isMissingRelation(itemsResult.error)
+  if (itemsResult.error && itemsAvailable) return { error: "Couldn't load the onboarding checklist" }
+
+  const rows: OnboardingRowInput[] = itemsResult.error
+    ? []
+    : (
+        (itemsResult.data ?? []) as unknown as (Omit<OnboardingRowInput, "completed_by_name" | "updated_by_name"> & {
+          completer: Person
+          updater: Person
+        })[]
+      ).map(({ completer, updater, ...row }) => ({
+        ...row,
+        completed_by_name: personName(completer),
+        updated_by_name: personName(updater),
+      }))
+
+  const events: OnboardingEventInput[] = eventsResult.error
+    ? []
+    : ((eventsResult.data ?? []) as unknown as (Omit<OnboardingEventInput, "actor_name"> & { actor: Person })[]).map(
+        ({ actor, ...e }) => ({ ...e, actor_name: personName(actor) })
+      )
+
+  // Inactive listings aren't being onboarded; keep the order stable by name.
+  const listings = (client.listings ?? [])
+    .filter((l) => l.status !== "inactive")
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return {
+    data: {
+      view: buildOnboardingView({ client, listings, rows }),
+      intake: client.ghl_onboarding,
+      ghlSyncedAt: client.ghl_synced_at,
+      ghlSyncError: !!client.ghl_sync_error,
+      events,
+      itemsAvailable,
+      canEdit,
+    },
+  }
+}
+
+export async function saveOnboardingItemAction(
+  clientId: string,
+  input: OnboardingSaveInput
+): Promise<{ error?: string }> {
+  if (!UUID.test(clientId)) return { error: "Invalid client" }
+  if (input.listingId != null && !UUID.test(input.listingId)) return { error: "Invalid listing" }
+  if (!(await hasPermission("clients", "edit"))) return { error: "You don't have permission to edit clients" }
+  const parsed = validateOnboardingSave(input)
+  if ("error" in parsed) return { error: parsed.error }
+  const values = parsed.values
+
+  const supabase = await createClient()
+  // The partial unique indexes can't be an upsert target through PostgREST,
+  // so find the row first. The indexes still reject a racing duplicate.
+  let existing = supabase
+    .from("client_onboarding_items")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("item_key", values.item_key)
+  existing = values.listing_id ? existing.eq("listing_id", values.listing_id) : existing.is("listing_id", null)
+  const { data: found, error: findError } = await existing.maybeSingle()
+  if (findError) {
+    return { error: isMissingRelation(findError) ? ONBOARDING_MIGRATION_PENDING : "Couldn't save the item" }
+  }
+
+  const { error } = found
+    ? await supabase
+        .from("client_onboarding_items")
+        .update({ status: values.status, value: values.value, note: values.note })
+        .eq("id", (found as { id: string }).id)
+    : await supabase.from("client_onboarding_items").insert({ client_id: clientId, ...values })
+  if (error) {
+    if (isMissingRelation(error)) return { error: ONBOARDING_MIGRATION_PENDING }
+    if (/does not belong to client/i.test(error.message ?? "")) return { error: "That listing isn't this client's" }
+    return { error: "Couldn't save the item" }
+  }
+  return {}
+}
 
 // ---------------------------------------------------------------------------
 // Customer Journey
