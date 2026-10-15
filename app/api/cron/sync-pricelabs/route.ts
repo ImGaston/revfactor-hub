@@ -130,6 +130,14 @@ export async function GET(request: NextRequest) {
   }
   const outcomes = { snapshots, checkpoints }
 
+  // The JSON response isn't kept anywhere, so log the chained steps' results
+  // (counts and errors only); a skipped or stopped-early step shows up here.
+  console.info("PriceLabs cron chained steps", {
+    elapsedMs: Date.now() - startedAt,
+    setupCheck,
+    outcomes,
+  })
+
   if (!sync) {
     return NextResponse.json(
       {
