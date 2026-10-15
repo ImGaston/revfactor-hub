@@ -180,3 +180,15 @@ describe("ownerSendGroups", () => {
     expect(groups).toEqual([{ clientId: "s", clientName: "Spencer Ritterskamp", reportIds: ["a", "b"] }])
   })
 })
+
+describe("reviewStage", () => {
+  const c = (accepted: number, toApply: number) => ({ accepted, toApply })
+  it("maps reviews to Draft / Published / Accepted / Completed", async () => {
+    const { reviewStage } = await import("@/lib/listing-optimization")
+    expect(reviewStage({ status: "draft", counts: c(0, 0) })).toBe("draft")
+    expect(reviewStage({ status: "published", counts: c(0, 0) })).toBe("published")
+    expect(reviewStage({ status: "published", counts: c(3, 2) })).toBe("accepted")
+    expect(reviewStage({ status: "published", counts: c(3, 0) })).toBe("completed")
+    expect(reviewStage({ status: "archived", counts: c(3, 0) })).toBe("archived")
+  })
+})

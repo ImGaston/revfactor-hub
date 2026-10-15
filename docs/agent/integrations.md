@@ -80,6 +80,7 @@ Client onboarding Custom App contract:
 - Key: `ASSEMBLY_LISTING_REVIEW_APP_API_KEY` (the Custom App's own key), falling back to `ASSEMBLY_APP_API_KEY` then `ASSEMBLY_API_KEY`. Server-only.
 - Every render and every decision re-validates the token and re-checks that the item's published report belongs to the viewer's Hub client. Internal Assembly users see a read-only view.
 - Owner Accept → `listing_content` adjustment (origin `client`); resolve = applied, control = live, via trigger.
+- Owner accepts ping Slack once per decision session (30 min window per review) via `notifyTeamOfOwnerDecision` when `SLACK_LISTING_REVIEWS_CHANNEL_ID` and `SLACK_BOT_TOKEN` are set; otherwise silent. The work itself is already queued as `listing_content` adjustments.
 - Publish & send posts the review's owner message to the client's Assembly chat via `sendAssemblyMessage` (company channel matching `clients.assembly_company_id`, else the individual channel). Staff click only; at most once per review.
 
 ## Agent Studio and Vercel AI Gateway

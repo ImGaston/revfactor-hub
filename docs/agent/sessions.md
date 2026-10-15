@@ -909,3 +909,7 @@ New `/listing-optimization/owner/[clientId]` (with `loading.tsx`): pick an owner
 
 ## 2026-10-15 — PriceLabs cron: setup check starved by a slow sync
 The Oct 15 08:00 run synced fine but the setup check recorded nothing for HK332: the 343 listing updates ran one by one (~24s), so the check started after its 38s cutoff and stopped early (reported only in the unlogged JSON). Fix: updates run 10 at a time and the cron now logs the chained steps' results. HK332's missed VerifySetting (Jun 15–Aug 15 4-night minimum) recorded by running the same check once.
+
+## 2026-10-15 — Listing reviews by stage and client
+`/listing-optimization` now has stage tabs (Draft · Published · Accepted · Completed via `reviewStage`: Accepted = accepted changes still to apply; Completed = all applied/verified/skipped), grouped by client by default (or by listing name / lowest score), with per-client Send to owner. Owner accepts post one Slack message per session (`SLACK_LISTING_REVIEWS_CHANNEL_ID`). Review messages now send as the clicking staff member (PR #104).
+
