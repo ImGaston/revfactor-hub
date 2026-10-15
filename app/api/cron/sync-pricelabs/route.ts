@@ -4,6 +4,7 @@ import { isPriceLabsConfigured } from "@/lib/pricelabs"
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
 import { advanceReportBuilder } from "@/lib/report-builder/runner"
 import { runListingSetupCheck } from "@/lib/listing-setup-check.server"
+import { captureDailySnapshots, runOutcomeCheckpoints } from "@/lib/listing-outcomes.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -13,6 +14,8 @@ export const maxDuration = 60
 const FUNCTION_BUDGET_MS = 52_000
 // The setup check stops starting new listings after this point.
 const SETUP_CHECK_BUDGET_MS = 30_000
+// Checkpoint reviews (AI summaries) stop starting new ones after this point.
+const OUTCOMES_BUDGET_MS = 40_000
 
 export async function GET(request: NextRequest) {
   // Verify cron secret to prevent unauthorized access
@@ -53,6 +56,24 @@ export async function GET(request: NextRequest) {
       setupCheck = { error: err instanceof Error ? err.message : "Unknown error" }
     }
 
+    // Listing outcomes: store today's PriceLabs market numbers (pace vs market
+    // needs history the pl_* columns overwrite) and save due day-7/14/30/60/90
+    // checkpoint reviews. Both are no-ops until the outcomes migration exists.
+    let outcomes:
+      | { snapshots: Awaited<ReturnType<typeof captureDailySnapshots>>; checkpoints: Awaited<ReturnType<typeof runOutcomeCheckpoints>> }
+      | { error: string }
+      | null = null
+    try {
+      const snapshots = await captureDailySnapshots(supabase)
+      const checkpoints = await runOutcomeCheckpoints(supabase, {
+        deadline: startedAt + OUTCOMES_BUDGET_MS,
+      })
+      outcomes = { snapshots, checkpoints }
+    } catch (err) {
+      console.error("Listing outcomes (chained) error:", err)
+      outcomes = { error: err instanceof Error ? err.message : "Unknown error" }
+    }
+
     // Chain the Report Builder ingestion onto the same daily cron (same API key)
     // so we don't add a separate cron job. It advances its own state machine and
     // only inline-polls with the time left in this function's budget; a slow
@@ -82,6 +103,7 @@ export async function GET(request: NextRequest) {
       message: `Synced ${result.synced} listings from PriceLabs`,
       ...result,
       setupCheck,
+      outcomes,
       reportBuilder,
     })
   } catch (err) {
