@@ -5,15 +5,22 @@ import { hasPermission } from "@/lib/permissions.server"
 import { getListingReport } from "@/lib/report-builder/queries"
 import { getRecentReservationsByListing, type Reservation } from "@/lib/reservations"
 import { RecentReservationsCard } from "@/components/reservations/recent-reservations-card"
+import { ListingSetupTab } from "@/components/listings/listing-setup-tab"
+import { getListingSetup, loadListingSetupPreview } from "@/lib/listing-settings.server"
 import { ListingDetail } from "./listing-detail"
 import type { ListingSubscriptionOption } from "./change-listing-subscription-dialog"
 
 export default async function ListingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ setupPreview?: string }>
 }) {
-  const { id } = await params
+  const [{ id }, query] = await Promise.all([params, searchParams])
+  // Local fixture preview of the Setup tab; never in production.
+  const setupPreview =
+    process.env.NODE_ENV !== "production" && query.setupPreview === "1"
   const supabase = await createClient()
 
   const [{ data: listing }, profile] = await Promise.all([
@@ -59,7 +66,7 @@ export default async function ListingPage({
     hasPermission("listings", "edit"),
   ])
 
-  const [report, rankbreezeResult, recentReservations] = await Promise.all([
+  const [report, rankbreezeResult, recentReservations, setup] = await Promise.all([
     getListingReport(supabase, listing.listing_id),
     airbnbIdCandidates.length > 0
       ? supabase
@@ -74,6 +81,7 @@ export default async function ListingPage({
     canViewReservations
       ? getRecentReservationsByListing(supabase, id, 10)
       : Promise.resolve([] as Reservation[]),
+    setupPreview ? loadListingSetupPreview() : getListingSetup(supabase, id),
   ])
   const rankbreezeId =
     (rankbreezeResult.data?.rankbreeze_id as string | undefined) ?? null
@@ -167,6 +175,7 @@ export default async function ListingPage({
       }
       subscriptionOptions={subscriptionOptions}
       clientCustomerIds={clientCustomerIds}
+      setupTab={<ListingSetupTab setup={setup} preview={setupPreview} />}
       canViewPricingPlan={canViewReservations}
       canEditPlan={canEditListings}
       reservationsCard={

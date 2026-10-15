@@ -176,6 +176,7 @@ export function ListingDetail({
   subscriptionOptions = [],
   clientCustomerIds = [],
   reservationsCard = null,
+  setupTab = null,
   canViewClient = false,
   canViewPricingPlan = false,
   canEditPlan = false,
@@ -190,6 +191,8 @@ export function ListingDetail({
   subscriptionOptions?: ListingSubscriptionOption[]
   clientCustomerIds?: string[]
   reservationsCard?: React.ReactNode
+  /** Server-rendered Setup tab (decided settings + change history). */
+  setupTab?: React.ReactNode
   /** Pricing plan tab needs reservations:view (it reads synced reservations). */
   canViewPricingPlan?: boolean
   /** listings:edit — answer questions, save and approve the plan. */
@@ -207,7 +210,7 @@ export function ListingDetail({
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const LISTING_TABS = ["legacy", "strategy", "goals", "comps", "events", "audit"]
+  const LISTING_TABS = ["legacy", "strategy", "goals", "setup", "comps", "events", "audit"]
   const initialTab = searchParams.get("tab") ?? "legacy"
   const [tab, setTab] = useState(LISTING_TABS.includes(initialTab) ? initialTab : "legacy")
   const selectTab = (next: string) => {
@@ -354,6 +357,7 @@ export function ListingDetail({
             <TabsTrigger value="legacy">Legacy</TabsTrigger>
             {canViewPricingPlan && <TabsTrigger value="strategy">Strategy</TabsTrigger>}
             {canViewPricingPlan && <TabsTrigger value="goals">Goals</TabsTrigger>}
+            {setupTab && <TabsTrigger value="setup">Setup</TabsTrigger>}
             <TabsTrigger value="comps">Comps</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="audit">Listing Audit</TabsTrigger>
@@ -368,6 +372,12 @@ export function ListingDetail({
         {canViewPricingPlan && (
           <TabsContent value="goals" className="space-y-4">
             <GoalsTab listingId={listing.id} canEdit={canEditPlan} />
+          </TabsContent>
+        )}
+        {/* Listing revenue setup (read-only): decided settings + change history. */}
+        {setupTab && (
+          <TabsContent value="setup" className="space-y-4">
+            {setupTab}
           </TabsContent>
         )}
         <TabsContent value="comps" className="space-y-4">
