@@ -72,7 +72,7 @@ It follows `listing-review.md`: the Listing is the anchor, state changes only th
 3. ✅ Setup tab with HK332 backfilled (2026-10-15), then the write path (2026-10-15): Record change, Mark verified, Flag drift (staff, `listings:edit`).
 4. ✅ PriceLabs check (2026-10-15), daily inside the PriceLabs cron and on demand ("Check PriceLabs now"). Checks `price.min/base/max`, `sync.pl_push`, and dated `price.seasonal_min` / `stay.min_stay` (overrides API). Rules: applied or drift + match → Verified; applied or verified + mismatch → Drift (once, no repeats); planned/retired untouched; notes (`{text}`) and non-PriceLabs keys are left to people. Missing overrides inside a lead-time fallback window (a min stay with `fallback_after_days` on the same dates) are expected, not drift.
 5. Agent path: setup skills write `ProposeSettingChange` drafts; humans approve; agents apply only PriceLabs (API) items.
-6. ✅ Outcome tracking (2026-10-15, migration drafted): Results on the Setup tab per change window (bookings after vs before vs last year, pace vs STLY, market, payout per night vs floor), code verdict, AI summary; daily snapshots + saved day 7/14/30/60/90 checkpoints once `20261016120000_listing_outcomes.sql` is applied.
+6. ✅ Outcome tracking (2026-10-15, migration applied): Results on the Setup tab per change window (bookings after vs before vs last year, pace vs STLY, market, payout per night vs floor), code verdict, AI summary; daily snapshots + saved day 7/14/30/60/90 checkpoints once `20261016120000_listing_outcomes.sql` is applied.
 
 ## Open questions
 - HK332 is `managed_by = hostpricing` in the Hub. Should it be `revfactor`?
