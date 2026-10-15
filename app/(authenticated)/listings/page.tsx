@@ -1,11 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { hasPermission } from "@/lib/permissions.server"
+import { getLatestCompletedRun } from "@/lib/report-builder/queries"
 import { ListingsView } from "./listings-view"
 
 export default async function ListingsPage() {
   const supabase = await createClient()
 
-  const [{ data: listings }, canEdit, canDelete] = await Promise.all([
+  const [{ data: listings }, canEdit, canDelete, latestRun] = await Promise.all([
     supabase
       .from("listings")
       .select(
@@ -14,6 +15,7 @@ export default async function ListingsPage() {
       .order("name"),
     hasPermission("listings", "edit"),
     hasPermission("listings", "delete"),
+    getLatestCompletedRun(supabase),
   ])
 
   const flatListings = (listings ?? []).map((l: Record<string, unknown>) => {
@@ -45,6 +47,7 @@ export default async function ListingsPage() {
       listings={flatListings}
       canEdit={canEdit}
       canDelete={canDelete}
+      lastPriceLabsSyncAt={latestRun?.completed_at ?? null}
     />
   )
 }

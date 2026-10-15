@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
       return { synced: 2 }
     }
   ),
-  report: vi.fn(async () => ({ status: "completed" })),
   setupCheck: vi.fn(async () => ({ listings: 1, checked: 3, details: [{ key: "price.min" }] })),
   snapshots: vi.fn(async () => ({ captured: 2, enabled: true })),
   checkpoints: vi.fn(async () => ({ saved: 1, errors: [], enabled: true })),
@@ -40,9 +39,6 @@ vi.mock("@/lib/pricelabs", () => ({
 vi.mock("@/lib/stripe", () => ({ isStripeConfigured: mocks.stripeConfigured }))
 vi.mock("@/lib/pricelabs-sync", () => ({ syncPriceLabsData: mocks.priceLabs }))
 vi.mock("@/lib/stripe-sync", () => ({ syncStripeData: mocks.stripe }))
-vi.mock("@/lib/report-builder/runner", () => ({
-  advanceReportBuilder: mocks.report,
-}))
 vi.mock("@/lib/listing-setup-check.server", () => ({
   runListingSetupCheck: mocks.setupCheck,
 }))
@@ -68,16 +64,15 @@ const authorized = () =>
   })
 
 describe("Hub retirement keeps its syncs without Event Intelligence work", () => {
-  it("syncs PriceLabs and Report Builder without a market queue response", async () => {
+  it("syncs PriceLabs without a market queue response (Report Builder has its own cron)", async () => {
     const response = await priceLabs(authorized())
     const result = await response.json()
     expect(response.status).toBe(200)
     expect(result.synced).toBe(2)
-    expect(result.reportBuilder).toEqual({ status: "completed" })
+    expect(result).not.toHaveProperty("reportBuilder")
     expect(result).not.toHaveProperty("marketSignalJobs")
     expect(result).not.toHaveProperty("marketSignals")
     expect(mocks.priceLabs).toHaveBeenCalledOnce()
-    expect(mocks.report).toHaveBeenCalledOnce()
     // The listing setup check runs after the sync; details stay out of the response.
     expect(mocks.setupCheck).toHaveBeenCalledOnce()
     expect(result.setupCheck).toEqual({ listings: 1, checked: 3, details: [] })
@@ -101,7 +96,7 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     )
   })
 
-  it("still runs the Report Builder when the PriceLabs listings request times out, and reports the failure", async () => {
+  it("still runs the outcomes when the PriceLabs listings request times out, and reports the failure", async () => {
     mocks.plListings.mockRejectedValueOnce(
       new Error("PriceLabs /listings timed out (2 attempts: 20s, 14s)")
     )
@@ -126,8 +121,6 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
       snapshots: { captured: 2, enabled: true },
       checkpoints: { saved: 1, errors: [], enabled: true },
     })
-    expect(mocks.report).toHaveBeenCalledOnce()
-    expect(result.reportBuilder).toEqual({ status: "completed" })
   })
 
   it("captures snapshots before checkpoint reviews read them", async () => {
@@ -157,13 +150,11 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     )
     expect(result.setupCheck).toEqual({ listings: 1, checked: 3, details: [] })
     expect(result.outcomes.checkpoints).toEqual({ saved: 1, errors: [], enabled: true })
-    expect(mocks.report).toHaveBeenCalledOnce()
   })
 
   it("keeps a failing chained step from hiding the others", async () => {
     mocks.setupCheck.mockRejectedValueOnce(new Error("setup boom"))
     mocks.snapshots.mockRejectedValueOnce(new Error("snapshot boom"))
-    mocks.report.mockRejectedValueOnce(new Error("report boom"))
     const response = await priceLabs(authorized())
     const result = await response.json()
     expect(response.status).toBe(200)
@@ -173,10 +164,6 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     expect(result.outcomes).toEqual({
       snapshots: { error: "snapshot boom" },
       checkpoints: { saved: 1, errors: [], enabled: true },
-    })
-    expect(result.reportBuilder).toEqual({
-      status: "failed",
-      error: "report boom",
     })
   })
 
@@ -202,7 +189,6 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
       expect(mocks.admin).not.toHaveBeenCalled()
       expect(mocks.priceLabs).not.toHaveBeenCalled()
       expect(mocks.stripe).not.toHaveBeenCalled()
-      expect(mocks.report).not.toHaveBeenCalled()
     }
   )
 
