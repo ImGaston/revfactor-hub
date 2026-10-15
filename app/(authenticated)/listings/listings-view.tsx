@@ -16,6 +16,7 @@ import {
   Pencil,
   Trash2,
   Download,
+  RefreshCw,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -116,10 +117,12 @@ export function ListingsView({
   listings,
   canEdit,
   canDelete,
+  lastPriceLabsSyncAt,
 }: {
   listings: FlatListing[]
   canEdit: boolean
   canDelete: boolean
+  lastPriceLabsSyncAt: string | null
 }) {
   const [search, setSearch] = useState("")
   const [locationFilter, setLocationFilter] = useState<string>("all")
@@ -308,22 +311,44 @@ export function ListingsView({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
           <p className="text-sm text-muted-foreground">
             {filtered.length} of {listings.length} listings
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExport}
-          disabled={exporting || filtered.length === 0}
-        >
-          <Download className="size-3.5 mr-1.5" />
-          {exporting ? "Exporting..." : "Export"}
-        </Button>
+        <div className="flex items-center gap-3">
+          <span
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            title="Last completed PriceLabs Report Builder sync"
+          >
+            <RefreshCw className="size-3" />
+            PriceLabs sync:{" "}
+            {lastPriceLabsSyncAt ? (
+              <time dateTime={lastPriceLabsSyncAt} suppressHydrationWarning>
+                {new Date(lastPriceLabsSyncAt).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+              </time>
+            ) : (
+              "never"
+            )}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            disabled={exporting || filtered.length === 0}
+          >
+            <Download className="size-3.5 mr-1.5" />
+            {exporting ? "Exporting..." : "Export"}
+          </Button>
+        </div>
       </div>
 
       {/* Search + Filters row */}
@@ -464,19 +489,25 @@ export function ListingsView({
         <Table className="table-fixed w-full">
           <TableHeader>
             <TableRow>
-              <SortHeader field="name">Listing</SortHeader>
-              <SortHeader field="client_name" className="w-[220px]">
+              <SortHeader field="name" className="lg:w-[280px]">
+                Listing
+              </SortHeader>
+              <SortHeader field="client_name" className="hidden lg:table-cell">
                 Client
               </SortHeader>
-              <SortHeader field="city" className="w-[140px]">
+              <SortHeader field="city" className="hidden xl:table-cell w-[140px]">
                 City
               </SortHeader>
-              <SortHeader field="state" className="w-[80px]">
+              <SortHeader field="state" className="hidden xl:table-cell w-[80px]">
                 State
               </SortHeader>
               <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[90px]">Airbnb</TableHead>
-              <TableHead className="w-[100px]">PriceLabs</TableHead>
+              <TableHead className="hidden xl:table-cell w-[90px]">
+                Airbnb
+              </TableHead>
+              <TableHead className="hidden xl:table-cell w-[100px]">
+                PriceLabs
+              </TableHead>
               {showActions && <TableHead className="w-[56px]"></TableHead>}
             </TableRow>
           </TableHeader>
@@ -505,9 +536,25 @@ export function ListingsView({
                           ID: {listing.listing_id}
                         </p>
                       )}
+                      {listing.client_name && (
+                        <p className="lg:hidden flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                          <Building2 className="size-3 shrink-0" />
+                          <span className="truncate">{listing.client_name}</span>
+                        </p>
+                      )}
+                      {(listing.city || listing.state) && (
+                        <p className="xl:hidden flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+                          <MapPin className="size-3 shrink-0" />
+                          <span className="truncate">
+                            {[listing.city, listing.state]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="overflow-hidden">
+                  <TableCell className="hidden lg:table-cell overflow-hidden">
                     {listing.client_name ? (
                       <div className="flex items-center gap-1.5 min-w-0">
                         <Building2 className="size-3.5 text-muted-foreground shrink-0" />
@@ -530,7 +577,7 @@ export function ListingsView({
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="overflow-hidden">
+                  <TableCell className="hidden xl:table-cell overflow-hidden">
                     {listing.city ? (
                       <span className="flex items-center gap-1.5 text-sm min-w-0">
                         <MapPin className="size-3.5 text-muted-foreground shrink-0" />
@@ -540,13 +587,16 @@ export function ListingsView({
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="hidden xl:table-cell text-sm">
                     {listing.state ?? "—"}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={listing.status} />
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell
+                    className="hidden xl:table-cell"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {listing.airbnb_link ? (
                       <a
                         href={listing.airbnb_link}
@@ -561,7 +611,10 @@ export function ListingsView({
                       <span className="text-sm text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                  <TableCell
+                    className="hidden xl:table-cell"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {listing.pricelabs_link ? (
                       <a
                         href={listing.pricelabs_link}

@@ -42,6 +42,8 @@ export async function proxy(request: NextRequest) {
   // intentionally public, client-safe static resource linked from Knowledge.
   // /listing-review/<token> is a capability-link intake whose server actions
   // validate the opaque token before returning or changing request data.
+  // /portal/<app> pages are Assembly Custom App iframes: identity comes only
+  // from the encrypted Assembly session token, validated server-side.
   if (
     !user &&
     !isPublicPriceLabsGuide &&
@@ -49,6 +51,7 @@ export async function proxy(request: NextRequest) {
     !pathname.startsWith("/auth/") &&
     !pathname.startsWith("/a/") &&
     !pathname.startsWith("/listing-review/") &&
+    !pathname.startsWith("/portal/") &&
     !pathname.startsWith("/api/")
   ) {
     const url = request.nextUrl.clone()

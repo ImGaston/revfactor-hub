@@ -339,6 +339,24 @@ export async function listAssemblyMessages(
   )
 }
 
+type AssemblyInternalUser = { id: string; email?: string | null }
+let internalUsersCache: { at: number; users: AssemblyInternalUser[] } | null = null
+
+/**
+ * The Assembly internal user (team member) with this email, or null. Messages
+ * sent through the API without a senderId appear as the API key's owner, so
+ * staff-triggered sends pass the clicking user's own Assembly id.
+ */
+export async function findAssemblyInternalUserIdByEmail(email: string | null | undefined): Promise<string | null> {
+  const wanted = email?.trim().toLowerCase()
+  if (!wanted) return null
+  if (!internalUsersCache || Date.now() - internalUsersCache.at > 10 * 60_000) {
+    const res = await assemblyFetch<{ data?: AssemblyInternalUser[] }>("/internal-users?limit=500")
+    internalUsersCache = { at: Date.now(), users: res?.data ?? [] }
+  }
+  return internalUsersCache.users.find((u) => u.email?.trim().toLowerCase() === wanted)?.id ?? null
+}
+
 export async function sendAssemblyMessage(
   channelId: string,
   text: string,

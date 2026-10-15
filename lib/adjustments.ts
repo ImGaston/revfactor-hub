@@ -27,6 +27,7 @@ export const ADJUSTMENT_TYPES: { value: AdjustmentType; label: string }[] = [
   { value: "blocked_dates", label: "Blocked Dates" },
   { value: "pricing_flexibility", label: "Pricing Flexibility" },
   { value: "cancellation_policy", label: "Cancellation policy" },
+  { value: "listing_content", label: "Listing Content" },
   { value: "other", label: "Other" },
 ]
 
@@ -367,6 +368,18 @@ export const ADJUSTMENT_TYPE_CONFIG: Record<AdjustmentType, AdjustmentTypeConfig
     showsSignals: false,
     showsSuggestions: false,
     targetPlaceholder: "e.g. switch to Flexible",
+  },
+  // Airbnb copy/photos/amenities changes, usually queued by an owner accepting
+  // a suggestion in the portal listing review.
+  listing_content: {
+    showsTarget: true,
+    requiresTarget: false,
+    showsDates: false,
+    requiresDateFrom: false,
+    showsBookingWindow: false,
+    showsSignals: false,
+    showsSuggestions: false,
+    targetPlaceholder: "e.g. new title or caption",
   },
   other: {
     showsTarget: true,

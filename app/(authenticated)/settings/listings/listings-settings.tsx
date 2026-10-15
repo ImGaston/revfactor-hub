@@ -327,7 +327,7 @@ export function ListingsSettings({
         router.refresh()
       } else if (result.status === "polling") {
         toast.info(
-          "Report is still generating. Click Sync again in a minute to resume."
+          "Report is generating. It loads automatically within a few minutes."
         )
       } else {
         toast.warning(result.message ?? "Report Builder sync finished")

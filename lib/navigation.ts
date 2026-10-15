@@ -60,6 +60,13 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "clients", title: "Clients", href: "/clients", icon: Users, resource: "clients" },
   { key: "listings", title: "Listings", href: "/listings", icon: Building2, resource: "listings" },
   {
+    key: "listing-optimization",
+    title: "Listing Reviews",
+    href: "/listing-optimization",
+    icon: Sparkles,
+    resource: "listings",
+  },
+  {
     key: "monthly-summary",
     title: "Monthly Summary",
     href: "/monthly-summary",

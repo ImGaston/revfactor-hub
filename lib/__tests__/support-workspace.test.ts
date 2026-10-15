@@ -4,6 +4,7 @@ import type { SupportTicket } from "@/lib/support-tickets"
 import {
   SUPPORT_STATUS_VIEWS,
   defaultStatusView,
+  isRecentTicket,
   isStatusView,
   matchesTicketSearch,
   statusViews,
@@ -153,5 +154,21 @@ describe("matchesTicketSearch", () => {
   it("treats a blank query as a match and misses unrelated text", () => {
     expect(matchesTicketSearch(t, "   ")).toBe(true)
     expect(matchesTicketSearch(t, "airbnb")).toBe(false)
+  })
+})
+
+describe("isRecentTicket (last 24 hours)", () => {
+  const at = (h: number) => hoursAgo(h)
+
+  it("opened: the ask came in within 24 hours", () => {
+    expect(isRecentTicket({ requested_at: at(2), last_client_message_at: null }, "opened", NOW)).toBe(true)
+    expect(isRecentTicket({ requested_at: at(24), last_client_message_at: null }, "opened", NOW)).toBe(true)
+    expect(isRecentTicket({ requested_at: at(25), last_client_message_at: at(1) }, "opened", NOW)).toBe(false)
+  })
+
+  it("active: also an older ticket the client wrote on within 24 hours", () => {
+    expect(isRecentTicket({ requested_at: at(200), last_client_message_at: at(3) }, "active", NOW)).toBe(true)
+    expect(isRecentTicket({ requested_at: at(200), last_client_message_at: at(30) }, "active", NOW)).toBe(false)
+    expect(isRecentTicket({ requested_at: at(200), last_client_message_at: null }, "active", NOW)).toBe(false)
   })
 })
