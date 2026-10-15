@@ -627,3 +627,8 @@ Supersedes the 2026-06-23 "chained onto the PriceLabs cron" decision. In Sep–O
 
 ## 2026-10-15 — Listing review owner messages go out per owner, not per listing
 Owners with several listings got one Assembly message per review. `/listing-optimization/owner/[clientId]` now publishes the picked reviews and sends one combined message (`buildOwnerBundleMessage`: top fixes per listing under its Hub name, shared host-profile tasks counted once). No new column: the same text, send time and Assembly message id are stamped on every review in the bundle, so per-review sends are blocked and the client journey's "sent" step stays correct; each review's `NotifyOwnerOfReview` event lists the bundle ids. Drafts are all checked for a complete checklist before any is published.
+
+## 2026-10-15 — Client onboarding is a catalog, not free text per client
+
+The Onboarding tab on `/clients/[id]` uses one fixed catalog (`ONBOARDING_ITEMS` in `lib/client-onboarding.ts`) for every client, with two scopes: owner-level items once per client (`listing_id` NULL) and per-listing items once per Hub listing, so multi-listing owners get one Airbnb link / channels / PMS / PriceLabs row per listing. GHL intake and Hub data prefill at read time and are labeled by source; staff verification writes a `client_onboarding_items` row, and every change lands in the trigger-written `client_onboarding_item_events` audit (ontology: client/listing anchors, named actions, audit trail). Keys are stored, so add items rather than renaming. Decided settings themselves (min price, cleaning fee, markups as applied in PriceLabs/PMS) still belong on the listing Setup tab (`listing_settings`); the checklist only records that they were confirmed on the call.
+

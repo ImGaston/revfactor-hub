@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-15 — Client Onboarding tab (preparation + call checklist)
+
+Moved the Legacy "Onboarding preparation" card into a new Onboarding tab next to Legacy (verified locally on Jacob Raabe / HK332). New: `lib/client-onboarding.ts` (catalog, validation, view model, event wording; `lib/__tests__/client-onboarding.test.ts`), `components/clients/tabs/onboarding-tab.tsx`, `loadClientOnboardingAction` / `saveOnboardingItemAction` in `clients/[id]/tab-actions.ts`, and migration `20261018120000_client_onboarding_items.sql` (dry-run on a throwaway local Postgres: stamps, audit, scope check, RLS; **not applied to production** pending Fede's OK). The "Updated Invalid Date" line came from `formatDate` appending `T00:00:00` to the `ghl_synced_at` timestamp; the tab formats it as a timestamp and the Legacy `formatDate` now handles both shapes. Saving checks can only be exercised after the migration is applied.
+
 ## 2026-10-14 — Client page tabs (journey, profile, tickets, adjustments)
 
 Built the client tabs Fede approved from the prototype. The page itself (`clients/[id]/page.tsx`) is unchanged and now sits in the Legacy tab; `ClientDetailPage` gained an `embedded` prop so the name header isn't shown twice. New: `components/clients/tabs/*`, `clients/[id]/tab-actions.ts`, `lib/client-journey.ts` (pure, 16 tests; plus `client-tabs.test.ts`), `lib/client-profile.ts`, `lib/client-tabs.ts`, an updated `loading.tsx`, and migration `20261014130000_client_journey_and_profile.sql` (applied 2026-10-14). Until the migration is applied, the journey works read-only and the profile can't be saved; both show a notice.
