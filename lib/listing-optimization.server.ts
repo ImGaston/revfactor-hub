@@ -11,7 +11,12 @@ import {
 } from "@/lib/listing-optimization"
 import type { PortalViewer } from "@/lib/assembly-portal-session.server"
 import { buildOwnerMessage } from "@/lib/listing-optimization-message"
-import { getCompanyChannels, getOrCreateMessageChannel, sendAssemblyMessage } from "@/lib/assembly"
+import {
+  findAssemblyInternalUserIdByEmail,
+  getCompanyChannels,
+  getOrCreateMessageChannel,
+  sendAssemblyMessage,
+} from "@/lib/assembly"
 import {
   CHECKLIST_VERSION,
   checkCoverage,
@@ -410,6 +415,23 @@ async function resolveOwnerChannel(
  * be sent again, and each gets a NotifyOwnerOfReview event naming the bundle.
  * Callers must have checked the staff user's permission.
  */
+/**
+ * Assembly sender for a staff-triggered message: the clicking user's own
+ * Assembly team account (matched by email), so the owner sees who sent it.
+ * Falls back to the API key's owner when there's no match.
+ */
+async function senderIdForStaff(actorUserId: string | null): Promise<string | undefined> {
+  if (!actorUserId) return undefined
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase.from("profiles").select("email").eq("id", actorUserId).maybeSingle()
+    return (await findAssemblyInternalUserIdByEmail(data?.email as string | undefined)) ?? undefined
+  } catch (error) {
+    console.error("listing optimization: assembly sender lookup failed", error)
+    return undefined
+  }
+}
+
 export async function sendOwnerBundleMessage(input: {
   clientId: string
   reportIds: string[]
@@ -443,7 +465,7 @@ export async function sendOwnerBundleMessage(input: {
 
   let messageId: string | null = null
   try {
-    const sent = await sendAssemblyMessage(channel.channelId, text)
+    const sent = await sendAssemblyMessage(channel.channelId, text, await senderIdForStaff(input.actorUserId))
     messageId = sent?.id ?? null
   } catch (sendError) {
     console.error("listing optimization: assembly bundle send failed", sendError)
@@ -659,7 +681,7 @@ export async function sendReviewOwnerMessage(input: {
 
   let messageId: string | null = null
   try {
-    const sent = await sendAssemblyMessage(channelId, text)
+    const sent = await sendAssemblyMessage(channelId, text, await senderIdForStaff(input.actorUserId))
     messageId = sent?.id ?? null
   } catch (error) {
     console.error("listing optimization: assembly send failed", error)
