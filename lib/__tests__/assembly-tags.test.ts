@@ -67,4 +67,16 @@ describe("Assembly tag helpers", () => {
     ])
     expect(mergeTagValues(field, ["opt-review"], review, "key")).toEqual(["listingReview"])
   })
+
+  it("resolves Fede's setup by name and label (field Listing Review, option Enabled)", () => {
+    const real: AssemblyCustomField = {
+      ...field,
+      key: "listingReview",
+      name: "Listing Review",
+      options: [{ id: "opt-enabled", key: "enabled", label: "Enabled" }],
+    }
+    const found = findTagsField([field, real], "Listing Review")
+    expect(found?.key).toBe("listingReview")
+    expect(resolveTagOption(found!, "Enabled")?.id).toBe("opt-enabled")
+  })
 })

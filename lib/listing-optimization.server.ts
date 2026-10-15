@@ -421,7 +421,7 @@ async function resolveOwnerChannel(
 /**
  * Gives the message's recipient access to the Listing Review custom app by
  * adding a tag in Assembly: the app's visibility rule is "client or company
- * tags include Listing Review", and the fixed client list can't be edited
+ * field Listing Review includes Enabled", and the fixed client list can't be edited
  * through the API. Tags the same target the message goes to. Skipped (ok)
  * until ASSEMBLY_LISTING_REVIEW_TAG_FIELD and _TAG_OPTION are set, so the
  * Assembly field can be created after this ships.
