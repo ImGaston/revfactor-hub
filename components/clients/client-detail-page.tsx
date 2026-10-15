@@ -151,7 +151,10 @@ function InfoRow({
 
 function formatDate(date: string | null) {
   if (!date) return "—"
-  return new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+  // Date-only columns parse as local midnight; full timestamps parse as-is.
+  const parsed = new Date(date.includes("T") ? date : date + "T00:00:00")
+  if (Number.isNaN(parsed.getTime())) return "—"
+  return parsed.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -425,35 +428,6 @@ export function ClientDetailPage({
             </Badge>
           )}
         </InfoRow>
-
-        {client.ghl_onboarding && (
-          <div className="rounded-lg border p-4 space-y-3">
-            <h2 className="font-medium">Onboarding preparation</h2>
-            <p className="text-xs text-muted-foreground">Client-submitted answers. Access still needs to be verified during onboarding.</p>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <p>Listing quantity: {client.ghl_onboarding.purchased_listings}</p>
-              <p>Airbnb audit: {client.ghl_onboarding.audit_requested ?? "Not answered"}</p>
-              <p>Vrbo: {client.ghl_onboarding.vrbo ?? "Not answered"}</p>
-              <p>PriceLabs: {client.ghl_onboarding.uses_pricelabs ?? "Not answered"}</p>
-              <p>Airbnb readiness: {client.ghl_onboarding.airbnb_ready ?? "Not answered"}</p>
-              <p>Agreement: {client.ghl_onboarding.agreement_evidence.length ? "Signed (GHL workflow verified)" : "See signed agreement"}</p>
-            </div>
-            {client.ghl_onboarding.airbnb_listing_url && (
-              <a className="block text-sm text-primary underline" href={client.ghl_onboarding.airbnb_listing_url} target="_blank" rel="noopener noreferrer">View submitted Airbnb listing</a>
-            )}
-            {client.ghl_onboarding.appointment && (
-              <p className="text-sm">
-                Onboarding call: {new Date(client.ghl_onboarding.appointment.start).toLocaleString("en-US", {timeZone:"America/New_York",dateStyle:"medium",timeStyle:"short"})} (New York)
-                {" · "}{client.ghl_onboarding.appointment.host_name ?? "Host not assigned"}
-                {" · "}{client.ghl_onboarding.appointment.status}
-              </p>
-            )}
-            {client.ghl_onboarding.readiness.map((answer, i) => <p key={i} className="text-sm">{answer}</p>)}
-            <p className="text-xs text-muted-foreground">
-              {client.ghl_sync_error ? "The latest update needs review; showing the last saved answers." : client.ghl_synced_at ? `Updated ${formatDate(client.ghl_synced_at)}` : "Awaiting update"}
-            </p>
-          </div>
-        )}
 
         {isSuperAdmin &&
           client.status === "inactive" &&

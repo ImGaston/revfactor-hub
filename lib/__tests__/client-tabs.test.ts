@@ -7,6 +7,7 @@ describe("parseClientTab", () => {
   it("defaults to legacy and accepts known tabs only", () => {
     expect(parseClientTab(undefined)).toBe("legacy")
     expect(parseClientTab("journey")).toBe("journey")
+    expect(parseClientTab("onboarding")).toBe("onboarding")
     expect(parseClientTab(["tickets", "profile"])).toBe("tickets")
     expect(parseClientTab("financials")).toBe("legacy")
   })
