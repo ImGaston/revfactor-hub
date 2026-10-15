@@ -1,6 +1,6 @@
 # Ontology: listing revenue setup (proposal, 2026-10-15)
 
-Status: **approved model (Fede, 2026-10-15)**. Migration `20261015120000_listing_revenue_setup.sql` and the read-only Setup tab are drafted; the migration is **not applied** yet. It came out of the Jacob Raabe / HK332 takeover (Oct 14–15), where every pricing decision (cleaning fee, markups per channel, discounts, min stays, check-in/out, promotions, sync) lived only in a scratchpad change log. This maps those decisions onto the Listing so the Hub can answer: *what is set, where, why, who approved it, and is it still true on the channels?*
+Status: **approved model (Fede, 2026-10-15)**. Migration `20261015120000_listing_revenue_setup.sql` applied to production and HK332 backfilled (2026-10-15); the read-only Setup tab sits on the listing page next to Strategy and Goals. It came out of the Jacob Raabe / HK332 takeover (Oct 14–15), where every pricing decision (cleaning fee, markups per channel, discounts, min stays, check-in/out, promotions, sync) lived only in a scratchpad change log. This maps those decisions onto the Listing so the Hub can answer: *what is set, where, why, who approved it, and is it still true on the channels?*
 
 It follows `listing-review.md`: the Listing is the anchor, state changes only through named actions, every change follows Exception → Recommendation → Decision → Execution → Outcome, and code computes numbers.
 

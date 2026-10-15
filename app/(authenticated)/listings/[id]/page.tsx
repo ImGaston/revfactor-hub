@@ -60,9 +60,10 @@ export default async function ListingPage({
   // /clients/[id] reads the real `clients` table and calls notFound() when RLS
   // filters it out. So linking there is only safe with clients:view -- without
   // it (hostpricing, for one) the link would 404.
-  const [canViewReservations, canViewClient] = await Promise.all([
+  const [canViewReservations, canViewClient, canEditListings] = await Promise.all([
     hasPermission("reservations", "view"),
     hasPermission("clients", "view"),
+    hasPermission("listings", "edit"),
   ])
 
   const [report, rankbreezeResult, recentReservations, setup] = await Promise.all([
@@ -175,6 +176,8 @@ export default async function ListingPage({
       subscriptionOptions={subscriptionOptions}
       clientCustomerIds={clientCustomerIds}
       setupTab={<ListingSetupTab setup={setup} preview={setupPreview} />}
+      canViewPricingPlan={canViewReservations}
+      canEditPlan={canEditListings}
       reservationsCard={
         canViewReservations ? (
           <RecentReservationsCard

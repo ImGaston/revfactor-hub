@@ -1,5 +1,14 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-14 — Client page tabs: Legacy stays default, other tabs load on open
+
+Fede approved a clickable prototype that gives `/clients/[id]` top-level tabs (Legacy, Customer Journey, Client Profile, Support Tickets, Adjustment Requests).
+
+- **Legacy is the default and unchanged.** It is still the only server-rendered tab. The other tabs fetch through Server Actions the first time they open (the Financials Planning pattern), so the client page does no extra work. `?tab=` deep-links; tab switches use `history.replaceState`, not `router.replace`, so switching never re-runs the page's server queries.
+- **The journey is computed, then overridden.** `lib/client-journey.ts` derives each step from Hub data: listing review `published_at`, `owner_message_sent_at`, `DecideSuggestion` events, `listings.pl_synced_at`/`listing_id`, `assembly_client_id`, `ghl_onboarding.agreement_evidence`/`appointment`, setup adjustments and pricing plans. A row in `client_journey_steps` wins over the computed status, and the UI still shows what the data says. Deleting the row returns the step to automatic. Steps the Hub has no data for (launch report, the day 14/30/60 checks, monthly reports, renewal) are manual. The 90-day checks get a due date from the launch anchor: setup applied, else the onboarding call, else the contract start.
+- **No fake signals.** The Hub can't see whether an owner opened an audit, only their decisions, and it has no discovery-call record (that's in GHL). Discovery is shown as implied by the signed agreement. "Days since signing" uses `clients.onboarding_date`, because the GHL agreement evidence has no date.
+- **Defensive against tables that aren't there yet.** `listing_pricing_plans` and `listing_plan_questions` come from another branch, and the new migration isn't applied. A missing table makes its step todo, hides the questions, or turns off editing with a notice. It never breaks the tab.
+
 ## 2026-10-13 — Listing review publish can send the owner message to Assembly
 
 Each listing review carries a deterministic owner message (`lib/listing-optimization-message.ts`: first name, top 3 fixes, owner-task count, where we apply changes), drafted at intake and editable in `/listing-optimization/[id]`. "Publish & send" publishes and posts it to the client's Assembly chat (company channel when linked, else individual) in one staff action; "Send message" retries after a plain publish. This is the separately authorized, human-approved Assembly send path: Fede approved it (2026-10-13), each send needs a `listings:edit` click, it sends at most once, and it logs `NotifyOwnerOfReview`. No bot or cron sends.
@@ -595,3 +604,11 @@ Fede asked whether to teach the Grok capture bot to make asks digestible. The Hu
 ## 2026-10-13 — Client calls to server actions catch thrown errors
 
 Publishing Jacob's listing review from a tab opened before a deploy crashed the whole page ("Application error: a client-side exception"): the old page called a server action id the new deployment no longer had, the call threw inside `startTransition`, and there is no error boundary. Listing-review buttons (publish, publish & send, save/send message, owner accept/decline in the portal) now wrap the call in try/catch and show a toast asking to reload (`ACTION_FAILED_MESSAGE` in `lib/listing-optimization.ts`). Nothing is written when this happens. Vercel Skew Protection would remove the cause; it is a project setting, not enabled yet.
+
+## 2026-10-13 — Pricing math in code; listing strategy tabs (2026-10-14)
+
+Fede liked the pricing planner prototype (Jacob Raabe, Kasey Booth) and asked for it inside the Hub listing. v1 is a read-only tab: it computes history, the booking curve, pace, channel payout math and owner economics from synced reservations, with on-screen edits only. Saving and approving plans (with adjustments for the team) is phase 2 because it needs a new table and Fede's sign-off on the workflow. All numbers and suggestions are deterministic code in `lib/pricing-plan.ts`; no AI. The tab loads its data when opened, following the Financials planning pattern, so the listing page stays fast. Rule recorded from Fede: an owner's minimum price is a payout after markups and discounts.
+
+## 2026-10-14 — The Hub is the source of truth for listing strategy
+
+Fede reviewed a clickable prototype and asked to ship it: the listing page gets top-level tabs (Legacy, Strategy, Goals, Comps, Events, Listing Audit) and revfactor-rm's pricing work moves into the Hub, which becomes the source of truth (revfactor-rm was "mostly a test"). Plans, open questions and their answers are stored per listing; approval requires the blocking questions answered and creates a setup adjustment so the team's existing apply → control flow carries the work. The original page stays intact under Legacy so nothing is lost while the new tabs take over.
