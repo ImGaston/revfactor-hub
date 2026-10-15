@@ -158,7 +158,9 @@ PriceLabs is the dynamic pricing tool.
 - Optional numeric fields may arrive as strings such as `"Unavailable"` and date fields may arrive as `"-"`; normalize these values to `null` before writing to Supabase.
 - 30+ day occupancy fields use adjusted API prefixes, not plain `occupancy_*`.
 - Sync results are tracked per Hub listing as `synced`, `not_found`, or `failed`; never discard Supabase update errors.
-- Duplicate PriceLabs IDs update every matching Hub listing and emit a structured warning for cleanup.
+- Duplicate PriceLabs IDs update every matching Hub listing and emit a structured warning for cleanup. As of 2026-10-14 two ids are shared: Rosewood Bluff (an inactive `[merged]` row plus the active one) and Oceanside / Cleveland St (two active Blackbird internal rows). Cleanup is a data decision, not a code change.
+- Timeouts (2026-10-14): `GET /v1/listings` (`only_syncing_listings=false`, ~400 listings, ~1 MB) normally takes 8-11s. It gets a 20s per-attempt timeout and one retry on a timeout or 5xx (4xx never retries). Callers can pass a `deadline`: each attempt is cut to fit, and a retry starts only with at least 8s left. Other PriceLabs calls (overrides) keep 15s with no retry. Timeout errors read `PriceLabs /listings timed out (2 attempts: 20s, 14s)`.
+- The daily cron owns the single `/v1/listings` call (35s budget from start). It passes the result to the sync (`fetchListings` dependency) and to the setup check (`allPriceLabsListings`, which must be the full list including push-off listings). A failed sync no longer skips the chained steps. The setup check is skipped when the listings request itself failed; if the sync failed earlier (database read), the check fetches for itself. The Report Builder always runs. The route returns 500 with `error: "PriceLabs sync failed: …"` next to the chained results, so Vercel still shows the run as failed.
 
 Synced fields include base/min/max/recommended price, cleaning fees, bedrooms, 7/30/90-day occupancy and market occupancy, MPI 30/60, last booked date, weekend occupancy, push enabled, refreshed and synced timestamps.
 
