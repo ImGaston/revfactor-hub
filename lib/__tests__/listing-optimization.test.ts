@@ -6,6 +6,7 @@ import {
   decisionProgress,
   groupItemsBySection,
   isDecisionLocked,
+  ownerSendGroups,
   sectionPriority,
   validateDecision,
   type OptimizationItem,
@@ -156,5 +157,26 @@ describe("draftReportSchema", () => {
       ],
     })
     expect(r.success).toBe(false)
+  })
+})
+
+describe("ownerSendGroups", () => {
+  const row = (id: string, client_id: string, status: string, sent: string | null = null) => ({
+    id,
+    client_id,
+    client_name: client_id === "s" ? "Spencer Ritterskamp" : "Kasey Booth",
+    status,
+    owner_message_sent_at: sent,
+  })
+
+  it("groups owners with two or more unsent drafts or published reviews", () => {
+    const groups = ownerSendGroups([
+      row("a", "s", "draft"),
+      row("b", "s", "published"),
+      row("c", "k", "draft"),
+      row("d", "k", "archived"),
+      row("e", "k", "published", "2026-10-14T00:00:00Z"),
+    ])
+    expect(groups).toEqual([{ clientId: "s", clientName: "Spencer Ritterskamp", reportIds: ["a", "b"] }])
   })
 })

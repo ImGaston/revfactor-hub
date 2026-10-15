@@ -216,3 +216,44 @@ export function validateDecision(input: {
   const choice = raw ?? item.proposed_value ?? (item.options.length > 0 ? item.options[0] : null)
   return { ok: true, choice, note }
 }
+
+export type OwnerReviewRow = {
+  id: string
+  listingName: string
+  listingTitle: string
+  status: "draft" | "published"
+  overallScore: number | null
+  channelManager: string | null
+  coverage: { checked: number; total: number; complete: boolean }
+  items: (Pick<OptimizationItem, "section" | "kind" | "priority" | "sort_order" | "headline"> & {
+    check_id: string | null
+  })[]
+}
+
+export type OwnerSendGroup = { clientId: string; clientName: string | null; reportIds: string[] }
+
+/**
+ * Owners with two or more reviews still waiting for the owner message (draft
+ * or published, not sent). They get one "Publish & send all" instead of one
+ * message per listing.
+ */
+export function ownerSendGroups(
+  rows: {
+    id: string
+    client_id: string
+    client_name: string | null
+    status: string
+    owner_message_sent_at: string | null
+  }[]
+): OwnerSendGroup[] {
+  const groups = new Map<string, OwnerSendGroup>()
+  for (const r of rows) {
+    if (r.owner_message_sent_at || (r.status !== "draft" && r.status !== "published")) continue
+    const group = groups.get(r.client_id) ?? { clientId: r.client_id, clientName: r.client_name, reportIds: [] }
+    group.reportIds.push(r.id)
+    groups.set(r.client_id, group)
+  }
+  return [...groups.values()]
+    .filter((g) => g.reportIds.length >= 2)
+    .sort((a, b) => (a.clientName ?? "").localeCompare(b.clientName ?? ""))
+}
