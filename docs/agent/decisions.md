@@ -612,3 +612,7 @@ Fede liked the pricing planner prototype (Jacob Raabe, Kasey Booth) and asked fo
 ## 2026-10-14 — The Hub is the source of truth for listing strategy
 
 Fede reviewed a clickable prototype and asked to ship it: the listing page gets top-level tabs (Legacy, Strategy, Goals, Comps, Events, Listing Audit) and revfactor-rm's pricing work moves into the Hub, which becomes the source of truth (revfactor-rm was "mostly a test"). Plans, open questions and their answers are stored per listing; approval requires the blocking questions answered and creates a setup adjustment so the team's existing apply → control flow carries the work. The original page stays intact under Legacy so nothing is lost while the new tabs take over.
+
+## 2026-10-15 — Listing setup writes go through server actions, not RLS write policies
+
+The listing setup tables stay SELECT-only under RLS. Record change, Mark verified, Flag drift and the PriceLabs check write with the admin client after `hasPermission("listings", "edit")` (or from the cron). Why: the history is an audit log, so one narrow server path that validates every value against the key catalog beats broad table grants, and it needed no new migration. The PriceLabs check is chained into the existing daily PriceLabs cron instead of a new cron (one PriceLabs key, one schedule, no extra Vercel cron slot). It writes only on a status change (verify on match, drift once on mismatch), so a stable listing adds no daily rows.

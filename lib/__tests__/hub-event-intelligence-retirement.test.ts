@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   stripeConfigured: vi.fn(() => true),
   priceLabs: vi.fn(async () => ({ synced: 2 })),
   report: vi.fn(async () => ({ status: "completed" })),
+  setupCheck: vi.fn(async () => ({ listings: 1, checked: 3, details: [{ key: "price.min" }] })),
   stripe: vi.fn(async () => ({
     subscriptions: { upserted: 1 },
     invoices: { upserted: 2 },
@@ -27,6 +28,9 @@ vi.mock("@/lib/pricelabs-sync", () => ({ syncPriceLabsData: mocks.priceLabs }))
 vi.mock("@/lib/stripe-sync", () => ({ syncStripeData: mocks.stripe }))
 vi.mock("@/lib/report-builder/runner", () => ({
   advanceReportBuilder: mocks.report,
+}))
+vi.mock("@/lib/listing-setup-check.server", () => ({
+  runListingSetupCheck: mocks.setupCheck,
 }))
 
 import { GET as priceLabs } from "@/app/api/cron/sync-pricelabs/route"
@@ -56,6 +60,9 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     expect(result).not.toHaveProperty("marketSignals")
     expect(mocks.priceLabs).toHaveBeenCalledOnce()
     expect(mocks.report).toHaveBeenCalledOnce()
+    // The listing setup check runs after the sync; details stay out of the response.
+    expect(mocks.setupCheck).toHaveBeenCalledOnce()
+    expect(result.setupCheck).toEqual({ listings: 1, checked: 3, details: [] })
   })
 
   it("syncs Stripe without a market worker response", async () => {

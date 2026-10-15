@@ -2,7 +2,7 @@
 // shapes stored in listing_settings / listing_setting_changes. Design:
 // docs/ontology/listing-revenue-setup.md. Client-safe (no server imports).
 
-export const SETTING_CATALOG_VERSION = "2026-10-15.1"
+export const SETTING_CATALOG_VERSION = "2026-10-15.2"
 
 export type SettingChannel = "all" | "airbnb" | "booking" | "vrbo" | "direct" | "expedia"
 
@@ -105,6 +105,184 @@ export const SETTING_KEYS: SettingKeyDef[] = [
 ]
 
 const KEY_INDEX = new Map(SETTING_KEYS.map((k) => [k.key, k]))
+
+export type SettingValueKind =
+  | "amount"
+  | "percent"
+  | "nights"
+  | "tiers"
+  | "enabled"
+  | "checkin_checkout"
+  | "text"
+
+/** The value shape each key is entered in. Any key can also hold a plain note ({ text }). */
+export const SETTING_VALUE_KINDS: Record<string, SettingValueKind> = {
+  "sync.pricing_tool": "text",
+  "sync.pms_optimizer": "enabled",
+  "sync.pl_push": "enabled",
+  "sync.pms_token": "text",
+  "price.min": "amount",
+  "price.base": "amount",
+  "price.max": "amount",
+  "price.seasonal_min": "amount",
+  "price.gap_premium": "percent",
+  "stay.min_stay_profile": "nights",
+  "stay.gap_rule": "text",
+  "stay.min_stay": "nights",
+  "stay.checkin_checkout_default": "checkin_checkout",
+  "stay.checkin_checkout": "text",
+  "fee.cleaning": "amount",
+  "fee.extra_guest": "amount",
+  "markup.channel": "percent",
+  "discount.trip_length": "tiers",
+  "discount.weekly": "percent",
+  "discount.monthly": "percent",
+  "discount.last_minute": "percent",
+  "discount.early_bird": "percent",
+  "discount.pms_weekly_monthly": "text",
+  "promotion.pms": "text",
+  "availability.booking_window": "text",
+  "policy.cancellation": "text",
+  "tax.collection": "text",
+}
+
+export function settingValueKind(key: string): SettingValueKind {
+  return SETTING_VALUE_KINDS[baseSettingKey(key)] ?? "text"
+}
+
+/**
+ * Keys the daily PriceLabs check can confirm on its own. Everything else is
+ * verified by a person (channel quotes, PMS screens, dashboard-only settings).
+ */
+export const PRICELABS_CHECKED_KEYS = [
+  "price.min",
+  "price.base",
+  "price.max",
+  "sync.pl_push",
+  "price.seasonal_min",
+  "stay.min_stay",
+] as const
+
+export const SETTING_CHANNELS: SettingChannel[] = ["all", "airbnb", "booking", "vrbo", "direct", "expedia"]
+
+export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const
+export const WEEKDAY_LABELS: Record<(typeof WEEKDAYS)[number], string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+}
+
+const finite = (v: unknown) => typeof v === "number" && Number.isFinite(v)
+
+/**
+ * Checks a value against the key's shape (or a plain note) and returns it
+ * cleaned, or an error message. Server actions call this; never trust the form.
+ */
+export function validateSettingValue(
+  key: string,
+  value: unknown
+): { ok: true; value: SettingValue } | { ok: false; error: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, error: "Enter a value." }
+  }
+  const v = value as Record<string, unknown>
+  if ("text" in v) {
+    const text = typeof v.text === "string" ? v.text.trim() : ""
+    return text ? { ok: true, value: { text: text.slice(0, 500) } } : { ok: false, error: "Enter a note." }
+  }
+  switch (settingValueKind(key)) {
+    case "amount": {
+      if (!finite(v.amount) || (v.amount as number) < 0) return { ok: false, error: "Enter an amount of 0 or more." }
+      const per = v.per === "stay" || v.per === "night" || v.per === "guest" ? v.per : undefined
+      return { ok: true, value: per ? { amount: v.amount as number, per } : { amount: v.amount as number } }
+    }
+    case "percent": {
+      if (!finite(v.percent) || (v.percent as number) < -100 || (v.percent as number) > 500) {
+        return { ok: false, error: "Enter a percent between -100 and 500." }
+      }
+      return { ok: true, value: { percent: v.percent as number } }
+    }
+    case "nights": {
+      if (!Number.isInteger(v.nights) || (v.nights as number) < 1 || (v.nights as number) > 365) {
+        return { ok: false, error: "Enter whole nights between 1 and 365." }
+      }
+      if (v.fallback_after_days != null) {
+        if (!Number.isInteger(v.fallback_after_days) || (v.fallback_after_days as number) < 1) {
+          return { ok: false, error: "Lead-time fallback must be whole days." }
+        }
+        return { ok: true, value: { nights: v.nights as number, fallback_after_days: v.fallback_after_days as number } }
+      }
+      return { ok: true, value: { nights: v.nights as number } }
+    }
+    case "tiers": {
+      const tiers = Array.isArray(v.tiers) ? v.tiers : []
+      const clean = tiers
+        .map((t) => t as Record<string, unknown>)
+        .filter((t) => typeof t.label === "string" && t.label.trim() && finite(t.percent))
+        .map((t) => ({ label: (t.label as string).trim().slice(0, 60), percent: t.percent as number }))
+      if (clean.length === 0 || clean.length !== tiers.length) {
+        return { ok: false, error: "Each tier needs a label and a percent." }
+      }
+      return { ok: true, value: { tiers: clean } }
+    }
+    case "enabled": {
+      if (typeof v.enabled !== "boolean") return { ok: false, error: "Choose on or off." }
+      const note = typeof v.note === "string" && v.note.trim() ? v.note.trim().slice(0, 200) : undefined
+      return { ok: true, value: note ? { enabled: v.enabled, note } : { enabled: v.enabled } }
+    }
+    case "checkin_checkout": {
+      const days = (d: unknown): string[] | "all" | null => {
+        if (d === "all") return "all"
+        if (!Array.isArray(d) || d.length === 0) return null
+        const set = new Set(d.filter((x): x is string => (WEEKDAYS as readonly string[]).includes(x as string)))
+        if (set.size !== d.length) return null
+        return set.size === 7 ? "all" : WEEKDAYS.filter((w) => set.has(w))
+      }
+      const checkin = days(v.checkin)
+      const checkout = days(v.checkout)
+      if (!checkin || !checkout) return { ok: false, error: "Pick at least one check-in and one check-out day." }
+      return { ok: true, value: { checkin, checkout } }
+    }
+    default:
+      return { ok: false, error: "Enter a note." }
+  }
+}
+
+/** Order-insensitive deep equality for stored JSON values. */
+export function sameSettingValue(a: unknown, b: unknown): boolean {
+  return stableJson(a) === stableJson(b)
+}
+
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>
+    return `{${Object.keys(o)
+      .filter((k) => o[k] !== undefined)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(o[k])}`)
+      .join(",")}}`
+  }
+  return JSON.stringify(v ?? null)
+}
+
+/** Same scope = same key, channel and date range (the unique index on listing_settings). */
+export function sameSettingScope(
+  a: { setting_key: string; channel: string; date_from: string | null; date_to: string | null },
+  b: { setting_key: string; channel: string; date_from: string | null; date_to: string | null }
+): boolean {
+  return (
+    a.setting_key === b.setting_key &&
+    a.channel === b.channel &&
+    (a.date_from ?? null) === (b.date_from ?? null) &&
+    (a.date_to ?? null) === (b.date_to ?? null)
+  )
+}
+
 
 /**
  * A stored key may carry a name after "/" when one listing has several of the
