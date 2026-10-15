@@ -10,7 +10,18 @@ const mocks = vi.hoisted(() => ({
   admin: vi.fn(() => ({})),
   priceLabsConfigured: vi.fn(() => true),
   stripeConfigured: vi.fn(() => true),
-  priceLabs: vi.fn(async () => ({ synced: 2 })),
+  plListings: vi.fn(async () => [{ id: "pl-1" }, { id: "pl-2" }]),
+  // Mirrors the real sync: it reads Hub listings, then calls the route's
+  // fetcher for GET /v1/listings.
+  priceLabs: vi.fn(
+    async (
+      _supabase: unknown,
+      deps: { fetchListings: () => Promise<unknown[]> }
+    ) => {
+      await deps.fetchListings()
+      return { synced: 2 }
+    }
+  ),
   report: vi.fn(async () => ({ status: "completed" })),
   setupCheck: vi.fn(async () => ({ listings: 1, checked: 3, details: [{ key: "price.min" }] })),
   snapshots: vi.fn(async () => ({ captured: 2, enabled: true })),
@@ -24,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.admin }))
 vi.mock("@/lib/pricelabs", () => ({
   isPriceLabsConfigured: mocks.priceLabsConfigured,
+  fetchPriceLabsListings: mocks.plListings,
 }))
 vi.mock("@/lib/stripe", () => ({ isStripeConfigured: mocks.stripeConfigured }))
 vi.mock("@/lib/pricelabs-sync", () => ({ syncPriceLabsData: mocks.priceLabs }))
@@ -72,6 +84,99 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     expect(result.outcomes).toEqual({
       snapshots: { captured: 2, enabled: true },
       checkpoints: { saved: 1, errors: [], enabled: true },
+    })
+  })
+
+  it("fetches PriceLabs listings once, with push-off ones, and shares them with the setup check", async () => {
+    await priceLabs(authorized())
+    expect(mocks.plListings).toHaveBeenCalledOnce()
+    expect(mocks.plListings).toHaveBeenCalledWith(false, {
+      deadline: expect.any(Number),
+    })
+    expect(mocks.setupCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        allPriceLabsListings: [{ id: "pl-1" }, { id: "pl-2" }],
+      })
+    )
+  })
+
+  it("still runs the Report Builder when the PriceLabs listings request times out, and reports the failure", async () => {
+    mocks.plListings.mockRejectedValueOnce(
+      new Error("PriceLabs /listings timed out (2 attempts: 20s, 14s)")
+    )
+    const response = await priceLabs(authorized())
+    const result = await response.json()
+    expect(response.status).toBe(500)
+    expect(result.error).toBe(
+      "PriceLabs sync failed: PriceLabs /listings timed out (2 attempts: 20s, 14s)"
+    )
+    // The setup check needs PriceLabs data; it is skipped instead of refetching.
+    expect(mocks.setupCheck).not.toHaveBeenCalled()
+    expect(result.setupCheck).toEqual({
+      skipped: true,
+      reason:
+        "PriceLabs listings unavailable: PriceLabs /listings timed out (2 attempts: 20s, 14s)",
+    })
+    // Outcomes don't need today's sync: snapshots capture whatever synced
+    // today, checkpoints read reservations and stored snapshots.
+    expect(mocks.snapshots).toHaveBeenCalledOnce()
+    expect(mocks.checkpoints).toHaveBeenCalledOnce()
+    expect(result.outcomes).toEqual({
+      snapshots: { captured: 2, enabled: true },
+      checkpoints: { saved: 1, errors: [], enabled: true },
+    })
+    expect(mocks.report).toHaveBeenCalledOnce()
+    expect(result.reportBuilder).toEqual({ status: "completed" })
+  })
+
+  it("captures snapshots before checkpoint reviews read them", async () => {
+    await priceLabs(authorized())
+    expect(mocks.snapshots.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.checkpoints.mock.invocationCallOrder[0]
+    )
+    expect(mocks.checkpoints).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ deadline: expect.any(Number) })
+    )
+  })
+
+  it("lets the setup check fetch for itself when the sync fails before reaching PriceLabs", async () => {
+    mocks.priceLabs.mockRejectedValueOnce(
+      new Error("PriceLabs sync database read failed: boom")
+    )
+    const response = await priceLabs(authorized())
+    const result = await response.json()
+    expect(response.status).toBe(500)
+    expect(result.error).toBe(
+      "PriceLabs sync failed: PriceLabs sync database read failed: boom"
+    )
+    expect(mocks.setupCheck).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ allPriceLabsListings: undefined })
+    )
+    expect(result.setupCheck).toEqual({ listings: 1, checked: 3, details: [] })
+    expect(result.outcomes.checkpoints).toEqual({ saved: 1, errors: [], enabled: true })
+    expect(mocks.report).toHaveBeenCalledOnce()
+  })
+
+  it("keeps a failing chained step from hiding the others", async () => {
+    mocks.setupCheck.mockRejectedValueOnce(new Error("setup boom"))
+    mocks.snapshots.mockRejectedValueOnce(new Error("snapshot boom"))
+    mocks.report.mockRejectedValueOnce(new Error("report boom"))
+    const response = await priceLabs(authorized())
+    const result = await response.json()
+    expect(response.status).toBe(200)
+    expect(result.synced).toBe(2)
+    expect(result.setupCheck).toEqual({ error: "setup boom" })
+    // A failed snapshot capture doesn't skip the checkpoint reviews.
+    expect(result.outcomes).toEqual({
+      snapshots: { error: "snapshot boom" },
+      checkpoints: { saved: 1, errors: [], enabled: true },
+    })
+    expect(result.reportBuilder).toEqual({
+      status: "failed",
+      error: "report boom",
     })
   })
 
