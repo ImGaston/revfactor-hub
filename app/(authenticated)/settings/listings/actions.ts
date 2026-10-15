@@ -219,10 +219,13 @@ export async function syncPriceLabsAction() {
 // ─── Report Builder ──────────────────────────────────────
 
 /**
- * Trigger / resume the Report Builder ingestion. Idempotent: starts a fresh run
- * or resumes an in-window polling run, so a human can close out a slow report.
+ * Start a Report Builder run, or poll the in-window one once. Idempotent and
+ * non-blocking: the per-minute cron finishes a report that is still generating.
  */
 export async function syncReportBuilderAction() {
+  if (!(await hasPermission("listings", "edit"))) {
+    return { error: "You do not have permission to sync the report", status: "failed" as const }
+  }
   if (!isReportBuilderConfigured()) {
     return {
       error: "PRICELABS_API_KEY not configured",
