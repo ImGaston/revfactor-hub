@@ -287,44 +287,44 @@ function PrepRow({
   }
 
   return (
-    <div className="flex flex-col gap-1 py-2 sm:flex-row sm:items-start sm:gap-3">
-      <div className="text-sm text-muted-foreground sm:w-48 sm:shrink-0">{def.label}</div>
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          {cell.display == null ? (
-            <span className="text-muted-foreground">Not answered</span>
-          ) : isLink ? (
-            <a
-              href={cell.value as string}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-w-0 items-center gap-1 text-primary underline-offset-4 hover:underline"
-            >
-              <span className="truncate">{cell.display}</span>
-              <ExternalLink className="size-3 shrink-0" />
-            </a>
-          ) : (
-            <span className="break-words">{cell.display}</span>
-          )}
-          <SourceBadge cell={cell} />
-        </div>
-        {cell.note && <p className="text-xs text-muted-foreground">{cell.note}</p>}
-        {cell.status === "done" && cell.completedAt && (
-          <p className="text-xs text-muted-foreground">Verified by {whoWhen(cell.completedByName, cell.completedAt)}</p>
+    <div className="space-y-1 py-2">
+      <div className="flex min-h-8 items-center justify-between gap-2">
+        <span className="text-sm text-muted-foreground">{def.label}</span>
+        {canEdit && !readonly && (
+          <div className="flex shrink-0 items-center gap-1">
+            {cell.status !== "done" && cell.value != null && (
+              <Button variant="outline" size="sm" onClick={verify} disabled={busy}>
+                {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
+                Verify
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(cell)} aria-label={`Edit ${def.label}`}>
+              <Pencil className="size-3.5" />
+            </Button>
+          </div>
         )}
       </div>
-      {canEdit && !readonly && (
-        <div className="flex shrink-0 items-center gap-1">
-          {cell.status !== "done" && cell.value != null && (
-            <Button variant="outline" size="sm" onClick={verify} disabled={busy}>
-              {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
-              Verify
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => onEdit(cell)} aria-label={`Edit ${def.label}`}>
-            <Pencil className="size-3.5" />
-          </Button>
-        </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+        {cell.display == null ? (
+          <span className="text-muted-foreground">Not answered</span>
+        ) : isLink ? (
+          <a
+            href={cell.value as string}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-w-0 max-w-full items-center gap-1 text-primary underline-offset-4 hover:underline"
+          >
+            <span className="truncate">{cell.display}</span>
+            <ExternalLink className="size-3 shrink-0" />
+          </a>
+        ) : (
+          <span className="min-w-0 break-words">{cell.display}</span>
+        )}
+        <SourceBadge cell={cell} />
+      </div>
+      {cell.note && <p className="text-xs text-muted-foreground">{cell.note}</p>}
+      {cell.status === "done" && cell.completedAt && (
+        <p className="text-xs text-muted-foreground">Verified by {whoWhen(cell.completedByName, cell.completedAt)}</p>
       )}
     </div>
   )
