@@ -83,6 +83,14 @@ Client onboarding Custom App contract:
 - Owner accepts ping Slack once per decision session (30 min window per review) via `notifyTeamOfOwnerDecision` when `SLACK_LISTING_REVIEWS_CHANNEL_ID` and `SLACK_BOT_TOKEN` are set; otherwise silent. The work itself is already queued as `listing_content` adjustments.
 - Publish & send posts the review's owner message to the client's Assembly chat via `sendAssemblyMessage` (company channel matching `clients.assembly_company_id`, else the individual channel). Staff click only; at most once per review.
 
+### App visibility via tags (2026-10-15)
+
+- Assembly custom-app visibility rules can only use **Tags-type (`multiSelect`) custom fields** on the client or company, or a fixed client/company list. The fixed list can't be edited through the API, so the Listing Review app's rule is "Client tags includes Listing Review" OR "Company tags includes Listing Review". Fede sets the rule by hand; the Hub never changes app visibility.
+- Before every owner send (`sendReviewOwnerMessage` and `sendOwnerBundleMessage`), `grantListingReviewApp` adds the tag to the **same target the message goes to**: the company when the company channel is used, else the client. If tagging fails, the message is not sent and staff see "Couldn't give <name> access to the Listing Review app in Assembly". Each grant logs a `GrantListingReviewApp` event (target type/id, field key, option, `already_tagged`).
+- Env (server-only, names only here): `ASSEMBLY_LISTING_REVIEW_TAG_FIELD` (client field key), optional `ASSEMBLY_LISTING_REVIEW_COMPANY_TAG_FIELD` (company field key; falls back to the client one), `ASSEMBLY_LISTING_REVIEW_TAG_OPTION` (option key, label or id). If the field or option var is unset the grant is skipped and sends work as before (safe rollout).
+- API shapes: `GET /custom-fields?entityType=client|company` lists fields with `options[{id,key,label}]`; `GET`/`PATCH /clients/{id}` and `/companies/{id}` carry `customFields` keyed by field key. The OpenAPI schema says multiSelect values are option **ids**, but the doc examples show option **keys**, so `addAssemblyTagOption` treats both as "already tagged", merges with the existing values (never overwrites), writes ids first, verifies the response, and retries once with keys. Only the one field key is sent in the PATCH.
+- `pnpm assembly:tag-fields` (`scripts/list-assembly-tag-fields.ts`) is read-only (GET only): it lists every Tags field and its options per entity type, and checks whether the three env vars resolve.
+
 ## Agent Studio and Vercel AI Gateway
 
 The authenticated `/agent-studio` route is the internal pre-production environment for the RevFactor client-service agent.

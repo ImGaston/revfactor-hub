@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-15 — Sending a listing review grants the Listing Review app through an Assembly tag
+
+Fede had to add every owner by hand to the Listing Review app's "Visible to some clients" list in Assembly (5 clients by Oct 15, including Marissa Biddle and Alisha Provot). That list can't be edited through the API, but visibility rules can follow a Tags custom field, and custom fields can be set through the API. So the app's rule becomes "client or company tags include Listing Review", and every owner send tags the same target the message goes to (company when sent to the company channel, else the client) before posting. If the tag can't be set, the message is not sent: a message linking to an app the owner can't open is worse than a retry. The grant is skipped when its env vars are unset, so the code can ship before the Assembly field exists. Each grant is a `GrantListingReviewApp` ontology event. Tags are never removed by the Hub.
+
 ## 2026-10-14 — Client page tabs: Legacy stays default, other tabs load on open
 
 Fede approved a clickable prototype that gives `/clients/[id]` top-level tabs (Legacy, Customer Journey, Client Profile, Support Tickets, Adjustment Requests).
