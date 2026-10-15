@@ -891,3 +891,6 @@ Added the Pricing plan tab on `/listings/[id]` (reservations:view): suggestions,
 
 ## 2026-10-15 — Listing setup: record changes + daily PriceLabs check
 Added the write path to the Setup tab (Record change dialog with change sets, per-row Record a new value / Mark verified / Flag drift) and the PriceLabs check (daily in `/api/cron/sync-pricelabs`, plus "Check PriceLabs now"). No migration. Dry run on HK332 against production: 11 PriceLabs-backed settings all match; the Jun 15–Aug 15 4-night minimum would move applied → verified on the first real run. Tests: `lib/__tests__/listing-setup-check.test.ts`.
+
+## 2026-10-15 — Listing outcomes (performance after setup changes)
+Built the Outcome step: Results section on the Setup tab (live, loads on open), code verdicts, AI summary (Summarize now), daily PriceLabs snapshots and day 7/14/30/60/90 checkpoint reviews chained into the PriceLabs cron. Migration `20261016120000_listing_outcomes.sql` drafted, waiting for Fede's OK; everything degrades cleanly without it. HK332: window starts Oct 15 (baseline read excluded); STLY comparisons start ~Oct 25 when its reservation history reaches a year.

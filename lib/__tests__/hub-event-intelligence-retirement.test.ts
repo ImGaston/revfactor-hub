@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   priceLabs: vi.fn(async () => ({ synced: 2 })),
   report: vi.fn(async () => ({ status: "completed" })),
   setupCheck: vi.fn(async () => ({ listings: 1, checked: 3, details: [{ key: "price.min" }] })),
+  snapshots: vi.fn(async () => ({ captured: 2, enabled: true })),
+  checkpoints: vi.fn(async () => ({ saved: 1, errors: [], enabled: true })),
   stripe: vi.fn(async () => ({
     subscriptions: { upserted: 1 },
     invoices: { upserted: 2 },
@@ -31,6 +33,10 @@ vi.mock("@/lib/report-builder/runner", () => ({
 }))
 vi.mock("@/lib/listing-setup-check.server", () => ({
   runListingSetupCheck: mocks.setupCheck,
+}))
+vi.mock("@/lib/listing-outcomes.server", () => ({
+  captureDailySnapshots: mocks.snapshots,
+  runOutcomeCheckpoints: mocks.checkpoints,
 }))
 
 import { GET as priceLabs } from "@/app/api/cron/sync-pricelabs/route"
@@ -63,6 +69,10 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
     // The listing setup check runs after the sync; details stay out of the response.
     expect(mocks.setupCheck).toHaveBeenCalledOnce()
     expect(result.setupCheck).toEqual({ listings: 1, checked: 3, details: [] })
+    expect(result.outcomes).toEqual({
+      snapshots: { captured: 2, enabled: true },
+      checkpoints: { saved: 1, errors: [], enabled: true },
+    })
   })
 
   it("syncs Stripe without a market worker response", async () => {
