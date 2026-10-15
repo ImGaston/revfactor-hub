@@ -6,16 +6,12 @@ import {
   type PriceLabsListing,
 } from "@/lib/pricelabs"
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
-import { advanceReportBuilder } from "@/lib/report-builder/runner"
 import { runListingSetupCheck } from "@/lib/listing-setup-check.server"
 import { captureDailySnapshots, runOutcomeCheckpoints } from "@/lib/listing-outcomes.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
 
-// Total time budget for the function; the Report Builder gets whatever is left
-// after the pl_* sync, with headroom so we never exceed maxDuration.
-const FUNCTION_BUDGET_MS = 52_000
 // GET /v1/listings (20s per attempt, one retry on timeout/5xx) must finish by
 // this point so the chained steps still get their turn.
 const LISTINGS_FETCH_BUDGET_MS = 35_000
@@ -77,7 +73,7 @@ export async function GET(request: NextRequest) {
 
   // Listing revenue setup: confirm the decided PriceLabs settings (or flag
   // drift) right after the sync. Few listings carry setup rows, so this is a
-  // handful of requests; it never blocks the Report Builder for long. It needs
+  // handful of requests; it never blocks the later steps for long. It needs
   // PriceLabs data, so it is skipped when the listings request itself failed
   // (a third attempt would only eat the budget). If the sync failed before
   // fetching (e.g. a database read), the check fetches the listings itself.
@@ -134,35 +130,12 @@ export async function GET(request: NextRequest) {
   }
   const outcomes = { snapshots, checkpoints }
 
-  // Chain the Report Builder ingestion onto the same daily cron (same API key)
-  // so we don't add a separate cron job. It advances its own state machine and
-  // only inline-polls with the time left in this function's budget; a slow
-  // report finishes via the manual "Sync Report Builder" button or next day.
-  let reportBuilder:
-    | Awaited<ReturnType<typeof advanceReportBuilder>>
-    | { status: string; error: string }
-    | null = null
-  try {
-    const inlineDeadlineMs = Math.max(
-      8_000,
-      FUNCTION_BUDGET_MS - (Date.now() - startedAt)
-    )
-    reportBuilder = await advanceReportBuilder(supabase, {
-      triggeredBy: "cron",
-      inlineDeadlineMs,
-    })
-  } catch (err) {
-    console.error("Report Builder (chained) error:", err)
-    reportBuilder = { status: "failed", error: errorMessage(err) }
-  }
-
   if (!sync) {
     return NextResponse.json(
       {
         error: `PriceLabs sync failed: ${syncError}`,
         setupCheck,
         outcomes,
-        reportBuilder,
       },
       { status: 500 }
     )
@@ -173,6 +146,5 @@ export async function GET(request: NextRequest) {
     ...sync,
     setupCheck,
     outcomes,
-    reportBuilder,
   })
 }
