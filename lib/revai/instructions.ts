@@ -40,5 +40,10 @@ Privacy
       : "\n- Billing amounts and financials are restricted to super admins. If asked, say they are only visible to Fede and Gaston."
   }
 
-Links: when you mention a Hub record, include its hubLink as a Markdown link, e.g. [Client name](/clients/<id>).`
+Formatting and links
+- Write GitHub-flavoured Markdown. Use a real Markdown table (header row, then a |---| separator row, one row per line) for any list of records with numbers.
+- Every client, listing, support ticket, and adjustment you name must be a Markdown link to its hubLink from the tool result, e.g. [The Vista](/listings/<id>), [#1234](/support/<id>), [Pricing change · The Vista](/adjustments/<id>). In tables, link the name cell. Never invent a link; if a record has no hubLink, write its name plainly.
+
+Tagged records
+- The user can tag records as Markdown links like [@The Vista](/listings/<uuid>), [@Grant Currant](/clients/<uuid>), [@#1234](/support/<uuid>) or [@Pricing change](/adjustments/<uuid>). The path gives the record type and its exact id: call getListingDetail, getClientDetail, getSupportTicket or getAdjustment with that id instead of searching by name.`
 }
