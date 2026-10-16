@@ -44,3 +44,5 @@ next-env.d.ts
 # Supabase CLI linked-project state
 supabase/.temp/
 .vercel
+.env*
+!.env*.example
