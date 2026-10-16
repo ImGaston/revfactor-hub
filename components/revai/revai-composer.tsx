@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowUp, Building2, LifeBuoy, SlidersHorizontal, Square, Users } from "lucide-react"
+import { ArrowUp, Square } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -15,26 +15,22 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   REVAI_MENTION_KIND_LABELS,
   activeMentionQuery,
-  mentionMarkdown,
+  expandMentions,
+  mentionText,
+  presentMentions,
   type RevAiMention,
-  type RevAiMentionKind,
 } from "@/lib/revai/mentions"
 import { REVAI_MODELS, type RevAiTierChoice } from "@/lib/revai/models"
 import { cn } from "@/lib/utils"
-
-const KIND_ICONS: Record<RevAiMentionKind, typeof Users> = {
-  client: Users,
-  listing: Building2,
-  ticket: LifeBuoy,
-  adjustment: SlidersHorizontal,
-}
+import { REVAI_MENTION_ICONS, RevAiMentionPill } from "./revai-mention-pill"
 
 type MentionState = { query: string; start: number }
 
 /**
  * Message box with @-mentions. Typing "@" searches clients, listings, tickets
- * and adjustments; picking one inserts `[@Name](/listings/<id>)`, which the
- * model reads as an exact record id and the transcript shows as a link.
+ * and adjustments; picking one inserts a readable `@Name` and shows it as a
+ * pill. On send each tag becomes `[@Name](/listings/<id>)`, which the model
+ * reads as an exact record id and the transcript renders as a pill again.
  */
 export function RevAiComposer({
   variant,
@@ -55,6 +51,7 @@ export function RevAiComposer({
   const [mention, setMention] = useState<MentionState | null>(null)
   const [results, setResults] = useState<RevAiMention[]>([])
   const [highlight, setHighlight] = useState(0)
+  const [tags, setTags] = useState<RevAiMention[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const mentionQuery = mention?.query ?? null
@@ -89,9 +86,12 @@ export function RevAiComposer({
     if (!mention) return
     const element = textareaRef.current
     const caret = element?.selectionStart ?? input.length
-    const token = `${mentionMarkdown(item)} `
+    const token = `${mentionText(item)} `
     const next = input.slice(0, mention.start) + token + input.slice(caret)
     setInput(next)
+    setTags((previous) =>
+      previous.some((tag) => tag.kind === item.kind && tag.id === item.id) ? previous : [...previous, item]
+    )
     setMention(null)
     setResults([])
     const position = mention.start + token.length
@@ -105,12 +105,19 @@ export function RevAiComposer({
     const trimmed = input.trim()
     if (!trimmed || busy) return
     setInput("")
+    setTags([])
     setMention(null)
     setResults([])
-    onSend(trimmed)
+    onSend(expandMentions(trimmed, tags))
   }
 
   const open = mention !== null && results.length > 0
+  const shownTags = presentMentions(input, tags)
+
+  const removeTag = (tag: RevAiMention) => {
+    setTags((previous) => previous.filter((candidate) => candidate !== tag))
+    setInput((previous) => previous.split(`${mentionText(tag)} `).join("").split(mentionText(tag)).join(""))
+  }
 
   return (
     <form
@@ -124,7 +131,7 @@ export function RevAiComposer({
         {open ? (
           <div className="absolute right-0 bottom-full left-0 z-10 mb-2 max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
             {results.map((item, index) => {
-              const Icon = KIND_ICONS[item.kind]
+              const Icon = REVAI_MENTION_ICONS[item.kind]
               return (
                 <button
                   key={`${item.kind}-${item.id}`}
@@ -150,6 +157,18 @@ export function RevAiComposer({
                 </button>
               )
             })}
+          </div>
+        ) : null}
+        {shownTags.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 px-3 pt-2.5">
+            {shownTags.map((tag) => (
+              <RevAiMentionPill
+                key={`${tag.kind}-${tag.id}`}
+                kind={tag.kind}
+                label={tag.label}
+                onRemove={() => removeTag(tag)}
+              />
+            ))}
           </div>
         ) : null}
         <Textarea

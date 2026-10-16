@@ -1,15 +1,30 @@
 "use client"
 
 import Link from "next/link"
+import type { ReactNode } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
+import { mentionKindFromHref } from "@/lib/revai/mentions"
 import { cn } from "@/lib/utils"
+import { RevAiMentionPill } from "./revai-mention-pill"
+
+function textOf(children: ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") return String(children)
+  if (Array.isArray(children)) return children.map(textOf).join("")
+  return ""
+}
 
 const components: Components = {
-  // Hub paths open in-app; anything else opens a new tab.
-  a: ({ href, children }) =>
-    href?.startsWith("/") ? (
+  // Tagged records (`[@Name](/listings/<id>)`) render as pills; other Hub
+  // paths open in-app; anything else opens a new tab.
+  a: ({ href, children }) => {
+    const text = textOf(children)
+    const kind = mentionKindFromHref(href)
+    if (kind && text.startsWith("@")) {
+      return <RevAiMentionPill kind={kind} label={text} href={href} />
+    }
+    return href?.startsWith("/") ? (
       <Link href={href} className="font-medium text-primary underline-offset-2 hover:underline">
         {children}
       </Link>
@@ -17,7 +32,8 @@ const components: Components = {
       <a href={href} target="_blank" rel="noreferrer">
         {children}
       </a>
-    ),
+    )
+  },
   table: ({ children }) => (
     <div className="not-prose my-3 overflow-x-auto rounded-lg border">
       <table className="w-full border-collapse text-sm">{children}</table>

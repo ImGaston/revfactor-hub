@@ -33,3 +33,43 @@ export function activeMentionQuery(text: string, caret: number): { query: string
   if (!match) return null
   return { query: match[2], start: caret - match[2].length - 1 }
 }
+
+/** What the composer shows for a tag: `@Name`. */
+export function mentionText(mention: Pick<RevAiMention, "label">): string {
+  return `@${mention.label.replace(/[[\]]/g, "")}`
+}
+
+/** Tags whose `@Name` is still in the text (the user may have deleted some). */
+export function presentMentions(text: string, tags: RevAiMention[]): RevAiMention[] {
+  return tags.filter((tag) => text.includes(mentionText(tag)))
+}
+
+/**
+ * Turn each `@Name` the user tagged into `[@Name](/listings/<id>)` before
+ * sending, so the model gets exact ids while the composer stays readable.
+ * Longer names go first so "@Lake House 2" is not split by "@Lake House".
+ */
+export function expandMentions(text: string, tags: RevAiMention[]): string {
+  const ordered = [...presentMentions(text, tags)].sort((a, b) => b.label.length - a.label.length)
+  const placeholders: string[] = []
+  let result = text
+  for (const tag of ordered) {
+    const token = mentionText(tag)
+    result = result.split(token).join(`\u0000${placeholders.length}\u0000`)
+    placeholders.push(mentionMarkdown(tag))
+  }
+  return result.replace(/\u0000(\d+)\u0000/g, (_, index: string) => placeholders[Number(index)])
+}
+
+const HREF_KINDS: Array<[string, RevAiMentionKind]> = [
+  ["/clients/", "client"],
+  ["/listings/", "listing"],
+  ["/support/", "ticket"],
+  ["/adjustments/", "adjustment"],
+]
+
+/** The record kind a Hub link points at, or null for any other link. */
+export function mentionKindFromHref(href: string | undefined): RevAiMentionKind | null {
+  if (!href) return null
+  return HREF_KINDS.find(([prefix]) => href.startsWith(prefix))?.[1] ?? null
+}
