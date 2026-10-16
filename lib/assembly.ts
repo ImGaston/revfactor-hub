@@ -610,6 +610,17 @@ export function tagValues(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
 }
 
+/**
+ * A Tags field's values from an entity's customFields. GET returns them keyed
+ * by field key; a company PATCH response keys them by field id instead.
+ */
+export function fieldTagValues(
+  customFields: Record<string, unknown>,
+  field: Pick<AssemblyCustomField, "key" | "id">
+): string[] {
+  return tagValues(customFields[field.key] ?? customFields[field.id])
+}
+
 export function hasTagOption(values: string[], option: AssemblyCustomFieldOption): boolean {
   return values.includes(option.id) || values.includes(option.key)
 }
@@ -655,8 +666,9 @@ export async function addAssemblyTagOption(opts: {
   }
   const result = { fieldKey: field.key, optionId: option.id, optionKey: option.key }
 
-  const current = tagValues(
-    (await getAssemblyEntityCustomFields(opts.entityType, opts.entityId))[field.key]
+  const current = fieldTagValues(
+    await getAssemblyEntityCustomFields(opts.entityType, opts.entityId),
+    field
   )
   if (hasTagOption(current, option)) return { alreadyTagged: true, ...result }
 
@@ -666,7 +678,10 @@ export async function addAssemblyTagOption(opts: {
       const after = await updateAssemblyEntityCustomFields(opts.entityType, opts.entityId, {
         [field.key]: mergeTagValues(field, current, option, mode),
       })
-      if (hasTagOption(tagValues(after[field.key]), option)) return { alreadyTagged: false, ...result }
+      if (hasTagOption(fieldTagValues(after, field), option)) return { alreadyTagged: false, ...result }
+      // The write response can differ in shape from a read; confirm with a fresh read.
+      const reread = await getAssemblyEntityCustomFields(opts.entityType, opts.entityId)
+      if (hasTagOption(fieldTagValues(reread, field), option)) return { alreadyTagged: false, ...result }
       lastError = new Error(`tag not present after writing option ${mode}s`)
     } catch (error) {
       lastError = error

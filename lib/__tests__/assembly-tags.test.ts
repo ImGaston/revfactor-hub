@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  fieldTagValues,
   findTagsField,
   hasTagOption,
   mergeTagValues,
@@ -78,5 +79,12 @@ describe("Assembly tag helpers", () => {
     const found = findTagsField([field, real], "Listing Review")
     expect(found?.key).toBe("listingReview")
     expect(resolveTagOption(found!, "Enabled")?.id).toBe("opt-enabled")
+  })
+
+  it("reads tag values keyed by field key or by field id (company PATCH response)", () => {
+    expect(fieldTagValues({ hubApps: ["listingReview"] }, field)).toEqual(["listingReview"])
+    expect(fieldTagValues({ "field-1": ["opt-review"] }, field)).toEqual(["opt-review"])
+    expect(hasTagOption(fieldTagValues({ "field-1": ["opt-review"] }, field), review)).toBe(true)
+    expect(fieldTagValues({}, field)).toEqual([])
   })
 })
