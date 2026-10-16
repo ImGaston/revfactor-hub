@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-16 — RevAI tweaks: Markdown tables, Hub links, @-tagging
+
+Fede's first live feedback. Answers now render GitHub-flavoured Markdown (`remark-gfm@4.0.1`, `components/revai/revai-markdown.tsx`) so tables show as tables. Every tool result carries `hubLink`s for clients, listings, adjustments (`/adjustments/<id>`) and tickets (`/support/<id>`), and the instructions require linking every named record. New composer (`components/revai/revai-composer.tsx`) with @-mentions backed by `GET /api/revai/mentions` (RLS client, names and ids only); a pick inserts `[@Name](/listings/<id>)`, and new tools `getListingDetail`, `getAdjustment`, `getSupportTicket` read the tagged record by id. Tests: `revai-mentions`, `revai-markdown`. Typecheck, lint, tests and build pass; not checked in a signed-in browser from the agent container.
+
 ## 2026-10-16 — RevAI replaces Agent Studio
 
 New `/revai` tab + global bubble, `app/api/revai/chat/route.ts`, `lib/revai/` (models + router, instructions, tools, Wikifactor search/snapshot), `components/revai/`, `scripts/sync-revai-wikifactor.ts`, dependency `@ai-sdk/react@4.0.40` (pinned to `ai@7.0.37`). Deleted the Agent Studio route UI. Nav item `revai` (top level), command palette and breadcrumb updated. Tests: `lib/__tests__/revai-router.test.ts`, `lib/__tests__/revai-wikifactor.test.ts`. Typecheck and lint clean. Not exercised against the live gateway or checked in a browser from the agent container (no app credentials there).

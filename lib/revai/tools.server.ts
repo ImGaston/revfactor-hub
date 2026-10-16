@@ -17,6 +17,12 @@ import { readWikifactorDoc, searchWikifactor } from "@/lib/revai/wikifactor"
 const OPEN_TICKET_STATUSES = ["new", "open", "in_progress", "awaiting_client"]
 const OPEN_ADJUSTMENT_STATUSES = ["open", "resolved"]
 
+const clientLink = (id: string) => `/clients/${id}`
+const listingLink = (id: string) => `/listings/${id}`
+const adjustmentLink = (id: string) => `/adjustments/${id}`
+const ticketLink = (id: string) => `/support/${id}`
+const ticketRef = (ticketNumber: number | string | null) => (ticketNumber ? `#${ticketNumber}` : null)
+
 function escapeLike(value: string): string {
   return value.replace(/[\\%_,()]/g, " ").trim()
 }
@@ -133,7 +139,7 @@ export function createRevAiTools({
             endingDate: client.ending_date,
             churnRisk: client.churn_risk,
             listingCount: (client.listings as unknown as Array<{ count: number }> | null)?.[0]?.count ?? 0,
-            hubLink: `/clients/${client.id}`,
+            hubLink: clientLink(client.id),
           })),
         }
       },
@@ -184,13 +190,13 @@ export function createRevAiTools({
             .limit(60),
           supabase
             .from("adjustments")
-            .select("id, type, status, scope, target_value, date_from, date_to, urgency, origin_message, created_at, resolved_at, controlled_at, listings(name)")
+            .select("id, type, status, scope, target_value, date_from, date_to, urgency, origin_message, created_at, resolved_at, controlled_at, listing_id, listings(name)")
             .eq("client_id", clientId)
             .order("created_at", { ascending: false })
             .limit(15),
           supabase
             .from("support_tickets")
-            .select("ticket_number, status, priority, category, request_type, summary, requested_at, answer_summary, answered_at")
+            .select("id, ticket_number, status, priority, category, request_type, summary, requested_at, answer_summary, answered_at")
             .eq("client_id", clientId)
             .order("requested_at", { ascending: false })
             .limit(12),
@@ -219,7 +225,7 @@ export function createRevAiTools({
         const active = listingRows.filter((listing) => listing.status === "active")
 
         return {
-          client: { ...(client.data as unknown as Record<string, unknown>), hubLink: `/clients/${clientId}` },
+          client: { ...(client.data as unknown as Record<string, unknown>), hubLink: clientLink(clientId) },
           listingSummary: {
             active: active.length,
             inactive: listingRows.length - active.length,
@@ -235,14 +241,130 @@ export function createRevAiTools({
             ...adjustment,
             open: OPEN_ADJUSTMENT_STATUSES.includes(adjustment.status),
             origin_message: adjustment.origin_message?.slice(0, 400) ?? null,
+            hubLink: adjustmentLink(adjustment.id),
+            listingHubLink: adjustment.listing_id ? listingLink(adjustment.listing_id) : null,
           })),
           supportTickets: (tickets.data ?? []).map((ticket) => ({
             ...ticket,
+            ref: ticketRef(ticket.ticket_number),
             open: OPEN_TICKET_STATUSES.includes(ticket.status),
+            hubLink: ticketLink(ticket.id),
           })),
           onboarding: onboarding.data ?? [],
           listingReviews: reviews.data ?? [],
           recentWins: wins.data ?? [],
+        }
+      },
+    }),
+
+    getListingDetail: tool({
+      description:
+        "One listing by Hub id (e.g. from an @-mention link /listings/<id>): PriceLabs settings and forward occupancy vs market, its client, recent adjustments, and linked support tickets.",
+      inputSchema: z.object({ listingId: z.string().uuid() }),
+      execute: async ({ listingId }) => {
+        const [listing, adjustments, ticketLinks] = await Promise.all([
+          supabase
+            .from("listings")
+            .select(
+              "id, name, status, city, state, airbnb_id, listing_id, client_id, managed_by, pl_base_price, pl_min_price, pl_max_price, pl_recommended_base_price, pl_occupancy_next_7, pl_market_occupancy_next_7, pl_occupancy_next_30, pl_market_occupancy_next_30, pl_mpi_next_30, pl_push_enabled, pl_last_booked_date, pl_synced_at, clients(name)"
+            )
+            .eq("id", listingId)
+            .maybeSingle(),
+          supabase
+            .from("adjustments")
+            .select("id, type, status, target_value, date_from, date_to, urgency, created_at, resolved_at, controlled_at")
+            .eq("listing_id", listingId)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("support_ticket_listings")
+            .select("support_tickets(id, ticket_number, status, priority, summary, requested_at)")
+            .eq("listing_id", listingId)
+            .limit(10),
+        ])
+        if (listing.error || !listing.data) return { error: "Listing not found or not visible to you." }
+        return {
+          listing: shapeListing(listing.data as ListingRow),
+          adjustments: (adjustments.data ?? []).map((adjustment) => ({
+            ...adjustment,
+            open: OPEN_ADJUSTMENT_STATUSES.includes(adjustment.status),
+            hubLink: adjustmentLink(adjustment.id),
+          })),
+          supportTickets: (ticketLinks.data ?? []).flatMap((row) => {
+            const ticket = row.support_tickets as unknown as {
+              id: string
+              ticket_number: number
+              status: string
+              priority: string | null
+              summary: string | null
+              requested_at: string | null
+            } | null
+            return ticket
+              ? [{ ...ticket, ref: ticketRef(ticket.ticket_number), open: OPEN_TICKET_STATUSES.includes(ticket.status), hubLink: ticketLink(ticket.id) }]
+              : []
+          }),
+        }
+      },
+    }),
+
+    getAdjustment: tool({
+      description: "One adjustment (Hub work ticket) by id, with its status history.",
+      inputSchema: z.object({ adjustmentId: z.string().uuid() }),
+      execute: async ({ adjustmentId }) => {
+        const [adjustment, history] = await Promise.all([
+          supabase
+            .from("adjustments")
+            .select("id, type, status, scope, target_value, date_from, date_to, booking_window, urgency, requested_by, origin, origin_message, created_at, resolved_at, controlled_at, client_id, listing_id, clients_basic(name), listings(name)")
+            .eq("id", adjustmentId)
+            .maybeSingle(),
+          supabase
+            .from("adjustment_status_history")
+            .select("from_status, to_status, note, created_at")
+            .eq("adjustment_id", adjustmentId)
+            .order("created_at", { ascending: true })
+            .limit(20),
+        ])
+        if (adjustment.error || !adjustment.data) return { error: "Adjustment not found or not visible to you." }
+        const row = adjustment.data
+        return {
+          adjustment: {
+            ...row,
+            origin_message: row.origin_message?.slice(0, 800) ?? null,
+            hubLink: adjustmentLink(row.id),
+            listingHubLink: row.listing_id ? listingLink(row.listing_id) : null,
+            clientHubLink: row.client_id ? clientLink(row.client_id) : null,
+          },
+          history: history.data ?? [],
+        }
+      },
+    }),
+
+    getSupportTicket: tool({
+      description: "One support ticket by id: the client's ask, status, priority, answer, and linked listings.",
+      inputSchema: z.object({ ticketId: z.string().uuid() }),
+      execute: async ({ ticketId }) => {
+        const [ticket, listings] = await Promise.all([
+          supabase
+            .from("support_tickets")
+            .select("id, ticket_number, status, priority, category, request_type, summary, client_message, requested_by_name, requested_at, time_window, client_sentiment, money_at_stake, first_response_at, answer_summary, answered_at, resolved_at, client_id, clients(name)")
+            .eq("id", ticketId)
+            .maybeSingle(),
+          supabase.from("support_ticket_listings").select("listing_id, listings(name)").eq("ticket_id", ticketId).limit(20),
+        ])
+        if (ticket.error || !ticket.data) return { error: "Ticket not found or not visible to you." }
+        const row = ticket.data
+        return {
+          ticket: {
+            ...row,
+            ref: ticketRef(row.ticket_number),
+            client_message: row.client_message?.slice(0, 1_500) ?? null,
+            hubLink: ticketLink(row.id),
+            clientHubLink: row.client_id ? clientLink(row.client_id) : null,
+          },
+          listings: (listings.data ?? []).map((link) => ({
+            name: (link.listings as unknown as { name: string } | null)?.name ?? null,
+            hubLink: listingLink(link.listing_id),
+          })),
         }
       },
     }),
@@ -316,6 +438,8 @@ export function createRevAiTools({
             occupancyNext30: listing.pl_occupancy_next_30,
             marketOccupancyNext30: listing.pl_market_occupancy_next_30,
             gapNext30: gap(listing.pl_occupancy_next_30, listing.pl_market_occupancy_next_30),
+            hubLink: listingLink(listing.id),
+            clientHubLink: listing.client_id ? clientLink(listing.client_id) : null,
           }))
           .filter((listing) => listing.gapNext30 !== null)
 
@@ -354,7 +478,7 @@ export function createRevAiTools({
           want === "all" || want === "adjustments"
             ? supabase
                 .from("adjustments")
-                .select("type, status, urgency, target_value, date_from, date_to, created_at, clients_basic(name), listings(name)")
+                .select("id, type, status, urgency, target_value, date_from, date_to, created_at, client_id, listing_id, clients_basic(name), listings(name)")
                 .in("status", OPEN_ADJUSTMENT_STATUSES)
                 .order("created_at", { ascending: false })
                 .limit(take)
@@ -362,7 +486,7 @@ export function createRevAiTools({
           want === "all" || want === "tickets"
             ? supabase
                 .from("support_tickets")
-                .select("ticket_number, status, priority, category, summary, requested_at, clients(name)")
+                .select("id, ticket_number, status, priority, category, summary, requested_at, client_id, clients(name)")
                 .in("status", OPEN_TICKET_STATUSES)
                 .order("requested_at", { ascending: false })
                 .limit(take)
@@ -378,8 +502,18 @@ export function createRevAiTools({
             : Promise.resolve({ data: null }),
         ])
         return {
-          adjustments: adjustments.data ?? undefined,
-          supportTickets: tickets.data ?? undefined,
+          adjustments: adjustments.data?.map((adjustment) => ({
+            ...adjustment,
+            hubLink: adjustmentLink(adjustment.id),
+            listingHubLink: adjustment.listing_id ? listingLink(adjustment.listing_id) : null,
+            clientHubLink: adjustment.client_id ? clientLink(adjustment.client_id) : null,
+          })),
+          supportTickets: tickets.data?.map((ticket) => ({
+            ...ticket,
+            ref: ticketRef(ticket.ticket_number),
+            hubLink: ticketLink(ticket.id),
+            clientHubLink: ticket.client_id ? clientLink(ticket.client_id) : null,
+          })),
           tasks: tasks.data ?? undefined,
         }
       },
@@ -436,6 +570,7 @@ function shapeListing(listing: ListingRow) {
     pushEnabled: listing.pl_push_enabled,
     lastBookedDate: listing.pl_last_booked_date,
     priceLabsSyncedAt: listing.pl_synced_at,
-    hubLink: `/listings/${listing.id}`,
+    hubLink: listingLink(listing.id),
+    clientHubLink: listing.client_id ? clientLink(listing.client_id) : null,
   }
 }

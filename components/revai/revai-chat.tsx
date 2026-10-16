@@ -3,31 +3,21 @@
 import { useChat } from "@ai-sdk/react"
 import { isToolUIPart, getToolName } from "ai"
 import {
-  ArrowUp,
   BookOpen,
   Building2,
   Check,
   Database,
+  LifeBuoy,
   Library,
   LoaderCircle,
-  Square,
+  SlidersHorizontal,
   Users,
 } from "lucide-react"
-import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
-import ReactMarkdown from "react-markdown"
+import { useEffect, useRef } from "react"
 
-import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { REVAI_MODELS, type RevAiTierChoice } from "@/lib/revai/models"
 import { cn } from "@/lib/utils"
+import { RevAiComposer } from "./revai-composer"
+import { RevAiMarkdown } from "./revai-markdown"
 import { useRevAi, type RevAiUIMessage } from "./revai-provider"
 
 const STARTERS = [
@@ -44,6 +34,9 @@ const TOOL_LABELS: Record<string, { label: string; icon: typeof BookOpen }> = {
   findClients: { label: "Looked up clients", icon: Users },
   findListings: { label: "Looked up listings", icon: Building2 },
   getClientDetail: { label: "Read client record", icon: Users },
+  getListingDetail: { label: "Read listing record", icon: Building2 },
+  getAdjustment: { label: "Read adjustment", icon: SlidersHorizontal },
+  getSupportTicket: { label: "Read support ticket", icon: LifeBuoy },
   getClientPerformance: { label: "Read Report Builder metrics", icon: Database },
   getPortfolioSnapshot: { label: "Computed portfolio snapshot", icon: Database },
   listOpenWork: { label: "Read open work", icon: Database },
@@ -61,8 +54,8 @@ function MessageView({ message }: { message: RevAiUIMessage }) {
     const text = message.parts.map((part) => (part.type === "text" ? part.text : "")).join("")
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl bg-primary px-4 py-2.5 text-sm whitespace-pre-wrap text-primary-foreground">
-          {text}
+        <div className="max-w-[85%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+          <RevAiMarkdown className="prose-p:my-0 whitespace-pre-wrap">{text}</RevAiMarkdown>
         </div>
       </div>
     )
@@ -73,27 +66,7 @@ function MessageView({ message }: { message: RevAiUIMessage }) {
     <div className="flex flex-col gap-2">
       {message.parts.map((part, index) => {
         if (part.type === "text") {
-          return (
-            <div
-              key={index}
-              className="prose prose-sm max-w-none wrap-anywhere dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-li:my-0.5"
-            >
-              <ReactMarkdown
-                components={{
-                  a: ({ href, children }) =>
-                    href?.startsWith("/") ? (
-                      <Link href={href}>{children}</Link>
-                    ) : (
-                      <a href={href} target="_blank" rel="noreferrer">
-                        {children}
-                      </a>
-                    ),
-                }}
-              >
-                {part.text}
-              </ReactMarkdown>
-            </div>
-          )
+          return <RevAiMarkdown key={index}>{part.text}</RevAiMarkdown>
         }
         if (isToolUIPart(part)) {
           const name = getToolName(part)
@@ -137,7 +110,6 @@ function MessageView({ message }: { message: RevAiUIMessage }) {
 export function RevAiChat({ variant }: { variant: "page" | "panel" }) {
   const { chat, tier, setTier } = useRevAi()
   const { messages, sendMessage, status, stop, error } = useChat({ chat })
-  const [input, setInput] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
   const busy = status === "submitted" || status === "streaming"
 
@@ -149,7 +121,6 @@ export function RevAiChat({ variant }: { variant: "page" | "panel" }) {
   const send = (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || busy) return
-    setInput("")
     void sendMessage({ text: trimmed }, { body: { tier } })
   }
 
@@ -197,55 +168,14 @@ export function RevAiChat({ variant }: { variant: "page" | "panel" }) {
         )}
       </div>
 
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          send(input)
-        }}
-        className={cn("border-t pt-3", variant === "panel" ? "px-3 pb-3" : "mx-auto w-full max-w-3xl")}
-      >
-        <div className="rounded-2xl border bg-background focus-within:ring-2 focus-within:ring-ring/30">
-          <Textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault()
-                send(input)
-              }
-            }}
-            placeholder="Ask about a client, a listing, a policy, or a situation…"
-            rows={variant === "page" ? 3 : 2}
-            className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-          />
-          <div className="flex items-center justify-between gap-2 px-2 pb-2">
-            <Select value={tier} onValueChange={(value) => setTier(value as RevAiTierChoice)}>
-              <SelectTrigger size="sm" className="h-7 w-auto gap-1 border-0 bg-muted/60 text-xs shadow-none">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">Auto model</SelectItem>
-                {Object.values(REVAI_MODELS).map((model) => (
-                  <SelectItem key={model.tier} value={model.tier}>
-                    {model.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {busy ? (
-              <Button type="button" size="icon" variant="secondary" className="size-8 rounded-full" onClick={() => stop()}>
-                <Square className="size-3.5" />
-                <span className="sr-only">Stop</span>
-              </Button>
-            ) : (
-              <Button type="submit" size="icon" className="size-8 rounded-full" disabled={!input.trim()}>
-                <ArrowUp className="size-4" />
-                <span className="sr-only">Send</span>
-              </Button>
-            )}
-          </div>
-        </div>
-      </form>
+      <RevAiComposer
+        variant={variant}
+        busy={busy}
+        tier={tier}
+        onTierChange={setTier}
+        onSend={send}
+        onStop={() => void stop()}
+      />
     </div>
   )
 }
