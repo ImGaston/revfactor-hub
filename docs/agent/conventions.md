@@ -175,7 +175,7 @@ Rules: no quotes, no spaces after `=`, and only `NEXT_PUBLIC_` variables are bro
 
 `AI_GATEWAY_API_KEY` is required for local Agent Studio model runs. Vercel deployments may instead authenticate AI Gateway through Vercel OIDC. Keep both credentials server-only.
 
-Agent Studio is a draft sandbox: model tools remain read-only, runs stay ephemeral, and no Assembly send tool is exposed. A future production sending path needs its own explicit permission, approval/audit flow, and server-side policy gate.
+RevAI (`/revai`, replaced the Agent Studio UI on 2026-10-16) is read-only: its tools only select through the user's RLS client, it has no write, send, or PriceLabs tool, and any number it states must come from a tool result. Adding a write tool needs a named, permission-checked action with an audit row and Fede's approval path, per the Wikifactor ontology. The older Agent Studio sandbox rules below describe the retained tables and libraries. A future production sending path needs its own explicit permission, approval/audit flow, and server-side policy gate.
 
 ## Agent Memory Hygiene
 

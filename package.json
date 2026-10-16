@@ -12,9 +12,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts",
-    "assembly:tag-fields": "tsx scripts/list-assembly-tag-fields.ts"
+    "assembly:tag-fields": "tsx scripts/list-assembly-tag-fields.ts",
+    "revai:sync-wikifactor": "tsx scripts/sync-revai-wikifactor.ts"
   },
   "dependencies": {
+    "@ai-sdk/react": "4.0.40",
     "@assembly-js/node-sdk": "^4.2.4",
     "@hello-pangea/dnd": "^18.0.1",
     "@hugeicons/core-free-icons": "^4.1.1",
