@@ -137,7 +137,7 @@ export function OnboardingTab({ clientId }: { clientId: string }) {
             </section>
             {data.view.listings.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No active listings in the Hub yet. Add them on the Legacy tab; the Airbnb link, channels, PMS and
+                No active listings in the Hub yet. Add them on the Overview tab; the Airbnb link, channels, PMS and
                 PriceLabs status then appear here per listing.
               </p>
             ) : (

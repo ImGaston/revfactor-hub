@@ -3,7 +3,7 @@
 // load their data when first opened.
 
 export const CLIENT_TABS = [
-  { value: "legacy", label: "Legacy" },
+  { value: "legacy", label: "Overview" },
   { value: "onboarding", label: "Onboarding" },
   { value: "journey", label: "Customer Journey" },
   { value: "profile", label: "Client Profile" },

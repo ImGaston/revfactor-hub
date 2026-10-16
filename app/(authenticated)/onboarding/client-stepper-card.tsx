@@ -1,6 +1,7 @@
 "use client"
 
 import { useOptimistic, useState, useTransition } from "react"
+import Link from "next/link"
 import { Home, MessageSquare, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -173,7 +174,11 @@ export function ClientStepperCard({ client, templates, progress, currentUserId, 
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-sm font-semibold truncate">{client.name}</CardTitle>
+            <CardTitle className="text-sm font-semibold truncate">
+              <Link href={`/clients/${client.id}`} className="hover:underline">
+                {client.name}
+              </Link>
+            </CardTitle>
             {client.email && (
               <p className="text-xs text-muted-foreground truncate">
                 {client.email}
