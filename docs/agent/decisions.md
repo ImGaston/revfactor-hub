@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-15 — Gaston is notified of every Vercel env var change
+
+Gaston (repo owner) asked to be told every time Fede or an agent working for him sets a Vercel env var. Instead of hand-written Slack notes, a Vercel team webhook on the three `project.env-variable.*` events (All Team Projects) calls `/api/webhooks/vercel`, which DMs Gaston the project, key, targets and actor. Values are never read, logged or sent: the payload has none, and the env lookup reads the list without `decrypt` and keeps only key and targets. Creating the webhook, the token and the env vars stays Fede's manual step. Retry dedupe is in memory per instance (no table) because a rare duplicate DM is cheaper than a migration.
+
 ## 2026-10-15 — Sending a listing review grants the Listing Review app through an Assembly tag
 
 Fede had to add every owner by hand to the Listing Review app's "Visible to some clients" list in Assembly (5 clients by Oct 15, including Marissa Biddle and Alisha Provot). That list can't be edited through the API, but visibility rules can follow a Tags custom field, and custom fields can be set through the API. So the app's rule becomes "the client's or company's **Listing Review** Tags field includes **Enabled**", and every owner send tags the same target the message goes to (company when sent to the company channel, else the client) before posting. If the tag can't be set, the message is not sent: a message linking to an app the owner can't open is worse than a retry. The grant is skipped when its env vars are unset, so the code can ship before the Assembly field exists. Each grant is a `GrantListingReviewApp` ontology event. Tags are never removed by the Hub.
