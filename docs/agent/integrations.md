@@ -26,6 +26,17 @@ Internal Wins notes post to Slack `#revfactor-wins` (`C0C0EL1UCDV`) after a succ
 - Privacy: Slack text may use public listing names and template figures only. No guest names, street addresses, Airbnb URLs, raw API keys, or `@channel`/`@here`.
 - Live bot join of `#revfactor-wins` is ops, not an app deploy step.
 
+## Vercel env var change webhook (2026-10-15)
+
+Gaston gets a Slack DM whenever an env var is created, updated or deleted on any project in the `rev-factor` Vercel team.
+
+- Source: a Vercel **team webhook** (Settings → Webhooks, scope **All Team Projects**, which project events require) for `project.env-variable.created`, `.updated` and `.deleted`, pointed at `https://hub.revfactor.io/api/webhooks/vercel`. The payload has only ids (`payload.team.id`, `payload.user.id`, `payload.projectId`, `payload.envVarId`, which may be null on deletes), never the value.
+- Route: `app/api/webhooks/vercel/route.ts`. `proxy.ts` already lets every `/api/` path through without a session. It verifies `x-vercel-signature` (hex HMAC-SHA1 of the raw body with the webhook secret, constant-time compare; mismatch → 401), ignores other event types with 200, and dedupes retries by the delivery `id` in memory per warm instance (best effort, no table). A failed Slack post returns 502 and releases the id so Vercel's retry can try again.
+- Lookups: `lib/vercel-env-webhook.server.ts` calls the REST API with `VERCEL_API_TOKEN_READONLY`: `GET /v9/projects/{id}` (name), `GET /v10/projects/{id}/env` without `decrypt` and picks only `id`/`key`/`target` (never the decrypted single-var endpoint), and `GET /v3/teams/{teamId}/members` for the actor's name. Every lookup is optional (5s timeout); deletes skip the env lookup and the message falls back to the env var id.
+- Message (`lib/vercel-env-webhook.ts`, unit-tested): `Env var created on revfactor-hub (Production): KEY, by Federico`. Never includes values.
+- Recipient: `ENV_CHANGE_SLACK_TARGET` (Slack user id for a DM, or a channel id), default Gaston `U08L2F8LNP6`. Posts with the existing `SLACK_BOT_TOKEN` via `lib/slack.ts`; a DM to a user id needs the bot's App Home Messages tab enabled.
+- Unset `VERCEL_WEBHOOK_SECRET` or `VERCEL_API_TOKEN_READONLY` → 200 no-op. Unset Slack token → typed skip, 200.
+
 ## Assembly CRM
 
 Assembly is the client communication platform for CRM, messaging, and contracts.

@@ -1,5 +1,9 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-15 — Gaston is notified of every Vercel env var change
+
+Gaston (repo owner) asked to be told every time Fede or an agent working for him sets a Vercel env var. Instead of hand-written Slack notes, a Vercel team webhook on the three `project.env-variable.*` events (All Team Projects) calls `/api/webhooks/vercel`, which DMs Gaston the project, key, targets and actor. Values are never read, logged or sent: the payload has none, and the env lookup reads the list without `decrypt` and keeps only key and targets. Creating the webhook, the token and the env vars stays Fede's manual step. Retry dedupe is in memory per instance (no table) because a rare duplicate DM is cheaper than a migration.
+
 ## 2026-10-14 — Client page tabs: Legacy stays default, other tabs load on open
 
 Fede approved a clickable prototype that gives `/clients/[id]` top-level tabs (Legacy, Customer Journey, Client Profile, Support Tickets, Adjustment Requests).
