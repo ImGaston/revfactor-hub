@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { hasPermission } from "@/lib/permissions.server"
 import { getLatestCompletedRun } from "@/lib/report-builder/queries"
+import { DEFAULT_MANAGED_BY, isManagedBy } from "@/lib/listing-managed-by"
+import { isAirbnbCancellationPolicy } from "@/lib/airbnb-cancellation-foundation"
 import { ListingsView } from "./listings-view"
 
 export default async function ListingsPage() {
@@ -10,7 +12,7 @@ export default async function ListingsPage() {
     supabase
       .from("listings")
       .select(
-        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, initial_setup_date, adjustment_confirmed_date, deactivated_date, clients:clients_basic(id, name, status)"
+        "id, name, status, listing_id, pricelabs_link, airbnb_link, city, state, client_id, initial_setup_date, adjustment_confirmed_date, deactivated_date, default_cancellation_policy, timezone, managed_by, clients:clients_basic(id, name, status)"
       )
       .order("name"),
     hasPermission("listings", "edit"),
@@ -37,6 +39,13 @@ export default async function ListingsPage() {
       initial_setup_date: l.initial_setup_date as string | null,
       adjustment_confirmed_date: l.adjustment_confirmed_date as string | null,
       deactivated_date: l.deactivated_date as string | null,
+      default_cancellation_policy: isAirbnbCancellationPolicy(
+        l.default_cancellation_policy
+      )
+        ? l.default_cancellation_policy
+        : null,
+      timezone: l.timezone as string | null,
+      managed_by: isManagedBy(l.managed_by) ? l.managed_by : DEFAULT_MANAGED_BY,
       client_name: client?.name ?? null,
       client_status: client?.status ?? null,
     }

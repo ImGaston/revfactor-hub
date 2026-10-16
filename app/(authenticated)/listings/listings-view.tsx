@@ -74,6 +74,8 @@ import {
 } from "@/lib/listing-status"
 import { getListingsExportData } from "@/app/(authenticated)/listings/export-actions"
 import { ListingDialog } from "@/app/(authenticated)/settings/listings/listing-dialog"
+import type { ManagedBy } from "@/lib/listing-managed-by"
+import type { AirbnbCancellationPolicy } from "@/lib/airbnb-cancellation-foundation"
 import { deleteListingAction } from "@/app/(authenticated)/settings/listings/actions"
 import { STATUS_BADGE_CLASS } from "@/lib/status"
 import { StatusBadge } from "@/components/status-badge"
@@ -91,6 +93,9 @@ export type FlatListing = {
   initial_setup_date: string | null
   adjustment_confirmed_date: string | null
   deactivated_date: string | null
+  default_cancellation_policy: AirbnbCancellationPolicy | null
+  timezone: string | null
+  managed_by: ManagedBy
   client_name: string | null
   client_status: string | null
 }
@@ -108,6 +113,9 @@ type ListingFormData = {
   initial_setup_date: string | null
   adjustment_confirmed_date: string | null
   deactivated_date: string | null
+  default_cancellation_policy: AirbnbCancellationPolicy | null
+  timezone: string | null
+  managed_by: ManagedBy
 }
 
 type SortField = "name" | "client_name" | "city" | "state"
@@ -189,6 +197,9 @@ export function ListingsView({
       initial_setup_date: listing.initial_setup_date,
       adjustment_confirmed_date: listing.adjustment_confirmed_date,
       deactivated_date: listing.deactivated_date,
+      default_cancellation_policy: listing.default_cancellation_policy,
+      timezone: listing.timezone,
+      managed_by: listing.managed_by,
     })
     setDialogOpen(true)
   }
