@@ -576,12 +576,14 @@ Income classifications and expense treatments extend the existing tables. Monthl
 
 The Financials review dialog read gray with low contrast. Root cause: `glass-dense` was documented and applied to `DialogContent`/`SheetContent` but never declared in `globals.css`, so dialogs used the menu default (72% popover over a `bg-black/25` blurred overlay). Chosen fix: declare `@utility glass-dense { --glass-opacity: var(--dense-opacity, 92%) }` with `--dense-opacity` 92% light / 94% dark, matching the original design intent, rather than lightening the overlay or making dialogs opaque. Rejected alternatives: opaque `bg-popover` (loses the frost the rest of the chrome has); lowering overlay darkness (weakens focus on the modal for every dialog). Reduced-transparency now also forces `--dense-opacity` and `--chrome-opacity` to 100%, closing a gap where `glass-panel` bypassed that preference.
 
+
 ## 2026-09-15 — Sidebar folders are shared config in the DB, sections stay in code
 
 Beta modules were mixed with day-to-day sections in the sidebar. Chosen design: sections remain a code catalog (`lib/navigation.ts`, stable keys) and only their grouping/ordering is data (`nav_groups`, `nav_item_settings`, migration `20260915120000`), managed at Settings → Navigation with `settings:edit`. Folders are team-wide rather than per-user so the 2-3 internal users share one mental map; per-viewer permission filtering still applies inside folders. Top-level sections keep code order and folders follow them — no free interleaving, to keep the manager simple (up/down buttons, no drag-and-drop). Read policy is `auth.uid() IS NOT NULL` (same class as `roles`: every signed-in user needs it to render the shell and it holds nothing sensitive); writes ride on `has_permission('settings','edit')`. Rejected: per-user localStorage grouping (not shared, lost across devices) and a JSON blob column (harder to validate and reorder atomically).
 
 ## 2026-09-16 — Personal client names and staged GHL enrichment
 Hub uses the person's name, preserving the legal business in a separate field. Signed/paid identity creates the client; later booking answers enrich that same record. Use exact Stripe customer association and real subscription mirror, not legacy copied billing amounts. Keep client-reported access readiness separate from verified access and purchased quantity separate from identified property records. Reuse existing handoff and Stripe sync; do not instantiate a second onboarding run or recreate billing.
+
 
 ## 2026-09-16 — Archive external signed agreements in Assembly Files, new clients only
 
