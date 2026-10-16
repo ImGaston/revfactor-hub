@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react"
 import { toast } from "sonner"
-import { Check, EyeOff, PlugZap, RefreshCw, RotateCcw, Unplug, X } from "lucide-react"
+import { CalendarSync, Check, EyeOff, PlugZap, RefreshCw, RotateCcw, Unplug, X } from "lucide-react"
 
 import {
   AlertDialog,
@@ -29,10 +29,12 @@ import {
   loadClientConnectionsAction,
   recheckPmsConnectionAction,
   reviewPmsConnectionAction,
+  syncPmsBookingsAction,
   updatePmsPropertyMappingAction,
   type ClientConnectionsData,
   type StaffPmsConnection,
   type StaffPmsProperty,
+  type StaffPmsSyncState,
 } from "@/app/(authenticated)/clients/[id]/connections-actions"
 import { AddPmsConnectionDialog } from "./add-pms-connection-dialog"
 import { TabError, TabSkeleton, useLazyTabData } from "./lazy-tab"
@@ -68,6 +70,48 @@ const EVENT_LABEL: Record<string, string> = {
   mapping_confirmed: "Mapping confirmed",
   mapping_ignored: "Property ignored",
   mapping_reset: "Mapping reset",
+}
+
+const SYNC_ERROR_LABEL: Record<string, string> = {
+  invalid_token: "the token was refused",
+  forbidden: "the token can't read bookings",
+  rate_limited: "the PMS rate-limited us",
+  provider_unavailable: "the PMS was unreachable",
+  timeout: "the PMS timed out",
+  unexpected_response: "the PMS sent an unexpected response",
+  secret_unavailable: "the stored key is unavailable",
+  write_failed: "saving bookings failed",
+  interrupted: "the run was interrupted",
+}
+
+/** One line under a syncable connection: coverage, last sync, or what went wrong. */
+function SyncSummary({ sync }: { sync: StaffPmsSyncState }) {
+  const last = sync.lastRun
+  const parts: string[] = []
+  if (sync.coverage) parts.push(sync.coverage)
+  if (sync.lastSuccessAt) parts.push(`synced ${formatSupportDateTime(sync.lastSuccessAt)}`)
+  let note: string | null = null
+  let tone = "text-muted-foreground"
+  if (last?.status === "running") note = "Sync running…"
+  else if (last?.status === "partial") note = `${last.mode === "backfill" ? "Backfill" : "Sync"} partly done — run Sync bookings again to continue`
+  else if (last?.status === "failed") {
+    note = `Last sync failed: ${SYNC_ERROR_LABEL[last.errorCode ?? ""] ?? "unknown error"} (${formatSupportDateTime(last.startedAt)})`
+    tone = "text-destructive"
+  }
+  if (!parts.length && !note) {
+    return <p className="text-sm text-muted-foreground">Bookings: not synced yet.</p>
+  }
+  return (
+    <div className="space-y-0.5 text-sm">
+      {parts.length > 0 && (
+        <p>
+          <span className="text-muted-foreground">Bookings: </span>
+          {parts.join(" · ")}
+        </p>
+      )}
+      {note && <p className={tone}>{note}</p>}
+    </div>
+  )
 }
 
 function StatusBadge({ status }: { status: StaffPmsConnection["status"] }) {
@@ -179,6 +223,29 @@ function ConnectionCard({
   const open = connection.status !== "disconnected"
   const reviewable = ["pending_verification", "verified", "rejected"].includes(connection.status)
   const live = connection.provider === "hospitable"
+  const sync = data.sync[connection.id]
+  const confirmedCount = properties.filter((p) => p.mappingStatus === "confirmed").length
+  const canSync =
+    open && Boolean(sync?.supported) && (connection.status === "connected" || connection.status === "verified")
+
+  const [syncing, setSyncing] = useState(false)
+
+  function runSync() {
+    setSyncing(true)
+    startTransition(async () => {
+      const result = await syncPmsBookingsAction(connection.id).finally(() => setSyncing(false))
+      if (!result.ok) {
+        toast.error(result.error)
+      } else if (result.status === "partial") {
+        toast.message(`Saved ${result.upserted} bookings so far`, {
+          description: "The time limit was reached. Run Sync bookings again to continue.",
+        })
+      } else {
+        toast.success(result.coverage ? `Bookings synced · ${result.coverage}` : "Bookings synced")
+      }
+      onChanged()
+    })
+  }
 
   function run(task: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     startTransition(async () => {
@@ -211,6 +278,18 @@ function ConnectionCard({
           </div>
           {open && data.canManage && (
             <div className="flex flex-wrap gap-2">
+              {canSync && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pending || confirmedCount === 0}
+                  title={confirmedCount === 0 ? "Confirm at least one property mapping first" : undefined}
+                  onClick={runSync}
+                >
+                  <CalendarSync className="mr-1 size-4" />
+                  {syncing ? "Syncing…" : "Sync bookings"}
+                </Button>
+              )}
               {live && (
                 <Button
                   variant="outline"
@@ -271,6 +350,7 @@ function ConnectionCard({
             <dd>{connection.propertyCount ?? "—"}</dd>
           </div>
         </dl>
+        {canSync && sync && <SyncSummary sync={sync} />}
         {connection.status === "error" && connection.lastErrorCode && (
           <p className="text-sm text-destructive">{pmsErrorMessage(connection.lastErrorCode)}</p>
         )}

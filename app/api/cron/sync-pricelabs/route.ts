@@ -8,6 +8,7 @@ import {
 import { syncPriceLabsData } from "@/lib/pricelabs-sync"
 import { runListingSetupCheck } from "@/lib/listing-setup-check.server"
 import { captureDailySnapshots, runOutcomeCheckpoints } from "@/lib/listing-outcomes.server"
+import { syncAllPmsConnections } from "@/lib/pms-sync.server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 60
@@ -19,6 +20,9 @@ const LISTINGS_FETCH_BUDGET_MS = 35_000
 const SETUP_CHECK_BUDGET_MS = 38_000
 // Checkpoint reviews (AI summaries) stop starting new ones after this point.
 const OUTCOMES_BUDGET_MS = 40_000
+// Client PMS booking sync (incremental; resumes an unfinished backfill) runs
+// last and stops starting new windows before this point (maxDuration is 60s).
+const PMS_SYNC_BUDGET_MS = 52_000
 
 const errorMessage = (err: unknown) =>
   err instanceof Error ? err.message : "Unknown error"
@@ -130,12 +134,29 @@ export async function GET(request: NextRequest) {
   }
   const outcomes = { snapshots, checkpoints }
 
+  // Client PMS bookings: every connected PMS with a sync adapter (Hospitable
+  // today), confirmed property mappings only. A run cut short by the budget
+  // saves its cursor and resumes tomorrow or on "Sync bookings". Independent
+  // of the PriceLabs sync result.
+  let pmsBookings:
+    | Awaited<ReturnType<typeof syncAllPmsConnections>>
+    | { error: string }
+  try {
+    pmsBookings = await syncAllPmsConnections({
+      deadline: startedAt + PMS_SYNC_BUDGET_MS,
+    })
+  } catch (err) {
+    console.error("PMS booking sync (chained) error:", err)
+    pmsBookings = { error: errorMessage(err) }
+  }
+
   // The JSON response isn't kept anywhere, so log the chained steps' results
   // (counts and errors only); a skipped or stopped-early step shows up here.
   console.info("PriceLabs cron chained steps", {
     elapsedMs: Date.now() - startedAt,
     setupCheck,
     outcomes,
+    pmsBookings,
   })
 
   if (!sync) {
@@ -144,6 +165,7 @@ export async function GET(request: NextRequest) {
         error: `PriceLabs sync failed: ${syncError}`,
         setupCheck,
         outcomes,
+        pmsBookings,
       },
       { status: 500 }
     )
@@ -154,5 +176,6 @@ export async function GET(request: NextRequest) {
     ...sync,
     setupCheck,
     outcomes,
+    pmsBookings,
   })
 }

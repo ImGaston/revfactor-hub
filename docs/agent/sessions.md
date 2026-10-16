@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-16 — Client PMS connections, phase 2 (booking sync → Goals tab)
+
+Built the Hospitable booking backfill/sync and pointed the listing Goals tab at it. New migration `20261021120000_pms_reservations.sql` (`pms_reservations`, `pms_sync_runs`, mapping-follow trigger; **not applied**), `lib/pms-reservations.ts` (normalization, windows/chunks, Goals mapping, coverage text), `lib/pms-adapters.server.ts` (adapter interface, Hospitable), `lib/pms-sync.server.ts` (resumable runs, idempotent upsert, cron fan-out), `fetchHospitableReservations` (pagination, 429 backoff). UI: **Sync bookings** + coverage line on the Data Connections card; "History from Hospitable / PriceLabs" note on the Goals/Strategy tabs. Chained onto `/api/cron/sync-pricelabs`. Tests: `lib/__tests__/pms-sync.test.ts` (25) plus the cron test mock. Read-only prod check: Ken's connection has 2 confirmed mappings (Doodlebug, Hopi Haus), Boulder Cabin ignored; Jacob Raabe's Guesty connection has no adapter yet. Not run against Hospitable or verified in the browser (the migration isn't applied).
+
 ## 2026-10-16 — Staff "Add connection" on the Data Connections tab
 
 Staff can now paste a client's PMS key from `/clients/[id]` → Data Connections (Fede: clients won't paste keys). New dialog `components/clients/tabs/add-pms-connection-dialog.tsx`, action `addPmsConnectionStaffAction` (fails closed on `data_connections:edit`), `createStaffConnection` in `lib/pms-connections.server.ts`, helpers `validatePmsLabel` / `findSameProviderConnections` in `lib/pms-connections.ts`. `pms_connection_create` only accepts `pending_verification|connected`, so non-Hospitable keys are created pending and immediately reviewed `verified` by the staff session (history shows who). No migration or permission changes; the portal is untouched. Tests in `lib/__tests__/pms-connections-staff.test.ts`. Not checked in a browser against a live DB.

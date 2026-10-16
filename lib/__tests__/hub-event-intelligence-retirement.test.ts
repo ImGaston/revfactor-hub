@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   setupCheck: vi.fn(async () => ({ listings: 1, checked: 3, details: [{ key: "price.min" }] })),
   snapshots: vi.fn(async () => ({ captured: 2, enabled: true })),
   checkpoints: vi.fn(async () => ({ saved: 1, errors: [], enabled: true })),
+  pmsBookings: vi.fn(async () => ({ connections: 1, succeeded: 1, partial: 0, failed: 0, skipped: 0, stoppedEarly: false, errors: [] })),
   stripe: vi.fn(async () => ({
     subscriptions: { upserted: 1 },
     invoices: { upserted: 2 },
@@ -46,6 +47,7 @@ vi.mock("@/lib/listing-outcomes.server", () => ({
   captureDailySnapshots: mocks.snapshots,
   runOutcomeCheckpoints: mocks.checkpoints,
 }))
+vi.mock("@/lib/pms-sync.server", () => ({ syncAllPmsConnections: mocks.pmsBookings }))
 
 import { GET as priceLabs } from "@/app/api/cron/sync-pricelabs/route"
 import { GET as stripe } from "@/app/api/cron/sync-stripe/route"
@@ -80,6 +82,9 @@ describe("Hub retirement keeps its syncs without Event Intelligence work", () =>
       snapshots: { captured: 2, enabled: true },
       checkpoints: { saved: 1, errors: [], enabled: true },
     })
+    // Client PMS bookings chain last, with a deadline inside maxDuration.
+    expect(mocks.pmsBookings).toHaveBeenCalledWith({ deadline: expect.any(Number) })
+    expect(result.pmsBookings).toMatchObject({ connections: 1, succeeded: 1 })
   })
 
   it("fetches PriceLabs listings once, with push-off ones, and shares them with the setup check", async () => {

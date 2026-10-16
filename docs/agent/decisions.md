@@ -1,5 +1,16 @@
 # Decisions — RevFactor Hub
 
+## 2026-10-16 — PMS bookings feed the Goals tab ahead of PriceLabs
+
+Ken Chlupsa's listings showed "No synced history" because the Goals tab only read the PriceLabs reservations cache. Phase 2 of client PMS connections syncs bookings from a connected PMS (Hospitable first) into `pms_reservations`, and the Goals/Strategy loader prefers those rows when the listing has a confirmed mapping and synced rows, falling back to PriceLabs otherwise.
+
+- **Confirmed mappings only.** Nothing is fetched for suggested, unmatched or ignored properties. `listing_id` on each row follows the mapping through a trigger, so resetting a mapping stops it feeding the listing at once.
+- **Revenue basis = nightly rent after discounts, before channel fees**, which matches the Goals tab's "booked nightly revenue" and PriceLabs `rental_revenue` (Spencer pilot: host accommodation + signed discounts matched 93/93). Host fees, cleaning and Hospitable "host revenue" are stored separately and not merged into it.
+- **No PII.** Rows are built from an allow-list: no guest names, contacts, messages, door codes or confirmation codes; the trimmed financials keep amounts and categories, never labels.
+- **Provider-neutral tables, pluggable adapters.** Rows are keyed on connection + the PMS's own reservation id. Guesty (next) adds an adapter and caches its OAuth token inside it.
+- **No new cron.** The sync is chained last onto the daily `sync-pricelabs` cron with a 52 s budget; runs stop before the deadline and resume from a saved cursor (button or next day).
+- **Reads:** `pms_reservations` uses `reservations:view` (same as the PriceLabs cache, so contractor/marketing roles with that permission see it too); sync runs use `data_connections:view`. Sync needs `data_connections:edit`.
+
 ## 2026-10-16 — Clients connect their PMS by pasting a read-only key in the portal
 
 RevFactor is a service, not an app, so there is no OAuth partner integration: the client creates a read-only key in their own PMS (for Hospitable, a personal access token with Read permission) and pastes it into `/portal/connections`. We ask them to leave Hospitable's "Allowed IP addresses" empty because Vercel's outbound IPs aren't static; the trade-off is that the token alone grants access, which is why it is Read-only, stored in Supabase Vault (only a reference and the last 4 characters in tables), never shown again, and deleted from Vault on disconnect. Fede widened the scope the same day: a **Select PMS** dropdown accepts Guesty, Hostaway, Hostfully, OwnerRez, Lodgify and Other today; only Hospitable is checked live, the rest wait as "Received – pending verification" until staff mark them Verified or Rejected. One Vault secret per connection holds a JSON blob of the provider's credential parts (simpler than one secret per part). Nothing is imported automatically: discovered properties are suggestions, and staff confirm every mapping. Permission resource `data_connections` uses the existing actions: `view` = status/properties/history, `edit` = "manage" (review, disconnect, re-check, mapping; mapping also needs `listings:edit`). Admin gets view+edit; external roles are denied.
