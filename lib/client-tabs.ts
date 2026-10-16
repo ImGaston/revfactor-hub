@@ -9,6 +9,7 @@ export const CLIENT_TABS = [
   { value: "profile", label: "Client Profile" },
   { value: "tickets", label: "Support Tickets" },
   { value: "adjustments", label: "Adjustment Requests" },
+  { value: "connections", label: "Data Connections" },
 ] as const
 
 export type ClientTab = (typeof CLIENT_TABS)[number]["value"]

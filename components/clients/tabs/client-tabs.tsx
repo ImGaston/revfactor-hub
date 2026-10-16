@@ -13,6 +13,7 @@ import { OnboardingTab } from "./onboarding-tab"
 import { ProfileTab } from "./profile-tab"
 import { TicketsTab } from "./tickets-tab"
 import { AdjustmentsTab } from "./adjustments-tab"
+import { ConnectionsTab } from "./connections-tab"
 
 /**
  * Top-level tabs on /clients/[id]. The Legacy tab is server-rendered with the
@@ -29,6 +30,7 @@ export function ClientTabs({
   initialTab,
   canViewSupport,
   canViewAdjustments,
+  canViewConnections = false,
   legacy,
 }: {
   clientId: string
@@ -38,10 +40,14 @@ export function ClientTabs({
   initialTab: ClientTab
   canViewSupport: boolean
   canViewAdjustments: boolean
+  canViewConnections?: boolean
   legacy: ReactNode
 }) {
   const visibleTabs = CLIENT_TABS.filter(
-    (t) => (t.value !== "tickets" || canViewSupport) && (t.value !== "adjustments" || canViewAdjustments)
+    (t) =>
+      (t.value !== "tickets" || canViewSupport) &&
+      (t.value !== "adjustments" || canViewAdjustments) &&
+      (t.value !== "connections" || canViewConnections)
   )
   const startTab = visibleTabs.some((t) => t.value === initialTab) ? initialTab : DEFAULT_CLIENT_TAB
   const [tab, setTab] = useState<ClientTab>(startTab)
@@ -121,6 +127,11 @@ export function ClientTabs({
         {canViewAdjustments && visited.has("adjustments") && (
           <TabsContent value="adjustments" forceMount className="data-[state=inactive]:hidden">
             <AdjustmentsTab clientId={clientId} />
+          </TabsContent>
+        )}
+        {canViewConnections && visited.has("connections") && (
+          <TabsContent value="connections" forceMount className="data-[state=inactive]:hidden">
+            <ConnectionsTab clientId={clientId} />
           </TabsContent>
         )}
       </Tabs>
