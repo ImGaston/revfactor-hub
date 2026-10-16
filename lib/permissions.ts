@@ -20,6 +20,7 @@ export const RESOURCES = [
   { key: "market_signals", label: "Market Signals", description: "Governed market events, evidence, and revenue review queues" },
   { key: "wins", label: "Wins", description: "Positive-performance detection and client message drafts" },
   { key: "team_credentials", label: "Team Credentials", description: "Shared logins for team apps (PriceLabs, OTA extranets, ...)" },
+  { key: "data_connections", label: "Data Connections", description: "Client PMS API connections (view = status; edit = review, disconnect, map properties)" },
   { key: "monthly_summary", label: "Monthly Summary", description: "Portfolio counts and new/churned listings per month" },
   { key: "ghl", label: "GoHighLevel", description: "GoHighLevel workflows and secure listing reviews" },
 ] as const

@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-16 — Client PMS connections, phase 1 (Hospitable live, other PMSs pending review)
+
+New portal page `/portal/connections` (Select PMS dropdown, per-provider fields and hints, consent line, show/hide secret inputs, Disconnect behind an AlertDialog), staff **Data Connections** tab on `/clients/[id]` (verify/reject, re-check Hospitable, disconnect, confirm/ignore/change property mappings, history), `lib/pms-connections.ts`, `lib/pms-connections.server.ts`, `lib/hospitable-client.server.ts`, resource `data_connections` in `lib/permissions.ts`, and migration `20261020120000_client_pms_connections.sql` (not applied; dry-run on a throwaway local Postgres with a Vault stub: RLS, column grant hiding `secret_id`, service-role-only Vault functions, cross-client mapping and portal-disconnect refusals, append-only audit, Vault secret deleted on disconnect). 22 new tests in `lib/__tests__/pms-connections.test.ts` (provider field validation, Hospitable error mapping and pagination, mapping suggestions, portal scoping, migration guardrails). Portal preview checked in the browser; the staff tab was not checked against a live DB because the migration isn't applied.
+
 ## 2026-10-15 — Vercel env var changes DM Gaston
 Added `app/api/webhooks/vercel/route.ts` (signature check, env-variable events only, in-memory dedupe), `lib/vercel-env-webhook.ts` (pure helpers, 9 tests) and `lib/vercel-env-webhook.server.ts` (project/env key/actor lookups, no values). New env vars `VERCEL_WEBHOOK_SECRET`, `VERCEL_API_TOKEN_READONLY`, `ENV_CHANGE_SLACK_TARGET` in `.env.local.example`. Nothing created in Vercel; Fede sets up the webhook, token and env vars. Codex was unavailable (ChatGPT login rejected for every model), so this was written directly.
 

@@ -37,10 +37,11 @@ export default async function ClientPage({
   ])
   const isSuperAdmin = profile?.role === "super_admin"
 
-  const [canViewAdjustments, canViewReservations, canViewSupport] = await Promise.all([
+  const [canViewAdjustments, canViewReservations, canViewSupport, canViewConnections] = await Promise.all([
     hasPermission("adjustments", "view"),
     hasPermission("reservations", "view"),
     hasPermission("support", "view"),
+    hasPermission("data_connections", "view"),
   ])
 
   const [
@@ -148,6 +149,7 @@ export default async function ClientPage({
       initialTab={parseClientTab(tab)}
       canViewSupport={canViewSupport}
       canViewAdjustments={canViewAdjustments}
+      canViewConnections={canViewConnections}
       legacy={legacy}
     />
   )
