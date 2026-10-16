@@ -5,7 +5,7 @@
 Fede asked to turn the beta Agent Studio into a single "RevAI" tab for himself, Gaston and Andrés that answers any RevFactor question from Wikifactor, the ontology, Knowledge and the databases, with a bubble on every screen.
 
 - **UI removed, data kept.** The playground, runs ledger, Coach, governance and onboarding-study screens are deleted; their tables and `lib/agent-studio*` code stay (no migration). `/agent-studio` redirects to `/revai`.
-- **Access reuses `agent_studio:view`** (relabelled "RevAI"), which only admin and super_admin hold. No new permission or migration.
+- **Access reuses `agent_studio:view`**, which only admin and super_admin hold. No new permission or migration; `lib/permissions.ts` is CI-frozen, so Settings still labels the resource "Agent Studio".
 - **Automatic model choice by rules, not a classifier call.** `routeRevAiQuestion` is deterministic and free: lookups → Haiku 5.5 ($0.10/$0.50 per M), client/listing/pricing questions → Sonnet 5.5 ($2/$10), diagnosis/strategy/framework work → Opus 5.5 ($4/$20). Each has a gateway fallback. Users can force a tier.
 - **Numbers from code.** Tools return computed figures (gaps, counts, YoY %); the instructions forbid any number not in a tool result.
 - **Wikifactor is bundled, not fetched.** A generated snapshot avoids a runtime GitHub token and keeps answers reproducible; merged pages are `accepted`, pages only on open branches (e.g. the ontology) are tagged `draft` with their branch.
