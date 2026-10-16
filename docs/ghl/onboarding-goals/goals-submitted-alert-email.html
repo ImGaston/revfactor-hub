@@ -1,0 +1,83 @@
+<!-- RevFactor | Goals form submitted, internal alert v2 (2026-10-16). Email-safe: tables + inline styles. Merge tags read the RF Onboarding Goals contact fields. -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#e8e6e1;padding:24px 0;">
+<tr><td align="center" style="padding:0 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#f5f2eb;border-radius:14px;overflow:hidden;font-family:Inter,Helvetica,Arial,sans-serif;color:#142d26;">
+  <tr><td style="background:#142d26;padding:22px 28px;">
+    <div style="font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:600;color:#f5f2eb;">revfactor</div>
+    <div style="margin-top:14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a9b3a5;">Onboarding goals submitted</div>
+    <div style="margin-top:4px;font-family:'Cormorant Garamond',Georgia,serif;font-size:30px;line-height:1.15;font-weight:600;color:#f5f2eb;">{{contact.first_name}} shared their goals</div>
+  </td></tr>
+  <tr><td style="padding:22px 28px 6px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ebe8e1;border-radius:10px;">
+      <tr><td style="padding:14px 16px;font-size:14px;line-height:1.6;">
+        <strong style="font-size:16px;">{{contact.name}}</strong><br>
+        <span style="color:#5d625e;">Property:</span> {{contact.rf_goal_property}}<br>
+        <span style="color:#5d625e;">Email:</span> {{contact.email}} &nbsp;·&nbsp; <span style="color:#5d625e;">Phone:</span> {{contact.phone}}
+      </td></tr>
+    </table>
+  </td></tr>
+  <!-- Revenue goal -->
+  <tr><td style="padding:14px 28px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #142d26;border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5d6d59;font-weight:700;">Revenue goal</div>
+      <div style="margin-top:6px;font-size:14px;line-height:1.6;">
+        <span style="color:#5d625e;">Has a target:</span> {{contact.rf_goal_has_target}}<br>
+        <span style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:600;">{{contact.rf_goal_target_amount}}</span> <span style="color:#5d625e;">{{contact.rf_goal_target_period}}</span><br>
+        <span style="color:#5d625e;">Where it came from:</span> {{contact.rf_goal_target_source}}<br>
+        <span style="color:#5d625e;">Would be happy with:</span> {{contact.rf_goal_happy_amount}} {{contact.rf_goal_happy_notes}}
+      </div>
+    </td></tr></table>
+  </td></tr>
+  <!-- Break-even -->
+  <tr><td style="padding:10px 28px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #76574c;border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#76574c;font-weight:700;">Break-even</div>
+      <div style="margin-top:6px;font-size:14px;line-height:1.6;">
+        <span style="color:#5d625e;">Knows it:</span> {{contact.rf_goal_has_breakeven}}<br>
+        <span style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:600;">{{contact.rf_goal_breakeven_amount}}</span> <span style="color:#5d625e;">{{contact.rf_goal_breakeven_period}}</span><br>
+        <span style="color:#5d625e;">Where it came from:</span> {{contact.rf_goal_breakeven_source}}
+      </div>
+    </td></tr></table>
+  </td></tr>
+  <!-- Floors -->
+  <tr><td style="padding:10px 28px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ffffff;border:1px solid #cfccc5;border-left:4px solid #b08a3e;border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#b08a3e;font-weight:700;">Comfort floors <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#7a7d78;">(not what we'll set)</span></div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;font-size:14px;">
+        <tr>
+          <td style="padding:6px 0;color:#5d625e;"></td>
+          <td style="padding:6px 0;color:#5d625e;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Weekday</td>
+          <td style="padding:6px 0;color:#5d625e;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Weekend</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;color:#5d625e;">Lowest price</td>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;font-weight:700;">{{contact.rf_floor_price_weekday}}</td>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;font-weight:700;">{{contact.rf_floor_price_weekend}}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;color:#5d625e;">Shortest stay</td>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;font-weight:700;">{{contact.rf_floor_minstay_weekday}}</td>
+          <td style="padding:6px 0;border-top:1px solid #ebe8e1;font-weight:700;">{{contact.rf_floor_minstay_weekend}}</td>
+        </tr>
+      </table>
+    </td></tr></table>
+  </td></tr>
+  <!-- Notes -->
+  <tr><td style="padding:10px 28px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#ebe8e1;border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5d6d59;font-weight:700;">Anything else</div>
+      <div style="margin-top:6px;font-size:14px;line-height:1.6;">{{contact.rf_goal_notes}}</div>
+    </td></tr></table>
+  </td></tr>
+  <!-- CTA -->
+  <tr><td style="padding:18px 28px 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background:#142d26;border-radius:10px;padding:12px 22px;">
+      <a href="https://app.gohighlevel.com/v2/location/ErABPRqWbMyIicvzvCFt/contacts/detail/{{contact.id}}" style="font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Open contact in GHL →</a>
+    </td></tr></table>
+  </td></tr>
+  <tr><td style="padding:14px 28px 24px;font-size:12px;line-height:1.5;color:#5d625e;">
+    Review before the onboarding call. Blank lines mean they skipped that question.
+  </td></tr>
+</table>
+</td></tr>
+</table>
