@@ -24,6 +24,9 @@ import {
   type PmsConnectionStatus,
   type PmsErrorCode,
 } from "@/lib/pms-connections"
+import { getPmsAdapter } from "@/lib/pms-adapters.server"
+import { formatPmsCoverage } from "@/lib/pms-reservations"
+import { syncPmsConnection } from "@/lib/pms-sync.server"
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const MIGRATION_PENDING =
@@ -86,8 +89,26 @@ export type StaffPmsEvent = {
   createdAt: string
 }
 
+export type StaffPmsSyncState = {
+  /** The PMS has a booking-sync adapter (Hospitable today). */
+  supported: boolean
+  /** Latest run of any status. */
+  lastRun: {
+    status: "running" | "succeeded" | "partial" | "failed"
+    mode: "backfill" | "incremental"
+    errorCode: string | null
+    startedAt: string
+    finishedAt: string | null
+  } | null
+  /** Latest successful run's coverage, e.g. "Jan 2024 – Apr 2028 · 412 stays". */
+  coverage: string | null
+  lastSuccessAt: string | null
+}
+
 export type ClientConnectionsData = {
   connections: StaffPmsConnection[]
+  /** Keyed by connection id. No runs when the sync migration isn't applied. */
+  sync: Record<string, StaffPmsSyncState>
   properties: StaffPmsProperty[]
   listings: { id: string; name: string; status: string }[]
   events: StaffPmsEvent[]
@@ -105,7 +126,7 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
   if (!canView) return { error: "You don't have access to data connections" }
 
   const supabase = await createClient()
-  const [connectionsResult, propertiesResult, listingsResult, eventsResult] = await Promise.all([
+  const [connectionsResult, propertiesResult, listingsResult, eventsResult, runsResult] = await Promise.all([
     supabase
       .from("client_pms_connections")
       .select(
@@ -129,6 +150,12 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase
+      .from("pms_sync_runs")
+      .select("connection_id, status, mode, error_code, started_at, finished_at, coverage_start, coverage_end, stay_count")
+      .eq("client_id", clientId)
+      .order("started_at", { ascending: false })
+      .limit(100),
   ])
 
   if (isMissingConnectionsRelation(connectionsResult.error)) return { error: MIGRATION_PENDING }
@@ -181,8 +208,43 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
     actor: Person
   }
 
+  type RunRow = {
+    connection_id: string
+    status: NonNullable<StaffPmsSyncState["lastRun"]>["status"]
+    mode: NonNullable<StaffPmsSyncState["lastRun"]>["mode"]
+    error_code: string | null
+    started_at: string
+    finished_at: string | null
+    coverage_start: string | null
+    coverage_end: string | null
+    stay_count: number | null
+  }
+  // The sync migration may not be applied yet: no runs; the action explains.
+  const runs = runsResult.error ? [] : ((runsResult.data ?? []) as RunRow[])
+  const sync: Record<string, StaffPmsSyncState> = {}
+  for (const c of (connectionsResult.data ?? []) as unknown as ConnRow[]) {
+    const mine = runs.filter((r) => r.connection_id === c.id)
+    const last = mine[0]
+    const success = mine.find((r) => r.status === "succeeded")
+    sync[c.id] = {
+      supported: getPmsAdapter(c.provider) !== null,
+      lastRun: last
+        ? {
+            status: last.status,
+            mode: last.mode,
+            errorCode: last.error_code,
+            startedAt: last.started_at,
+            finishedAt: last.finished_at,
+          }
+        : null,
+      coverage: success ? formatPmsCoverage(success.coverage_start, success.coverage_end, success.stay_count) : null,
+      lastSuccessAt: success?.finished_at ?? null,
+    }
+  }
+
   return {
     data: {
+      sync,
       connections: ((connectionsResult.data ?? []) as unknown as ConnRow[]).map((r) => ({
         id: r.id,
         provider: r.provider,
@@ -388,4 +450,43 @@ export async function updatePmsPropertyMappingAction(propertyId: string, change:
     return { ok: false, error: "Couldn't save the mapping" }
   }
   return { ok: true }
+}
+
+/** Server Actions run inside the page's function; stay well under its limit. */
+const SYNC_BUDGET_MS = 45_000
+
+/**
+ * "Sync bookings" on a connection card. Backfills (2024 → +18 months) until a
+ * backfill has finished, then pulls the last 30 days of check-ins plus all
+ * future ones; a run stopped by the time budget resumes on the next click (or
+ * the daily cron). The admin client (Vault read + writes) bypasses RLS, so
+ * data_connections:edit here is the gate and fails closed.
+ */
+export async function syncPmsBookingsAction(connectionId: string): Promise<
+  | { ok: true; status: "succeeded" | "partial"; upserted: number; coverage: string | null }
+  | { ok: false; error: string }
+> {
+  if (!UUID.test(connectionId ?? "")) return { ok: false, error: "Invalid connection" }
+  let allowed = false
+  try {
+    allowed = (await hasPermission("data_connections", "edit")) === true
+  } catch {
+    allowed = false
+  }
+  if (!allowed) return { ok: false, error: NO_EDIT_PERMISSION }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Not signed in" }
+
+  const result = await syncPmsConnection(connectionId, {
+    mode: "auto",
+    trigger: "manual",
+    actorId: user.id,
+    deadline: Date.now() + SYNC_BUDGET_MS,
+  })
+  if (!result.ok) return { ok: false, error: result.error }
+  return { ok: true, status: result.status, upserted: result.upserted, coverage: result.coverage }
 }

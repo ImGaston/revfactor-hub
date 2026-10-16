@@ -40,7 +40,7 @@ import {
   type PlanChannel,
   type PlanReservation,
 } from "@/lib/pricing-plan"
-import { getPricingPlanDataAction } from "./pricing-plan-actions"
+import { getPricingPlanDataAction, type PlanHistorySource } from "./pricing-plan-actions"
 
 const usd = (n: number | null | undefined) =>
   n == null || !Number.isFinite(n) ? "—" : (n < 0 ? "−$" : "$") + Math.round(Math.abs(n)).toLocaleString("en-US")
@@ -82,7 +82,7 @@ export function PricingPlanTab({
   onSaveTargets?: (targets: MonthTarget[]) => Promise<void>
   onSaveChannels?: (channels: PlanChannel[]) => Promise<void>
 }) {
-  const [data, setData] = useState<{ today: string; reservations: PlanReservation[] } | null>(null)
+  const [data, setData] = useState<{ today: string; reservations: PlanReservation[]; source: PlanHistorySource } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export function PricingPlanTab({
     getPricingPlanDataAction(listingId)
       .then((r) => {
         if (!alive) return
-        if (r.ok) setData({ today: r.today, reservations: r.reservations })
+        if (r.ok) setData({ today: r.today, reservations: r.reservations, source: r.source })
         else setError(r.error)
       })
       .catch(() => alive && setError("Couldn't load reservations. Reload the page and try again."))
@@ -113,6 +113,7 @@ export function PricingPlanTab({
     <PricingPlan
       today={data.today}
       reservations={data.reservations}
+      source={data.source}
       current={current}
       mode={mode}
       seed={seed}
@@ -122,9 +123,22 @@ export function PricingPlanTab({
   )
 }
 
+function HistorySourceNote({ source }: { source: PlanHistorySource }) {
+  const synced = source.syncedAt
+    ? new Date(source.syncedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null
+  return (
+    <p className="text-xs text-muted-foreground">
+      History from {source.label}
+      {synced ? ` · synced ${synced}` : ""}
+    </p>
+  )
+}
+
 function PricingPlan({
   today,
   reservations,
+  source,
   current,
   mode,
   seed,
@@ -133,6 +147,7 @@ function PricingPlan({
 }: {
   today: string
   reservations: PlanReservation[]
+  source: PlanHistorySource
   current: { min: number | null; base: number | null; max: number | null }
   mode: "strategy" | "goals"
   seed?: PricingPlanSeed
@@ -207,6 +222,7 @@ function PricingPlan({
 
   return (
     <div className="space-y-4">
+      <HistorySourceNote source={source} />
       {mode === "goals" && (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi label="12-month target" value={usd(totals.target)} note={`${mLabel(targets[0].month)} – ${mLabel(targets[targets.length - 1].month)}`} />
