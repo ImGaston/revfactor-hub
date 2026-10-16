@@ -14,7 +14,7 @@ export const RESOURCES = [
   { key: "knowledge", label: "Knowledge", description: "Policies, SOPs, and internal knowledge base" },
   { key: "adjustments", label: "Adjustments", description: "Change requests, triage queue, and control" },
   { key: "support", label: "Support", description: "Client support tickets, promises, and answer verification" },
-  { key: "agent_studio", label: "Agent Studio", description: "Test and configure the client service AI sandbox" },
+  { key: "agent_studio", label: "RevAI", description: "Internal RevFactor AI (Wikifactor, Knowledge, and Hub data)" },
   { key: "reservations", label: "Reservations", description: "PriceLabs booking data (read-only, synced from BigQuery)" },
   { key: "revenue", label: "Revenue Manager", description: "Revenue profiles, reviews, recommendations, and decisions" },
   { key: "market_signals", label: "Market Signals", description: "Governed market events, evidence, and revenue review queues" },

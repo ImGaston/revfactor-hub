@@ -57,6 +57,8 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", title: "Dashboard", href: "/", icon: LayoutDashboard },
+  // Internal AI. Reuses the `agent_studio` permission (granted to admin and super_admin).
+  { key: "revai", title: "RevAI", href: "/revai", icon: Bot, resource: "agent_studio" },
   { key: "clients", title: "Clients", href: "/clients", icon: Users, resource: "clients" },
   { key: "listings", title: "Listings", href: "/listings", icon: Building2, resource: "listings" },
   {
@@ -114,13 +116,6 @@ export const NAV_ITEMS: NavItem[] = [
     resource: "ghl",
   },
   { key: "knowledge", title: "Knowledge", href: "/knowledge", icon: BookOpen, resource: "knowledge" },
-  {
-    key: "agent-studio",
-    title: "Agent Studio",
-    href: "/agent-studio",
-    icon: Bot,
-    resource: "agent_studio",
-  },
   {
     key: "revenue-manager",
     title: "Revenue Manager",

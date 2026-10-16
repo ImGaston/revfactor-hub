@@ -1,5 +1,9 @@
 # Sessions — RevFactor Hub
 
+## 2026-10-16 — RevAI replaces Agent Studio
+
+New `/revai` tab + global bubble, `app/api/revai/chat/route.ts`, `lib/revai/` (models + router, instructions, tools, Wikifactor search/snapshot), `components/revai/`, `scripts/sync-revai-wikifactor.ts`, dependency `@ai-sdk/react@4.0.40` (pinned to `ai@7.0.37`). Deleted the Agent Studio route UI. Nav item `revai` (top level), command palette and breadcrumb updated. Tests: `lib/__tests__/revai-router.test.ts`, `lib/__tests__/revai-wikifactor.test.ts`. Typecheck and lint clean. Not exercised against the live gateway or checked in a browser from the agent container (no app credentials there).
+
 ## 2026-10-16 — Client PMS connections, phase 2 (booking sync → Goals tab)
 
 Built the Hospitable booking backfill/sync and pointed the listing Goals tab at it. New migration `20261021120000_pms_reservations.sql` (`pms_reservations`, `pms_sync_runs`, mapping-follow trigger; **not applied**), `lib/pms-reservations.ts` (normalization, windows/chunks, Goals mapping, coverage text), `lib/pms-adapters.server.ts` (adapter interface, Hospitable), `lib/pms-sync.server.ts` (resumable runs, idempotent upsert, cron fan-out), `fetchHospitableReservations` (pagination, 429 backoff). UI: **Sync bookings** + coverage line on the Data Connections card; "History from Hospitable / PriceLabs" note on the Goals/Strategy tabs. Chained onto `/api/cron/sync-pricelabs`. Tests: `lib/__tests__/pms-sync.test.ts` (25) plus the cron test mock. Read-only prod check: Ken's connection has 2 confirmed mappings (Doodlebug, Hopi Haus), Boulder Cabin ignored; Jacob Raabe's Guesty connection has no adapter yet. Not run against Hospitable or verified in the browser (the migration isn't applied).
