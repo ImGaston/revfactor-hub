@@ -270,3 +270,11 @@ Do not "unify" the sidebar back into glass for consistency's sake — it looks t
 **Local deltas to `components/ui/*`.** These files are otherwise stock registry output; a `npx shadcn@latest add <name>` would revert them. Each edit is a single utility token so it is easy to re-apply: `card`, `table`, `tabs`, `skeleton`, `button`, `badge`, `empty`, `tooltip`, `popover`, `dialog`, `sheet`, `alert-dialog`, `command`, `sidebar`, `dropdown-menu`, `select`. `textarea.tsx` also carries the older `wrap-anywhere` fix.
 
 **Known limitation.** `dropdown-menu`, `select`, and `command` put `overflow-y-auto` on the same element that carries the glass `::before`. An absolutely-positioned pseudo inside a scroll container scrolls with the content, so on a menu long enough to scroll the blur drifts out of view. Pre-existing; fixing it means moving the scroll to an inner wrapper.
+
+## Supabase API-key migration
+
+Consumer secret/publishable keys travel on `apikey`; Authorization is reserved for signed-in user JWTs. Secret keys must never reach public config or `NEXT_PUBLIC_*` variables. During the reviewed migration, prefer `SUPABASE_SECRET_KEY` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`; keep old aliases only until consumers are verified. Preserve user-session RLS checks and existing scopes. Treat env scalars as strings, never JSON inputs, and keep raw credential/parser error text out of CLI/application output. Legacy API keys are disabled by the owner only after verification.
+
+## Service-only Edge API keys
+
+PriceLabs Edge callers use the independent Edge consumer secret on `apikey`. The function validates it before provider/database work; disabling the platform JWT check must retain this explicit service authorization. Deno function sources are excluded from Next.js compilation and their authorization boundary is tested separately. Raw provider/database errors must not be returned to callers.
