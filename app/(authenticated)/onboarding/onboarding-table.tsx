@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition, useMemo } from "react"
+import Link from "next/link"
 import { Check, Home, MessageSquare, Plus } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -201,10 +202,10 @@ export function OnboardingTable({
             {templates.map((t) => (
               <TableHead
                 key={t.id}
-                className="w-[40px] text-center"
+                className="w-[96px] h-auto py-2 text-center align-bottom whitespace-normal"
                 title={t.step_name}
               >
-                <div className="truncate text-[11px]" title={t.step_name}>
+                <div className="line-clamp-3 text-[11px] leading-tight break-words">
                   {t.step_name}
                 </div>
               </TableHead>
@@ -224,7 +225,12 @@ export function OnboardingTable({
                 )}
               >
                 <TableCell className="sticky left-0 bg-background z-10 align-middle">
-                  <div className="font-medium truncate">{c.name}</div>
+                  <Link
+                    href={`/clients/${c.id}`}
+                    className="block font-medium truncate hover:underline"
+                  >
+                    {c.name}
+                  </Link>
                   {c.email && (
                     <div className="text-xs text-muted-foreground truncate">
                       {c.email}
