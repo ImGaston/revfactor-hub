@@ -479,3 +479,202 @@ export async function listClientContracts(
   )
   return result?.data ?? []
 }
+
+// --- Custom fields (Tags) ---
+//
+// Custom-app visibility rules can only follow Tags (multiSelect) custom fields,
+// so the Hub grants an app by adding a tag option to the client or company.
+// The API schema says multiSelect values are option ids while the doc
+// examples show option keys, so reads accept both and writes are verified.
+
+export type AssemblyEntityType = "client" | "company"
+
+export type AssemblyCustomFieldOption = {
+  object?: string
+  id: string
+  key: string
+  label?: string
+  name?: string
+  color?: string
+}
+
+export type AssemblyCustomField = {
+  object: "customField"
+  id: string
+  key: string
+  name: string
+  type: "text" | "number" | "email" | "url" | "phoneNumber" | "address" | "multiSelect"
+  entityType: AssemblyEntityType
+  order: number
+  options?: AssemblyCustomFieldOption[]
+}
+
+export type AssemblyCompany = {
+  id: string
+  object: "company"
+  name: string
+  createdAt?: string
+  isPlaceholder?: boolean
+  customFields: Record<string, unknown> | null
+}
+
+function entityPath(entityType: AssemblyEntityType, id: string): string {
+  return `/${entityType === "company" ? "companies" : "clients"}/${encodeURIComponent(id)}`
+}
+
+/** All custom fields, following pagination. Throws on API errors. */
+export async function listAssemblyCustomFields(
+  entityType?: AssemblyEntityType
+): Promise<AssemblyCustomField[]> {
+  const fields: AssemblyCustomField[] = []
+  let nextToken: string | null = null
+  do {
+    const params = new URLSearchParams()
+    if (entityType) params.set("entityType", entityType)
+    if (nextToken) params.set("nextToken", nextToken)
+    const query = params.toString()
+    const page: AssemblyListResponse<AssemblyCustomField> = await assemblyFetch(
+      `/custom-fields${query ? `?${query}` : ""}`
+    )
+    fields.push(...(page?.data ?? []))
+    nextToken = page?.nextToken || null
+  } while (nextToken)
+  return fields
+}
+
+export async function getAssemblyCompany(
+  id: string
+): Promise<AssemblyCompany | null> {
+  try {
+    return await assemblyFetch<AssemblyCompany>(`/companies/${encodeURIComponent(id)}`)
+  } catch {
+    return null
+  }
+}
+
+/** A client's or company's custom field values. Throws on API errors. */
+export async function getAssemblyEntityCustomFields(
+  entityType: AssemblyEntityType,
+  id: string
+): Promise<Record<string, unknown>> {
+  const entity = await assemblyFetch<{ customFields: Record<string, unknown> | null }>(
+    entityPath(entityType, id)
+  )
+  return entity?.customFields ?? {}
+}
+
+/** Partially updates custom fields; returns the entity's values after the write. */
+export async function updateAssemblyEntityCustomFields(
+  entityType: AssemblyEntityType,
+  id: string,
+  customFields: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const entity = await assemblyFetch<{ customFields: Record<string, unknown> | null }>(
+    entityPath(entityType, id),
+    { method: "PATCH", body: JSON.stringify({ customFields }) }
+  )
+  return entity?.customFields ?? {}
+}
+
+/** The Tags field by key, falling back to a case-insensitive name match. */
+export function findTagsField(
+  fields: AssemblyCustomField[],
+  fieldKey: string
+): AssemblyCustomField | null {
+  const wanted = fieldKey.trim().toLowerCase()
+  return (
+    fields.find((f) => f.key === fieldKey.trim()) ??
+    fields.find((f) => f.name?.trim().toLowerCase() === wanted) ??
+    null
+  )
+}
+
+/** The option matching an id, key, or label/name (case-insensitive). */
+export function resolveTagOption(
+  field: AssemblyCustomField,
+  option: string
+): AssemblyCustomFieldOption | null {
+  const wanted = option.trim().toLowerCase()
+  if (!wanted) return null
+  const options = field.options ?? []
+  return (
+    options.find((o) => o.id.toLowerCase() === wanted) ??
+    options.find((o) => o.key.toLowerCase() === wanted) ??
+    options.find((o) => (o.label ?? o.name ?? "").trim().toLowerCase() === wanted) ??
+    null
+  )
+}
+
+/** The string values stored for a multiSelect field (anything else → []). */
+export function tagValues(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
+}
+
+export function hasTagOption(values: string[], option: AssemblyCustomFieldOption): boolean {
+  return values.includes(option.id) || values.includes(option.key)
+}
+
+/**
+ * Existing values plus the option, written as option ids or keys. Values that
+ * match a known option are converted; unknown values are kept as they are.
+ */
+export function mergeTagValues(
+  field: AssemblyCustomField,
+  values: string[],
+  option: AssemblyCustomFieldOption,
+  mode: "id" | "key"
+): string[] {
+  const options = field.options ?? []
+  const convert = (value: string) => {
+    const match = options.find((o) => o.id === value || o.key === value)
+    return match ? match[mode] : value
+  }
+  return [...new Set([...values.map(convert), option[mode]])]
+}
+
+/**
+ * Adds a tag option to a client's or company's Tags field, keeping every tag
+ * already there. Verifies the write and retries once in the other value format.
+ */
+export async function addAssemblyTagOption(opts: {
+  entityType: AssemblyEntityType
+  entityId: string
+  fieldKey: string
+  option: string
+}): Promise<{ alreadyTagged: boolean; fieldKey: string; optionId: string; optionKey: string }> {
+  const field = findTagsField(await listAssemblyCustomFields(opts.entityType), opts.fieldKey)
+  if (!field) {
+    throw new Error(`Assembly ${opts.entityType} custom field "${opts.fieldKey}" not found`)
+  }
+  if (field.type !== "multiSelect") {
+    throw new Error(`Assembly ${opts.entityType} custom field "${field.key}" is not a Tags field`)
+  }
+  const option = resolveTagOption(field, opts.option)
+  if (!option) {
+    throw new Error(`Assembly ${opts.entityType} field "${field.key}" has no option "${opts.option}"`)
+  }
+  const result = { fieldKey: field.key, optionId: option.id, optionKey: option.key }
+
+  const current = tagValues(
+    (await getAssemblyEntityCustomFields(opts.entityType, opts.entityId))[field.key]
+  )
+  if (hasTagOption(current, option)) return { alreadyTagged: true, ...result }
+
+  let lastError: unknown = null
+  for (const mode of ["id", "key"] as const) {
+    try {
+      const after = await updateAssemblyEntityCustomFields(opts.entityType, opts.entityId, {
+        [field.key]: mergeTagValues(field, current, option, mode),
+      })
+      if (hasTagOption(tagValues(after[field.key]), option)) return { alreadyTagged: false, ...result }
+      lastError = new Error(`tag not present after writing option ${mode}s`)
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw new Error(
+    `Couldn't add "${option.key}" to ${opts.entityType} ${opts.entityId}: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  )
+}

@@ -11,7 +11,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts"
+    "report:airbnb-foundation": "tsx scripts/report-airbnb-foundation.ts",
+    "assembly:tag-fields": "tsx scripts/list-assembly-tag-fields.ts"
   },
   "dependencies": {
     "@assembly-js/node-sdk": "^4.2.4",

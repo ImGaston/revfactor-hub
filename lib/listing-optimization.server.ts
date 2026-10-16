@@ -12,6 +12,7 @@ import {
 import type { PortalViewer } from "@/lib/assembly-portal-session.server"
 import { buildOwnerMessage } from "@/lib/listing-optimization-message"
 import {
+  addAssemblyTagOption,
   findAssemblyInternalUserIdByEmail,
   getCompanyChannels,
   getOrCreateMessageChannel,
@@ -33,6 +34,7 @@ export type OptimizationAction =
   | "DecideSuggestion"
   | "MarkOwnerTaskDone"
   | "NotifyOwnerOfReview"
+  | "GrantListingReviewApp"
 
 /** Append-only ontology audit row. Failures are logged, never thrown. */
 export async function logEvent(input: {
@@ -379,16 +381,21 @@ export async function createDraftReport(
   return { ok: true, reportId: report.id }
 }
 
+type OwnerTarget = { type: "client" | "company"; id: string }
+
 /**
  * The client's Assembly chat: the company channel when the client belongs to
- * one, else their individual channel.
+ * one, else their individual channel. `target` is who that chat reaches.
  */
 async function resolveOwnerChannel(
   clientId: string
-): Promise<{ ok: true; channelId: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; channelId: string; target: OwnerTarget; clientName: string | null }
+  | { ok: false; error: string }
+> {
   const { data: client } = await createAdminClient()
     .from("clients")
-    .select("assembly_client_id, assembly_company_id")
+    .select("name, assembly_client_id, assembly_company_id")
     .eq("id", clientId)
     .maybeSingle()
   if (!client?.assembly_client_id) {
@@ -401,7 +408,10 @@ async function resolveOwnerChannel(
         )
       : undefined
     const channelId = company?.id ?? (await getOrCreateMessageChannel(client.assembly_client_id)).id
-    return { ok: true, channelId }
+    const target: OwnerTarget = company
+      ? { type: "company", id: client.assembly_company_id as string }
+      : { type: "client", id: client.assembly_client_id }
+    return { ok: true, channelId, target, clientName: (client.name as string | null) ?? null }
   } catch (error) {
     console.error("listing optimization: assembly channel lookup failed", error)
     return { ok: false, error: "Couldn't find the client's Assembly chat." }
@@ -409,11 +419,72 @@ async function resolveOwnerChannel(
 }
 
 /**
+ * Gives the message's recipient access to the Listing Review custom app by
+ * adding a tag in Assembly: the app's visibility rule is "client or company
+ * field Listing Review includes Enabled", and the fixed client list can't be edited
+ * through the API. Tags the same target the message goes to. Skipped (ok)
+ * until ASSEMBLY_LISTING_REVIEW_TAG_FIELD and _TAG_OPTION are set, so the
+ * Assembly field can be created after this ships.
+ */
+async function grantListingReviewApp(input: {
+  reportIds: string[]
+  target: OwnerTarget
+  clientName: string | null
+  actorUserId: string | null
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const clientField = process.env.ASSEMBLY_LISTING_REVIEW_TAG_FIELD?.trim()
+  const option = process.env.ASSEMBLY_LISTING_REVIEW_TAG_OPTION?.trim()
+  if (!clientField || !option) return { ok: true }
+  const fieldKey =
+    input.target.type === "company"
+      ? process.env.ASSEMBLY_LISTING_REVIEW_COMPANY_TAG_FIELD?.trim() || clientField
+      : clientField
+
+  let granted: Awaited<ReturnType<typeof addAssemblyTagOption>>
+  try {
+    granted = await addAssemblyTagOption({
+      entityType: input.target.type,
+      entityId: input.target.id,
+      fieldKey,
+      option,
+    })
+  } catch (error) {
+    console.error("listing optimization: listing review app grant failed", input.target, error)
+    const firstName = input.clientName?.trim().split(/\s+/)[0] || "the owner"
+    return {
+      ok: false,
+      error: `Couldn't give ${firstName} access to the Listing Review app in Assembly. The message wasn't sent.`,
+    }
+  }
+
+  await Promise.all(
+    input.reportIds.map((reportId) =>
+      logEvent({
+        reportId,
+        action: "GrantListingReviewApp",
+        actorType: "staff",
+        actorId: input.actorUserId,
+        details: {
+          target_type: input.target.type,
+          target_id: input.target.id,
+          field_key: granted.fieldKey,
+          option_id: granted.optionId,
+          option_key: granted.optionKey,
+          already_tagged: granted.alreadyTagged,
+        },
+      })
+    )
+  )
+  return { ok: true }
+}
+
+/**
  * Sends ONE message for several published reviews of the same owner
  * (owner-level "Publish & send all"). Every review in the bundle is stamped
  * with the same send time, Assembly message id and text, so none of them can
  * be sent again, and each gets a NotifyOwnerOfReview event naming the bundle.
- * Callers must have checked the staff user's permission.
+ * The owner is first given the Listing Review app (grantListingReviewApp); if
+ * that fails nothing is sent. Callers must have checked the staff user's permission.
  */
 /**
  * Assembly sender for a staff-triggered message: the clicking user's own
@@ -462,6 +533,13 @@ export async function sendOwnerBundleMessage(input: {
 
   const channel = await resolveOwnerChannel(input.clientId)
   if (!channel.ok) return channel
+  const grant = await grantListingReviewApp({
+    reportIds: ids,
+    target: channel.target,
+    clientName: channel.clientName,
+    actorUserId: input.actorUserId,
+  })
+  if (!grant.ok) return grant
 
   let messageId: string | null = null
   try {
@@ -659,8 +737,10 @@ export async function loadStaffReport(
 /**
  * Sends a published review's owner message to the client's Assembly chat
  * (the company channel when the client belongs to one, else their individual
- * channel). Callers must have checked the staff user's permission. Sends at
- * most once per review; logs NotifyOwnerOfReview.
+ * channel), after giving that recipient the Listing Review app
+ * (grantListingReviewApp; nothing is sent if that fails). Callers must have
+ * checked the staff user's permission. Sends at most once per review; logs
+ * NotifyOwnerOfReview.
  */
 export async function sendReviewOwnerMessage(input: {
   reportId: string
@@ -680,6 +760,13 @@ export async function sendReviewOwnerMessage(input: {
 
   const channel = await resolveOwnerChannel(report.client_id)
   if (!channel.ok) return channel
+  const grant = await grantListingReviewApp({
+    reportIds: [report.id],
+    target: channel.target,
+    clientName: channel.clientName,
+    actorUserId: input.actorUserId,
+  })
+  if (!grant.ok) return grant
   const channelId = channel.channelId
 
   let messageId: string | null = null
