@@ -52,6 +52,10 @@ export type PmsProviderConfig = {
 
 const READ_ONLY_REMINDER = "If you can choose permissions, pick read-only."
 
+/** Shown to staff adding a key on a client's behalf (Hub Data Connections tab). */
+export const PMS_STAFF_READ_ONLY_REMINDER =
+  "Use a read-only key. RevFactor only reads properties, bookings and reports, so if the PMS lets you pick permissions, choose read-only. Never paste a login password."
+
 export const PMS_PROVIDER_CONFIG: Record<PmsProvider, PmsProviderConfig> = {
   hospitable: {
     key: "hospitable",
@@ -290,6 +294,45 @@ export function validatePmsCredential(input: PmsCredentialInput, today: Date = n
       expiresAt,
     },
   }
+}
+
+const MAX_LABEL = 80
+
+/**
+ * Optional staff label for a connection (e.g. "Main account"). Plain text on
+ * the connection row, so it must not hold a credential.
+ */
+export function validatePmsLabel(
+  value: unknown
+): { ok: true; label: string | null } | { ok: false; error: string } {
+  const label = typeof value === "string" ? value.trim() : ""
+  if (!label) return { ok: true, label: null }
+  if (label.length > MAX_LABEL) return { ok: false, error: `Keep the label under ${MAX_LABEL} characters` }
+  if (detectCredential(label)) return { ok: false, error: "Please don't put passwords or keys in the label" }
+  return { ok: true, label }
+}
+
+/** Statuses that count as a live, in-use connection (for duplicate warnings). */
+export function isActivePmsStatus(status: string): boolean {
+  return status !== "disconnected" && status !== "rejected"
+}
+
+/**
+ * Active connections that look like the same PMS as the one being added. For
+ * "Other" the typed PMS name must match too. Used only to warn: a client can
+ * have several accounts with one PMS.
+ */
+export function findSameProviderConnections<T extends { provider: string; providerLabel: string; status: string }>(
+  connections: T[],
+  provider: PmsProvider,
+  providerName?: string | null
+): T[] {
+  const name = providerName?.trim().toLowerCase() ?? ""
+  return connections.filter((c) => {
+    if (c.provider !== provider || !isActivePmsStatus(c.status)) return false
+    if (provider !== "other") return true
+    return Boolean(name) && c.providerLabel.trim().toLowerCase() === name
+  })
 }
 
 /** Read a stored Vault blob back into its fields (server-side only). */

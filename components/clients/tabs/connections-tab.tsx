@@ -34,6 +34,7 @@ import {
   type StaffPmsConnection,
   type StaffPmsProperty,
 } from "@/app/(authenticated)/clients/[id]/connections-actions"
+import { AddPmsConnectionDialog } from "./add-pms-connection-dialog"
 import { TabError, TabSkeleton, useLazyTabData } from "./lazy-tab"
 
 const TONE_CLASS: Record<PmsStatusTone, string> = {
@@ -95,10 +96,16 @@ export function ConnectionsTab({ clientId }: { clientId: string }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Clients add read-only PMS credentials from the portal&apos;s “Connect your PMS” page. Hospitable is checked
-        live; other PMSs need a manual check. Nothing is imported until each property is mapped here.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Add the client&apos;s read-only PMS credentials here, or the client can use the portal&apos;s “Connect your
+          PMS” page. Hospitable is checked live; other PMSs need a manual check (keys added here count as verified).
+          Nothing is imported until each property is mapped here.
+        </p>
+        {data.canManage && (
+          <AddPmsConnectionDialog clientId={clientId} connections={data.connections} onAdded={refresh} />
+        )}
+      </div>
 
       {visible.length === 0 ? (
         <Card>
@@ -106,7 +113,9 @@ export function ConnectionsTab({ clientId }: { clientId: string }) {
             <PlugZap className="size-6 text-muted-foreground" />
             <p className="text-sm font-medium">No PMS connections yet</p>
             <p className="max-w-md text-sm text-muted-foreground">
-              Ask the client to open “Connect your PMS” in their portal.
+              {data.canManage
+                ? "Use Add connection to paste the client's PMS key, or ask them to open “Connect your PMS” in their portal."
+                : "Ask the client to open “Connect your PMS” in their portal."}
             </p>
           </CardContent>
         </Card>
@@ -186,8 +195,16 @@ function ConnectionCard({
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="text-base">{connection.providerLabel}</CardTitle>
+            <CardTitle className="text-base">
+              {connection.providerLabel}
+              {connection.label && <span className="font-normal text-muted-foreground"> · {connection.label}</span>}
+            </CardTitle>
             <StatusBadge status={connection.status} />
+            {connection.submittedVia === "hub" && (
+              <Badge variant="outline" className={TONE_CLASS.muted}>
+                Added in Hub
+              </Badge>
+            )}
             {connection.tokenLast4 && (
               <span className="font-mono text-xs text-muted-foreground">•••• {connection.tokenLast4}</span>
             )}
@@ -238,7 +255,7 @@ function ConnectionCard({
         </div>
         <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
           <div>
-            <dt className="text-xs text-muted-foreground">Submitted</dt>
+            <dt className="text-xs text-muted-foreground">{connection.submittedVia === "hub" ? "Added" : "Submitted"}</dt>
             <dd>{formatJourneyDate(connection.createdAt)}</dd>
           </div>
           <div>

@@ -14,6 +14,7 @@ import {
   pmsProviderLabel,
   suggestPropertyMappings,
   validatePmsCredential,
+  validatePmsLabel,
   type PmsConnectionStatus,
   type PmsCredentialInput,
   type PmsErrorCode,
@@ -239,6 +240,143 @@ export async function disconnectPortalConnection(
   }
   if (data !== true) return { ok: false, error: "This connection was not found or is already disconnected." }
   return { ok: true }
+}
+
+// ---------------------------------------------------------------------------
+// Staff: add a connection from the Hub (caller checks permissions first)
+// ---------------------------------------------------------------------------
+
+export type StaffCreateInput = PmsCredentialInput & { label?: unknown }
+
+export type StaffCreateResult =
+  | {
+      ok: true
+      connectionId: string
+      status: "connected" | "verified" | "pending_verification"
+      propertyCount: number | null
+      /** Set when the key was saved but a follow-up step didn't finish. */
+      warning?: string
+    }
+  | { ok: false; error: string; fieldErrors?: Record<string, string>; code?: PmsErrorCode }
+
+type StaffDeps = Deps & {
+  /**
+   * Marks a just-created, non-live connection verified as the staff member
+   * (session RPC pms_connection_review). Without it the connection stays
+   * pending verification.
+   */
+  markVerified?: (connectionId: string) => Promise<boolean>
+}
+
+const STAFF_SAVE_FAILED = "Couldn't save this connection. Try again in a minute."
+
+/**
+ * A staff member pastes a client's PMS key in the Hub. Same validation, live
+ * check and Vault path as the portal; the row is stamped submitted_via='hub'
+ * and created_by = the staff profile. Hospitable is saved only after a
+ * successful live check. Other PMSs are saved and then marked verified by the
+ * staff member, since there is no client submission to review.
+ *
+ * The admin client bypasses RLS: the caller must check data_connections:edit
+ * before calling this. Secrets are never logged or returned.
+ */
+export async function createStaffConnection(
+  clientId: string,
+  actorProfileId: string,
+  input: StaffCreateInput,
+  deps: StaffDeps = {}
+): Promise<StaffCreateResult> {
+  const now = deps.now?.() ?? new Date()
+  const validated = validatePmsCredential(input, now)
+  const label = validatePmsLabel(input.label)
+  if (!validated.ok || !label.ok) {
+    const fieldErrors = {
+      ...(validated.ok ? {} : validated.fieldErrors),
+      ...(label.ok ? {} : { label: label.error }),
+    }
+    return { ok: false, error: validated.ok ? "Check the highlighted fields" : validated.error, fieldErrors }
+  }
+  const value = validated.value
+  const config = PMS_PROVIDER_CONFIG[value.provider]
+  const supabase = deps.supabase ?? createAdminClient()
+
+  const { count, error: countError } = await supabase
+    .from("client_pms_connections")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .neq("status", "disconnected")
+  if (countError) {
+    console.error("pms connections: staff count failed", countError.code ?? "unknown")
+    return { ok: false, error: STAFF_SAVE_FAILED }
+  }
+  if ((count ?? 0) >= MAX_OPEN_CONNECTIONS_PER_CLIENT) {
+    return {
+      ok: false,
+      error: `This client already has ${MAX_OPEN_CONNECTIONS_PER_CLIENT} open connections. Disconnect one first.`,
+    }
+  }
+
+  // Live check (Hospitable only). Nothing is stored when it fails.
+  let properties: HospitableProperty[] = []
+  if (config.liveCheck) {
+    const token = parsePmsSecretPayload(value.secretPayload)?.token ?? ""
+    const result = await (deps.listProperties ?? listHospitableProperties)(token)
+    if (!result.ok) return { ok: false, code: result.code, error: pmsErrorMessage(result.code, config.label) }
+    properties = result.data
+  }
+
+  const { data: connectionId, error: createError } = await supabase.rpc("pms_connection_create", {
+    p_client_id: clientId,
+    p_provider: value.provider,
+    p_provider_name: value.providerName,
+    p_label: label.label,
+    // The create function only accepts these two; non-live keys are marked
+    // verified right after, as the staff member.
+    p_status: config.liveCheck ? "connected" : "pending_verification",
+    p_secret: value.secretPayload,
+    p_token_last4: value.tokenLast4,
+    p_expires_at: value.expiresAt,
+    p_remind_at: computeRemindAt(now, value.expiresAt),
+    p_property_count: config.liveCheck ? properties.length : null,
+    p_last_validated_at: config.liveCheck ? now.toISOString() : null,
+    p_client_note: value.clientNote,
+    p_submitted_via: "hub",
+    p_created_by: actorProfileId,
+    p_created_by_assembly_client_id: null,
+  })
+  if (createError || typeof connectionId !== "string") {
+    console.error("pms connections: staff create failed", createError?.code ?? "unknown")
+    return { ok: false, error: STAFF_SAVE_FAILED }
+  }
+
+  if (config.liveCheck) {
+    if (properties.length > 0) {
+      const synced = await syncDiscoveredProperties(supabase, connectionId, clientId, properties, now)
+      if (!synced) {
+        console.error("pms connections: property save failed after staff connect")
+        return {
+          ok: true,
+          connectionId,
+          status: "connected",
+          propertyCount: properties.length,
+          warning: "Connected, but saving the property list failed. Use Re-check to try again.",
+        }
+      }
+    }
+    return { ok: true, connectionId, status: "connected", propertyCount: properties.length }
+  }
+
+  const verified = deps.markVerified ? await deps.markVerified(connectionId).catch(() => false) : false
+  if (!verified) {
+    return {
+      ok: true,
+      connectionId,
+      status: "pending_verification",
+      propertyCount: null,
+      warning: "Saved, but it couldn't be marked verified. Use Mark verified on the connection.",
+    }
+  }
+  return { ok: true, connectionId, status: "verified", propertyCount: null }
 }
 
 // ---------------------------------------------------------------------------

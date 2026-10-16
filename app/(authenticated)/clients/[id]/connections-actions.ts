@@ -9,9 +9,16 @@
 // the Vault secret, so it uses the admin client — gated in code first.
 // Secrets and secret_id are never selected here.
 
+import { revalidatePath } from "next/cache"
+
 import { hasPermission } from "@/lib/permissions.server"
 import { createClient } from "@/lib/supabase/server"
-import { isMissingConnectionsRelation, recheckHospitableConnection } from "@/lib/pms-connections.server"
+import {
+  createStaffConnection,
+  isMissingConnectionsRelation,
+  recheckHospitableConnection,
+  type StaffCreateResult,
+} from "@/lib/pms-connections.server"
 import {
   pmsProviderLabel,
   type PmsConnectionStatus,
@@ -36,6 +43,7 @@ export type StaffPmsConnection = {
   id: string
   provider: string
   providerLabel: string
+  label: string | null
   status: PmsConnectionStatus
   tokenLast4: string | null
   expiresAt: string | null
@@ -101,7 +109,7 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
     supabase
       .from("client_pms_connections")
       .select(
-        "id, provider, provider_name, status, token_last4, expires_at, remind_at, property_count, last_validated_at, last_error_code, client_note, submitted_via, reviewed_at, review_note, disconnected_at, created_at, reviewer:profiles!client_pms_connections_reviewed_by_fkey(full_name, email)"
+        "id, provider, provider_name, label, status, token_last4, expires_at, remind_at, property_count, last_validated_at, last_error_code, client_note, submitted_via, reviewed_at, review_note, disconnected_at, created_at, reviewer:profiles!client_pms_connections_reviewed_by_fkey(full_name, email)"
       )
       .eq("client_id", clientId)
       .order("created_at", { ascending: false }),
@@ -132,6 +140,7 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
     id: string
     provider: string
     provider_name: string | null
+    label: string | null
     status: PmsConnectionStatus
     token_last4: string | null
     expires_at: string | null
@@ -178,6 +187,7 @@ export async function loadClientConnectionsAction(clientId: string): Promise<Res
         id: r.id,
         provider: r.provider,
         providerLabel: pmsProviderLabel(r.provider, r.provider_name),
+        label: r.label,
         status: r.status,
         tokenLast4: r.token_last4,
         expiresAt: r.expires_at,
@@ -274,6 +284,63 @@ export async function recheckPmsConnectionAction(
   if (!user) return { ok: false, error: "Not signed in" }
   const result = await recheckHospitableConnection(connectionId, user.id)
   return result.ok ? result : { ok: false, error: result.error }
+}
+
+const NO_EDIT_PERMISSION = "You don't have permission to manage data connections"
+
+/**
+ * Staff add a client's PMS key from the Hub. The admin client (Vault write)
+ * bypasses RLS, so the permission check here is the gate and fails closed.
+ * Values are never logged, returned or kept after the call.
+ */
+export async function addPmsConnectionStaffAction(input: {
+  clientId: string
+  provider: string
+  values: Record<string, string>
+  label?: string | null
+  expiresAt?: string | null
+}): Promise<StaffCreateResult> {
+  if (!input || typeof input !== "object" || !UUID.test(input.clientId ?? "")) {
+    return { ok: false, error: "Invalid client" }
+  }
+  let allowed = false
+  try {
+    allowed = (await hasPermission("data_connections", "edit")) === true
+  } catch {
+    allowed = false
+  }
+  if (!allowed) return { ok: false, error: NO_EDIT_PERMISSION }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: "Not signed in" }
+
+  const result = await createStaffConnection(
+    input.clientId,
+    user.id,
+    {
+      provider: input.provider,
+      values: input.values,
+      label: input.label ?? null,
+      expiresAt: input.expiresAt ?? null,
+    },
+    {
+      // Runs as the staff session: the function re-checks the permission and
+      // stamps reviewed_by, so the history shows who verified it.
+      markVerified: async (connectionId) => {
+        const { data, error } = await supabase.rpc("pms_connection_review", {
+          p_connection_id: connectionId,
+          p_decision: "verified",
+          p_note: "Added by staff in the Hub",
+        })
+        return !error && data === true
+      },
+    }
+  )
+  if (result.ok) revalidatePath(`/clients/${input.clientId}`)
+  return result
 }
 
 export type MappingChange =
